@@ -1,11 +1,10 @@
-﻿
-# White Knuckle Multi Player Mod - White Node Online MOD
+﻿# White Knuckle Multi Player Mod - White Knuckle Online MOD
 
-**[中文]()** | **English**
+**[中文](README_CN.md)** | **English**
 
 ## Overview
 
-This is a Unity MOD for the game  *White Node* , implementing basic networked player mapping (currently only maps grabbable player capsules).
+This is a Unity MOD for the game  *White Knuckle* , implementing basic networked player mapping (currently only maps grabbable player capsules).
 
  **Important Disclaimer** :
 
@@ -19,13 +18,13 @@ This is a Unity MOD for the game  *White Node* , implementing basic networked pl
 
 ## Installation
 
-Download the required `.dll` files from the [Releases](https://github.com/your-username/repo-name/releases) page and place them into the `BepInEx/plugins` directory within your game folder.
+Download the required `.dll` files from the [Releases](https://github.com/Shen-X-L/WKMultiMod/releases) page and place them into the `BepInEx/plugins` directory within your game folder.
 
 ## Quick Start
 
 ### Prerequisites
 
-1. **Game** : *White Node*
+1. **Game** : *White Knuckle*
 2. **Framework** : [BepInEx](https://github.com/BepInEx/BepInEx) (Use a version compatible with your game version)
 
 ### Installation Steps
@@ -34,7 +33,7 @@ Download the required `.dll` files from the [Releases](https://github.com/your-u
 
 ```
 # 1. Clone this repository locally
-git clone https://github.com/your-username/repo-name.git
+git clone https://github.com/Shen-X-L/WKMultiMod.git
 
 # 2. Build the MOD
 # Method A: Open and build WhiteKnuckleMod.sln in Visual Studio
@@ -45,7 +44,8 @@ dotnet build -c Release
 ### Manual Installation
 
 1. Copy the built `WhiteKnuckleMod.dll` file into your game directory's `BepInEx\plugins\` folder.
-2. Launch the game and check the BepInEx console or log files to confirm the MOD loaded successfully.
+2. Copy the dependency `LiteNetLib.dll` file to the same `BepInEx\plugins\` folder.
+3. Launch the game and check the BepInEx console or log files to confirm the MOD loaded successfully.
 
 ## Project Structure
 
@@ -122,21 +122,16 @@ Welcome to submit Issues for bug reports or suggestions! Pull Requests are also 
 * Add comments to explain critical sections.
 * Please test new features thoroughly.
 
-## License
+## Important Copyright Notice:
 
-The code portion of this project is licensed under the **MIT License** - see the [LICENSE](https://license/) file for details.
-
- **Important Copyright Notice** :
-
-* The source code of this MOD is licensed under the MIT License.
-* The game *White Node* and its related DLL files are copyright of their respective developers/publishers.
-* Use of this MOD requires you to own a legitimate copy of the game  *White Node* .
+* The game *White Knuckle* and its related DLL files are copyright of their respective developers/publishers.
+* Use of this MOD requires you to own a legitimate copy of the game  *White Knuckle* .
 
 ## Acknowledgments
 
 * **[Harmony](https://github.com/pardeike/Harmony)** - A powerful .NET runtime patching library.
 * **[BepInEx](https://github.com/BepInEx/BepInEx)** - An excellent plugin framework for Unity games.
-* ***White Node* Game Community** - For inspiration and testing assistance.
+* ***White Knuckle* Game Community** - For inspiration and testing assistance.
 * **Original Online Mod Author(s)** - For laying the groundwork with their open-source code.
 
 ## Contact
