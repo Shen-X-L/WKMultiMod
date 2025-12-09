@@ -39,7 +39,7 @@ Download the required `.dll` files from the [Releases](https://github.com/Shen-X
 
 ### Prerequisites
 
-1. **Game** : *White Knuckle*
+1. **Game** : *White Knuckle b-0.52a* 
 2. **Framework** : [BepInEx](https://github.com/BepInEx/BepInEx) (Use a version compatible with your game version)
 
 ### Installation Steps
