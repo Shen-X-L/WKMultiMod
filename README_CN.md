@@ -39,7 +39,7 @@
 
 ### 前提条件
 
-1. **游戏** :《白色节点》
+1. **游戏** :《White Knuckle》b-0.52a
 2. **框架** :[BepInEx](https://github.com/BepInEx/BepInEx) (请使用与游戏版本兼容的版本)
 
 ### 安装步骤
