@@ -7,18 +7,30 @@ namespace WKMultiMod.src.Component;
 
 // MultiPlayerComponent: 管理玩家的网络同步位置和旋转
 public class MultiPlayerComponent : MonoBehaviour {
-	int id;  // 玩家ID, 用于在网络中识别不同的玩家实例
+	public int id;  // 玩家ID, 用于在网络中识别不同的玩家实例
 
 	// 更新玩家位置的方法
-	public void UpdatePosition(Vector3 new_position) {
+	public void UpdatePosition(Vector3 newPosition) {
 		// 实际更新游戏对象的位置
-		transform.position = new_position;
+		transform.position = newPosition;
 	}
 
 	// 更新玩家旋转的方法
-	public void UpdateRotation(Vector3 new_rotation) {
+	public void UpdateRotation(Vector3 newRotation) {
 		// 设置游戏对象的欧拉角旋转
-		transform.eulerAngles = new_rotation;
+		transform.eulerAngles = newRotation;
+	}
+}
+
+// MultiPlayerComponent: 管理玩家手部的网络同步位置和旋转
+public class MultiPlayerHandComponent : MonoBehaviour {
+	public int id;  // 玩家ID, 用于在网络中识别不同的玩家实例
+	public int hand; // 手部标识, 0表示左手, 1表示右手
+
+	// 更新手部位置的方法
+	public void UpdateLoaclPosition(Vector3 newLocalPosition) {
+		// 实际更新游戏手部的位置
+		transform.localPosition = newLocalPosition;
 	}
 }
 

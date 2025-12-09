@@ -2,12 +2,16 @@
 using LiteNetLib.Utils;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Numerics;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Device;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using WKMultiMod.Main;
 using WKMultiMod.src.Component;
+using Quaternion = UnityEngine.Quaternion;
+using Vector3 = UnityEngine.Vector3;
 
 namespace WKMultiMod.Core;
 
@@ -26,6 +30,10 @@ public class MultiPlayerCore : MonoBehaviour {
 	private int _maxPlayerCount;
 	// 玩家字典 - 存储所有玩家对象, 键为玩家ID, 值为GameObject
 	private Dictionary<int, GameObject> _remotePlayers = new Dictionary<int, GameObject>();
+	// 手部字典 - 存储所有玩家手部对象, 键为玩家ID, 值为GameObject
+	private Dictionary<int, GameObject> _remoteLeftHands = new Dictionary<int, GameObject>();
+	// 手部字典 - 存储所有玩家手部对象, 键为玩家ID, 值为GameObject
+	private Dictionary<int, GameObject> _remoteRightHands = new Dictionary<int, GameObject>();
 	// 下一个玩家ID - 用于分配唯一的玩家标识符
 	private int _nextPlayerId = 0;
 	// 世界种子 - 用于同步游戏世界生成
@@ -33,11 +41,12 @@ public class MultiPlayerCore : MonoBehaviour {
 
 	// 数据包类型枚举 - 定义不同类型的网络消息
 	enum PacketType {
-		TransformUpdate = 0,    // 位置和旋转更新
-		ConnectedToServer = 1,  // 连接成功通知
-		SeedUpdate = 2,         // 世界种子更新
-		CreatePlayer = 3,       // 创建新玩家
-		RemovePlayer = 4,      // 移除玩家
+		PlayerTransformUpdate = 0,  // 位置和旋转更新
+		HandTransformUpdate = 1,    // 手部位置和旋转更新
+		ConnectedToServer = 2,  // 连接成功通知
+		SeedUpdate = 3,         // 世界种子更新
+		CreatePlayer = 4,       // 创建新玩家
+		RemovePlayer = 5,       // 移除玩家
 	}
 
 	// 注意：日志通过 MultiPlayerMain.Logger 访问
@@ -65,14 +74,16 @@ public class MultiPlayerCore : MonoBehaviour {
 		if (_server != null && _server.IsRunning) _server.PollEvents();
 
 		// 如果已连接到服务器, 持续更新位置. 
-		if (_serverPeer != null && ENT_Player.GetPlayer() != null)
+		if (_serverPeer != null && ENT_Player.GetPlayer() != null) {
 			UpdatePlayerTransform();
+			UpdateHandTransform();
+		}
 	}
 
-	// 更新本地玩家位置并发送到服务器
+	// 客户端: 更新本地玩家位置并发送到服务器
 	private void UpdatePlayerTransform() {
 		NetDataWriter writer = new NetDataWriter();
-		writer.Put((int)PacketType.TransformUpdate);
+		writer.Put((int)PacketType.PlayerTransformUpdate);
 
 		// 获取本地玩家位置和旋转
 		Vector3 playerPosition = ENT_Player.GetPlayer().transform.position;
@@ -85,6 +96,32 @@ public class MultiPlayerCore : MonoBehaviour {
 		writer.Put(playerRotation.x);
 		writer.Put(playerRotation.y);
 		writer.Put(playerRotation.z);
+
+		// 发送到服务器
+		_serverPeer.Send(writer, DeliveryMethod.ReliableOrdered);
+	}
+
+	private void UpdateHandTransform() {
+		NetDataWriter writer = new NetDataWriter();
+		writer.Put((int)PacketType.HandTransformUpdate);
+		ENT_Player.Hand leftHand = ENT_Player.GetPlayer().hands[0];
+		ENT_Player.Hand rightHand = ENT_Player.GetPlayer().hands[1];
+		writer.Put(leftHand.IsFree());
+		writer.Put(rightHand.IsFree());
+		if (!leftHand.IsFree()) {
+			// 获取本地玩家手部位置
+			Vector3 LeftPosition = leftHand.GetHoldWorldPosition();
+			writer.Put(LeftPosition.x);
+			writer.Put(LeftPosition.y);
+			writer.Put(LeftPosition.z);
+		}
+		if (!rightHand.IsFree()) {
+			// 获取本地玩家手部位置
+			Vector3 RightPosition = rightHand.GetHoldWorldPosition();
+			writer.Put(RightPosition.x);
+			writer.Put(RightPosition.y);
+			writer.Put(RightPosition.z);
+		}
 
 		// 发送到服务器
 		_serverPeer.Send(writer, DeliveryMethod.ReliableOrdered);
@@ -179,7 +216,10 @@ public class MultiPlayerCore : MonoBehaviour {
 				Destroy(player.Value);
 			}
 		}
+
 		_remotePlayers.Clear();
+		_remoteLeftHands.Clear();
+		_remoteRightHands.Clear();
 
 		// 重置多人游戏活动标志
 		MultiPlayerMain.IsMultiplayerActive = false;
@@ -254,8 +294,12 @@ public class MultiPlayerCore : MonoBehaviour {
 		int packetType = reader.GetInt();
 
 		switch (packetType) {
-			case (int)PacketType.TransformUpdate:
-				ForwardTransformUpdate(peer, reader);
+			case (int)PacketType.PlayerTransformUpdate:
+				ForwardPlayerTransformUpdate(peer, reader);
+				break;
+
+			case (int)PacketType.HandTransformUpdate:
+				ForwardHandTransformUpdate(peer, reader);
 				break;
 		}
 
@@ -263,9 +307,18 @@ public class MultiPlayerCore : MonoBehaviour {
 	}
 
 	// 服务器端：转发位置更新给所有其他客户端
-	private void ForwardTransformUpdate(NetPeer peer, NetPacketReader reader) {
+	private void ForwardPlayerTransformUpdate(NetPeer peer, NetPacketReader reader) {
 		NetDataWriter writer = new NetDataWriter();
-		writer.Put((int)PacketType.TransformUpdate);
+		writer.Put((int)PacketType.PlayerTransformUpdate);
+		writer.Put((int)peer.Tag);
+		writer.Put(reader.GetRemainingBytes());
+		_server.SendToAll(writer, DeliveryMethod.ReliableOrdered, peer);
+	}
+
+	// 服务器端: 转发手部位置更新给所有其他客户端
+	private void ForwardHandTransformUpdate(NetPeer peer, NetPacketReader reader) {
+		NetDataWriter writer = new NetDataWriter();
+		writer.Put((int)PacketType.HandTransformUpdate);
 		writer.Put((int)peer.Tag);
 		writer.Put(reader.GetRemainingBytes());
 		_server.SendToAll(writer, DeliveryMethod.ReliableOrdered, peer);
@@ -305,8 +358,12 @@ public class MultiPlayerCore : MonoBehaviour {
 		int packetType = reader.GetInt();
 
 		switch (packetType) {
-			case (int)PacketType.TransformUpdate:
-				HandleTransformUpdate(reader);
+			case (int)PacketType.PlayerTransformUpdate:
+				HandlePlayerTransformUpdate(reader);
+				break;
+
+			case (int)PacketType.HandTransformUpdate:
+				HandleHandTransformUpdate(reader);
 				break;
 
 			case (int)PacketType.ConnectedToServer:
@@ -330,7 +387,7 @@ public class MultiPlayerCore : MonoBehaviour {
 	}
 
 	// 客户端：处理其他玩家的位置更新
-	private void HandleTransformUpdate(NetPacketReader reader) {
+	private void HandlePlayerTransformUpdate(NetPacketReader reader) {
 		int playerId = reader.GetInt();
 		Vector3 newPosition = new Vector3(
 			reader.GetFloat(),
@@ -350,6 +407,42 @@ public class MultiPlayerCore : MonoBehaviour {
 		MultiPlayerComponent player = _remotePlayers[playerId].GetComponent<MultiPlayerComponent>();
 		player.UpdatePosition(newPosition);
 		player.UpdateRotation(newRotation);
+	}
+
+	// 客户端：处理其他玩家手部位置更新
+	private void HandleHandTransformUpdate(NetPacketReader reader) {
+		int playerId = reader.GetInt();
+		bool isLeftFree = reader.GetBool();
+		bool isRightFree = reader.GetBool();
+		Vector3 leftLocalPosition = new Vector3((float)-0.4, (float)0.5, (float)0.3);
+		Vector3 rightLocalPosition = new Vector3((float)0.4, (float)0.5, (float)0.3);
+		if (!isLeftFree) {
+			// 左手世界坐标
+			Vector3 leftWorldPosition = new Vector3(
+				reader.GetFloat(),
+				reader.GetFloat(),
+				reader.GetFloat()
+			);
+			// 转为局部坐标
+			leftLocalPosition = _remotePlayers[playerId].transform.InverseTransformPoint(leftWorldPosition);
+		} 
+		if(!isRightFree) {
+			// 右手世界坐标
+			Vector3 rightWorldPosition = new Vector3(
+				reader.GetFloat(),
+				reader.GetFloat(),
+				reader.GetFloat()
+			);
+			// 转为局部坐标
+			rightLocalPosition = _remotePlayers[playerId].transform.InverseTransformPoint(rightWorldPosition);
+		}
+		// 没有该玩家则忽略
+		if (!_remoteLeftHands.ContainsKey(playerId) || !_remoteRightHands.ContainsKey(playerId)) return;
+		// 更新手部位置
+		MultiPlayerHandComponent leftHand = _remoteLeftHands[playerId].GetComponent<MultiPlayerHandComponent>();
+		leftHand.UpdateLoaclPosition(leftLocalPosition);
+		MultiPlayerHandComponent rightHand = _remoteRightHands[playerId].GetComponent<MultiPlayerHandComponent>();
+		rightHand.UpdateLoaclPosition(rightLocalPosition);
 	}
 
 	// 客户端：处理连接成功消息
@@ -386,6 +479,8 @@ public class MultiPlayerCore : MonoBehaviour {
 		if (_remotePlayers.ContainsKey(playerIdToRemove)) {
 			Destroy(_remotePlayers[playerIdToRemove]);
 			_remotePlayers.Remove(playerIdToRemove);
+			_remoteLeftHands.Remove(playerIdToRemove);
+			_remoteRightHands.Remove(playerIdToRemove);
 			MultiPlayerMain.Logger.LogInfo("[MP Mod client] 客户端已移除远程玩家: ID=" + playerIdToRemove);
 		}
 	}
@@ -482,75 +577,113 @@ public class MultiPlayerCore : MonoBehaviour {
 		MultiPlayerMain.Logger.LogInfo("[MP Mod] 所有连接已断开, 远程玩家已清理.");
 	}
 
-	// 创建玩家视觉表现
-	private void CreateRemotePlayer(int Tag) {
-		MultiPlayerMain.Logger.LogInfo("[MP Mod create] 创建玩家中" + Tag);
-
-		// 1. 创建玩家游戏对象
-		GameObject player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-		player.name = "RemotePlayer_" + Tag;
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 创建玩家对象");
-
-		// 2. 添加 ObjectTagger 组件
-		ObjectTagger tagger = player.AddComponent<ObjectTagger>();
+	// 创建可攀爬对象
+	private void CreateHandholdObject(GameObject gameObject) {
+		// 添加 ObjectTagger 组件
+		ObjectTagger tagger = gameObject.AddComponent<ObjectTagger>();
 		if (tagger != null) {
 			tagger.tags.Add("Handhold");
 		}
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 添加 ObjectTagger 组件");
 
-		// 3. 添加 CL_Handhold 组件 (攀爬逻辑)
-		CL_Handhold handholdComponent = player.AddComponent<CL_Handhold>();
+		// 添加 CL_Handhold 组件 (攀爬逻辑)
+		CL_Handhold handholdComponent = gameObject.AddComponent<CL_Handhold>();
 		if (handholdComponent != null) {
 			// 添加停止和激活事件
 			handholdComponent.stopEvent = new UnityEvent();
 			handholdComponent.activeEvent = new UnityEvent();
 		}
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 添加 CL_Handhold 组件");
 
-		// 4. 确保 渲染器 被赋值, 否则 材质 设置会崩溃
-		Renderer objectRenderer = player.GetComponent<Renderer>();
+		// 确保 渲染器 被赋值, 否则 材质 设置会崩溃
+		Renderer objectRenderer = gameObject.GetComponent<Renderer>();
 		if (objectRenderer != null) {
-			player.GetComponent<CL_Handhold>().handholdRenderer = objectRenderer;
+			gameObject.GetComponent<CL_Handhold>().handholdRenderer = objectRenderer;
 		}
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 分配 Renderer 给 CL_Handhold 组件");
+	}
 
-		// 5. 设置碰撞体为触发器 (Collider/Trigger)
-		CapsuleCollider collider = player.GetComponent<CapsuleCollider>();
-		if (collider != null) {
-			collider.isTrigger = true;
+	// 创建玩家视觉表现
+	private void CreateRemotePlayer(int tag) {
+		MultiPlayerMain.Logger.LogInfo("[MP Mod create] 创建玩家中" + tag);
+
+		// 创建玩家游戏对象
+		GameObject player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+		player.name = "RemotePlayer_" + tag;
+
+		CreateHandholdObject(player);
+
+		// 设置碰撞体为触发器 (Collider/Trigger)
+		CapsuleCollider playerCollider = player.GetComponent<CapsuleCollider>();
+		if (playerCollider != null) {
+			playerCollider.isTrigger = true;
 			// 调整尺寸 (胶囊体高2.0, 宽0.5, 中心在0.0)
-			collider.radius = 0.5f;
-			collider.height = 2.0f;
+			playerCollider.radius = 0.5f;
+			playerCollider.height = 2.0f;
 		}
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 添加并配置 CapsuleCollider 组件");
 
-		// 6. 添加 玩家 组件以处理位置和旋转更新
-		player.AddComponent<MultiPlayerComponent>();
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 添加 MultiplayerObject 组件");
+		// 添加 玩家 组件以处理位置和旋转更新
+		MultiPlayerComponent playerComponent = player.AddComponent<MultiPlayerComponent>();
+		playerComponent.id = tag;
 
-		// 7. 设置材质
+		// 设置材质
 		Material bodyMaterial = new Material(Shader.Find("Unlit/Color"));
 		bodyMaterial.color = Color.gray;
 		player.GetComponent<Renderer>().material = bodyMaterial;
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 设置玩家材质");
 
-		// 8. 创建文本子对象 (用来承载 TextMeshPro)
-		GameObject textObject = new GameObject("PlayerID_Text_" + Tag);
+		// 创建左右手子对象 暂时使用球形表示
+		GameObject leftHand = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+		GameObject rightHand = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+		leftHand.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f); // 缩小到0.2倍
+		rightHand.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
+		leftHand.name = "RemotePlayer_LeftHand_" + tag;
+		rightHand.name = "RemotePlayer_RightHand_" + tag;
+		leftHand.transform.SetParent(player.transform);
+		rightHand.transform.SetParent(player.transform);
+
+		CreateHandholdObject(leftHand);
+		CreateHandholdObject(rightHand);
+
+		// 设置碰撞体为触发器 (Collider/Trigger)
+		SphereCollider leftCollider = leftHand.GetComponent<SphereCollider>();
+		if (leftCollider != null) {
+			leftCollider.isTrigger = true;
+			// 调整尺寸 
+			leftCollider.radius = 0.2f;
+		}
+		SphereCollider rightCollider = rightHand.GetComponent<SphereCollider>();
+		if (rightCollider != null) {
+			rightCollider.isTrigger = true;
+			// 调整尺寸 
+			rightCollider.radius = 0.2f;
+		}
+
+		MultiPlayerHandComponent leftComponent = leftHand.AddComponent<MultiPlayerHandComponent>();
+		leftComponent.id = tag;
+		leftComponent.hand = 0;// 0 表示左手
+		MultiPlayerHandComponent rightComponent = rightHand.AddComponent<MultiPlayerHandComponent>();
+		rightComponent.id = tag;
+		rightComponent.hand = 1;// 1 表示右手
+
+		// 设置材质
+		Material leftHandMaterial = new Material(Shader.Find("Unlit/Color"));
+		leftHandMaterial.color = Color.white; // 设置为白色
+		leftHand.GetComponent<Renderer>().material = leftHandMaterial;
+		Material rightHandMaterial = new Material(Shader.Find("Unlit/Color"));
+		rightHandMaterial.color = Color.white; // 设置为白色
+		rightHand.GetComponent<Renderer>().material = rightHandMaterial;
+
+		// 创建文本子对象 (用来承载 TextMeshPro)
+		GameObject textObject = new GameObject("PlayerID_Text_" + tag);
 		textObject.transform.SetParent(player.transform);
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 创建文本子对象");
 
-		// 9. 设置文本框位置：略高于胶囊体
+		// 设置文本框位置：略高于胶囊体
 		textObject.transform.localPosition = new Vector3(0f, 1.5f, 0f);
 		textObject.transform.localRotation = Quaternion.identity;
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 设置文本框位置");
 
-		// 10. 添加 TextMesh 组件
+		// 添加 TextMesh 组件
 		TextMesh textMesh = textObject.AddComponent<TextMesh>();
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 添加 TextMesh 组件");
 
-		// 11. 配置文本内容和外观
+		// 配置文本内容和外观
 		if (textMesh != null) {
-			textMesh.text = "Player ID: " + Tag.ToString(); // 显示玩家 ID
+			textMesh.text = "Player ID: " + tag.ToString(); // 显示玩家 ID
 			textMesh.fontSize = 20;                         // TextMesh的字体大小单位不同
 			textMesh.characterSize = 0.1f;                  // 字符大小缩放
 			textMesh.anchor = TextAnchor.MiddleCenter;      // 对齐方式
@@ -565,23 +698,20 @@ public class MultiPlayerCore : MonoBehaviour {
 			textMesh.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
 		}
 
-		// 12. 添加 Billboard 组件 实现永远面向摄像机
+		// 添加 Billboard 组件 实现永远面向摄像机
 		textObject.AddComponent<LootAtComponent>();
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 添加并配置 TextMeshPro 组件");
 
-		// 13. 将玩家添加到字典中
-		_remotePlayers.Add(Tag, player);
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 玩家添加到字典");
+		// 将玩家添加到字典中
+		_remotePlayers.Add(tag, player);
+		_remoteLeftHands.Add(tag, leftHand);
+		_remoteRightHands.Add(tag, rightHand);
 
-		// 14. 设置为不销毁
+		// 设置为不销毁
 		DontDestroyOnLoad(player);
-		//MultiPlayerMain.Logger.LogInfo("[MP Mod create] 设置玩家为不销毁");
+
 
 		// 输出创建成功信息
-		MultiPlayerMain.Logger.LogInfo("[MP Mod create] 创建玩家成功 ID:" + Tag);
+		MultiPlayerMain.Logger.LogInfo("[MP Mod create] 创建玩家成功 ID:" + tag);
 		CommandConsole.Log("Creating Player with Tag: " + player.GetInstanceID());
 	}
 }
-
-
-
