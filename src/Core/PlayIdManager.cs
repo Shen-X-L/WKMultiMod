@@ -21,6 +21,12 @@ public class PlayerIdManager : MonoBehaviour {
 		SteamNetworkEvents.OnPlayerDisconnected -= ProcessSteamPlayerDisconnected;
 	}
 
+	public void ResetAll() {
+		_steamIdToPlayerId.Clear();
+		_playerIdToSteamId.Clear();
+		_nextPlayerId = 1;
+	}
+
 	/// <summary>
 	/// 分配新玩家ID映射
 	/// </summary>

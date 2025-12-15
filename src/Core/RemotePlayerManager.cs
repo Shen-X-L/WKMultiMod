@@ -29,8 +29,12 @@ public class RemotePlayerManager: MonoBehaviour {
 		MPMain.Logger.LogInfo("[MP Mod] 远程玩家管理器初始化完成");
 	}
 
-	// 清除全部玩家
 	void OnDestroy() {
+		ResetAll();
+	}
+
+	// 清除全部玩家
+	public void ResetAll() {
 		foreach (var container in _players.Values) {
 			container.Destroy();
 		}

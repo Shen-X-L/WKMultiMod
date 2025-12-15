@@ -48,10 +48,10 @@ public static class SteamNetworkEvents {
 	public static event Action<SteamId> OnPlayerConnected;
 	public static event Action<SteamId> OnPlayerDisconnected;
 
-	public static void TriggerSteamPlayerConnected(SteamId steamId)
+	public static void TriggerPlayerConnected(SteamId steamId)
 	=> OnPlayerConnected?.Invoke(steamId);
 
-	public static void TriggerSteamPlayerDisconnected(SteamId steamId)
+	public static void TriggerPlayerDisconnected(SteamId steamId)
 		=> OnPlayerDisconnected?.Invoke(steamId);
 
 	// 大厅事件

@@ -1,19 +1,14 @@
-﻿using LiteNetLib;
+﻿
 using LiteNetLib.Utils;
-using MonoMod.Core.Utils;
 using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using WKMultiMod.src.Data;
 using WKMultiMod.src.NetWork;
 using WKMultiMod.src.Util;
-using Object = UnityEngine.Object;
-using Quaternion = UnityEngine.Quaternion;
-using Vector3 = UnityEngine.Vector3;
 using static WKMultiMod.src.Data.MPDataSerializer;
 namespace WKMultiMod.src.Core;
 
@@ -57,11 +52,6 @@ public class MultiPlayerCore : MonoBehaviour {
 
 		Instance = this;
 
-		// 但是注意：如果MultiPlayerCore已经是SteamManager的子对象，
-		// SteamManager本身可能已经是DontDestroyOnLoad的
-		// 可选：如果需要在整个游戏生命周期中保持，可以添加
-		// DontDestroyOnLoad(gameObject);
-
 		// 初始化网络监听器和远程玩家管理器
 		InitializeAllManagers();
 	}
@@ -85,6 +75,8 @@ public class MultiPlayerCore : MonoBehaviour {
 			// 创建远程玩家管理器
 			RPManager = gameObject.AddComponent<RemotePlayerManager>();
 
+			// 订阅网络事件
+			SubscribeToEvents();
 			MPMain.Logger.LogInfo("[MP Mod init] 所有管理器初始化完成");
 
 		} catch (Exception e) {
@@ -146,7 +138,6 @@ public class MultiPlayerCore : MonoBehaviour {
 		if (scene.name == "Game-Main") {
 			// 注册命令和初始化世界数据
 			if (CommandConsole.instance != null) {
-				SubscribeToEvents();
 				RegisterCommands();
 			} else {
 				MPMain.Logger.LogError("[MP Mod] 场景加载后 CommandConsole 实例仍为 null, 无法注册命令.");
@@ -154,7 +145,6 @@ public class MultiPlayerCore : MonoBehaviour {
 		}
 		if (scene.name == "Main-Menu") {
 			// 返回主菜单时关闭连接 重设置
-			UnsubscribeFromEvents();
 			ResetStateVariables();
 		}
 	}
@@ -184,6 +174,9 @@ public class MultiPlayerCore : MonoBehaviour {
 	private void ResetStateVariables() {
 		IsMultiplayerActive = false;
 		IsChaosMod = false;
+
+		PlayerIdManager.ResetAll();
+		RPManager.ResetAll();
 	}
 
 	// 命令注册
@@ -198,15 +191,52 @@ public class MultiPlayerCore : MonoBehaviour {
 
 	// 命令实现
 	public void Host(string[] args) {
+		if (args.Length < 1) {
+			CommandConsole.LogError("Usage: host <room_name> [max_players]");
+			return;
+		}
 
+		string roomName = args[0];
+		int maxPlayers = args.Length >= 2 ? int.Parse(args[1]) : 4;
+
+		MPMain.Logger.LogInfo($"正在创建房间: {roomName}...");
+
+		// 使用协程版本
+		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
+			if (success) {
+				MPMain.Logger.LogInfo($"房间创建成功: {roomName} ID: {Steamworks.CurrentLobbyId.ToString()}");
+				StartMultiPlayerMode();
+
+			} else {
+				MPMain.Logger.LogError("房间创建失败");
+			}
+		});
 	}
 
 	public void Join(string[] args) {
+		if (args.Length < 1) {
+			CommandConsole.LogError("Usage: join <lobby_id>");
+			return;
+		}
 
+		if (ulong.TryParse(args[0], out ulong lobbyId)) {
+			MPMain.Logger.LogInfo($"正在加入房间: {lobbyId}...");
+
+			Steamworks.JoinRoom(lobbyId, (success) => {
+				if (success) {
+					MPMain.Logger.LogInfo("加入房间成功");
+					StartMultiPlayerMode();
+				} else {
+					MPMain.Logger.LogError("加入房间失败");
+				}
+			});
+		} else {
+			MPMain.Logger.LogError("无效的房间ID格式");
+		}
 	}
 
 	public void Leave(string[] args) {
-		UnsubscribeFromEvents();
+		Steamworks.DisconnectAll();
 		ResetStateVariables();
 		MPMain.Logger.LogInfo("[MP Mod] 所有连接已断开, 远程玩家已清理.");
 	}
