@@ -37,8 +37,6 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	void Awake() {
-		if(!SteamClient.IsValid)
-			SteamClient.Init(3195790, true);
 
 		Initialize();
 
@@ -281,6 +279,23 @@ public class MPSteamworks : MonoBehaviour {
 			MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 正在连接玩家: {playerId.Value}");
 		} catch (Exception ex) {
 			MPMain.Logger.LogError($"[MP Mod MPSteamworks] 连接玩家异常: {ex.Message}");
+		}
+	}
+
+	public void TestLobbyCreationSync(int maxPlayers) {
+		if (!SteamClient.IsValid) return;
+		try {
+			Lobby? lobbyResult = SteamMatchmaking.CreateLobbyAsync(maxPlayers).Result;
+			if (lobbyResult.HasValue) {
+				MPMain.Logger.LogInfo("[MP Mod TEST] 同步创建成功!");
+			} else {
+				MPMain.Logger.LogError("[MP Mod TEST] 同步创建失败: 结果为空");
+			}
+		} catch (Exception ex) {
+			MPMain.Logger.LogError($"[MP Mod TEST] 同步创建抛出 C# 异常: {ex.Message}");
+			// 如果这里捕获到异常，请记录并报告！
+		} catch {
+			MPMain.Logger.LogError("[MP Mod TEST] 同步创建抛出未知异常!");
 		}
 	}
 

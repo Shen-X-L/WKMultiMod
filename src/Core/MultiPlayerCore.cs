@@ -205,8 +205,10 @@ public class MultiPlayerCore : MonoBehaviour {
 			if (success) {
 				MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestG");
 				MPMain.Logger.LogInfo($"房间创建成功: {roomName} ID: {Steamworks.CurrentLobbyId.ToString()}");
+				MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestJ1");
 				StartMultiPlayerMode();
 			} else {
+				MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestJ2");
 				MPMain.Logger.LogError("房间创建失败");
 			}
 		});
