@@ -201,7 +201,9 @@ public class MultiPlayerCore : MonoBehaviour {
 
 		// 使用协程版本（内部已改为异步）
 		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
+			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestH");
 			if (success) {
+				MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestG");
 				MPMain.Logger.LogInfo($"房间创建成功: {roomName} ID: {Steamworks.CurrentLobbyId.ToString()}");
 				StartMultiPlayerMode();
 			} else {
@@ -341,7 +343,8 @@ public class MultiPlayerCore : MonoBehaviour {
 
 	// 加入大厅
 	private void ProcessLobbyEntered(Lobby lobby) {
-		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestD2");
+		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestD");
+		MPMain.Logger.LogWarning($"[MP Mod MPSteamworks] 房间创建成功，ID: {lobby.Id.ToString()}");
 	}
 
 	// 离开大厅

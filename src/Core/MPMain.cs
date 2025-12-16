@@ -4,6 +4,7 @@ using HarmonyLib;
 using WKMultiMod.src.Core;
 using Steamworks;
 using System;
+using UnityEngine;
 
 namespace WKMultiMod.src.Core;
 
@@ -12,7 +13,7 @@ public class MPMain : BaseUnityPlugin {
 
 	public const string ModGUID = "shenxl.MultiPalyerMod";
 	public const string ModName = "MultiPalyer Mod";
-	public const string ModVersion = "0.13.1";
+	public const string ModVersion = "0.13.1.11";
 
 	// 单例实例
 	public static MPMain Instance { get; set; }
@@ -43,11 +44,11 @@ public class MPMain : BaseUnityPlugin {
 		//// 1. 创建一个新的, GameObject
 		//GameObject coreGameObject = new GameObject("MultiplayerCore_DDOL");
 
-		//// 2. 将核心脚本添加到新对象上
-		//CoreInstance = coreGameObject.AddComponent<MultiPlayerCore>();
-
-		//// 3. 立即保护新对象 (被游戏创建初期销毁了,为什么?)
+		//// 2. 立即保护新对象 (被游戏创建初期销毁了,为什么?)
 		//DontDestroyOnLoad(coreGameObject);
+
+		//// 3. 添加该组件
+		//coreGameObject.AddComponent<MPMain>();
 
 		// 使用Harmony打补丁
 		_harmony = new Harmony($"{ModGUID}");
@@ -55,7 +56,6 @@ public class MPMain : BaseUnityPlugin {
 	}
 
 	private void OnDestroy() {
-		// 这个方法应该在场景切换时运行, 确认主组件被清理.
 		Logger.LogInfo("[MP Mod loading]MultiPalyerMain (启动器) 已被销毁.");
 	}
 }
