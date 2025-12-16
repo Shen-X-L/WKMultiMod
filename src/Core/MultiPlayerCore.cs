@@ -190,7 +190,7 @@ public class MultiPlayerCore : MonoBehaviour {
 	}
 
 	// 命令实现
-	public void Host(string[] args) {
+	public async void Host(string[] args) {
 		if (args.Length < 1) {
 			CommandConsole.LogError("Usage: host <room_name> [max_players]");
 			return;
@@ -201,19 +201,23 @@ public class MultiPlayerCore : MonoBehaviour {
 
 		MPMain.Logger.LogInfo($"正在创建房间: {roomName}...");
 
-		// 使用协程版本
-		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
-			if (success) {
-				MPMain.Logger.LogInfo($"房间创建成功: {roomName} ID: {Steamworks.CurrentLobbyId.ToString()}");
-				StartMultiPlayerMode();
-
-			} else {
-				MPMain.Logger.LogError("房间创建失败");
-			}
-		});
+		try {
+			// 使用异步版本
+			await Steamworks.CreateRoomAsync(roomName, maxPlayers, (success) => {
+				MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestF");
+				if (success) {
+					MPMain.Logger.LogInfo($"房间创建成功: {roomName} ID: {Steamworks.CurrentLobbyId.ToString()}");
+					StartMultiPlayerMode();
+				} else {
+					MPMain.Logger.LogError("房间创建失败");
+				}
+			});
+		} catch (Exception ex) {
+			MPMain.Logger.LogError($"创建房间异常: {ex.Message}");
+		}
 	}
 
-	public void Join(string[] args) {
+	public async void Join(string[] args) {
 		if (args.Length < 1) {
 			CommandConsole.LogError("Usage: join <lobby_id>");
 			return;
@@ -222,14 +226,18 @@ public class MultiPlayerCore : MonoBehaviour {
 		if (ulong.TryParse(args[0], out ulong lobbyId)) {
 			MPMain.Logger.LogInfo($"正在加入房间: {lobbyId}...");
 
-			Steamworks.JoinRoom(lobbyId, (success) => {
-				if (success) {
-					MPMain.Logger.LogInfo("加入房间成功");
-					StartMultiPlayerMode();
-				} else {
-					MPMain.Logger.LogError("加入房间失败");
-				}
-			});
+			try {
+				await Steamworks.JoinRoomAsync(lobbyId, (success) => {
+					if (success) {
+						MPMain.Logger.LogInfo("加入房间成功");
+						StartMultiPlayerMode();
+					} else {
+						MPMain.Logger.LogError("加入房间失败");
+					}
+				});
+			} catch (Exception ex) {
+				MPMain.Logger.LogError($"加入房间异常: {ex.Message}");
+			}
 		} else {
 			MPMain.Logger.LogError("无效的房间ID格式");
 		}
@@ -344,6 +352,7 @@ public class MultiPlayerCore : MonoBehaviour {
 
 	// 加入大厅
 	private void ProcessLobbyEntered(Lobby lobby) {
+		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestD2");
 	}
 
 	// 离开大厅
