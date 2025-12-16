@@ -24,8 +24,6 @@ public class MultiPlayerCore : MonoBehaviour {
 	public PlayerIdManager PlayerIdManager { get; private set; }
 	public RemotePlayerManager RPManager { get; private set; }
 
-	// 最大玩家数量
-	private int _maxPlayerCount;
 	// 下一个可用玩家ID
 	private int _nextPlayerId = 0;
 	// 单独的方法来获取并递增
@@ -190,7 +188,7 @@ public class MultiPlayerCore : MonoBehaviour {
 	}
 
 	// 命令实现
-	public async void Host(string[] args) {
+	public void Host(string[] args) {
 		if (args.Length < 1) {
 			CommandConsole.LogError("Usage: host <room_name> [max_players]");
 			return;
@@ -201,23 +199,18 @@ public class MultiPlayerCore : MonoBehaviour {
 
 		MPMain.Logger.LogInfo($"正在创建房间: {roomName}...");
 
-		try {
-			// 使用异步版本
-			await Steamworks.CreateRoomAsync(roomName, maxPlayers, (success) => {
-				MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestF");
-				if (success) {
-					MPMain.Logger.LogInfo($"房间创建成功: {roomName} ID: {Steamworks.CurrentLobbyId.ToString()}");
-					StartMultiPlayerMode();
-				} else {
-					MPMain.Logger.LogError("房间创建失败");
-				}
-			});
-		} catch (Exception ex) {
-			MPMain.Logger.LogError($"创建房间异常: {ex.Message}");
-		}
+		// 使用协程版本（内部已改为异步）
+		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
+			if (success) {
+				MPMain.Logger.LogInfo($"房间创建成功: {roomName} ID: {Steamworks.CurrentLobbyId.ToString()}");
+				StartMultiPlayerMode();
+			} else {
+				MPMain.Logger.LogError("房间创建失败");
+			}
+		});
 	}
 
-	public async void Join(string[] args) {
+	public void Join(string[] args) {
 		if (args.Length < 1) {
 			CommandConsole.LogError("Usage: join <lobby_id>");
 			return;
@@ -226,18 +219,14 @@ public class MultiPlayerCore : MonoBehaviour {
 		if (ulong.TryParse(args[0], out ulong lobbyId)) {
 			MPMain.Logger.LogInfo($"正在加入房间: {lobbyId}...");
 
-			try {
-				await Steamworks.JoinRoomAsync(lobbyId, (success) => {
-					if (success) {
-						MPMain.Logger.LogInfo("加入房间成功");
-						StartMultiPlayerMode();
-					} else {
-						MPMain.Logger.LogError("加入房间失败");
-					}
-				});
-			} catch (Exception ex) {
-				MPMain.Logger.LogError($"加入房间异常: {ex.Message}");
-			}
+			Steamworks.JoinRoom(lobbyId, (success) => {
+				if (success) {
+					MPMain.Logger.LogInfo("加入房间成功");
+					StartMultiPlayerMode();
+				} else {
+					MPMain.Logger.LogError("加入房间失败");
+				}
+			});
 		} else {
 			MPMain.Logger.LogError("无效的房间ID格式");
 		}

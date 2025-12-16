@@ -282,9 +282,27 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 创建房间（主机模式）- 异步版本
+	/// 创建房间（主机模式）- 协程版本（内部使用异步）
 	/// </summary>
-	public async Task CreateRoomAsync(string roomName, int maxPlayers, Action<bool> callback) {
+	public IEnumerator CreateRoomCoroutine(string roomName, int maxPlayers, Action<bool> callback) {
+		// 启动异步任务并在协程中等待
+		var task = CreateRoomInternalAsync(roomName, maxPlayers, callback);
+
+		// 等待异步任务完成
+		while (!task.IsCompleted) {
+			yield return null;
+		}
+
+		// 如果任务有异常，在这里处理
+		if (task.IsFaulted) {
+			MPMain.Logger.LogError($"[MP Mod MPSteamworks] 创建房间任务异常: {task.Exception?.Message}");
+		}
+	}
+
+	/// <summary>
+	/// 内部异步创建房间方法
+	/// </summary>
+	private async Task CreateRoomInternalAsync(string roomName, int maxPlayers, Action<bool> callback) {
 		bool success = false;
 		Exception exception = null;
 
@@ -300,7 +318,7 @@ public class MPSteamworks : MonoBehaviour {
 
 			if (!lobbyTask.HasValue) {
 				MPMain.Logger.LogError("[MP Mod MPSteamworks] 创建房间失败");
-				callback?.Invoke(false);
+				await InvokeOnMainThread(() => callback?.Invoke(false));
 				return;
 			}
 
@@ -326,12 +344,11 @@ public class MPSteamworks : MonoBehaviour {
 
 			MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 房间创建成功，ID: {_currentLobby.Id.Value.ToString()}");
 
-			// 触发大厅进入事件（在主线程执行）
-			await Task.Run(() => {
-				MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestD1");
+			// 触发大厅进入事件
+			await InvokeOnMainThread(() => {
 				SteamNetworkEvents.TriggerLobbyEntered(_currentLobby);
 			});
-			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestD3");
+
 			success = true;
 
 		} catch (Exception ex) {
@@ -343,16 +360,34 @@ public class MPSteamworks : MonoBehaviour {
 		await InvokeOnMainThread(() => {
 			callback?.Invoke(success);
 		});
-		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestE");
+
 		if (exception != null) {
 			throw new Exception("[MP Mod MPSteamworks] 创建房间失败", exception);
 		}
 	}
 
 	/// <summary>
-	/// 加入房间（客户端模式）- 异步版本
+	/// 加入房间（客户端模式）- 协程版本（内部使用异步）
 	/// </summary>
-	public async Task JoinRoomAsync(ulong lobbyId, Action<bool> callback) {
+	public IEnumerator JoinRoomCoroutine(ulong lobbyId, Action<bool> callback) {
+		// 启动异步任务并在协程中等待
+		var task = JoinRoomInternalAsync(lobbyId, callback);
+
+		// 等待异步任务完成
+		while (!task.IsCompleted) {
+			yield return null;
+		}
+
+		// 如果任务有异常，在这里处理
+		if (task.IsFaulted) {
+			MPMain.Logger.LogError($"[MP Mod MPSteamworks] 加入房间任务异常: {task.Exception?.Message}");
+		}
+	}
+
+	/// <summary>
+	/// 内部异步加入房间方法
+	/// </summary>
+	private async Task JoinRoomInternalAsync(ulong lobbyId, Action<bool> callback) {
 		bool success = false;
 		Exception exception = null;
 		Lobby? lobbyResult = null;
@@ -384,7 +419,7 @@ public class MPSteamworks : MonoBehaviour {
 			// 4. 连接到房主
 			var hostSteamId = _currentLobby.Owner.Id;
 			if (hostSteamId != SteamClient.SteamId) {
-				bool connectSuccess = await ConnectToPlayerAsync(hostSteamId);
+				bool connectSuccess = await ConnectToPlayerInternalAsync(hostSteamId);
 				if (!connectSuccess) {
 					MPMain.Logger.LogWarning($"[MP Mod MPSteamworks] 连接到房主失败，但已加入大厅");
 					success = false;
@@ -395,7 +430,7 @@ public class MPSteamworks : MonoBehaviour {
 			if (success) {
 				await Task.Yield(); // 等待一帧，分离连接/回调与事件触发
 				MPMain.Logger.LogInfo("[MP Mod] LOG Trigger: 准备触发大厅进入事件 (Join)");
-				await Task.Run(() => {
+				await InvokeOnMainThread(() => {
 					SteamNetworkEvents.TriggerLobbyEntered(_currentLobby);
 				});
 				MPMain.Logger.LogInfo("[MP Mod] LOG Trigger: 事件触发完毕 (Join)");
@@ -421,9 +456,9 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 连接到指定玩家 - 异步版本
+	/// 内部异步连接玩家方法
 	/// </summary>
-	private async Task<bool> ConnectToPlayerAsync(SteamId playerId) {
+	private async Task<bool> ConnectToPlayerInternalAsync(SteamId playerId) {
 		bool success = false;
 		Exception exception = null;
 		ConnectionManager connectionManager = null;
@@ -453,7 +488,7 @@ public class MPSteamworks : MonoBehaviour {
 					_allConnections.Remove(playerId);
 					return false;
 				}
-				await Task.Delay(10); // 每10毫秒检查一次，替代 yield return null
+				await Task.Delay(10); // 每10毫秒检查一次
 			}
 
 			MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 连接玩家成功: {playerId.Value.ToString()}");
@@ -475,31 +510,59 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	/// <summary>
+	/// 连接到指定玩家 - 协程版本（内部使用异步）
+	/// </summary>
+	private IEnumerator ConnectToPlayerCoroutine(SteamId playerId, Action<bool> callback) {
+		// 启动异步任务并在协程中等待
+		var task = ConnectToPlayerInternalAsync(playerId);
+
+		// 等待异步任务完成
+		while (!task.IsCompleted) {
+			yield return null;
+		}
+
+		// 获取结果
+		bool success = task.IsCompletedSuccessfully ? task.Result : false;
+
+		// 直接调用回调（假设已经在主线程）
+		callback?.Invoke(success);
+
+		// 如果任务有异常，在这里处理
+		if (task.IsFaulted) {
+			MPMain.Logger.LogError($"[MP Mod MPSteamworks] 连接玩家任务异常: {task.Exception?.Message}");
+		}
+	}
+
+	/// <summary>
 	/// 在主线程执行委托（Unity 需要）
 	/// </summary>
 	private async Task InvokeOnMainThread(Action action) {
-		// Unity 中可以使用 UnitySynchronizationContext
+		// 这里使用 Unity 的主线程调度器
+		// 如果你有 UnityMainThreadDispatcher，可以这样使用：
+		// UnityMainThreadDispatcher.Instance().Enqueue(() => action?.Invoke());
+
+		// 如果没有，可以使用简单的 Task.Run
 		await Task.Run(() => {
-			// 这里应该使用 Unity 的主线程调度器
-			// 例如：UnityMainThreadDispatcher.Instance.Enqueue(action);
+			// 注意：如果涉及 Unity API，必须确保在主线程执行
+			// 这里假设 SteamNetworkEvents.TriggerLobbyEntered 是线程安全的
 			action?.Invoke();
 		});
 	}
-
 	/// <summary>
-	/// 创建房间的简便方法（保持兼容性）
+	/// 创建房间的简便方法
 	/// </summary>
 	public void CreateRoom(string roomName, int maxPlayers, Action<bool> callback) {
-		// 启动异步任务但不等待，防止阻塞调用者
-		_ = CreateRoomAsync(roomName, maxPlayers, callback).ConfigureAwait(false);
+		StartCoroutine(CreateRoomCoroutine(roomName, maxPlayers, callback));
 	}
 
 	/// <summary>
-	/// 加入房间的简便方法（保持兼容性）
+	/// 加入房间的简便方法
 	/// </summary>
 	public void JoinRoom(ulong lobbyId, Action<bool> callback) {
-		_ = JoinRoomAsync(lobbyId, callback).ConfigureAwait(false);
+		StartCoroutine(JoinRoomCoroutine(lobbyId, callback));
 	}
+
+
 	/// <summary>
 	/// 大厅进入 - 发布到总线
 	/// </summary>
