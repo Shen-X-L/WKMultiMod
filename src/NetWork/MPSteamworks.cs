@@ -282,6 +282,10 @@ public class MPSteamworks : MonoBehaviour {
 		}
 	}
 
+	/// <summary>
+	/// 纯测试 会卡死主进程
+	/// </summary>
+	/// <param name="maxPlayers"></param>
 	public void TestLobbyCreationSync(int maxPlayers) {
 		if (!SteamClient.IsValid) return;
 		try {
@@ -300,81 +304,8 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 创建房间（主机模式）- 纯协程轮询版本
+	/// 创建房间（主机模式）- 异步版本
 	/// </summary>
-	public IEnumerator CreateRoomCoroutine(string roomName, int maxPlayers, Action<bool> callback) {
-		bool success = false;
-
-		// 1. 断开连接并等待一帧
-		DisconnectAll();
-		yield return null;
-
-		MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 正在创建房间: {roomName}");
-
-		// 2. 启动异步操作 (不使用 await)
-		var lobbyTask = SteamMatchmaking.CreateLobbyAsync(maxPlayers);
-		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestA_Start");
-
-		// 3. 手动协程轮询 (安全等待)
-		while (!lobbyTask.IsCompleted) {
-			yield return null; // 每帧检查一次
-			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestB_while");
-		}
-		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestC_TaskCompleted");
-
-		// 4. 检查结果
-		if (!lobbyTask.Result.HasValue) {
-			MPMain.Logger.LogError("[MP Mod MPSteamworks] 创建房间失败: 结果为空");
-			callback?.Invoke(false);
-			yield break;
-		}
-		_currentLobby = lobbyTask.Result.Value;
-
-		// 5. 强制等待一帧，隔离 Task 完成上下文
-		yield return null;
-		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestD1_PostCompletionIsolation");
-
-		// 6. 敏感操作：设置大厅数据和创建 Socket
-
-			// 同步设置大厅数据
-			_currentLobby.SetData("name", roomName);
-			_currentLobby.SetData("game_version", Application.version);
-			_currentLobby.SetData("owner", SteamClient.SteamId.ToString());
-			_currentLobby.SetPublic();
-			_currentLobby.SetJoinable(true);
-			_currentLobby.Owner = new Friend(SteamClient.SteamId);
-
-			// 强制等待一帧，隔离 Socket 初始化
-			yield return null;
-		try {
-			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestD2_PreSocket");
-
-			_socketManager = SteamNetworkingSockets.CreateRelaySocket<SteamSocketManager>();
-			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestE_SocketSuccess");
-
-			MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 房间创建成功，ID: {_currentLobby.Id.Value.ToString()}");
-			success = true;
-
-		} catch (Exception ex) {
-			MPMain.Logger.LogError($"[MP Mod MPSteamworks] 房间配置失败: {ex.Message}");
-			success = false;
-		}
-
-		// 7. 事件触发 (如果需要，放在最安全的位置)
-		if (success) {
-			yield return null; // 隔离事件触发
-			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestF_PreTrigger");
-			// SteamNetworkEvents.TriggerLobbyEntered(_currentLobby); 
-			// 暂时不触发，如果成功再考虑加回
-		}
-
-		// 8. 最终回调 (隔离回调)
-		yield return null;
-		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestG_PreCallback");
-		callback?.Invoke(success);
-		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestH_Finished");
-	}
-
 	public async Task<bool> CreateRoomAsync(string roomName, int maxPlayers) {
 		// 启动异步操作
 		DisconnectAll();
@@ -385,8 +316,6 @@ public class MPSteamworks : MonoBehaviour {
 				MPMain.Logger.LogError("[MP Mod MPSteamworks] SteamClient 无效");
 				return false;
 			}
-
-			MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 正在创建房间: {roomName}");
 
 			// 核心：直接 await 任务
 			Lobby? lobbyResult = await SteamMatchmaking.CreateLobbyAsync(maxPlayers);
@@ -400,10 +329,23 @@ public class MPSteamworks : MonoBehaviour {
 			_currentLobby = lobbyResult.Value;
 
 			MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 房间创建成功，ID: {_currentLobby.Id.Value.ToString()}");
-			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] FINAL_A_AsyncFinished");
+
+			// 设置大厅信息
+			_currentLobby.SetData("name", roomName);
+			_currentLobby.SetData("game_version", Application.version);
+			_currentLobby.SetData("owner", SteamClient.SteamId.ToString());
+			_currentLobby.SetPublic();
+			_currentLobby.SetJoinable(true);
+			_currentLobby.Owner = new Friend(SteamClient.SteamId);
+
+			// 获取Socket
+			try {
+				_socketManager = SteamNetworkingSockets.CreateRelaySocket<SteamSocketManager>();
+			} catch (Exception socketEx) {
+				MPMain.Logger.LogError($"[MP Mod MPSteamworks] 创建Socket失败: {socketEx.Message}");
+			}
 
 			return true; // 成功
-
 		} catch (Exception ex) {
 			MPMain.Logger.LogError($"[MP Mod MPSteamworks] 创建房间异常: {ex.Message}");
 			return false; // 失败
@@ -412,8 +354,6 @@ public class MPSteamworks : MonoBehaviour {
 
 	// 重新定义 CreateRoom 公共方法
 	public void CreateRoom(string roomName, int maxPlayers, Action<bool> callback) {
-		// 启动新的纯协程
-		//StartCoroutine(CreateRoomCoroutine(roomName, maxPlayers, callback));
 		// 启动异步
 		StartCoroutine(RunAsync(CreateRoomAsync(roomName, maxPlayers), callback));
 	}
@@ -430,7 +370,7 @@ public class MPSteamworks : MonoBehaviour {
 
 			// 检查 RoomEnter 结果
 			if (result != RoomEnter.Success) {
-				throw new Exception($"Steam Lobby join failed: {result}");
+				throw new Exception($"Steam Lobby join failed: {result.ToString()}");
 			}
 
 			_currentLobby = lobby;
@@ -459,9 +399,11 @@ public class MPSteamworks : MonoBehaviour {
 
 	// 对应的启动方法简化
 	public void JoinRoom(ulong lobbyId, Action<bool> callback) {
+		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestBA");
 		Lobby lobby = new Lobby(lobbyId);
+		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestBB");
 		// 使用 Unity 的扩展方法来启动 async Task
-		this.StartCoroutine(RunAsync(JoinRoomAsync(lobby), callback));
+		StartCoroutine(RunAsync(JoinRoomAsync(lobby), callback));
 	}
 
 	/// <summary>
@@ -521,13 +463,10 @@ public class MPSteamworks : MonoBehaviour {
 		// 强制等待一帧，确保 Task 内部的上下文完全释放
 		yield return null;
 
-		MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestF2");
 		if (task.IsFaulted) {
-			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestG1");
 			MPMain.Logger.LogError($"[MP Mod MPSteamworks] 异步任务执行失败: {task.Exception.InnerException.Message}");
 			callback?.Invoke(false);
 		} else {
-			MPMain.Logger.LogWarning("[MP Mod MPSteamworks] TestG2");
 			// Task.Result 即为异步方法的返回值 (bool)
 			callback?.Invoke(task.Result);
 		}
