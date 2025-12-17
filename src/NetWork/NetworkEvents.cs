@@ -1,11 +1,7 @@
-﻿using LiteNetLib;
-using LiteNetLib.Utils;
+﻿using LiteNetLib.Utils;
 using Steamworks;
 using Steamworks.Data;
 using System;
-using System.Collections.Generic;
-using System.Text;
-using WKMultiMod.src.Data;
 
 namespace WKMultiMod.src.NetWork;
 
@@ -28,17 +24,13 @@ public static class SteamNetworkEvents {
 	public static void TriggerReceiveSteamData(ulong steamId, byte[] data)
 		=> OnReceiveData?.Invoke(steamId, data);
 
-	// 接收事件: 玩家入站连接信息 玩家 -> 主机
-	public static event Action<SteamId> OnPlayerInConnected;
-	// 接收事件: 玩家出站连接信息 主机 -> 玩家
-	public static event Action<SteamId> OnPlayerOutConnected;
+	// 接收事件: 玩家连接信息 玩家 -> 主机
+	public static event Action<SteamId> OnPlayerConnected;
 	// 接收事件: 断开连接
 	public static event Action<SteamId> OnPlayerDisconnected;
 
-	public static void TriggerPlayerInConnected(SteamId steamId)
-		=> OnPlayerInConnected?.Invoke(steamId);
-	public static void TriggerPlayerOutConnected(SteamId steamId)
-		=> OnPlayerOutConnected?.Invoke(steamId);
+	public static void TriggerPlayerConnected(SteamId steamId)
+		=> OnPlayerConnected?.Invoke(steamId);
 	public static void TriggerPlayerDisconnected(SteamId steamId)
 		=> OnPlayerDisconnected?.Invoke(steamId);
 

@@ -127,7 +127,7 @@ public class RemotePlayerContainer {
 	// 初始化方法 - 负责创建所有对象
 	public bool Initialize(Transform persistentParent = null) {
 		try {
-			MPMain.Logger.LogInfo($"[MP Mod RPContainer] 远程玩家映射创建 ID: {PlayId}");
+			MPMain.Logger.LogInfo($"[MP Mod RPContainer] 远程玩家映射创建 ID: {PlayId.ToString()}");
 
 			// 创建对象
 			CreatePlayerHierarchy();
@@ -137,10 +137,10 @@ public class RemotePlayerContainer {
 				PlayerObject.transform.SetParent(persistentParent, false);
 			}
 
-			MPMain.Logger.LogInfo($"[MP Mod RPContainer] 远程玩家映射成功 ID: {PlayId}");
+			MPMain.Logger.LogInfo($"[MP Mod RPContainer] 远程玩家映射成功 ID: {PlayId.ToString()}");
 			return true;
 		} catch (Exception ex) {
-			MPMain.Logger.LogError($"[MP Mod RPContainer] 远程玩家映射失败 ID: {PlayId}, Error: {ex.Message}");
+			MPMain.Logger.LogError($"[MP Mod RPContainer] 远程玩家映射失败 ID: {PlayId.ToString()}, Error: {ex.Message}");
 			CleanupOnFailure();
 			return false;
 		}

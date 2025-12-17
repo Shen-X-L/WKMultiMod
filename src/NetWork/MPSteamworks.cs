@@ -13,7 +13,6 @@ using WKMultiMod.src.Data;
 namespace WKMultiMod.src.NetWork;
 
 public class MPSteamworks : MonoBehaviour {
-	// 当前大厅(只读，用于查询)
 	private Lobby _currentLobby;
 
 	// 网络管理器(只做连接，不做业务逻辑)
@@ -133,6 +132,13 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	/// <summary>
+	/// 获取大厅ID
+	/// </summary>
+	public ulong GetLobbyId() {
+		return _currentLobby.Id.Value;
+	}
+
+	/// <summary>
 	/// 发送数据: 本机->总线->主机玩家
 	/// </summary>
 	private void HandleSendToHost(byte[] data, SendType sendType, ushort laneIndex) {
@@ -207,18 +213,11 @@ public class MPSteamworks : MonoBehaviour {
 	public void OnPlayerConnected(SteamId steamId, Connection connection, bool isIncoming) {
 		MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 玩家连接成功: {steamId.Value.ToString()}");
 
-		if (isIncoming) {
-			// 入站连接(其他玩家连接到我的监听Socket)
-			// 触发 玩家入站连接
-			SteamNetworkEvents.TriggerPlayerInConnected(steamId);
-		} else {
-			// 出站连接(其他玩家连接到我的监听Socket)
-			// 触发 玩家出站连接
-			SteamNetworkEvents.TriggerPlayerOutConnected(steamId);
-		}
-
 		// 记录连接
 		_allConnections[steamId] = connection;
+
+		// 触发 玩家连接
+		SteamNetworkEvents.TriggerPlayerConnected(steamId);
 	}
 
 	/// <summary>
@@ -233,24 +232,22 @@ public class MPSteamworks : MonoBehaviour {
 		_allConnections.Remove(steamId);
 	}
 
-	///// <summary>
-	///// 处理主机请求现有玩家列表
-	///// </summary>
-	//private void HandleHostRequestExistingPlayers(SteamId newPlayerSteamId) {
-	//	if (!IsHost) return;
+	/// <summary>
+	/// 处理主机请求现有玩家列表
+	/// </summary>
+	private void HandleHostRequestExistingPlayers(SteamId newPlayerSteamId) {
+		if (!MultiPlayerCore.Instance.IsHost) return;
 
-	//	// 获取所有连接中的SteamId(除了新玩家)
-	//	var existingSteamIds = new List<SteamId>();
-	//	foreach (var steamId in _allConnections.Keys) {
-	//		if (steamId != newPlayerSteamId && steamId != SteamClient.SteamId) {
-	//			existingSteamIds.Add(steamId);
-	//		}
-	//	}
-
-	//	// 需要Core将SteamId转换为PlayerId
-	//	// 这里只是记录，实际转换在Core中完成
-	//	MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 主机获取到 {existingSteamIds.Count} 个现有玩家连接");
-	//}
+		// 获取所有连接中的SteamId(除了新玩家)
+		var existingSteamIds = new List<SteamId>();
+		foreach (var steamId in _allConnections.Keys) {
+			if (steamId != newPlayerSteamId && steamId != SteamClient.SteamId) {
+				existingSteamIds.Add(steamId);
+			}
+		}
+		// 这里只是记录，实际转换在Core中完成
+		MPMain.Logger.LogInfo($"[MP Mod MPSteamworks] 主机获取到 {existingSteamIds.Count} 个现有玩家连接");
+	}
 
 	/// <summary>
 	/// 连接到指定玩家(纯网络连接，不处理业务逻辑)
@@ -288,11 +285,8 @@ public class MPSteamworks : MonoBehaviour {
 		} catch (Exception ex) {
 			MPMain.Logger.LogError($"[MP Mod TEST] 同步创建抛出 C# 异常: {ex.Message}");
 			// 如果这里捕获到异常，请记录并报告！
-		} catch {
-			MPMain.Logger.LogError("[MP Mod TEST] 同步创建抛出未知异常!");
 		}
 	}
-
 	/// <summary>
 	/// 创建房间(主机模式)- 异步版本
 	/// </summary>
@@ -539,6 +533,10 @@ public class MPSteamworks : MonoBehaviour {
 				instance.OnPlayerConnected(info.Identity.SteamId, connection, true);
 			}
 		}
+
+        public override void OnConnectionChanged(Connection connection, ConnectionInfo info) {
+            base.OnConnectionChanged(connection, info);
+        }
 
 		// 接收消息
 		public override void OnMessage(Connection connection, NetIdentity identity,

@@ -97,8 +97,7 @@ public class MultiPlayerCore : MonoBehaviour {
 		SteamNetworkEvents.OnLobbyMemberLeft += ProcessLobbyMemberLeft;
 
 		// 订阅玩家连接事件
-		SteamNetworkEvents.OnPlayerInConnected += ProcessPlayerInConnected;
-		SteamNetworkEvents.OnPlayerOutConnected += ProcessPlayerOutConnected;
+		SteamNetworkEvents.OnPlayerConnected += ProcessPlayerConnected;
 		SteamNetworkEvents.OnPlayerDisconnected += ProcessPlayerDisconnected;
 	}
 
@@ -115,8 +114,7 @@ public class MultiPlayerCore : MonoBehaviour {
 		SteamNetworkEvents.OnLobbyMemberLeft -= ProcessLobbyMemberLeft;
 
 		// 订阅玩家连接事件
-		SteamNetworkEvents.OnPlayerInConnected -= ProcessPlayerInConnected;
-		SteamNetworkEvents.OnPlayerOutConnected -= ProcessPlayerOutConnected;
+		SteamNetworkEvents.OnPlayerConnected -= ProcessPlayerConnected;
 		SteamNetworkEvents.OnPlayerDisconnected -= ProcessPlayerDisconnected;
 	}
 
@@ -178,13 +176,16 @@ public class MultiPlayerCore : MonoBehaviour {
 		CommandConsole.AddCommand("join", Join);
 		CommandConsole.AddCommand("leave", Leave);
 		CommandConsole.AddCommand("chaos", ChaosMod);
+		CommandConsole.AddCommand("getlobbyid", GetLobbyId);
 		MPMain.Logger.LogInfo("[MP Mod MPCore Scene] 命令集 注册成功");
 	}
 
 	// 命令实现
 	public void Host(string[] args) {
 		if (IsMultiplayerActive) {
-			CommandConsole.LogError("你已经在联机模式,请使用leave指令离开后再联机");
+			CommandConsole.LogError("You are already in online mode, \n" +
+				"please use the leave command to leave and then go online");
+			return;
 		}
 		if (args.Length < 1) {
 			CommandConsole.LogError("Usage: host <room_name> [max_players]");
@@ -211,7 +212,9 @@ public class MultiPlayerCore : MonoBehaviour {
 
 	public void Join(string[] args) {
 		if (IsMultiplayerActive) {
-			CommandConsole.LogError("你已经在联机模式,请使用leave指令离开后再联机");
+			CommandConsole.LogError("You are already in online mode, \n" +
+				"please use the leave command to leave and then go online");
+			return;
 		}
 		if (args.Length < 1) {
 			CommandConsole.LogError("Usage: join <lobby_id>");
@@ -251,6 +254,13 @@ public class MultiPlayerCore : MonoBehaviour {
 		}
 	}
 
+	public void GetLobbyId(string[] args) {
+		if (!IsMultiplayerActive) {
+			CommandConsole.LogError("Please use this command after online");
+			return;
+		}
+		CommandConsole.Log($"Lobby Id: {Steamworks.GetLobbyId().ToString()}");
+	}
 	/// <summary>
 	/// 发送初始化数据给新玩家
 	/// </summary>
@@ -290,18 +300,10 @@ public class MultiPlayerCore : MonoBehaviour {
 	/// <summary>
 	/// 处理玩家接入事件
 	/// </summary>
-	private void ProcessPlayerInConnected(SteamId steamId) {
+	private void ProcessPlayerConnected(SteamId steamId) {
 		MPMain.Logger.LogInfo($"[MP Mod MPCore Process] 玩家接入: {steamId.Value.ToString()}");
 		// 创建玩家
 		RPManager.CreatePlayer(steamId);
-	}
-
-	/// <summary>
-	/// 处理接出事件
-	/// </summary>
-	private void ProcessPlayerOutConnected(SteamId steamId) {
-		MPMain.Logger.LogInfo($"[MP Mod MPCore Process] 接出玩家: {steamId.Value.ToString()}");
-		// 主机发送发送初始化数据(世界种子等)
 		if (IsHost) {
 			SendInitializationDataToNewPlayer(steamId);
 		}
@@ -331,10 +333,6 @@ public class MultiPlayerCore : MonoBehaviour {
 			case PacketType.SeedUpdate:
 				ProcessSeedUpdate(reader.GetInt());
 				break;
-			// 创建玩家
-			//case PacketType.CreatePlayer:
-			//	RPManager.CreatePlayer(reader.GetULong());
-			//	break;
 			// 玩家数据更新
 			case PacketType.PlayerDataUpdate:
 				var playerData = MPDataSerializer.ReadFromNetData(reader);
