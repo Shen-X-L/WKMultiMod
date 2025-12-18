@@ -88,11 +88,11 @@ public class RemoteHandComponent : MonoBehaviour {
 	private bool _isFree = true;            // 是否空闲(未抓住对象)
 	private Vector3 _targetWorldPosition;   // 目标世界位置
 	private Vector3 _velocity = Vector3.zero;   // 当前速度,用于平滑插值
-	private Vector3 _defaultLocalPosition;
+	public Vector3 DefaultLocalPosition { get; private set; }
 
 	void Start() {
 		// 根据左右手设置不同的默认位置
-		_defaultLocalPosition = hand == PlayerData.HandType.Left
+		DefaultLocalPosition = hand == PlayerData.HandType.Left
 			? new Vector3(-0.4f, 0.5f, 0.4f)
 			: new Vector3(0.4f, 0.5f, 0.4f);
 	}
@@ -129,12 +129,9 @@ public class RemoteHandComponent : MonoBehaviour {
 	private Vector3 GetCurrentTargetPosition() {
 		if (_isFree) {
 			// 空闲状态：回到默认位置(相对于父对象)
-			if (transform.parent != null) {
-				return transform.parent.TransformPoint(_defaultLocalPosition);
-			} else {
-				// 如果没有父对象,使用默认位置作为世界坐标
-				return _defaultLocalPosition;
-			}
+			return (transform.parent != null)
+						? transform.parent.TransformPoint(DefaultLocalPosition)
+						: DefaultLocalPosition;
 		} else {
 			// 抓住对象状态：使用指定的世界位置
 			return _targetWorldPosition;
@@ -184,7 +181,7 @@ public class RemoteHandComponent : MonoBehaviour {
 
 	// 设置默认位置(可以动态调整,调试用)
 	public void SetDefaultLocalPosition(Vector3 localPosition) {
-		_defaultLocalPosition = localPosition;
+		DefaultLocalPosition = localPosition;
 
 		// 如果当前是空闲状态,立即更新目标
 		if (_isFree) {

@@ -8,12 +8,16 @@ using UnityEngine;
 using UnityEngine.Events;
 using WKMultiMod.src.Component;
 using WKMultiMod.src.Data;
+using WKMultiMod.src.Util;
 using static WKMultiMod.src.Data.PlayerData;
 
 namespace WKMultiMod.src.Core;
 
 // 生命周期为全局
 public class RemotePlayerManager : MonoBehaviour {
+
+	// Debug日志输出间隔
+	private TickTimer _debugTick = new TickTimer(5f);
 
 	// 存储所有远程对象
 	private static Dictionary<ulong, RemotePlayerContainer> _players = new Dictionary<ulong, RemotePlayerContainer>();
@@ -62,7 +66,7 @@ public class RemotePlayerManager : MonoBehaviour {
 
 		var root = coreTransform.Find(rootName);
 		if (root == null) {
-			// 如果找不到，创建一个(应该不会发生，因为EnsureRootObject已调用)
+			// 如果找不到,创建一个(应该不会发生,因为EnsureRootObject已调用)
 			root = new GameObject(rootName).transform;
 			root.SetParent(coreTransform, false);
 		}
@@ -72,6 +76,9 @@ public class RemotePlayerManager : MonoBehaviour {
 
 	// 创建玩家对象
 	public RemotePlayerContainer CreatePlayer(ulong playId) {
+		if (_players.TryGetValue(playId, out RemotePlayerContainer value))
+			return value;
+
 		var container = new RemotePlayerContainer(playId);
 
 		// 使用专门的根对象
@@ -91,12 +98,25 @@ public class RemotePlayerManager : MonoBehaviour {
 
 	// 处理玩家数据
 	public void ProcessPlayerData(ulong playId, PlayerData playerData) {
+
+		// Debug
+		if (_debugTick.Test()) {
+			MPMain.Logger.LogInfo($"[MP Mod RPContainer] 接收数据 " +
+				$"Player.Position: {playerData.Position.ToString()} " +
+				$"Player.Rotation: {playerData.Rotation.ToString()} " +
+				$"LeftHand.isFree: {playerData.LeftHand.IsFree.ToString()} " +
+				$"LeftHand: {playerData.LeftHand.Position.ToString()} " +
+				$"RightHand.isFree: {playerData.RightHand.IsFree.ToString()} " +
+				$"RightHand: {playerData.RightHand.Position.ToString()} ");
+		}
+
 		// 以后加上时间戳处理
 		var RPcontainer = _players[playId];
 		if (RPcontainer == null) {
 			MPMain.Logger.LogError($"[MP Mod RPMan] 未找到远程对象 ID: {playId.ToString()}");
 			return;
 		}
+
 		RPcontainer.UpdatePlayerData(playerData);
 		return;
 	}
@@ -107,6 +127,7 @@ public class RemotePlayerManager : MonoBehaviour {
 
 // 单个玩家的容器类
 public class RemotePlayerContainer {
+
 	public ulong PlayId { get; set; }
 	public GameObject PlayerObject { get; private set; }
 	public GameObject LeftHandObject { get; private set; }
@@ -118,9 +139,14 @@ public class RemotePlayerContainer {
 	private RemoteHandComponent _rightHandComponent;
 	private TextMesh _nameTextMesh;
 
+	// 初始化时直接传送玩家
+	private float _initializationTime;
+	private const float FORCED_TELEPORT_DURATION = 5.0f; // 强制传送持续时间
+
 	// 构造函数 - 只设置基本信息
 	public RemotePlayerContainer(ulong playId) {
 		PlayId = playId;
+		_initializationTime = Time.time;
 	}
 
 	// 初始化方法 - 负责创建所有对象
@@ -347,6 +373,7 @@ public class RemotePlayerContainer {
 
 	// 通过数据进行更新
 	public void UpdatePlayerData(PlayerData playerData) {
+
 		// 缺少部分对象
 		if (PlayerObject == null || LeftHandObject == null
 			|| RightHandObject == null || NameTagObject == null)
@@ -380,11 +407,22 @@ public class RemotePlayerContainer {
 			}
 		}
 
-		if (playerData.IsTeleport) {
+		// 判断是否处于初始化 5 秒内
+		bool isInInitPhase = (Time.time - _initializationTime) < FORCED_TELEPORT_DURATION;
+
+		if (playerData.IsTeleport || isInInitPhase) {
 			// 使用组件的传送方法
 			_playerComponent.Teleport(playerData.Position, playerData.Rotation);
-			_leftHandComponent.Teleport(playerData.LeftHand.Position);
-			_rightHandComponent.Teleport(playerData.RightHand.Position);
+			Vector3 leftTarget = playerData.LeftHand.IsFree
+					? PlayerObject.transform.TransformPoint(_leftHandComponent.DefaultLocalPosition)
+					: playerData.LeftHand.Position;
+			_leftHandComponent.Teleport(leftTarget);
+
+			// 3. 处理右手传送
+			Vector3 rightTarget = playerData.RightHand.IsFree
+				? PlayerObject.transform.TransformPoint(_rightHandComponent.DefaultLocalPosition)
+				: playerData.RightHand.Position;
+			_rightHandComponent.Teleport(rightTarget);
 		} else {
 			// 使用插值更新
 			_playerComponent.UpdatePosition(playerData.Position);

@@ -622,8 +622,8 @@
 
 //		// 添加第二个碰撞器 - 用于物理碰撞
 //		CapsuleCollider physicsCollider = player.AddComponent<CapsuleCollider>();
-//		physicsCollider.isTrigger = false;  // 不是触发器，用于物理阻挡
-//		physicsCollider.radius = 0.4f;     // 稍微小一点，避免重叠问题
+//		physicsCollider.isTrigger = false;  // 不是触发器,用于物理阻挡
+//		physicsCollider.radius = 0.4f;     // 稍微小一点,避免重叠问题
 //		physicsCollider.height = 1.8f;
 //		physicsCollider.center = new Vector3(0, 0.1f, 0); // 轻微偏移避免完全重叠
 
@@ -736,7 +736,7 @@
 //			textMesh.anchor = TextAnchor.MiddleCenter;      // 对齐方式
 
 //			// 设置颜色 - TextMesh自带的材质有透明通道
-//			textMesh.color = new Color(1f, 1f, 1f, 0.85f);  // 白色，85%透明度
+//			textMesh.color = new Color(1f, 1f, 1f, 0.85f);  // 白色,85%透明度
 
 //			// 但你可以设置一个深色背景来提高可读性：
 //			textMesh.fontStyle = FontStyle.Bold;            // 加粗

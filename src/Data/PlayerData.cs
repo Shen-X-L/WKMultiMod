@@ -25,36 +25,21 @@ public class PlayerData {
 	// 特殊标志
 	public bool IsTeleport;
 
-	// 辅助属性(不序列化)
-	[System.NonSerialized] private Vector3 _positionCache;
-	[System.NonSerialized] private Quaternion _rotationCache;
-
 	// PlayerId(8) + TimestampTicks(8) + 位置(12) + 旋转(16) + 
 	// 左手(13) + 右手(13) + IsTeleport(1)
 	// 包长度
 	public static int CalculateSize => 8 + 8 + 12 + 16 + 13 + 13 + 1;
 
 	public Vector3 Position {
-		get {
-			// 避免每次都new,但要注意线程安全
-			if (_positionCache == default)
-				_positionCache = new Vector3(PosX, PosY, PosZ);
-			return _positionCache;
-		}
+		get => new Vector3(PosX, PosY, PosZ); // 直接返回,无 GC 压力
 		set {
-			_positionCache = value;
 			PosX = value.x; PosY = value.y; PosZ = value.z;
 		}
 	}
 
 	public Quaternion Rotation {
-		get {
-			if (_rotationCache == default)
-				_rotationCache = new Quaternion(RotX, RotY, RotZ, RotW);
-			return _rotationCache;
-		}
+		get => new Quaternion(RotX, RotY, RotZ, RotW); // 永远返回当前字段的真实值
 		set {
-			_rotationCache = value;
 			RotX = value.x; RotY = value.y; RotZ = value.z; RotW = value.w;
 		}
 	}
@@ -72,7 +57,7 @@ public class PlayerData {
 }
 
 [System.Serializable]
-public class HandData {
+public struct HandData {
 	// 手部类型
 	public PlayerData.HandType handType;
 	// 是否空闲
@@ -82,19 +67,10 @@ public class HandData {
 	public float PosY;
 	public float PosZ;
 
-	[System.NonSerialized] private Vector3 _positionCache;
-
 	public Vector3 Position {
-		get {
-			if (_positionCache == default)
-				_positionCache = new Vector3(PosX, PosY, PosZ);
-			return _positionCache;
-		}
+		get => new Vector3(PosX, PosY, PosZ);
 		set {
-			_positionCache = value;
-			PosX = value.x;
-			PosY = value.y;
-			PosZ = value.z;
+			PosX = value.x; PosY = value.y; PosZ = value.z;
 		}
 	}
 }
@@ -112,6 +88,7 @@ public static class MPDataSerializer {
 		if (player == null) return null;
 
 		var data = new PlayerData {
+			playId = Id,
 			TimestampTicks = DateTime.UtcNow.Ticks
 		};
 
