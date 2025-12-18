@@ -5,7 +5,7 @@ using System.Text;
 using UnityEngine;
 using WKMultiMod.src.Core;
 using WKMultiMod.src.Data;
-using static WKMultiMod.src.Core.MultiPlayerCore;
+using static WKMultiMod.src.Core.MPCore;
 using static WKMultiMod.src.Data.PlayerData;
 
 namespace WKMultiMod.src.Component;

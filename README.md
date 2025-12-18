@@ -18,16 +18,51 @@ This is a Unity MOD for the game  *White Knuckle* , implementing basic networked
 
 * Chaotic object lifecycle management, which may lead to unexpected behavior.
 * Currently only supports mapping player capsules; synchronization for other objects is not yet implemented.
-* Using LiteNetLib requires a public IP address, LAN penetration tools, or IPv6 support; otherwise, multiplayer connection is impossible.
 * Log output contains extensive Chinese text and is quite messy, requiring manual filtering for relevant information.
 
 **Potential Future Goals:**
 
-* Implement Mass height synchronization.
-* Implement remote hand display.
-* Utilize Steam P2P for networking.
-* Implement object synchronization.
-* Implement player teleportation.
+```mermaid
+graph RL
+    %% Module 1: Player Display
+    subgraph Player Display
+        1a[Hand Sprites]
+        1b[Player Body Imported Models]
+        1c[Animated Body Models]
+        1d[Display Other Players' Held Items]
+        1e[Custom Hand Sprites]
+    end
+
+    %% Module 2: Player Interaction
+    subgraph Player Interaction
+        2a[Mutual Damage]
+        2b[Item Grabbing/Stealing]
+        2c[Add New Items]
+        2d[Player Teleportation]
+        2e[Respawn After Death]
+    end
+
+    %% Module 3: Data Synchronization
+    subgraph Data Synchronization
+        3a["Sync Man-made Structures (Rock Bolts, Rebars)"]
+        3b[Sync Inventory]
+        3c[Sync Pickup Items]
+        3d[Sync Mass Data]
+        3e[Sync Entity Data]
+    end
+
+    %% Module 4: Network Architecture
+    subgraph Network Architecture
+        4b["Support Hybrid Networking (Legacy LiteNetLib + Steam)"]
+    end
+
+    %% Dependency Connections (cross-module and within modules)
+    1a --> 1e
+    1b --> 1c
+    3b --> 1d
+    1a --> 1d
+    1d --> 2b
+```
 
 ---
 
@@ -39,7 +74,7 @@ Download the required `.dll` files from the [Releases](https://github.com/Shen-X
 
 ### Prerequisites
 
-1. **Game** : *White Knuckle b-0.52a* 
+1. **Game** : *White Knuckle b-0.52a*
 2. **Framework** : [BepInEx](https://github.com/BepInEx/BepInEx) (Use a version compatible with your game version)
 
 ### Installation Steps
@@ -68,16 +103,31 @@ dotnet build -c Release
 
 ```
 WhiteKnuckleMod/
-├── src/                          # Source code
-│   └── Core/                     # Core logic module
-│       ├── Patchers.cs           # Harmony patch class
-│       ├── MultiPlayerMain.cs    # BepInEx plugin entry point, manages lifecycle
-│       └── MultiPlayerCore.cs    # Core functionality class
-├── lib/                          # External dependency libraries (must be added manually)
-│   └── README.md                 # Instructions for obtaining dependencies
-├── WhiteKnuckleMod.sln           # Visual Studio Solution file
-├── WhiteKnuckleMod.csproj        # Project configuration file
-└── README.md                     # This document
+├── src/
+│   ├─ Component/
+│   │   └─ Component.cs              # Component class, handles network data
+│   ├─ Core/
+│   │   ├─ LocalPlayerManager.cs     # Local player info packaging class
+│   │   ├─ MPCore.cs                 # Core class, handles main events
+│   │   ├─ MPMain.cs                 # Startup class, initializes patches
+│   │   └─ RemotePlayerManager.cs    # Remote player object management
+│   ├─ Data/
+│   │   ├─ DataEnum.cs               # Enum definitions
+│   │   └─ PlayerData.cs             # Player network data + serialization utils
+│   ├─ NetWork/
+│   │   ├─ MPLiteNet.cs              # (Currently deprecated)
+│   │   ├─ MPSteamworks.cs           # Separated Steam networking logic
+│   │   └─ NetworkEvents.cs          # Network event bus
+│   ├─ Patch/
+│   │   └─ Patch.cs                  # Patches for interception/injection
+│   └─ Util/
+│       ├─ TickTimer.cs              # Debug output frequency counter
+│       └─ TypeConverter.cs          # String-to-bool utility
+├── lib/                            # External dependencies (add manually)
+│   └── README.md                   # Dependency acquisition guide
+├── WhiteKnuckleMod.sln
+├── WhiteKnuckleMod.csproj
+└── README.md
 ```
 
 ## Development Guide
@@ -103,13 +153,25 @@ The project file (`WhiteKnuckleMod.csproj`) is configured with key references an
 
 ## MOD Features Details
 
-### Online Functionality
+## Multiplayer Functionality
 
-After enabling cheats (`cheats`) in the game, use the following commands:
+### Version 0.13
 
-* `host <port> [max players]` - Create a host server.
+After enabling cheat mode (`cheats`) in-game, use the following commands:
+
+* `host <lobby_name> [max_players]` - Create a lobby.
+  * Example: `host abcde`
+* `getlobbyid` - Get the lobby room code.
+* `join <room_code>` - Join a lobby using the room code.
+  * Example: `join 109775241951624817`
+
+### Version 0.12
+
+After enabling cheat mode (`cheats`) in-game, use the following commands:
+
+* `host <port> [max_players]` - Host a server.
   * Example: `host 22222`
-* `join <IP address> <port>` - Join an existing host server.
+* `join <ip_address> <port>` - Join an existing host server.
   * Example: `join 127.0.0.1 22222` or `join [::1] 22222`
 * `leave` - Leave the current host server.
 

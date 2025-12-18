@@ -13,13 +13,13 @@ using WKMultiMod.src.Util;
 using static WKMultiMod.src.Data.MPDataSerializer;
 namespace WKMultiMod.src.Core;
 
-public class MultiPlayerCore : MonoBehaviour {
+public class MPCore : MonoBehaviour {
 
 	// Debug日志输出间隔
 	private TickTimer _debugTick = new TickTimer(5f);
 
 	// 单例实例
-	public static MultiPlayerCore Instance { get; private set; }
+	public static MPCore Instance { get; private set; }
 	// 标识这是否是"有效"实例(防止使用游戏初期被销毁的实例)
 	public static bool HasValidInstance => Instance != null && Instance.isActiveAndEnabled;
 

@@ -20,20 +20,20 @@ public class LocalPlayerManager: MonoBehaviour {
 
 	void Update() {
 		// 没有开启多人时停止更新
-		if (MultiPlayerCore.IsMultiplayerActive == false)
+		if (MPCore.IsMultiplayerActive == false)
 			return;
 		// 限制发送频率(20Hz)
 		if (Time.time - _lastSendTime < 0.05f)
 			return;
 		_lastSendTime = Time.time;
 		// 没有链接时停止更新
-		if (!MultiPlayerCore.Instance.Steamworks.HasConnections)
+		if (!MPCore.Instance.Steamworks.HasConnections)
 			return;
 
 
 
 		// 创建玩家数据
-		var playerData = MPDataSerializer.CreateLocalPlayerData(MultiPlayerCore.PlayerID);
+		var playerData = MPDataSerializer.CreateLocalPlayerData(MPCore.PlayerID);
 
 		//// Debug
 		//if(_debugTick.Test()){

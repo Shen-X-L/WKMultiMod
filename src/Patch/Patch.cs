@@ -23,7 +23,7 @@ public class Patch_SteamManager_Awake {
 		}
 
 		// 简化的检查：只看是否已经存在任何MultiPlayerCore实例
-		var existingCore = Object.FindObjectOfType<MultiPlayerCore>();
+		var existingCore = Object.FindObjectOfType<MPCore>();
 		if (existingCore != null) {
 			MPMain.Logger.LogWarning($"[MP Mod Patch] 已存在核心实例: {existingCore.name}");
 			_hasCoreInjected = true;
@@ -34,7 +34,7 @@ public class Patch_SteamManager_Awake {
 		try {
 			GameObject coreGameObject = new GameObject("MultiplayerCore_Injected");
 			coreGameObject.transform.SetParent(__instance.transform, false);
-			coreGameObject.AddComponent<MultiPlayerCore>();
+			coreGameObject.AddComponent<MPCore>();
 
 			MPMain.Logger.LogInfo($"[MP Mod Patch] MPCore 对象已成功注入 SteamManager");
 			_hasCoreInjected = true;
@@ -50,7 +50,7 @@ public class Patch_SteamManager_Awake {
 class Patch_Progression_ForceUnlock {
 	//bool 类型: 控制是否执行原方法 true=执行 false=跳过
 	static bool Prefix(ref bool __result) {
-		if (MultiPlayerCore.IsMultiplayerActive) {
+		if (MPCore.IsMultiplayerActive) {
 			__result = true; // 强制所有解锁检查通过
 			return false;    // 跳过原始的解锁检查逻辑
 		}
@@ -64,7 +64,7 @@ class Patch_Progression_ForceUnlock {
 public static class Patch_M_Level_Awake {
 	public static void Prefix(M_Level __instance) {
 		// 仅在联机模式下禁用关卡翻转
-		if (MultiPlayerCore.IsMultiplayerActive) {
+		if (MPCore.IsMultiplayerActive) {
 			// 禁用关卡翻转功能
 			__instance.canFlip = false;
 		}
@@ -78,7 +78,7 @@ public static class Patch_M_Level_Awake {
 class Patch_SpawnSettings_StandardizeChance {
 	public static bool Prefix(SpawnTable.SpawnSettings __instance, ref float __result) {
 		// 混乱模式下, 强制事件生成几率为 1.0f (100%)
-		if (MultiPlayerCore.IsChaosMod) {
+		if (MPCore.IsChaosMod) {
 			// 其他情况, 强制 1.0f
 			__result = 1f;
 			return false; // 跳过原始复杂的计算和过滤

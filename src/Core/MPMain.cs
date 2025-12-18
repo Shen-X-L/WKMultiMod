@@ -25,7 +25,7 @@ public class MPMain : BaseUnityPlugin {
 	private Harmony _harmony;
 
 	// 核心实例访问器
-	public static MultiPlayerCore Core => MultiPlayerCore.Instance;
+	public static MPCore Core => MPCore.Instance;
 
 	// Awake在对象创建时调用, 早于Start
 	private void Awake() {
