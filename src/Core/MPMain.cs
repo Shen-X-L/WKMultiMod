@@ -13,7 +13,7 @@ public class MPMain : BaseUnityPlugin {
 
 	public const string ModGUID = "shenxl.MultiPalyerMod";
 	public const string ModName = "MultiPalyer Mod";
-	public const string ModVersion = "0.13.3.2";
+	public const string ModVersion = "0.13.4.0";
 
 	// 单例实例
 	public static MPMain Instance { get; set; }

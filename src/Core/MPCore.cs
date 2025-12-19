@@ -281,7 +281,7 @@ public class MPCore : MonoBehaviour {
 		foreach (var connection in Steamworks._outgoingConnections) {
 			MPMain.Logger.LogInfo($"[MP Mod MPCore] 出站连接 Id: {connection.Key.ToString()}");
 		}
-		foreach (var connection in Steamworks._outConnections) {
+		foreach (var connection in Steamworks._allConnections) {
 			MPMain.Logger.LogInfo($"[MP Mod MPCore] 全部连接 Id: {connection.Key.ToString()}");
 		}
 	}
