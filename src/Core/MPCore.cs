@@ -102,7 +102,7 @@ public class MPCore : MonoBehaviour {
 
 		// 订阅大厅事件
 		SteamNetworkEvents.OnLobbyEntered += ProcessLobbyEntered;
-		SteamNetworkEvents.OnLobbyMemberJoined += ProcessLobbyMemberJoined;
+		//SteamNetworkEvents.OnLobbyMemberJoined += ProcessLobbyMemberJoined;
 		SteamNetworkEvents.OnLobbyMemberLeft += ProcessLobbyMemberLeft;
 
 		// 订阅玩家连接事件
@@ -119,7 +119,7 @@ public class MPCore : MonoBehaviour {
 
 		// 订阅大厅事件
 		SteamNetworkEvents.OnLobbyEntered -= ProcessLobbyEntered;
-		SteamNetworkEvents.OnLobbyMemberJoined -= ProcessLobbyMemberJoined;
+		//SteamNetworkEvents.OnLobbyMemberJoined -= ProcessLobbyMemberJoined;
 		SteamNetworkEvents.OnLobbyMemberLeft -= ProcessLobbyMemberLeft;
 
 		// 订阅玩家连接事件
@@ -218,7 +218,7 @@ public class MPCore : MonoBehaviour {
 		// 使用协程版本(内部已改为异步)
 		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
 			if (success) {
-				MultiPlaterModeInit(WorldLoader.instance.seed);
+				WorldLoader.ReloadWithSeed(new string[] { WorldLoader.instance.seed.ToString() });
 			} else {
 				CommandConsole.LogError("Fail to create lobby");
 			}
@@ -294,11 +294,12 @@ public class MPCore : MonoBehaviour {
 
 	// 协程请求种子
 	public IEnumerator InitHandshakeRoutine() {
+		yield return null;
 		MPMain.Logger.LogInfo($"[MPCore Send] 初始化情况{HasInitialized.ToString()}");
 		while (!HasInitialized) {
 			MPMain.Logger.LogInfo($"[MPCore Send] 已向主机请求初始化数据");
 			var writer = new NetDataWriter();
-			writer.Put((int)PacketType.RequestInitData);
+			writer.Put((int)PacketType.ConnectedToServer);
 			var requestData = MPDataSerializer.WriterToBytes(writer);
 			SteamNetworkEvents.TriggerSendToHost(requestData);
 			yield return new WaitForSeconds(2.0f);
@@ -306,46 +307,25 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 发送初始化数据给新玩家
-	/// </summary>
-	private void SendInitializationDataToNewPlayer(SteamId steamId) {
-		// 发送世界种子
-		var writer = new NetDataWriter();
-		writer.Put((int)PacketType.SeedUpdate);
-		writer.Put(WorldLoader.instance.seed);
-
-		var seedData = MPDataSerializer.WriterToBytes(writer);
-		SteamNetworkEvents.TriggerSendToPeer(seedData, steamId, SendType.Reliable);
-
-		// 可以添加其他初始化数据,如游戏状态、物品状态等
-
-		// Debug
-		MPMain.Logger.LogInfo($"[MPCore Send] 已向新玩家发送初始化数据");
-	}
-
-	/// <summary>
 	/// 处理大厅成员加入 连接新成员
 	/// </summary> 
+	[Obsolete("主机中心网络中不需要其他客户端去主动连接其他客户端")]
 	private void ProcessLobbyMemberJoined(SteamId steamId) {
 		if (steamId == SteamClient.SteamId) return;
 		// Debug
 		MPMain.Logger.LogInfo($"[MPCore Process] 玩家加入大厅: {steamId.ToString()}");
-		Steamworks.ConnectToPlayer(steamId);
+		// 在这里连接新成员
+		SteamNetworkEvents.TriggerConnectToPlayer(steamId);
 	}
 
 	// 加入大厅
 	private void ProcessLobbyEntered(Lobby lobby) {
 		// Debug
 		MPMain.Logger.LogWarning($"[MPCore Process] 正在加入房间,ID: {lobby.Id.ToString()}");
+		// 在这里连接主机
+		SteamNetworkEvents.TriggerConnectToHost();
 		// 启动协程发送请求初始化数据
 		StartCoroutine(InitHandshakeRoutine());
-		//在这里连接所有玩家
-		// 遍历大厅里已经在的所有成员
-		foreach (var member in lobby.Members) {
-			if (member.Id == SteamClient.SteamId) continue; // 跳过自己
-			MPMain.Logger.LogInfo($"[MPCore Process] 连接已在大厅玩家: {member.Name}({member.Id.ToString()})");
-			Steamworks.ConnectToPlayer(member.Id);
-		}
 	}
 
 	// 离开大厅
@@ -391,31 +371,74 @@ public class MPCore : MonoBehaviour {
 		PacketType packetType = (PacketType)reader.GetInt();
 
 		switch (packetType) {
-			// 种子加载
-			case PacketType.SeedUpdate:
-				MultiPlaterModeInit(reader.GetInt());
+			// 连接成功通知 发送世界种子等初始化数据
+			case PacketType.ConnectedToServer:
+				SendInitializationDataToNewPlayer(playId);
+				break;  
+			// 联机世界初始化
+			case PacketType.InitializeWorld:
+				MultiPlaterModeInit(reader);
 				break;
 			// 玩家数据更新
 			case PacketType.PlayerDataUpdate:
 				var playerData = MPDataSerializer.ReadFromNetData(reader);
 				RPManager.ProcessPlayerData(playId, playerData);
 				break;
-			// 发送世界种子
-			case PacketType.RequestInitData:
-				SendInitializationDataToNewPlayer(playId);
-				break;
 		}
+	}
+
+	/// <summary>
+	/// 发送初始化数据给新玩家
+	/// </summary>
+	/// <todo>将writer的拷贝byte[]改成byte[]视图,实现零拷贝</todo>
+	private void SendInitializationDataToNewPlayer(SteamId steamId) {
+		// 发送世界种子
+		var writer = new NetDataWriter();
+		writer.Put((int)PacketType.InitializeWorld);
+		writer.Put(WorldLoader.instance.seed);
+
+		// 已存在的玩家数
+		writer.Put(RPManager.Players.Count);
+
+		// 发送已存在玩家数据
+		foreach (var (playerId, playerData) in RPManager.Players) {
+			writer.Put(playerId);
+			WriteToNetData(writer, playerData.PlayerData);
+		}
+
+		// 可以添加其他初始化数据,如游戏状态、物品状态等
+
+		var seedData = MPDataSerializer.WriterToBytes(writer);
+		SteamNetworkEvents.TriggerSendToPeer(seedData, steamId, SendType.Reliable);
+		// Debug
+		MPMain.Logger.LogInfo($"[MPCore Send] 已向新玩家发送初始化数据");
 	}
 
 	/// <summary>
 	/// 加载世界种子
 	/// </summary>
 	/// <param name="seed"></param>
-	private void MultiPlaterModeInit(int seed) {
+	private void MultiPlaterModeInit(NetDataReader reader) {
+		// 获取种子
+		int seed = reader.GetInt();
+
+		// 获取玩家数
+		int playerCount = reader.GetInt();
+
 		StartMultiPlayerMode();
+
 		// Debug
 		MPMain.Logger.LogInfo("[MPCore Process] 加载世界, 种子号: " + seed.ToString());
 		WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
+
+		for (int i = 0; i < playerCount; i++) {
+			ulong playerId = reader.GetULong(); // 记得使用 GetULong 对应 SteamId
+			var playerData = MPDataSerializer.ReadFromNetData(reader);
+			RPManager.CreatePlayer(playerId);
+			// 调用你的玩家管理器进行创建
+			RPManager.ProcessPlayerData(playerId, playerData);
+			MPMain.Logger.LogInfo($"[MPCore] 创建已存在的玩家: {playerId}");
+		}
 	}
 
 	// 开启多人联机模式

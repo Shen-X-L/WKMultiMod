@@ -13,6 +13,10 @@ public static class SteamNetworkEvents {
 	public static event Action<byte[], SendType, ushort> OnBroadcast;
 	// 发送事件: 本地玩家数据 -> 特定网络
 	public static event Action<byte[], SteamId, SendType, ushort> OnSendToPeer;
+	// 发送事件: 本地玩家 -> 连接特定玩家
+	public static event Action<SteamId> OnConnectToPlayer;
+	// 发送事件: 本地玩家 -> 连接主机
+	public static event Action OnConnectToHost;
 
 
 	public static void TriggerSendToHost(byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0)
@@ -20,9 +24,11 @@ public static class SteamNetworkEvents {
 	public static void TriggerBroadcast(byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0)
 		=> OnBroadcast?.Invoke(data, sendType, laneIndex);
 	public static void TriggerSendToPeer(
-		byte[] data, SteamId steamId,
-		SendType sendType = SendType.Reliable, ushort laneIndex = 0)
+		byte[] data, SteamId steamId,SendType sendType = SendType.Reliable, ushort laneIndex = 0)
 		=> OnSendToPeer?.Invoke(data, steamId, sendType, laneIndex);
+	public static void TriggerConnectToPlayer(SteamId steamId)
+		=> OnConnectToPlayer?.Invoke(steamId);
+	public static void TriggerConnectToHost()=> OnConnectToHost?.Invoke();
 
 	// 接收事件：网络 -> 远程玩家管理类
 	public static event Action<ulong, byte[]> OnReceiveData;

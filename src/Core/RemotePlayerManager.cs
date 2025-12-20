@@ -3,6 +3,7 @@ using MonoMod.Core.Utils;
 using Steamworks;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
@@ -10,6 +11,7 @@ using WKMultiMod.src.Component;
 using WKMultiMod.src.Data;
 using WKMultiMod.src.Util;
 using static WKMultiMod.src.Data.PlayerData;
+using Vector3 = UnityEngine.Vector3;
 
 namespace WKMultiMod.src.Core;
 
@@ -20,7 +22,7 @@ public class RemotePlayerManager : MonoBehaviour {
 	private TickTimer _debugTick = new TickTimer(5f);
 
 	// 存储所有远程对象
-	private static Dictionary<ulong, RemotePlayerContainer> _players = new Dictionary<ulong, RemotePlayerContainer>();
+	internal Dictionary<ulong, RemotePlayerContainer> Players = new Dictionary<ulong, RemotePlayerContainer>();
 
 	void Awake() {
 		MPMain.Logger.LogInfo("[RPMan] RemotePlayerManager Awake");
@@ -37,10 +39,12 @@ public class RemotePlayerManager : MonoBehaviour {
 
 	// 清除全部玩家
 	public void ResetAll() {
-		foreach (var container in _players.Values) {
+		foreach (var container in Players.Values) {
 			container.Destroy();
 		}
-		_players.Clear();
+		Players.Clear();
+
+		MPMain.Logger.LogInfo("[RPMan] 远程玩家已清理");
 	}
 
 	/// <summary>
@@ -76,7 +80,7 @@ public class RemotePlayerManager : MonoBehaviour {
 
 	// 创建玩家对象
 	public RemotePlayerContainer CreatePlayer(ulong playId) {
-		if (_players.TryGetValue(playId, out RemotePlayerContainer value))
+		if (Players.TryGetValue(playId, out RemotePlayerContainer value))
 			return value;
 
 		var container = new RemotePlayerContainer(playId);
@@ -84,15 +88,15 @@ public class RemotePlayerManager : MonoBehaviour {
 		// 使用专门的根对象
 		container.Initialize(GetRemotePlayersRoot());
 
-		_players[playId] = container;
+		Players[playId] = container;
 		return container;
 	}
 
 	// 清除特定玩家
 	public void DestroyPlayer(ulong playId) {
-		if (_players.TryGetValue(playId, out var container)) {
+		if (Players.TryGetValue(playId, out var container)) {
 			container.Destroy();
-			_players.Remove(playId);
+			Players.Remove(playId);
 		}
 	}
 
@@ -111,7 +115,7 @@ public class RemotePlayerManager : MonoBehaviour {
 		//}
 
 		// 以后加上时间戳处理
-		var RPcontainer = _players[playId];
+		var RPcontainer = Players[playId];
 		if (RPcontainer == null) {
 			MPMain.Logger.LogError($"[RPMan] 未找到远程对象 ID: {playId.ToString()}");
 			return;
@@ -138,6 +142,26 @@ public class RemotePlayerContainer {
 	private RemoteHandComponent _leftHandComponent;
 	private RemoteHandComponent _rightHandComponent;
 	private TextMesh _nameTextMesh;
+
+	public PlayerData PlayerData {
+		get {
+			var data = new PlayerData {
+				playId = this.PlayId,
+				TimestampTicks = DateTime.UtcNow.Ticks,
+				IsTeleport = true,
+			};
+			data.Position = PlayerObject.transform.position;
+			data.Rotation = PlayerObject.transform.rotation;
+
+			data.LeftHand = new HandData {
+				IsFree = true
+			};
+			data.RightHand = new HandData {
+				IsFree = true
+			};
+			return data;
+		}
+	}
 
 	// 初始化时直接传送玩家
 	private float _initializationTime;
@@ -334,7 +358,7 @@ public class RemotePlayerContainer {
 		return textObject;
 	}
 
-	// 清理对象
+	// 清理整个对象
 	private void CleanupOnFailure() {
 		// 清理已创建的对象
 		SafeDestroy(PlayerObject);
@@ -343,6 +367,7 @@ public class RemotePlayerContainer {
 		SafeDestroy(NameTagObject);
 	}
 
+	// 清理单个对象
 	private void SafeDestroy(GameObject obj) {
 		if (obj != null) {
 			if (Application.isPlaying) {

@@ -79,48 +79,6 @@ public struct HandData {
 // 封装的读取方法
 public static class MPDataSerializer {
 	/// <summary>
-	/// 创建一个玩家数据
-	/// </summary>
-	/// <param name="Id"></param>
-	/// <returns></returns>
-	public static PlayerData CreateLocalPlayerData(ulong Id) {
-		var player = ENT_Player.GetPlayer();
-		if (player == null) return null;
-
-		var data = new PlayerData {
-			playId = Id,
-			TimestampTicks = DateTime.UtcNow.Ticks
-		};
-
-		// 位置和旋转
-		data.Position = player.transform.position;
-		data.Rotation = player.transform.rotation;
-
-		// 手部数据
-		data.LeftHand = GetHandData(player.hands[(int)HandType.Left]);
-		data.RightHand = GetHandData(player.hands[(int)HandType.Right]);
-
-		return data;
-	}
-
-	/// <summary>
-	/// 获取手部数据
-	/// </summary>
-	/// <param name="hand"></param>
-	/// <returns></returns>
-	private static HandData GetHandData(ENT_Player.Hand hand) {
-		var handData = new HandData();
-		handData.IsFree = hand.IsFree();
-
-		if (!handData.IsFree) {
-			//handData.Position = hand.GetHoldPosition();
-			handData.Position = hand.GetHoldWorldPosition();
-		}
-
-		return handData;
-	}
-
-	/// <summary>
 	/// 序列化到NetDataWriter (无数据包类型)
 	/// </summary>
 	/// <param name="writer"></param>

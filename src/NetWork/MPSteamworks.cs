@@ -68,6 +68,8 @@ public class MPSteamworks : MonoBehaviour {
 			SteamNetworkEvents.OnBroadcast += HandleBroadcast;
 			SteamNetworkEvents.OnSendToPeer += HandleSendToPeer;
 
+			SteamNetworkEvents.OnConnectToHost += ConnectToHost;
+
 			// 订阅大厅事件 大部分只做转发
 			// 本机加入大厅
 			SteamMatchmaking.OnLobbyEntered += OnLobbyEntered;
@@ -110,7 +112,9 @@ public class MPSteamworks : MonoBehaviour {
 		SteamNetworkEvents.OnBroadcast -= HandleBroadcast;
 		SteamNetworkEvents.OnSendToPeer -= HandleSendToPeer;
 
-		// 订阅大厅事件 大部分只做转发
+		SteamNetworkEvents.OnConnectToHost -= ConnectToHost;
+
+		// 取消订阅大厅事件 大部分只做转发
 		// 本机加入大厅
 		SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
 		// 该用户已经加入或正在加入大厅
@@ -284,7 +288,7 @@ public class MPSteamworks : MonoBehaviour {
 	/// <summary>
 	/// 接收数据: 玩家断开连接 -> PlayerDisconnected总线
 	/// </summary>
-	public void OnPlayerDisconnected(SteamId steamId) {
+	private void OnPlayerDisconnected(SteamId steamId) {
 		if (_allConnections.ContainsKey(steamId)) {
 			_allConnections.Remove(steamId);
 
@@ -321,9 +325,9 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 连接到指定玩家(纯网络连接,不处理业务逻辑)
+	/// 主动连接到指定玩家(纯网络连接,不处理业务逻辑)
 	/// </summary>
-	public void ConnectToPlayer(SteamId steamId) {
+	private void ConnectToPlayer(SteamId steamId) {
 		try {
 			if (_outgoingConnections.ContainsKey(steamId)) {
 				MPMain.Logger.LogWarning($"[MPSW] 已经连接到玩家: {steamId.ToString()}");
@@ -337,6 +341,18 @@ public class MPSteamworks : MonoBehaviour {
 		} catch (Exception ex) {
 			MPMain.Logger.LogError($"[MPSW] 连接玩家异常: {ex.Message}");
 		}
+	}
+
+	/// <summary>
+	/// 主动连接到主机
+	/// </summary>
+	private void ConnectToHost() {
+		SteamId hostId = _currentLobby.Owner.Id;
+		if (IsHost || _outgoingConnections.ContainsKey(hostId)) {
+			return;
+		}
+		var connectionManager = SteamNetworkingSockets.ConnectRelay<SteamConnectionManager>(hostId, 0);
+		_outgoingConnections[hostId] = connectionManager;
 	}
 
 	/// <summary>
@@ -357,6 +373,7 @@ public class MPSteamworks : MonoBehaviour {
 			// 如果这里捕获到异常,请记录并报告！
 		}
 	}
+
 	/// <summary>
 	/// 创建房间(主机模式)- 异步版本
 	/// </summary>
@@ -435,11 +452,11 @@ public class MPSteamworks : MonoBehaviour {
 			MPMain.Logger.LogInfo($"[MPSW] 加入房间成功: {roomName}");
 
 			// 获取Socket
-			try {
-				_socketManager = SteamNetworkingSockets.CreateRelaySocket<SteamSocketManager>();
-			} catch (Exception socketEx) {
-				MPMain.Logger.LogError($"[MPSW] 创建Socket失败: {socketEx.Message}");
-			}
+			//try {
+			//	_socketManager = SteamNetworkingSockets.CreateRelaySocket<SteamSocketManager>();
+			//} catch (Exception socketEx) {
+			//	MPMain.Logger.LogError($"[MPSW] 创建Socket失败: {socketEx.Message}");
+			//}
 
 			return true;
 
