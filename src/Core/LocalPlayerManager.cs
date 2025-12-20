@@ -33,7 +33,7 @@ public class LocalPlayerManager: MonoBehaviour {
 
 
 		// 创建玩家数据
-		var playerData = MPDataSerializer.CreateLocalPlayerData(MPCore.PlayerID);
+		var playerData = MPDataSerializer.CreateLocalPlayerData(MPCore.steamId);
 
 		//// Debug
 		//if(_debugTick.Test()){

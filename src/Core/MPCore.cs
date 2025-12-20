@@ -3,6 +3,7 @@ using LiteNetLib.Utils;
 using Steamworks;
 using Steamworks.Data;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
@@ -29,7 +30,7 @@ public class MPCore : MonoBehaviour {
 	internal LocalPlayerManager LPManager { get; private set; }
 
 	// Steam ID
-	public static ulong PlayerID { get; private set; }
+	public static SteamId steamId { get; private set; }
 
 	// 世界种子 - 用于同步游戏世界生成
 	public int WorldSeed { get; private set; }
@@ -37,8 +38,8 @@ public class MPCore : MonoBehaviour {
 	public static bool IsMultiplayerActive { get; private set; } = false;
 	// 混乱模式开关
 	public static bool IsChaosMod { get; private set; } = false;
-	// 是否是主机
-	public bool IsHost { get; private set; } = false;
+	// 是否已初始化
+	public static bool HasInitialized { get; private set; } = false;
 
 	// 注意：日志通过 MultiPlayerMain.Logger 访问
 
@@ -80,7 +81,7 @@ public class MPCore : MonoBehaviour {
 			LPManager = gameObject.AddComponent<LocalPlayerManager>();
 
 			// 初始化SteamID
-			PlayerID = SteamClient.SteamId.Value;
+			steamId = SteamClient.SteamId;
 
 			// 订阅网络事件
 			SubscribeToEvents();
@@ -181,9 +182,7 @@ public class MPCore : MonoBehaviour {
 	/// 重置设置
 	/// </summary>
 	private void ResetStateVariables() {
-		IsMultiplayerActive = false;
-		IsChaosMod = false;
-		IsHost = false;
+		CloseMultiPlayerMode();
 		Steamworks.DisconnectAll();
 		RPManager.ResetAll();
 	}
@@ -219,9 +218,7 @@ public class MPCore : MonoBehaviour {
 		// 使用协程版本(内部已改为异步)
 		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
 			if (success) {
-				IsHost = true;
-				StartMultiPlayerMode();
-				ProcessSeedUpdate(WorldLoader.instance.seed);
+				MultiPlaterModeInit(WorldLoader.instance.seed);
 			} else {
 				CommandConsole.LogError("Fail to create lobby");
 			}
@@ -244,7 +241,8 @@ public class MPCore : MonoBehaviour {
 
 			Steamworks.JoinRoom(lobbyId, (success) => {
 				if (success) {
-					StartMultiPlayerMode();
+					//由加载器实现模式切换
+					//StartMultiPlayerMode();
 				} else {
 					CommandConsole.LogError("Fail to join lobby");
 				}
@@ -294,6 +292,17 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
+	// 协程请求种子
+	public IEnumerator InitHandshakeRoutine() {
+		var writer = new NetDataWriter();
+		writer.Put((int)PacketType.RequestInitData);
+		var requestData = MPDataSerializer.WriterToBytes(writer);
+		while (HasInitialized) {
+			SteamNetworkEvents.TriggerSendToHost(requestData);
+			yield return new WaitForSeconds(3.0f);
+		}
+	}
+
 	/// <summary>
 	/// 发送初始化数据给新玩家
 	/// </summary>
@@ -333,6 +342,8 @@ public class MPCore : MonoBehaviour {
 			MPMain.Logger.LogInfo($"[MPCore Process] 连接已在大厅玩家: {member.Name}({member.Id.ToString()})");
 			Steamworks.ConnectToPlayer(member.Id);
 		}
+		// 启动协程发送请求初始化数据
+		InitHandshakeRoutine();
 	}
 
 	// 离开大厅
@@ -348,9 +359,6 @@ public class MPCore : MonoBehaviour {
 		// Debug
 		MPMain.Logger.LogInfo($"[MPCore Process] 玩家接入: {steamId.ToString()}");
 
-		if (IsHost) {
-			SendInitializationDataToNewPlayer(steamId);
-		}
 		// 创建玩家
 		RPManager.CreatePlayer(steamId);
 	}
@@ -383,12 +391,16 @@ public class MPCore : MonoBehaviour {
 		switch (packetType) {
 			// 种子加载
 			case PacketType.SeedUpdate:
-				ProcessSeedUpdate(reader.GetInt());
+				MultiPlaterModeInit(reader.GetInt());
 				break;
 			// 玩家数据更新
 			case PacketType.PlayerDataUpdate:
 				var playerData = MPDataSerializer.ReadFromNetData(reader);
 				RPManager.ProcessPlayerData(playId, playerData);
+				break;
+			// 发送世界种子
+			case PacketType.RequestInitData:
+				SendInitializationDataToNewPlayer(playId);
 				break;
 		}
 	}
@@ -397,14 +409,21 @@ public class MPCore : MonoBehaviour {
 	/// 加载世界种子
 	/// </summary>
 	/// <param name="seed"></param>
-	private void ProcessSeedUpdate(int seed) {
+	private void MultiPlaterModeInit(int seed) {
+		StartMultiPlayerMode();
 		// Debug
 		MPMain.Logger.LogInfo("[MPCore Process] 加载世界, 种子号: " + seed.ToString());
 		WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
 	}
 
 	// 开启多人联机模式
-	public static void StartMultiPlayerMode() { IsMultiplayerActive = true; }
+	public static void StartMultiPlayerMode() { 
+		IsMultiplayerActive = true;
+		HasInitialized = true;
+	}
 	// 关闭多人联机模式
-	public static void CloseMultiPlayerMode() { IsMultiplayerActive = false; }
+	public static void CloseMultiPlayerMode() { 
+		IsMultiplayerActive = false;
+		HasInitialized = false;
+	}
 }

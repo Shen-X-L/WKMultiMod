@@ -43,15 +43,23 @@ public class MPSteamworks : MonoBehaviour {
 		get { return _currentLobby.Id.IsValid; }
 	}
 
+	// 检查是否是大厅所有者
+	public bool IsHost {
+		get {
+			if (_currentLobby.Id == 0) return false;
+			return _currentLobby.Owner.Id == SteamClient.SteamId;
+		}
+	}
+
 	void Awake() {
 
 		//SteamClient.Init(3195790u);
 
-		Initialize();
-
 		// 订阅发送事件
 		SteamNetworkEvents.OnBroadcast += HandleBroadcast;
 		SteamNetworkEvents.OnSendToPeer += HandleSendToPeer;
+
+		Initialize();
 	}
 
 	void Update() {
@@ -98,6 +106,8 @@ public class MPSteamworks : MonoBehaviour {
 			SteamMatchmaking.OnLobbyMemberLeave += OnLobbyMemberLeft;
 			// 该用户在未离开大厅的情况下断线
 			SteamMatchmaking.OnLobbyMemberDisconnected += OnLobbyMemberDisconnected;
+			// 当大厅成员数据或大厅所有权发生变更
+			SteamMatchmaking.OnLobbyMemberDataChanged += OnLobbyMemberDataChanged;
 
 			// 初始化中继网络(必须调用)
 			SteamNetworkingUtils.InitRelayNetworkAccess();
@@ -290,7 +300,7 @@ public class MPSteamworks : MonoBehaviour {
 	/// 处理主机请求现有玩家列表
 	/// </summary>
 	private void HandleHostRequestExistingPlayers(SteamId newPlayerSteamId) {
-		if (!MPCore.Instance.IsHost) return;
+		if (!IsHost) return;
 
 		// 获取所有连接中的SteamId(除了新玩家)
 		var existingSteamIds = new List<SteamId>();
@@ -553,7 +563,7 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 接收数据: 大厅有成员断开连接->PlayerDisconnected总线
+	/// 接收数据: 大厅有成员断开连接-> 总线
 	/// </summary>
 	private void OnLobbyMemberDisconnected(Lobby lobby, Friend friend) {
 		if (lobby.Id == _currentLobby.Id) {
@@ -562,6 +572,18 @@ public class MPSteamworks : MonoBehaviour {
 			// 重复分发
 			// 发布断开事件到总线
 			//SteamNetworkEvents.TriggerPlayerDisconnected(friend.Id);
+		}
+	}
+
+	/// <summary>
+	/// 接收数据: 大厅数据变更->LobbyMemberDataChanged总线
+	/// </summary>
+	/// <param name="lobby"></param>
+	/// <param name="friend"></param>
+	private void OnLobbyMemberDataChanged(Lobby lobby, Friend friend) {
+		if (lobby.Id == _currentLobby.Id) {
+			_currentLobby = lobby;
+			SteamNetworkEvents.TriggerLobbyMemberDataChanged(lobby);
 		}
 	}
 

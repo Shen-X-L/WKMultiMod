@@ -7,11 +7,16 @@ namespace WKMultiMod.src.NetWork;
 
 public static class SteamNetworkEvents {
 
+	// 发送事件: 本地玩家数据 -> 主机网络
+	public static event Action<byte[], SendType, ushort> OnSendToHost;
 	// 发送事件: 本地玩家数据 -> 广播所有网络
 	public static event Action<byte[], SendType, ushort> OnBroadcast;
 	// 发送事件: 本地玩家数据 -> 特定网络
 	public static event Action<byte[], SteamId, SendType, ushort> OnSendToPeer;
 
+
+	public static void TriggerSendToHost(byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0)
+		=> OnSendToHost?.Invoke(data, sendType, laneIndex);
 	public static void TriggerBroadcast(byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0)
 		=> OnBroadcast?.Invoke(data, sendType, laneIndex);
 	public static void TriggerSendToPeer(
@@ -36,14 +41,13 @@ public static class SteamNetworkEvents {
 
 	// 大厅事件
 	// 接收事件: 进入大厅
-	// lobbyId
 	public static event Action<Lobby> OnLobbyEntered;
 	// 接收事件: 玩家加入大厅
-	// playerName
 	public static event Action<SteamId> OnLobbyMemberJoined;
 	// 接收事件: 玩家离开大厅
-	// playerName
 	public static event Action<SteamId> OnLobbyMemberLeft;
+	// 接收事件: 大厅成员数据或大厅所有权发生变更
+	public static event Action<Lobby> OnLobbyMemberDataChanged;
 
 	public static void TriggerLobbyEntered(Lobby lobby)
 		=> OnLobbyEntered?.Invoke(lobby);
@@ -53,6 +57,9 @@ public static class SteamNetworkEvents {
 
 	public static void TriggerLobbyMemberLeft(SteamId steamId)
 		=> OnLobbyMemberLeft?.Invoke(steamId);
+
+	public static void TriggerLobbyMemberDataChanged(Lobby lobby)
+		=> OnLobbyEntered?.Invoke(lobby);
 }
 
 public static class LiteNetworkEvents {
