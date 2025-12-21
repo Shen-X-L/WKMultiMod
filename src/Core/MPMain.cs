@@ -42,10 +42,13 @@ public class MPMain : BaseUnityPlugin {
 
 		//// 日后生命周期完善时使用这个单例创建
 		//// 1. 创建一个新的, GameObject
-		//GameObject coreGameObject = new GameObject("MultiplayerCore_DDOL");
+		//GameObject coreGameObject = new GameObject("MultiplayerCore");
 
 		//// 2. 立即保护新对象 (被游戏创建初期销毁了,为什么?)
 		//DontDestroyOnLoad(coreGameObject);
+
+		//// 添加组件
+		//coreGameObject.AddComponent<MPCore>();
 
 		// 使用Harmony打补丁
 		_harmony = new Harmony($"{ModGUID}");
