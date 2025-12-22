@@ -51,8 +51,8 @@ public class RemotePlayerManager : MonoBehaviour {
 	/// 确保根对象存在
 	/// </summary>
 	private void EnsureRootObject() {
-		// 直接在MultiplayerCore_Injected下查找或创建
-		var coreTransform = transform.parent; // MultiplayerCore_Injected
+		// 直接在MultiplayerCore下查找或创建
+		var coreTransform = transform.parent; // MultiplayerCore
 		var rootName = "RemotePlayers";
 
 		if (coreTransform.Find(rootName) == null) {
