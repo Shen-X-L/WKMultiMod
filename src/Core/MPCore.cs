@@ -258,6 +258,8 @@ public class MPCore : MonoBehaviour {
 				if (success) {
 					//由加载器实现模式切换
 					//StartMultiPlayerMode();
+					//设置为联机模式启动
+					IsMultiplayerActive = true;
 				} else {
 					CommandConsole.LogError("Fail to join lobby");
 				}
@@ -335,7 +337,8 @@ public class MPCore : MonoBehaviour {
 
 	// 协程请求种子
 	public IEnumerator InitHandshakeRoutine() {
-		while (!HasInitialized) {
+		// 未加载并且处于联机模式
+		while (!HasInitialized && IsMultiplayerActive) {
 			MPMain.LogInfo(
 				"[MPCore] 已向主机请求初始化数据",
 				"[MPCore] Requested initialization data from the host.");
