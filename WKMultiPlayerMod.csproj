@@ -29,10 +29,10 @@
 
 	<ItemGroup>
 		<!-- BepInEx DLL -->
-		<Reference Include="lib\GameData\**\*.dll">
+		<Reference Include="lib\BepInEx\**\*.dll">
 			<HintPath>%(Identity)</HintPath>
 			<Private>false</Private>
-		</Reference>		BepInexEx
+		</Reference>
 
 		<!-- 游戏相关 DLL -->
 		<Reference Include="lib\GameData\**\*.dll">
