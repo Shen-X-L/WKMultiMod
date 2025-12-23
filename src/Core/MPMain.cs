@@ -1,10 +1,11 @@
 ﻿using BepInEx;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
-using WKMultiMod.src.Core;
 using Steamworks;
 using System;
 using UnityEngine;
+using WKMultiMod.src.Core;
 
 namespace WKMultiMod.src.Core;
 
@@ -27,6 +28,13 @@ public class MPMain : BaseUnityPlugin {
 	// 核心实例访问器
 	public static MPCore Core => MPCore.Instance;
 
+	// Debug日志语言类型
+	private static ConfigEntry<int> _debugLogLanguage;
+	public static int DebugLogLanguage {
+		get { return _debugLogLanguage.Value; }
+		private set { _debugLogLanguage.Value = value; }
+	}
+
 	// Awake在对象创建时调用, 早于Start
 	private void Awake() {
 		// 单例检查
@@ -39,6 +47,10 @@ public class MPMain : BaseUnityPlugin {
 		// 日志初始化
 		Logger = base.Logger;
 		Logger.LogInfo($"[MPMain] {ModGUID} {ModVersion} 已加载");
+
+		_debugLogLanguage = Config.Bind<int>(
+			"Debug", "LogLanguage", 1,
+			"值为0时使用中文输出日志, Use English logs when the value is 1.");
 
 		//// 日后生命周期完善时使用这个单例创建
 		//// 1. 创建一个新的, GameObject
@@ -54,5 +66,20 @@ public class MPMain : BaseUnityPlugin {
 
 	private void OnDestroy() {
 		Logger.LogInfo("[MPMain] MultiPalyerMain (启动器) 已被销毁.");
+	}
+
+	public static void LogInfo(string chineseLog, string englishLog) {
+		if (_debugLogLanguage.Value == 0) Logger.LogInfo(chineseLog);
+		else Logger.LogInfo(englishLog);
+	}
+
+	public static void LogWarning(string chineseLog, string englishLog) {
+		if (_debugLogLanguage.Value == 0) Logger.LogWarning(chineseLog);
+		else Logger.LogWarning(englishLog);
+	}
+
+	public static void LogError(string chineseLog, string englishLog) {
+		if (_debugLogLanguage.Value == 0) Logger.LogError(chineseLog);
+		else Logger.LogError(englishLog);
 	}
 }

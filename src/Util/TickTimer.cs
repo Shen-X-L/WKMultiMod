@@ -15,6 +15,12 @@ public class TickTimer {
 		_lastUpdateTime = -_interval; // 初始值设为负数,确保第一次检查立即通过
 	}
 
+	//设置固定频率时触发
+	public TickTimer(int hz) {
+		_interval = 1f / hz;
+		_lastUpdateTime = -_interval; // 初始值设为负数,确保第一次检查立即通过
+	}
+
 	// 设置间隔
 	public void SetTick(float tick) {
 		_interval = tick;
@@ -28,7 +34,7 @@ public class TickTimer {
 	/// <summary>
 	/// 检查间隔是否到达。如果到达,则自动更新内部计时器并返回 true。
 	/// </summary>
-	public bool Test() {
+	public bool IsTick() {
 		if (Time.time - _lastUpdateTime >= _interval) {
 			_lastUpdateTime = Time.time;
 			return true;
