@@ -4,7 +4,7 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>WKMultiMod</AssemblyName>
 		<Product>WKMultiMod</Product>
-		<Version>0.13.6.2</Version>
+		<Version>0.13.6.3</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>
@@ -16,11 +16,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
-		<PackageReference Include="BepInEx.Core" Version="5.*" />
-		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-		<PackageReference Include="HarmonyX" Version="2.16.0" />
-		<PackageReference Include="LiteNetLib" Version="1.3.1" />
+		<PackageReference Include="LiteNetLib" Version="1.3.5" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -28,48 +24,61 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Folder Include="lib\BepInEx\" />
+		<Folder Include="lib\GameData\" />
 		<Folder Include="Shaders\" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="ALINE">
-			<HintPath>lib\ALINE.dll</HintPath>
-			<Private>false</Private>
+		<!-- BepInEx 相关 DLL -->
+		<Reference Include="lib\BepInEx\0Harmony20.dll">
+		  <HintPath>lib\BepInEx\0Harmony20.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="Assembly-CSharp">
-			<HintPath>lib\Assembly-CSharp.dll</HintPath>
-			<Private>false</Private>
+		<Reference Include="lib\BepInEx\BepInEx.dll">
+		  <HintPath>lib\BepInEx\BepInEx.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="Assembly-CSharp-firstpass">
-			<HintPath>lib\Assembly-CSharp-firstpass.dll</HintPath>
-			<Private>false</Private>
+		<Reference Include="lib\BepInEx\BepInEx.Harmony.dll">
+		  <HintPath>lib\BepInEx\BepInEx.Harmony.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="Facepunch.Steamworks.Win64">
-			<HintPath>lib\Facepunch.Steamworks.Win64.dll</HintPath>
-			<Private>false</Private>
+		<Reference Include="lib\BepInEx\BepInEx.Preloader.dll">
+		  <HintPath>lib\BepInEx\BepInEx.Preloader.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="UnityEngine">
-			<HintPath>lib\UnityEngine.dll</HintPath>
-			<Private>false</Private>
+		<Reference Include="lib\BepInEx\HarmonyXInterop.dll">
+		  <HintPath>lib\BepInEx\HarmonyXInterop.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="UnityEngine.CoreModule">
-			<HintPath>lib\UnityEngine.CoreModule.dll</HintPath>
-			<Private>false</Private>
+		<Reference Include="lib\BepInEx\Mono.Cecil.dll">
+		  <HintPath>lib\BepInEx\Mono.Cecil.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="UnityEngine.InputLegacyModule">
-			<HintPath>lib\UnityEngine.InputLegacyModule.dll</HintPath>
-			<Private>false</Private>
+		<Reference Include="lib\BepInEx\Mono.Cecil.Mdb.dll">
+		  <HintPath>lib\BepInEx\Mono.Cecil.Mdb.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="UnityEngine.PhysicsModule">
-			<HintPath>lib\UnityEngine.PhysicsModule.dll</HintPath>
-			<Private>false</Private>
+		<Reference Include="lib\BepInEx\Mono.Cecil.Pdb.dll">
+		  <HintPath>lib\BepInEx\Mono.Cecil.Pdb.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="UnityEngine.TextRenderingModule">
-			<HintPath>lib\UnityEngine.TextRenderingModule.dll</HintPath>
-			<Private>false</Private>
+		<Reference Include="lib\BepInEx\Mono.Cecil.Rocks.dll">
+		  <HintPath>lib\BepInEx\Mono.Cecil.Rocks.dll</HintPath>
+		  <Private>false</Private>
 		</Reference>
-		<Reference Include="UnityEngine.UI">
-			<HintPath>lib\UnityEngine.UI.dll</HintPath>
+		<Reference Include="lib\BepInEx\MonoMod.RuntimeDetour.dll">
+		  <HintPath>lib\BepInEx\MonoMod.RuntimeDetour.dll</HintPath>
+		  <Private>false</Private>
+		</Reference>
+		<Reference Include="lib\BepInEx\MonoMod.Utils.dll">
+		  <HintPath>lib\BepInEx\MonoMod.Utils.dll</HintPath>
+		  <Private>false</Private>
+		</Reference>
+
+		<!-- 游戏相关 DLL -->
+		<Reference Include="lib\GameData\**\*.dll">
+			<HintPath>%(Identity)</HintPath>
 			<Private>false</Private>
 		</Reference>
 	</ItemGroup>
