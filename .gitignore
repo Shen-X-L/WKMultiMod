@@ -363,8 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # 排除整个 libs/ 文件夹
-libs/
-lib/
+libs/*
+lib/*
 
 # 但保留 libs/README.md 文件
 !libs/README.md
