@@ -48,12 +48,12 @@ public static class LocalPlayerManager{
 	/// <returns></returns>
 	private static HandData GetHandData(ENT_Player.Hand hand) {
 		var handData = new HandData();
-		handData.IsHolding = hand.IsHolding();
+		handData.IsFree = !hand.IsHolding();
 
-		if (!handData.IsHolding) {
+		if (!handData.IsFree)
 			//handData.Position = hand.GetHoldPosition();
 			handData.Position = hand.GetHoldWorldPosition();
-		}
+		
 
 		return handData;
 	}

@@ -141,7 +141,7 @@ public class RemoteHandComponent : MonoBehaviour {
 	// 从HandData更新手状态(Container调用这个方法)
 	public void UpdateFromHandData(HandData handData) {
 		// 更新空闲状态
-		_isFree = handData.IsHolding;
+		_isFree = handData.IsFree;
 
 		if (!_isFree) {
 			// 抓住对象：使用网络传来的世界位置
