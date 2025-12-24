@@ -58,7 +58,7 @@ public static class SteamNetworkEvents {
 	// 接收事件: 玩家离开大厅
 	public static event Action<SteamId> OnLobbyMemberLeft;
 	// 接收事件: 大厅成员数据或大厅所有权发生变更
-	public static event Action<Lobby> OnLobbyMemberDataChanged;
+	public static event Action<Lobby,SteamId> OnLobbyHostChanged;
 
 	public static void TriggerLobbyEntered(Lobby lobby)
 		=> OnLobbyEntered?.Invoke(lobby);
@@ -69,8 +69,8 @@ public static class SteamNetworkEvents {
 	public static void TriggerLobbyMemberLeft(SteamId steamId)
 		=> OnLobbyMemberLeft?.Invoke(steamId);
 
-	public static void TriggerLobbyMemberDataChanged(Lobby lobby)
-		=> OnLobbyEntered?.Invoke(lobby);
+	public static void TriggerLobbyHostChanged(Lobby lobby,SteamId hostId)
+		=> OnLobbyHostChanged?.Invoke(lobby, hostId);
 }
 
 public static class LiteNetworkEvents {

@@ -51,11 +51,8 @@ public class MPMain : BaseUnityPlugin {
 		Logger.LogInfo($"[MPMain] {ModGUID} {ModVersion} loaded");
 
 		_debugLogLanguage = Config.Bind<int>(
-			"Debug",
-			"LogLanguage",
-			1,
-			"值为0时使用中文输出日志, Use English logs when the value is 1."
-			);
+			"Debug", "LogLanguage", 1,
+			"值为0时使用中文输出日志, Use English logs when the value is 1.");
 
 		//// 日后生命周期完善时使用这个单例创建
 		//// 1. 创建一个新的, GameObject

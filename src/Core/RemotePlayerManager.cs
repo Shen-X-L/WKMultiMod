@@ -138,7 +138,7 @@ public class RemotePlayerContainer {
 	private RemotePlayerComponent _playerComponent;
 	private RemoteHandComponent _leftHandComponent;
 	private RemoteHandComponent _rightHandComponent;
-	private TextMesh _nameTextMesh;
+	private PlayerNameTag _nameTextMesh;
 
 	// 初始化时直接传送玩家
 	private float _initializationTime;
@@ -327,14 +327,18 @@ public class RemotePlayerContainer {
 		var textMesh = textObject.AddComponent<TextMesh>();
 		textMesh.text = "Player: " + PlayId;
 		textMesh.fontSize = 20;
-		textMesh.characterSize = 0.1f;
+		textMesh.characterSize = 1.0f;
 		textMesh.anchor = TextAnchor.MiddleCenter;
 		textMesh.color = new Color(1f, 1f, 1f, 0.85f);
 		textMesh.fontStyle = FontStyle.Bold;
 		textMesh.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
-		textObject.AddComponent<LootAtComponent>();
-		_nameTextMesh = textMesh;
+		// 添加看板与缩放组件
+		var billboard = textObject.AddComponent<LootAtComponent>();
+		billboard.baseScale = 0.1f; // 这里的缩放决定了文字在屏幕上的视觉大小
+		billboard.minScale = 0.05f;
+
+		_nameTextMesh = textObject.AddComponent<PlayerNameTag>();
 
 		return textObject;
 	}
