@@ -34,8 +34,12 @@ public class MPSteamworks : MonoBehaviour {
 	// 消息队列
 	private ConcurrentQueue<NetworkMessage> _messageQueue = new ConcurrentQueue<NetworkMessage>();
 
+	// 本机SteamId
 	private SteamId _mySteamId;
 	public SteamId MySteamId { get => _mySteamId; private set => _mySteamId = value; }
+
+	// 之前的主机SteamId
+	private SteamId _lastKnownHostId;
 
 	// 获取当前大厅ID
 	public ulong CurrentLobbyId {
@@ -620,6 +624,7 @@ public class MPSteamworks : MonoBehaviour {
 	/// </summary>
 	private void OnLobbyEntered(Lobby lobby) {
 		_currentLobby = lobby;
+		_lastKnownHostId = lobby.Owner.Id;
 		MPMain.LogInfo(
 			$"[MPSW] 进入大厅. 大厅Id: {lobby.Id.ToString()}",
 			$"[MPSW] Entered lobby. LobbyId: {lobby.Id.ToString()}");
@@ -680,14 +685,28 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 接收数据: 大厅数据变更->LobbyMemberDataChanged总线
+	/// 接收数据: 大厅数据变更->
+	/// 主机变更->LobbyHostChanged总线
 	/// </summary>
 	/// <param name="lobby"></param>
 	/// <param name="friend"></param>
 	private void OnLobbyMemberDataChanged(Lobby lobby, Friend friend) {
+		// 还是原房间
 		if (lobby.Id == _currentLobby.Id) {
+			// 更新部分房间数据
 			_currentLobby = lobby;
-			SteamNetworkEvents.TriggerLobbyMemberDataChanged(lobby);
+			// 获取当前大厅真正的主机（Owner）
+			SteamId currentOwnerId = lobby.Owner.Id;
+			// 检查所有权是否发生了变更
+			if (_lastKnownHostId != 0 && _lastKnownHostId != currentOwnerId) {
+				MPMain.LogInfo(
+					$"[MPCore] 主机变更: {_lastKnownHostId.ToString()} -> {currentOwnerId.ToString()}",
+					$"[MPCore] Host change: {_lastKnownHostId.ToString()} -> {currentOwnerId.ToString()}");
+
+				// 触发主机变更总线
+				SteamNetworkEvents.TriggerLobbyHostChanged(lobby, _lastKnownHostId);
+			}
+					
 		}
 	}
 

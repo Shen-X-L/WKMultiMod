@@ -119,6 +119,7 @@ public class MPCore : MonoBehaviour {
 		SteamNetworkEvents.OnLobbyEntered += ProcessLobbyEntered;
 		//SteamNetworkEvents.OnLobbyMemberJoined += ProcessLobbyMemberJoined;
 		SteamNetworkEvents.OnLobbyMemberLeft += ProcessLobbyMemberLeft;
+		SteamNetworkEvents.OnLobbyHostChanged += ProcessLobbyHostChanged;
 
 		// 订阅玩家连接事件
 		SteamNetworkEvents.OnPlayerConnected += ProcessPlayerConnected;
@@ -136,6 +137,7 @@ public class MPCore : MonoBehaviour {
 		SteamNetworkEvents.OnLobbyEntered -= ProcessLobbyEntered;
 		//SteamNetworkEvents.OnLobbyMemberJoined -= ProcessLobbyMemberJoined;
 		SteamNetworkEvents.OnLobbyMemberLeft -= ProcessLobbyMemberLeft;
+		SteamNetworkEvents.OnLobbyHostChanged -= ProcessLobbyHostChanged;
 
 		// 订阅玩家连接事件
 		SteamNetworkEvents.OnPlayerConnected -= ProcessPlayerConnected;
@@ -199,7 +201,7 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 重置设置
+	/// 退出联机模式时重置设置
 	/// </summary>
 	private void ResetStateVariables() {
 		CloseMultiPlayerMode();
@@ -211,7 +213,7 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 发送本地玩家数据
+	/// 客户端/主机: 发送本地玩家数据
 	/// </summary>
 	private void SeedLocalPlayerData() {
 		// 限制发送频率(20Hz)
@@ -230,8 +232,10 @@ public class MPCore : MonoBehaviour {
 		//playerData.IsTeleport = true;
 
 		// 进行数据写入
+		_playerDataWriter.Reset();
 		_playerDataWriter.Put((int)PacketType.PlayerDataUpdate);
 		MPDataSerializer.WriteToNetData(_playerDataWriter, playerData);
+
 		// 触发Steam数据发送
 		// 转为byte[]
 		// 使用不可靠+立即发送
@@ -246,7 +250,17 @@ public class MPCore : MonoBehaviour {
 				MPDataSerializer.WriterToBytes(_playerDataWriter),
 				SendType.Unreliable | SendType.NoNagle);
 		}
-		_playerDataWriter.Reset();
+
+		//// 获取内部缓冲区及其长度，避免 Copy 为 byte[]
+		//byte[] rawBuffer = _playerDataWriter.Data;
+		//ushort length = (ushort)_playerDataWriter.Length;
+
+		//if (Steamworks.IsHost) {
+		//	SteamNetworkEvents.TriggerBroadcast(rawBuffer, SendType.Unreliable | SendType.NoNagle, length);
+		//} else {
+		//	SteamNetworkEvents.TriggerSendToHost(rawBuffer, SendType.Unreliable | SendType.NoNagle, length);
+		//}
+
 		return;
 	}
 
@@ -283,6 +297,7 @@ public class MPCore : MonoBehaviour {
 		// 使用协程版本(内部已改为异步)
 		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
 			if (success) {
+				StartMultiPlayerMode();
 				WorldLoader.ReloadWithSeed(new string[] { WorldLoader.instance.seed.ToString() });
 			} else {
 				CommandConsole.LogError("Fail to create lobby");
@@ -368,7 +383,7 @@ public class MPCore : MonoBehaviour {
 
 	// 协程请求种子
 	public IEnumerator InitHandshakeRoutine() {
-		while (!HasInitialized&&IsMultiplayerActive) {
+		while (!HasInitialized && IsMultiplayerActive) {
 			MPMain.LogInfo(
 				"[MPCore] 已向主机请求初始化数据",
 				"[MPCore] Requested initialization data from the host.");
@@ -382,6 +397,7 @@ public class MPCore : MonoBehaviour {
 
 	/// <summary>
 	/// 处理大厅成员加入 连接新成员
+	/// 主机中心网络中客户端主动向主机发起连接
 	/// </summary> 
 	[Obsolete("主机中心网络中不需要其他客户端去主动连接其他客户端")]
 	private void ProcessLobbyMemberJoined(SteamId steamId) {
@@ -403,12 +419,15 @@ public class MPCore : MonoBehaviour {
 		MPMain.LogInfo(
 			$"[MPCore] 正在加入大厅,ID: {lobby.Id.ToString()}",
 			$"[MPCore] Joining the lobby, ID: {lobby.Id.ToString()}");
-		// 在这里连接主机
-		SteamNetworkEvents.TriggerConnectToHost();
+
 		// 启动多人模式标准, 这里的触发可能先于join回调
 		IsMultiplayerActive = true;
-		// 启动协程发送请求初始化数据
-		StartCoroutine(InitHandshakeRoutine());
+
+		// 在这里连接主机,并启动协程发送请求初始化数据
+		if (!Steamworks.IsHost) {
+			SteamNetworkEvents.TriggerConnectToHost();
+			StartCoroutine(InitHandshakeRoutine());
+		}
 	}
 
 	/// <summary>
@@ -420,6 +439,41 @@ public class MPCore : MonoBehaviour {
 		MPMain.LogInfo(
 			$"[MPCore] 玩家离开大厅: {steamId.ToString()}",
 			$"[MPCore] Player left the lobby: {steamId.ToString()}");
+	}
+
+	/// <summary>
+	/// 大厅所有权变更
+	/// </summary>
+	private void ProcessLobbyHostChanged(Lobby lobby, SteamId hostId) {
+		// 这里删除旧主机的玩家对象
+		RPManager.DestroyPlayer(hostId);
+
+		// 处理身份切换
+		if (Steamworks.IsHost) {
+			// 成为新主机
+			ProcessIAmNewHost();
+		} else {
+			// 别人成为新主机,进行连接
+			SteamNetworkEvents.TriggerConnectToHost();
+		}
+	}
+
+
+	/// <summary>
+	/// 成为新主机时执行
+	/// </summary>
+	private void ProcessIAmNewHost() {
+		// 停止握手协程（以防还在运行）
+		if (HasInitialized == false) {
+			StopCoroutine(InitHandshakeRoutine());
+			//// 要求所有现存客机重新发送一次完整数据
+			MPMain.LogInfo(
+				"[MPCore] 意外在未初始化的情况下成为主机,需要向现存客户端要求数据",
+				"[MPCore] Unexpectedly became the host before initialization was complete; need to request data from existing clients.");
+			//var writer = new NetDataWriter();
+			//writer.Put((int)PacketType.RequestClientSync);
+			//SteamNetworkEvents.TriggerBroadcast(MPDataSerializer.WriterToBytes(writer), SendType.Reliable);
+		}
 	}
 
 	/// <summary>
@@ -441,12 +495,15 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
+	/// <summary>
+	/// 客户端: 创建玩家映射
+	/// </summary>
 	private void ProcessCreatePlayer(ulong playerId) {
 		// 不需要创建自己的映射
 		if (playerId == Steamworks.MySteamId) {
 			return;
 		}
-			
+
 		MPMain.LogInfo(
 			$"[MPCore] 创建玩家映射 Id: {playerId.ToString()}",
 			$"[MPCore] Create player Id: {playerId.ToString()}");
@@ -454,9 +511,8 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 处理玩家断连
+	/// 主机: 处理玩家断连 客户端: 对可能的主机离线进行删除
 	/// </summary>
-	/// <param name="steamId"></param>
 	private void ProcessPlayerDisconnected(SteamId steamId) {
 		// Debug
 		MPMain.LogInfo(
@@ -473,6 +529,10 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
+
+	/// <summary>
+	/// 客户端: 销毁玩家映射
+	/// </summary>
 	private void ProcessDestroyPlayer(ulong playerId) {
 		// 自己已经离线,不需要再销毁
 		//if (playerId == Steamworks.MySteamId)
@@ -515,7 +575,7 @@ public class MPCore : MonoBehaviour {
 				break;
 			// 销毁玩家映射
 			case PacketType.DestroyPlayer:
-				ProcessCreatePlayer(reader.GetULong());
+				ProcessDestroyPlayer(reader.GetULong());
 				break;
 			// 玩家数据更新
 			case PacketType.PlayerDataUpdate:
@@ -524,7 +584,9 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
-	// 处理玩家数据更新
+	/// <summary>
+	/// 主机/客户端: 处理玩家数据更新
+	/// </summary>
 	private void ProcessPlayerDataUpdate(NetDataReader reader) {
 		// 如果是从转发给自己的,忽略
 		var playerData = MPDataSerializer.ReadFromNetData(reader);
@@ -546,7 +608,7 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 发送初始化数据给新玩家
+	/// 主机: 发送初始化数据给新玩家
 	/// </summary>
 	/// <todo>将writer的拷贝byte[]改成byte[]视图,实现零拷贝</todo>
 	private void SendInitializationData(SteamId steamId) {
@@ -575,7 +637,7 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 新加入玩家,加载世界种子和已存在玩家
+	/// 客户端: 新加入玩家,加载世界种子和已存在玩家
 	/// </summary>
 	private void InitializationMultiMod(NetDataReader reader) {
 		// 获取种子
