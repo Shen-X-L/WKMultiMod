@@ -60,8 +60,6 @@ public class PlayerData {
 public struct HandData {
 	// 手部类型
 	public PlayerData.HandType handType;
-	// 是否空闲
-	public bool IsFree;
 	// 位置
 	public float PosX;
 	public float PosY;
@@ -78,6 +76,7 @@ public struct HandData {
 
 // 封装的读取方法
 public static class MPDataSerializer {
+
 	/// <summary>
 	/// 序列化到NetDataWriter (无数据包类型)
 	/// </summary>
@@ -99,20 +98,14 @@ public static class MPDataSerializer {
 		writer.Put(data.RotW);
 
 		// 左手数据
-		writer.Put(data.LeftHand.IsFree);
-		if (!data.LeftHand.IsFree) {
-			writer.Put(data.LeftHand.PosX);
-			writer.Put(data.LeftHand.PosY);
-			writer.Put(data.LeftHand.PosZ);
-		}
+		writer.Put(data.LeftHand.PosX);
+		writer.Put(data.LeftHand.PosY);
+		writer.Put(data.LeftHand.PosZ);
 
 		// 右手数据
-		writer.Put(data.RightHand.IsFree);
-		if (!data.RightHand.IsFree) {
-			writer.Put(data.RightHand.PosX);
-			writer.Put(data.RightHand.PosY);
-			writer.Put(data.RightHand.PosZ);
-		}
+		writer.Put(data.RightHand.PosX);
+		writer.Put(data.RightHand.PosY);
+		writer.Put(data.RightHand.PosZ);
 
 		// 状态标志
 		writer.Put(data.IsTeleport);
@@ -140,22 +133,16 @@ public static class MPDataSerializer {
 		data.RotW = reader.GetFloat();
 
 		// 左手数据
-		bool leftFree = reader.GetBool();
-		data.LeftHand.IsFree = leftFree;
-		if (!leftFree) {
-			data.LeftHand.PosX = reader.GetFloat();
-			data.LeftHand.PosY = reader.GetFloat();
-			data.LeftHand.PosZ = reader.GetFloat();
-		}
+		data.LeftHand.PosX = reader.GetFloat();
+		data.LeftHand.PosY = reader.GetFloat();
+		data.LeftHand.PosZ = reader.GetFloat();
+
 
 		// 右手数据
-		bool rightFree = reader.GetBool();
-		data.RightHand.IsFree = rightFree;
-		if (!rightFree) {
-			data.RightHand.PosX = reader.GetFloat();
-			data.RightHand.PosY = reader.GetFloat();
-			data.RightHand.PosZ = reader.GetFloat();
-		}
+		data.RightHand.PosX = reader.GetFloat();
+		data.RightHand.PosY = reader.GetFloat();
+		data.RightHand.PosZ = reader.GetFloat();
+
 
 		// 状态标志
 		data.IsTeleport = reader.GetBool();

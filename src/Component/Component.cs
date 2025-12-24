@@ -85,24 +85,15 @@ public class RemotePlayerComponent : MonoBehaviour {
 public class RemoteHandComponent : MonoBehaviour {
 	public HandType hand;    // 手部标识 (0: 左手, 1: 右手)
 	private bool _isTeleporting = false;    // 是否进行了传送
-	private bool _isFree = true;            // 是否空闲(未抓住对象)
 	private Vector3 _targetWorldPosition;   // 目标世界位置
 	private Vector3 _velocity = Vector3.zero;   // 当前速度,用于平滑插值
-	public Vector3 DefaultLocalPosition { get; private set; }
-
-	void Start() {
-		// 根据左右手设置不同的默认位置
-		DefaultLocalPosition = hand == PlayerData.HandType.Left
-			? new Vector3(-0.4f, 0.5f, 0.4f)
-			: new Vector3(0.4f, 0.5f, 0.4f);
-	}
 
 	// 每帧更新位置
 	void Update() {
 		// 如果是传送状态,不进行平滑移动
 		if (_isTeleporting) return;
 
-		Vector3 targetPosition = GetCurrentTargetPosition();
+		Vector3 targetPosition = _targetWorldPosition;
 
 		if (transform.position != targetPosition) {
 			float distance = Vector3.Distance(transform.position, targetPosition);
@@ -125,28 +116,13 @@ public class RemoteHandComponent : MonoBehaviour {
 		}
 	}
 
-	// 获取当前目标位置
-	private Vector3 GetCurrentTargetPosition() {
-		if (_isFree) {
-			// 空闲状态：回到默认位置(相对于父对象)
-			return (transform.parent != null)
-						? transform.parent.TransformPoint(DefaultLocalPosition)
-						: DefaultLocalPosition;
-		} else {
-			// 抓住对象状态：使用指定的世界位置
-			return _targetWorldPosition;
-		}
-	}
+
 
 	// 从HandData更新手状态(Container调用这个方法)
 	public void UpdateFromHandData(HandData handData) {
-		// 更新空闲状态
-		_isFree = handData.IsFree;
 
-		if (!_isFree) {
-			// 抓住对象：使用网络传来的世界位置
-			_targetWorldPosition = handData.Position;
-		}
+		// 抓住对象：使用网络传来的世界位置
+		_targetWorldPosition = handData.Position;
 
 		// 重置传送标志
 		_isTeleporting = false;
@@ -155,14 +131,12 @@ public class RemoteHandComponent : MonoBehaviour {
 	// 直接调用
 	public void UpdatePosition(Vector3 worldPosition) {
 		_isTeleporting = false;  // 确保不是传送状态
-		_isFree = false;  // 更新位置意味着抓住对象
 		_targetWorldPosition = worldPosition;
 	}
 
 	// 立即传送
 	public void Teleport(Vector3 wouldPosition) {
 		_isTeleporting = true;
-		_isFree = true;
 
 		// 立即设置位置
 		transform.position = wouldPosition;
@@ -177,16 +151,6 @@ public class RemoteHandComponent : MonoBehaviour {
 	private IEnumerator ResetTeleportFlag() {
 		yield return null;
 		_isTeleporting = false;
-	}
-
-	// 设置默认位置(可以动态调整,调试用)
-	public void SetDefaultLocalPosition(Vector3 localPosition) {
-		DefaultLocalPosition = localPosition;
-
-		// 如果当前是空闲状态,立即更新目标
-		if (_isFree) {
-			_velocity = Vector3.zero;
-		}
 	}
 }
 
