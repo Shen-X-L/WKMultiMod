@@ -405,6 +405,8 @@ public class MPCore : MonoBehaviour {
 			$"[MPCore] Joining the lobby, ID: {lobby.Id.ToString()}");
 		// 在这里连接主机
 		SteamNetworkEvents.TriggerConnectToHost();
+		// 启动多人模式标准, 这里的触发可能先于join回调
+		IsMultiplayerActive = true;
 		// 启动协程发送请求初始化数据
 		StartCoroutine(InitHandshakeRoutine());
 	}
