@@ -18,8 +18,7 @@
 
 * 对象生命周期混乱, 可能导致未预期的行为.
 * 目前仅支持映射玩家胶囊, 其他物体尚未实现同步.
-* 日志输出存在大量中文且较为混乱, 需要手动筛选相关信息.
-
+* 
  **可能的目标** :
 
 ```mermaid
@@ -49,11 +48,6 @@ graph RL
         3c[同步可拾取物品]
         3d[同步mass数据]
         3e[同步实体数据]
-    end
-
-    %% 模块 4：网络架构
-    subgraph 网络架构
-        4b[支持旧LiteNetLib和steam混合联机]
     end
 
     %% 依赖关系连接 (跨模块和模块内)
@@ -112,7 +106,6 @@ WhiteKnuckleMod/
 │   │   ├─MPMain.cs                 # 启动类,用来启动补丁
 │   │   └─RemotePlayerManager.cs    # 远程玩家对象管理类
 │   ├─Data/
-│   │   ├─DataEnum.cs               # 枚举定义类
 │   │   └─PlayerData.cs             # 玩家网络数据定义 + 序列化工具类
 │   ├─NetWork/
 │   │   ├─MPLiteNet.cs              # 暂时废弃
@@ -155,7 +148,7 @@ WhiteKnuckleMod/
 
 ## 联机功能
 
-## 0.13
+## 0.13/0.14
 
 在游戏中开启作弊模式 (`cheats`) 后, 可使用以下命令:
 
@@ -164,6 +157,8 @@ WhiteKnuckleMod/
 * `getlobbyid` - 获取大厅大厅码
 * `join <大厅码>` - 通过大厅码,加入大厅
   * 示例: `join 109775241951624817`
+* `talk <文字(目前控制台不支持中文)>` - 来在头顶的标签上说话
+  * 示例: `talk help me`
 
 ## 0.12
 
@@ -177,7 +172,15 @@ WhiteKnuckleMod/
 
 ### 配置选项
 
-目前暂无配置文件.
+shenxl.MultiPlayerMod.cfg 中
+```
+[Debug]
+
+## 值为0时使用中文输出日志, Use English logs when the value is 1.
+# Setting type: Int32
+# 默认值: 1
+LogLanguage = 0
+```
 
 ## 贡献指南
 
