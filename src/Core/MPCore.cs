@@ -509,8 +509,10 @@ public class MPCore : MonoBehaviour {
 			// 发送信息
 			case PacketType.TalkToAllPlayers:
 				string receivedMsg = reader.GetString();
-				string playerName = new Friend(playerId).Name;
-				CommandConsole.Log($"{playerName}: {receivedMsg}");
+				CommandConsole.Log($"{playerId}: {receivedMsg}");
+				// 控制台目前不支持中文
+				//string playerName = new Friend(playerId).Name;
+				//CommandConsole.Log($"{playerName}: {receivedMsg}");
 				RPManager.GetContainerByPlayerId(playerId).UpdateNameTag(receivedMsg);
 				break;
 
