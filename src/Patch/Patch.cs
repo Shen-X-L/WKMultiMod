@@ -38,7 +38,7 @@ public class Patch_SteamManager_Awake {
 
 		// 创建核心对象
 		try {
-			GameObject coreGameObject = new GameObject("MultiplayerCore_Injected");
+			GameObject coreGameObject = new GameObject("MultiplayerCore");
 			coreGameObject.transform.SetParent(__instance.transform, false);
 			coreGameObject.AddComponent<MPCore>();
 

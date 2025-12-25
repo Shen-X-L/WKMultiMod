@@ -487,7 +487,7 @@ public class MPCore : MonoBehaviour {
 	/// <summary>
 	/// 处理网络接收数据
 	/// </summary>
-	private void ProcessReceiveData(ulong playId, byte[] data) {
+	private void ProcessReceiveData(ulong playerId, byte[] data) {
 		// 基本验证：确保数据足够读取一个整数(数据包类型)
 		var reader = MPDataSerializer.BytesToReader(data);
 		PacketType packetType = (PacketType)reader.GetInt();
@@ -500,18 +500,18 @@ public class MPCore : MonoBehaviour {
 			// 玩家数据更新
 			case PacketType.PlayerDataUpdate:
 				var playerData = MPDataSerializer.ReadFromNetData(reader);
-				RPManager.ProcessPlayerData(playId, playerData);
+				RPManager.ProcessPlayerData(playerId, playerData);
 				break;
 			// 发送世界种子
 			case PacketType.RequestInitData:
-				SendInitializationDataToNewPlayer(playId);
+				SendInitializationDataToNewPlayer(playerId);
 				break;
 			// 发送信息
 			case PacketType.TalkToAllPlayers:
 				string receivedMsg = reader.GetString();
-				string playerName = new Friend(playId).Name;
+				string playerName = new Friend(playerId).Name;
 				CommandConsole.Log($"{playerName}: {receivedMsg}");
-				RPManager.GetContainerByPlayerId(playId).UpdateNameTag(receivedMsg);
+				RPManager.GetContainerByPlayerId(playerId).UpdateNameTag(receivedMsg);
 				break;
 
 		}
