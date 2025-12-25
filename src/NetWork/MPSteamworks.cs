@@ -80,6 +80,7 @@ public class MPSteamworks : MonoBehaviour {
 			// 订阅MPCore会发送的事件
 			SteamNetworkEvents.OnSendToHost += HandleSendToHost;
 			SteamNetworkEvents.OnBroadcast += HandleBroadcast;
+			SteamNetworkEvents.OnBroadcastExcept += HandleBroadcastExcept;
 			SteamNetworkEvents.OnSendToPeer += HandleSendToPeer;
 
 			SteamNetworkEvents.OnConnectToHost += ConnectToHost;
@@ -126,6 +127,7 @@ public class MPSteamworks : MonoBehaviour {
 		// 取消订阅
 		SteamNetworkEvents.OnSendToHost -= HandleSendToHost;
 		SteamNetworkEvents.OnBroadcast -= HandleBroadcast;
+		SteamNetworkEvents.OnBroadcastExcept -= HandleBroadcastExcept;
 		SteamNetworkEvents.OnSendToPeer -= HandleSendToPeer;
 
 		SteamNetworkEvents.OnConnectToHost -= ConnectToHost;
@@ -235,7 +237,39 @@ public class MPSteamworks : MonoBehaviour {
 					$"[MPSW] Broadcasting data exception: {ex.Message}");
 			}
 		}
+	}
 
+	/// <summary>
+	/// 发送数据: 本机->总线->除个别玩家外所有连接玩家
+	/// </summary>
+	/// <param name="steamId">被排除的玩家</param>
+	private void HandleBroadcastExcept(SteamId steamId, byte[] data, SendType sendType, ushort laneIndex) {
+		// Debug
+		bool canLog = _debugTick.IsTick();
+		if (canLog) {
+			MPMain.LogInfo(
+				$"[MPSW] 开始广播数据,当前连接数: {_allConnections.Count.ToString()}",
+				$"[MPSW] Started broadcasting data, current connections: {_allConnections.Count.ToString()}");
+		}
+
+		foreach (var (tempSteamId, connection) in _allConnections) {
+			if (steamId == tempSteamId)
+				continue;
+			try {
+				if (canLog) {
+					MPMain.LogInfo(
+						$"[MPSW] 广播数据,当前连接: " +
+						$"SteamId: {tempSteamId.ToString()} 连接Id: {connection.Id.ToString()}",
+						$"[MPSW] Sending data to connections. " +
+						$"SteamId: {tempSteamId.ToString()} ConnectionId: {connection.Id.ToString()}");
+				}
+				connection.SendMessage(data, sendType, laneIndex);
+			} catch (Exception ex) {
+				MPMain.LogError(
+					$"[MPSW] 广播数据异常: {ex.Message}",
+					$"[MPSW] Broadcasting data exception: {ex.Message}");
+			}
+		}
 	}
 
 	/// <summary>
@@ -245,7 +279,7 @@ public class MPSteamworks : MonoBehaviour {
 	/// <param name="steamId"></param>
 	/// <param name="sendType"></param>
 	/// <param name="laneIndex"></param>
-	private void HandleSendToPeer(byte[] data, SteamId steamId, SendType sendType, ushort laneIndex) {
+	private void HandleSendToPeer(SteamId steamId, byte[] data, SendType sendType, ushort laneIndex) {
 		try {
 			_allConnections[steamId].SendMessage(data, sendType, laneIndex);
 		} catch (Exception ex) {

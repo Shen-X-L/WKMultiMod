@@ -20,8 +20,10 @@ public static class SteamNetworkEvents {
 	public static event Action<byte[], SendType, ushort> OnSendToHost;
 	// 发送事件: 本地玩家数据 -> 广播所有网络
 	public static event Action<byte[], SendType, ushort> OnBroadcast;
+	// 发送事件: 主机数据 -> 广播除某个外的网络
+	public static event Action<SteamId, byte[], SendType, ushort> OnBroadcastExcept;
 	// 发送事件: 本地玩家数据 -> 特定网络
-	public static event Action<byte[], SteamId, SendType, ushort> OnSendToPeer;
+	public static event Action<SteamId, byte[], SendType, ushort> OnSendToPeer;
 	// 发送事件: 本地玩家 -> 连接特定玩家
 	public static event Action<SteamId> OnConnectToPlayer;
 	// 发送事件: 本地玩家 -> 连接主机
@@ -32,12 +34,15 @@ public static class SteamNetworkEvents {
 		=> OnSendToHost?.Invoke(data, sendType, laneIndex);
 	public static void TriggerBroadcast(byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0)
 		=> OnBroadcast?.Invoke(data, sendType, laneIndex);
+	public static void TriggerBroadcastExcept(
+		SteamId steamId, byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0)
+		=> OnBroadcastExcept?.Invoke(steamId, data, sendType, laneIndex);
 	public static void TriggerSendToPeer(
-		byte[] data, SteamId steamId,SendType sendType = SendType.Reliable, ushort laneIndex = 0)
-		=> OnSendToPeer?.Invoke(data, steamId, sendType, laneIndex);
+		SteamId steamId, byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0)
+		=> OnSendToPeer?.Invoke(steamId, data, sendType, laneIndex);
 	public static void TriggerConnectToPlayer(SteamId steamId)
 		=> OnConnectToPlayer?.Invoke(steamId);
-	public static void TriggerConnectToHost()=> OnConnectToHost?.Invoke();
+	public static void TriggerConnectToHost() => OnConnectToHost?.Invoke();
 
 	// 接收事件：网络 -> 远程玩家管理类
 	public static event Action<ulong, byte[]> OnReceiveData;
@@ -62,7 +67,7 @@ public static class SteamNetworkEvents {
 	// 接收事件: 玩家离开大厅
 	public static event Action<SteamId> OnLobbyMemberLeft;
 	// 接收事件: 大厅成员数据或大厅所有权发生变更
-	public static event Action<Lobby,SteamId> OnLobbyHostChanged;
+	public static event Action<Lobby, SteamId> OnLobbyHostChanged;
 
 	public static void TriggerLobbyEntered(Lobby lobby)
 		=> OnLobbyEntered?.Invoke(lobby);
@@ -73,7 +78,7 @@ public static class SteamNetworkEvents {
 	public static void TriggerLobbyMemberLeft(SteamId steamId)
 		=> OnLobbyMemberLeft?.Invoke(steamId);
 
-	public static void TriggerLobbyHostChanged(Lobby lobby,SteamId hostId)
+	public static void TriggerLobbyHostChanged(Lobby lobby, SteamId hostId)
 		=> OnLobbyHostChanged?.Invoke(lobby, hostId);
 }
 

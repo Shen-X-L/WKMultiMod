@@ -220,7 +220,7 @@ public class MPCore : MonoBehaviour {
 		if (!_playerDataTick.IsTick())
 			return;
 
-		var playerData = LocalPlayerManager.CreateLocalPlayerData(SteamClient.SteamId);
+		var playerData = LocalPlayerManager.CreateLocalPlayerData(Steamworks.MySteamId);
 		if (playerData == null) {
 			MPMain.LogError(
 				"[LPMan] 本地玩家信息异常",
@@ -264,7 +264,9 @@ public class MPCore : MonoBehaviour {
 		return;
 	}
 
-	// 命令注册
+	/// <summary>
+	/// 命令注册
+	/// </summary>
 	private void RegisterCommands() {
 		// 将命令注册到 CommandConsole
 		CommandConsole.AddCommand("host", Host);
@@ -355,6 +357,9 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
+	/// <summary>
+	/// 获取大厅Id
+	/// </summary>
 	public void GetLobbyId(string[] args) {
 		if (!IsMultiplayerActive) {
 			CommandConsole.LogError("Please use this command after online");
@@ -363,6 +368,9 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.Log($"Lobby Id: {Steamworks.GetLobbyId().ToString()}");
 	}
 
+	/// <summary>
+	/// 调试用,获取所有链接
+	/// </summary>
 	public void GetAllConnections(string[] args) {
 		if (!IsMultiplayerActive) {
 			CommandConsole.LogError("You need in online mode, \n" +
@@ -491,7 +499,7 @@ public class MPCore : MonoBehaviour {
 			writer.Put((int)PacketType.CreatePlayer);
 			writer.Put(steamId.Value);
 			var data = MPDataSerializer.WriterToBytes(writer);
-			SteamNetworkEvents.TriggerBroadcast(data, SendType.Reliable);
+			SteamNetworkEvents.TriggerBroadcastExcept(steamId, data, SendType.Reliable);
 		}
 	}
 
@@ -525,7 +533,7 @@ public class MPCore : MonoBehaviour {
 			writer.Put((int)PacketType.DestroyPlayer);
 			writer.Put(steamId.Value);
 			var data = MPDataSerializer.WriterToBytes(writer);
-			SteamNetworkEvents.TriggerBroadcast(data, SendType.Reliable);
+			SteamNetworkEvents.TriggerBroadcastExcept(steamId, data, SendType.Reliable);
 		}
 	}
 
@@ -601,8 +609,8 @@ public class MPCore : MonoBehaviour {
 			var writer = new NetDataWriter();
 			writer.Put((int)PacketType.PlayerDataUpdate);
 			MPDataSerializer.WriteToNetData(writer, playerData);
-			SteamNetworkEvents.TriggerBroadcast(
-				MPDataSerializer.WriterToBytes(writer),
+			SteamNetworkEvents.TriggerBroadcastExcept(
+				playId, MPDataSerializer.WriterToBytes(writer),
 				SendType.Unreliable | SendType.NoNagle);
 		}
 	}
@@ -620,8 +628,14 @@ public class MPCore : MonoBehaviour {
 		// 已存在的玩家数
 		writer.Put(RPManager.Players.Count);
 
+		writer.Put(Steamworks.MySteamId);
+		WriteToNetData(writer, LocalPlayerManager.CreateLocalPlayerData(Steamworks.MySteamId));
+
 		// 发送已存在玩家数据
 		foreach (var (playerId, playerData) in RPManager.Players) {
+			// 如果映射玩家的Id是其自己,跳过发送
+			if (steamId == playerId)
+				continue;
 			writer.Put(playerId);
 			WriteToNetData(writer, playerData.PlayerData);
 		}
@@ -629,7 +643,7 @@ public class MPCore : MonoBehaviour {
 		// 可以添加其他初始化数据,如游戏状态、物品状态等
 
 		var seedData = MPDataSerializer.WriterToBytes(writer);
-		SteamNetworkEvents.TriggerSendToPeer(seedData, steamId, SendType.Reliable);
+		SteamNetworkEvents.TriggerSendToPeer(steamId, seedData, SendType.Reliable);
 		// Debug
 		MPMain.LogInfo(
 			"[MPCore] 已向新玩家发送初始化数据",
