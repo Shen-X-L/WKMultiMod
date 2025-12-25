@@ -18,8 +18,10 @@ public class MPSteamworks : MonoBehaviour {
 
 	// Debug日志输出间隔
 	private TickTimer _debugTick = new TickTimer(5f);
-
+	// 大厅Id
 	private Lobby _currentLobby;
+	// 房主Id
+	private SteamId _lastKnownHostId;
 
 	// 监听socket
 	internal SocketManager _socketManager;

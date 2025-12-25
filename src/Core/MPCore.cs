@@ -441,6 +441,7 @@ public class MPCore : MonoBehaviour {
 
 		// 这个触发可能比Join回调更快
 		// 启动多人模式标准, 这里的触发可能先于join回调
+		IsMultiplayerActive = true;
 
 		// 启动协程发送请求初始化数据
 		StartCoroutine(InitHandshakeRoutine());
@@ -454,59 +455,49 @@ public class MPCore : MonoBehaviour {
 			Steamworks.ConnectToPlayer(member.Id);
 		}
 	}
-	}
-		// 启动协程发送请求初始化数据
-		StartCoroutine(InitHandshakeRoutine());
-	}
 
 	// 离开大厅
 	private void ProcessLobbyMemberLeft(SteamId steamId) {
 		// Debug
 		MPMain.LogInfo(
-			//SteamNetworkEvents.TriggerBroadcast(MPDataSerializer.WriterToBytes(writer), SendType.Reliable);
-		}
+			$"[MPCore] 玩家离开大厅: {steamId.ToString()}",
+			$"[MPCore] Player left the lobby: {steamId.ToString()}");
 	}
 
 	/// <summary>
 	/// 处理玩家接入事件
 	/// </summary>
 	private void ProcessPlayerConnected(SteamId steamId) {
+		// 创建玩家
 		RPManager.CreatePlayer(steamId);
-		RPManager.CreatePlayer(playerId);
-			$"[MPCore] 创建玩家映射 Id: {playerId.ToString()}",
-			$"[MPCore] Create player Id: {playerId.ToString()}");
-		RPManager.CreatePlayer(playerId);
-	/// 处理玩家断连
+	}
 
 	/// <summary>
-	/// 主机: 处理玩家断连 客户端: 对可能的主机离线进行删除
+	/// 处理玩家断连
 	/// </summary>
 	private void ProcessPlayerDisconnected(SteamId steamId) {
+		// Debug
+		MPMain.LogInfo(
+			$"[MPCore] 玩家断连: {steamId.ToString()}",
+			$"[MPCore] Player disconnected: {steamId.ToString()}");
 		RPManager.DestroyPlayer(steamId.Value);
-		RPManager.DestroyPlayer(playerId);
-			$"[MPCore] 销毁玩家映射 Id: {playerId.ToString()}",
-			$"[MPCore] Destroy player Id: {playerId.ToString()}");
-		RPManager.DestroyPlayer(playerId);
 	}
 
 	/// <summary>
 	/// 处理网络接收数据
 	/// </summary>
-	/// <param name="playId"></param>
-	/// <param name="data"></param>
 	private void ProcessReceiveData(ulong playId, byte[] data) {
-		//// Debug
-		//if (_debugTick.Test()) {
-		//	MPMain.Logger.LogInfo($"[MPCore Process] 接收数据");
-		//}
-
 		// 基本验证：确保数据足够读取一个整数(数据包类型)
+		var reader = MPDataSerializer.BytesToReader(data);
+		PacketType packetType = (PacketType)reader.GetInt();
+
+		switch (packetType) {
 			// 种子加载
 			case PacketType.SeedUpdate:
 				MultiPlaterModeInit(reader.GetInt());
-				ProcessCreatePlayer(reader.GetULong());
-			// 销毁玩家映射
-			case PacketType.DestroyPlayer:
+				break;
+			// 玩家数据更新
+			case PacketType.PlayerDataUpdate:
 				var playerData = MPDataSerializer.ReadFromNetData(reader);
 				RPManager.ProcessPlayerData(playId, playerData);
 				break;
@@ -518,16 +509,12 @@ public class MPCore : MonoBehaviour {
 				string receivedMsg = reader.GetString();
 				CommandConsole.Log($"[Chat] {playId.ToString()}: {receivedMsg}");
 				break;
-		writer.Put(RPManager.Players.Count);
 
-		// 已存在的玩家数
-		writer.Put(RPManager.Players.Count);
-
-	/// 加载世界种子
-	/// 新加入玩家,加载世界种子和已存在玩家
+		}
+	}
 
 	/// <summary>
-	/// 新加入玩家,加载世界种子和已存在玩家
+	/// 加载世界种子
 	/// </summary>
 	/// <param name="seed"></param>
 	private void MultiPlaterModeInit(int seed) {
