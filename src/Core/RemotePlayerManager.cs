@@ -19,7 +19,7 @@ public class RemotePlayerManager : MonoBehaviour {
 	private TickTimer _debugTick = new TickTimer(5f);
 
 	// 存储所有远程对象
-	private static Dictionary<ulong, RemotePlayerContainer> _players = new Dictionary<ulong, RemotePlayerContainer>();
+	internal Dictionary<ulong, RemotePlayerContainer> Players = new Dictionary<ulong, RemotePlayerContainer>();
 
 	void Awake() {
 		//MPMain.Logger.LogInfo("[RPMan] RemotePlayerManager Awake");
@@ -36,10 +36,10 @@ public class RemotePlayerManager : MonoBehaviour {
 
 	// 清除全部玩家
 	public void ResetAll() {
-		foreach (var container in _players.Values) {
+		foreach (var container in Players.Values) {
 			container.Destroy();
 		}
-		_players.Clear();
+		Players.Clear();
 	}
 
 	/// <summary>
@@ -75,7 +75,7 @@ public class RemotePlayerManager : MonoBehaviour {
 
 	// 创建玩家对象
 	public RemotePlayerContainer CreatePlayer(ulong playId) {
-		if (_players.TryGetValue(playId, out RemotePlayerContainer value))
+		if (Players.TryGetValue(playId, out RemotePlayerContainer value))
 			return value;
 
 		var container = new RemotePlayerContainer(playId);
@@ -83,15 +83,15 @@ public class RemotePlayerManager : MonoBehaviour {
 		// 使用专门的根对象
 		container.Initialize(GetRemotePlayersRoot());
 
-		_players[playId] = container;
+		Players[playId] = container;
 		return container;
 	}
 
 	// 清除特定玩家
 	public void DestroyPlayer(ulong playId) {
-		if (_players.TryGetValue(playId, out var container)) {
+		if (Players.TryGetValue(playId, out var container)) {
 			container.Destroy();
-			_players.Remove(playId);
+			Players.Remove(playId);
 		}
 	}
 
@@ -110,7 +110,7 @@ public class RemotePlayerManager : MonoBehaviour {
 		//}
 
 		// 以后加上时间戳处理
-		var RPcontainer = _players[playId];
+		var RPcontainer = Players[playId];
 		if (RPcontainer == null) {
 			MPMain.LogError(
 				$"[RPMan] 未找到远程对象 ID: {playId.ToString()}",
@@ -123,7 +123,7 @@ public class RemotePlayerManager : MonoBehaviour {
 	}
 
 	public RemotePlayerContainer GetContainerByPlayerId(ulong playId) { 
-		return _players[playId];
+		return Players[playId];
 	}
 }
 

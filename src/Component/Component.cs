@@ -218,7 +218,10 @@ public class PlayerNameTag : MonoBehaviour {
 	public void RefreshName() {
 		if (_textMesh == null) return;
 		// 直接通过 SteamId 获取名称
-		_textMesh.text = new Friend(_steamId).Name;
+		string playerName = new Friend(_steamId).Name;
+		_textMesh.text =
+			$"Name: {playerName}\n" +
+			$"ID: {_steamId.ToString()}\n";
 	}
 
 	/// <summary>
@@ -227,10 +230,11 @@ public class PlayerNameTag : MonoBehaviour {
 	public void SetDynamicMessage(string message) {
 		if (_textMesh == null) return;
 
-		// 示例：显示 "名字: 消息内容"
 		string playerName = new Friend(_steamId).Name;
 		_textMesh.text = 
-			$"{playerName}: {(message.Length <= 10 ? message : message.Substring(0, 10))}";
+			$"Name: {playerName}\n" +
+			$"ID: {_steamId.ToString()}\n" +
+			$"{(message.Length <= 15 ? message : message.Substring(0, 15))}";
 
 	}
 }

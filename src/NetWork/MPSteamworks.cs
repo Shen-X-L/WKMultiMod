@@ -36,6 +36,10 @@ public class MPSteamworks : MonoBehaviour {
 	// 消息队列
 	private ConcurrentQueue<NetworkMessage> _messageQueue = new ConcurrentQueue<NetworkMessage>();
 
+	// 本机SteamId
+	private SteamId _mySteamId;
+	public SteamId MySteamId { get => _mySteamId; private set => _mySteamId = value; }
+
 	// 获取当前大厅ID
 	public ulong CurrentLobbyId {
 		get { return _currentLobby.Id.Value; }
@@ -66,6 +70,7 @@ public class MPSteamworks : MonoBehaviour {
 				return;
 			}
 
+			MySteamId = SteamClient.SteamId;
 			MPMain.LogInfo(
 				$"[MPSW] Steamworks初始化成功 玩家: " +
 				$"玩家: {SteamClient.Name} ID: {SteamClient.SteamId.ToString()}",
@@ -202,7 +207,7 @@ public class MPSteamworks : MonoBehaviour {
 	private void HandleBroadcast(byte[] data, SendType sendType, ushort laneIndex) {
 
 		// Debug
-		bool canLog = _debugTick.IsTick();
+		bool canLog = _debugTick.TryTick();
 		if (canLog) {
 			MPMain.LogInfo(
 				$"[MPSW] 开始广播数据,当前连接数: {_allConnections.Count.ToString()}",

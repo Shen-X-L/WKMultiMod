@@ -12,8 +12,8 @@ using UnityEngine.SceneManagement;
 using WKMultiMod.src.Data;
 using WKMultiMod.src.NetWork;
 using WKMultiMod.src.Util;
-using static SessionEventModule_SendMessageToModules;
-using static WKMultiMod.src.Data.MPDataSerializer;
+using static MonoMod.Cil.RuntimeILReferenceBag.FastDelegateInvokers;
+
 namespace WKMultiMod.src.Core;
 
 public class MPCore : MonoBehaviour {
@@ -35,9 +35,7 @@ public class MPCore : MonoBehaviour {
 	// 玩家数据发送时间 每秒30次
 	private TickTimer _playerDataTick = new TickTimer(30);
 	private readonly NetDataWriter _playerDataWriter = new NetDataWriter();
-
-	// Steam ID
-	public static SteamId steamId { get; private set; }
+	private TickTimer _teleport = new TickTimer(1);
 
 	// 世界种子 - 用于同步游戏世界生成
 	public int WorldSeed { get; private set; }
@@ -91,10 +89,10 @@ public class MPCore : MonoBehaviour {
 	/// </summary>
 	private void SeedLocalPlayerData() {
 		// 限制发送频率(20Hz)
-		if (!_playerDataTick.IsTick())
+		if (!_playerDataTick.TryTick())
 			return;
 
-		var playerData = LocalPlayerManager.CreateLocalPlayerData(SteamClient.SteamId);
+		var playerData = LocalPlayerManager.CreateLocalPlayerData(Steamworks.MySteamId);
 		if (playerData == null) {
 			MPMain.LogError(
 				"[LPMan] 本地玩家信息异常",
@@ -102,8 +100,9 @@ public class MPCore : MonoBehaviour {
 			return;
 		}
 
-		//// Debug
-		//playerData.IsTeleport = true;
+		// 使用tp命令会重设计时器
+		// 如果计时器到时间,设为不传送
+		playerData.IsTeleport = !_teleport.IsTickReached;
 
 		// 进行数据写入
 		_playerDataWriter.Put((int)PacketType.PlayerDataUpdate);
@@ -134,9 +133,6 @@ public class MPCore : MonoBehaviour {
 
 			//// 创建本地信息获取发送管理器
 			//LPManager = gameObject.AddComponent<LocalPlayerManager>();
-
-			// 初始化SteamID
-			steamId = SteamClient.SteamId;
 
 			// 订阅网络事件
 			SubscribeToEvents();
@@ -259,9 +255,11 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.AddCommand("getlobbyid", GetLobbyId);
 		CommandConsole.AddCommand("allconnections", GetAllConnections);
 		CommandConsole.AddCommand("talk", Talk);
+		CommandConsole.AddCommand("tpto", TpToPlayer);
 	}
 
 	// 命令实现
+	// 创建大厅
 	public void Host(string[] args) {
 		if (IsMultiplayerActive) {
 			CommandConsole.LogError("You are already in online mode, \n" +
@@ -274,7 +272,7 @@ public class MPCore : MonoBehaviour {
 		}
 
 		string roomName = args[0];
-		int maxPlayers = args.Length >= 2 ? int.Parse(args[1]) : 4;
+		int maxPlayers = args.Length >= 2 ? int.Parse(args[1]) : 6;
 		// Debug
 		MPMain.LogInfo(
 			$"[MPCore] 正在创建大厅: {roomName}...",
@@ -290,6 +288,7 @@ public class MPCore : MonoBehaviour {
 		});
 	}
 
+	// 加入大厅
 	public void Join(string[] args) {
 		if (IsMultiplayerActive) {
 			CommandConsole.LogError("You are already in online mode, \n" +
@@ -321,6 +320,7 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
+	// 离开大厅
 	public void Leave(string[] args) {
 		ResetStateVariables();
 		// Debug
@@ -341,6 +341,7 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
+	// 获取大厅ID
 	public void GetLobbyId(string[] args) {
 		if (!IsMultiplayerActive) {
 			CommandConsole.LogError("Please use this command after online");
@@ -349,6 +350,7 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.Log($"Lobby Id: {Steamworks.GetLobbyId().ToString()}");
 	}
 
+	// 调试用,获取所有链接
 	public void GetAllConnections(string[] args) {
 		if (!IsMultiplayerActive) {
 			CommandConsole.LogError("You need in online mode, \n" +
@@ -368,6 +370,7 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
+	// 发送信息到他人控制台
 	public void Talk(string[] args) {
 		if (!IsMultiplayerActive) {
 			CommandConsole.LogError("You need in online mode, \n" +
@@ -378,7 +381,7 @@ public class MPCore : MonoBehaviour {
 		string message = string.Join(" ", args);
 
 		NetDataWriter writer = new NetDataWriter();
-		writer.Put((int)PacketType.TalkToAllPlayers);
+		writer.Put((int)PacketType.BroadcastMessage);
 		writer.Put(message); // 自动处理长度和编码
 
 		// 发送给所有人
@@ -386,7 +389,43 @@ public class MPCore : MonoBehaviour {
 		SteamNetworkEvents.TriggerBroadcast(data, SendType.Reliable);
 	}
 
-	// 协程请求种子
+	// 向某人TP
+	public void TpToPlayer(string[] args) {
+		if (!IsMultiplayerActive) {
+			CommandConsole.LogError("You need in online mode, \n" +
+				"please use the host or join");
+			return;
+		}
+		if (ulong.TryParse(args[0], out ulong playerId)) {
+			var ids = DictionaryExtensions.FindByKeySuffix(RPManager.Players, playerId);
+			// 未找到对应id
+			if (ids.Count == 0) {
+				CommandConsole.LogError("Target ID not found. This command uses suffix matching.\n" +
+					"Example: Target ID: 76561198279116422 → tpto 6422.");
+				return;
+			}
+			// 找到多个对应id
+			if (ids.Count > 1) {
+				string idStr = string.Join("\n", ids);
+				CommandConsole.LogError(
+					"Found multiple matching IDs. Below is the corresponding list:\n" + idStr);
+				return;
+			}
+			// 找到对应id,发出传送请求
+			var writer = new NetDataWriter();
+			writer.Put((int)PacketType.RequestTeleport);
+			writer.Put(Steamworks.MySteamId);
+			writer.Put(ids[0]);
+
+			var seedData = MPDataSerializer.WriterToBytes(writer);
+			SteamNetworkEvents.TriggerSendToPeer(seedData, ids[0], SendType.Reliable);
+		}
+	}
+
+	/// <summary>
+	/// 协程请求种子
+	/// </summary>
+	/// <returns></returns>
 	public IEnumerator InitHandshakeRoutine() {
 		// 未加载并且处于联机模式
 		while (!HasInitialized && IsMultiplayerActive) {
@@ -394,11 +433,24 @@ public class MPCore : MonoBehaviour {
 				"[MPCore] 已向主机请求初始化数据",
 				"[MPCore] Requested initialization data from the host.");
 			var writer = new NetDataWriter();
-			writer.Put((int)PacketType.RequestInitData);
+			writer.Put((int)PacketType.InitialDataRequest);
 			var requestData = MPDataSerializer.WriterToBytes(writer);
 			SteamNetworkEvents.TriggerSendToHost(requestData);
 			yield return new WaitForSeconds(2.0f);
 		}
+	}
+
+	/// <summary>
+	/// 加载世界种子
+	/// </summary>
+	/// <param name="seed"></param>
+	private void MultiPlaterModeInit(int seed) {
+		StartMultiPlayerMode();
+		// Debug
+		MPMain.LogInfo(
+			$"[MPCore] 加载世界, 种子号: {seed.ToString()}",
+			$"[MPCore] Loaging world, seed: {seed.ToString()}");
+		WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
 	}
 
 	/// <summary>
@@ -407,7 +459,7 @@ public class MPCore : MonoBehaviour {
 	private void SendInitializationDataToNewPlayer(SteamId steamId) {
 		// 发送世界种子
 		var writer = new NetDataWriter();
-		writer.Put((int)PacketType.SeedUpdate);
+		writer.Put((int)PacketType.WorldSeedUpdate);
 		writer.Put(WorldLoader.instance.seed);
 
 		var seedData = MPDataSerializer.WriterToBytes(writer);
@@ -425,7 +477,7 @@ public class MPCore : MonoBehaviour {
 	/// 处理大厅成员加入 连接新成员
 	/// </summary> 
 	private void ProcessLobbyMemberJoined(SteamId steamId) {
-		if (steamId == SteamClient.SteamId) return;
+		if (steamId == Steamworks.MySteamId) return;
 		// Debug
 		MPMain.LogInfo(
 			$"[MPCore] 玩家加入大厅: {steamId.ToString()}",
@@ -433,7 +485,10 @@ public class MPCore : MonoBehaviour {
 		Steamworks.ConnectToPlayer(steamId);
 	}
 
-	// 加入大厅
+	/// <summary>
+	/// 处理加入大厅事件
+	/// </summary>
+	/// <param name="lobby"></param>
 	private void ProcessLobbyEntered(Lobby lobby) {
 		// Debug
 		MPMain.LogInfo(
@@ -449,7 +504,7 @@ public class MPCore : MonoBehaviour {
 		// 在这里连接所有玩家
 		// 遍历大厅里已经在的所有成员
 		foreach (var member in lobby.Members) {
-			if (member.Id == SteamClient.SteamId) continue; // 跳过自己
+			if (member.Id == Steamworks.MySteamId) continue; // 跳过自己
 			MPMain.LogInfo(
 				$"[MPCore] 连接已在大厅玩家: {member.Name}({member.Id.ToString()})",
 				$"[MPCore] Connected to player in the lobby: {member.Name}({member.Id.ToString()})");
@@ -457,7 +512,10 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
-	// 离开大厅
+	/// <summary>
+	/// 处理离开大厅事件
+	/// </summary>
+	/// <param name="steamId"></param>
 	private void ProcessLobbyMemberLeft(SteamId steamId) {
 		// Debug
 		MPMain.LogInfo(
@@ -485,6 +543,53 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
+	/// 处理玩家传送请求
+	/// </summary>
+	/// <param name="requestId">请求方ID</param>
+	/// <param name="respondId">响应方ID(在P2P模式下是自己)</param>
+	private void ProcessRequestTeleport(SteamId requestId, SteamId respondId) {
+		// 不是自己,退出
+		if (respondId != Steamworks.MySteamId)
+			return;
+		// 获取数据
+		var deathFloorData = DEN_DeathFloor.instance.GetSaveData();
+		var writer = new NetDataWriter();
+		writer.Put((int)PacketType.RespondTeleport);
+		writer.Put(respondId);
+		writer.Put(requestId);
+		writer.Put(deathFloorData.relativeHeight);
+		writer.Put(deathFloorData.active);
+		writer.Put(deathFloorData.speed);
+		writer.Put(deathFloorData.speedMult);
+		var data = MPDataSerializer.WriterToBytes(writer);
+		SteamNetworkEvents.TriggerSendToPeer(data, requestId, SendType.Reliable);
+	}
+
+	/// <summary>
+	/// 处理玩家传送响应
+	/// </summary>
+	/// <param name="respondId">响应方ID</param>
+	/// <param name="requestId">请求方ID(在P2P模式下是自己)</param>
+	private void ProcessRespondTeleport(SteamId respondId, SteamId requestId,NetDataReader reader) {
+		// 不是自己,退出
+		if (requestId != Steamworks.MySteamId)
+			return;
+		var deathFloorData = new DEN_DeathFloor.SaveData { 
+			relativeHeight = reader.GetFloat(),
+			active = reader.GetBool(),
+			speed = reader.GetFloat(),
+			speedMult = reader.GetFloat(),
+		};
+		// 关闭可击杀效果
+		DEN_DeathFloor.instance.SetCanKill(new string[] { "false" });
+		// 重设计数器,期间位移视为传送
+		_teleport.Reset();
+		ENT_Player.GetPlayer().Teleport(RPManager.Players[respondId].PlayerObject.transform.position);
+		DEN_DeathFloor.instance.LoadDataFromSave(deathFloorData);
+		DEN_DeathFloor.instance.SetCanKill(new string[] { "true" });
+	}
+
+	/// <summary>
 	/// 处理网络接收数据
 	/// </summary>
 	private void ProcessReceiveData(ulong playerId, byte[] data) {
@@ -493,21 +598,21 @@ public class MPCore : MonoBehaviour {
 		PacketType packetType = (PacketType)reader.GetInt();
 
 		switch (packetType) {
-			// 种子加载
-			case PacketType.SeedUpdate:
+			// 接收种子加载
+			case PacketType.WorldSeedUpdate:
 				MultiPlaterModeInit(reader.GetInt());
 				break;
-			// 玩家数据更新
+			// 接收玩家数据更新
 			case PacketType.PlayerDataUpdate:
 				var playerData = MPDataSerializer.ReadFromNetData(reader);
 				RPManager.ProcessPlayerData(playerId, playerData);
 				break;
-			// 发送世界种子
-			case PacketType.RequestInitData:
+			// 接收世界初始化请求
+			case PacketType.InitialDataRequest:
 				SendInitializationDataToNewPlayer(playerId);
 				break;
-			// 发送信息
-			case PacketType.TalkToAllPlayers:
+			// 接收信息
+			case PacketType.BroadcastMessage:
 				string receivedMsg = reader.GetString();
 				CommandConsole.Log($"{playerId}: {receivedMsg}");
 				// 控制台目前不支持中文
@@ -515,21 +620,24 @@ public class MPCore : MonoBehaviour {
 				//CommandConsole.Log($"{playerName}: {receivedMsg}");
 				RPManager.GetContainerByPlayerId(playerId).UpdateNameTag(receivedMsg);
 				break;
+			// 接收传送请求
+			case PacketType.RequestTeleport:
+				// 请求方ID
+				var reqRequestId = reader.GetULong();
+				// 响应方ID
+				var reqRespondId = reader.GetULong();
+				ProcessRequestTeleport(reqRequestId, reqRespondId);
+				break;
+			// 接收传送响应
+			case PacketType.RespondTeleport:
+				// 响应方ID
+				var respRespondId = reader.GetULong();
+				// 请求方ID
+				var respRequestId = reader.GetULong();
+				ProcessRespondTeleport(respRespondId,respRequestId,reader);
+				break;
 
 		}
-	}
-
-	/// <summary>
-	/// 加载世界种子
-	/// </summary>
-	/// <param name="seed"></param>
-	private void MultiPlaterModeInit(int seed) {
-		StartMultiPlayerMode();
-		// Debug
-		MPMain.LogInfo(
-			$"[MPCore] 加载世界, 种子号: {seed.ToString()}",
-			$"[MPCore] Loaging world, seed: {seed.ToString()}");
-		WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
 	}
 
 	// 开启多人联机模式
