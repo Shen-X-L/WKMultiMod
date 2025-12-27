@@ -158,7 +158,10 @@ After enabling cheat mode (`cheats`) in-game, use the following commands:
 * `getlobbyid` - Get the lobby room code.
 * `join <room_code>` - Join a lobby using the room code.
   * Example: `join 109775241951624817`
-
+* `talk <text>` - Speak via the overhead label.
+  * Example: `talk help me`
+* `tpto <steamId(suffix match)>` - Teleport between players
+  * Example: `tpto 22 (target ID: 561198279116422)`
 ### Version 0.12
 
 After enabling cheat mode (`cheats`) in-game, use the following commands:
