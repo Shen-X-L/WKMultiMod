@@ -34,7 +34,7 @@ public class TickTimer {
 	/// <summary>
 	/// 检查间隔是否到达。如果到达,则自动更新内部计时器并返回 true。
 	/// </summary>
-	public bool IsTick() {
+	public bool TryTick() {
 		if (Time.time - _lastUpdateTime >= _interval) {
 			_lastUpdateTime = Time.time;
 			return true;

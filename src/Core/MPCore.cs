@@ -72,10 +72,10 @@ public class MPCore : MonoBehaviour {
 
 	void Update() {
 		// 没有开启多人时停止更新
-		if (MPCore.IsMultiplayerActive == false)
+		if (IsMultiplayerActive == false || HasInitialized == false)
 			return;
 		// 没有链接时停止更新
-		if (!MPCore.Instance.Steamworks.HasConnections)
+		if (!Instance.Steamworks.HasConnections)
 			return;
 		// 发送本地玩家数据
 		SeedLocalPlayerData();
@@ -217,7 +217,7 @@ public class MPCore : MonoBehaviour {
 	/// </summary>
 	private void SeedLocalPlayerData() {
 		// 限制发送频率(20Hz)
-		if (!_playerDataTick.IsTick())
+		if (!_playerDataTick.TryTick())
 			return;
 
 		var playerData = LocalPlayerManager.CreateLocalPlayerData(Steamworks.MySteamId);
