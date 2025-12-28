@@ -38,7 +38,6 @@ graph RL
         2a[Mutual Damage]
         2b[Item Grabbing/Stealing]
         2c[Add New Items]
-        2d[Player Teleportation]
         2e[Respawn After Death]
     end
 
@@ -47,7 +46,6 @@ graph RL
         3a["Sync Man-made Structures (Rock Bolts, Rebars)"]
         3b[Sync Inventory]
         3c[Sync Pickup Items]
-        3d[Sync Mass Data]
         3e[Sync Entity Data]
     end
 
