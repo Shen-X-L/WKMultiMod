@@ -33,6 +33,7 @@ public class MPCore : MonoBehaviour {
 	// 玩家数据发送时间 每秒30次
 	private TickTimer _playerDataTick = new TickTimer(30);
 	private readonly NetDataWriter _playerDataWriter = new NetDataWriter();
+	private TickTimer _teleport = new TickTimer(0.5f);
 
 	// 世界种子 - 用于同步游戏世界生成
 	public int WorldSeed { get; private set; }
@@ -228,8 +229,10 @@ public class MPCore : MonoBehaviour {
 			return;
 		}
 
-		//// Debug
-		//playerData.IsTeleport = true;
+		// 使用tp命令会重设计时器
+		// 如果计时器到时间,设为不传送
+		playerData.IsTeleport = !_teleport.IsTickReached;
+
 
 		// 进行数据写入
 		_playerDataWriter.Reset();
@@ -275,6 +278,9 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.AddCommand("chaos", ChaosMod);
 		CommandConsole.AddCommand("getlobbyid", GetLobbyId);
 		CommandConsole.AddCommand("test", GetAllConnections);
+		CommandConsole.AddCommand("talk", Talk);
+		CommandConsole.AddCommand("tpto", TpToPlayer);
+
 	}
 
 	// 命令实现
@@ -551,20 +557,21 @@ public class MPCore : MonoBehaviour {
 		writer.Put((int)PacketType.WorldInitData);
 		writer.Put(WorldLoader.instance.seed);
 
-		// 已存在的玩家数
-		writer.Put(RPManager.Players.Count);
-
+		// 玩家列表
+		List<ulong> playerList = new List<ulong>();
 		// 主机本身
-		writer.Put(Steamworks.UserSteamId);
-		WriteToNetData(writer, LocalPlayerManager.CreateLocalPlayerData(Steamworks.UserSteamId));
-
+		playerList.Add(Steamworks.UserSteamId);
 		// 发送已存在玩家数据
-		foreach (var (playerId, playerData) in RPManager.Players) {
+		foreach (var playerId in Steamworks._connectedClients.Keys) {
 			// 如果映射玩家的Id是其自己,跳过发送
 			if (steamId == playerId)
 				continue;
+			playerList.Add(playerId);
+		}
+
+		writer.Put(playerList.Count);
+		foreach (var playerId in playerList) {
 			writer.Put(playerId);
-			WriteToNetData(writer, playerData.PlayerData);
 		}
 
 		// 可以添加其他初始化数据,如游戏状态、物品状态等
@@ -596,10 +603,7 @@ public class MPCore : MonoBehaviour {
 
 		for (int i = 0; i < playerCount; i++) {
 			ulong playerId = reader.GetULong(); // 记得使用 GetULong 对应 SteamId
-			var playerData = MPDataSerializer.ReadFromNetData(reader);
 			RPManager.PlayerCreate(playerId);
-			// 调用你的玩家管理器进行创建
-			RPManager.ProcessPlayerData(playerId, playerData);
 			MPMain.LogInfo(
 				$"[MPCore] 创建已存在的玩家 Id: {playerId.ToString()}",
 				$"[MPCore] Create an existing player Id: {playerId.ToString()}");
@@ -665,7 +669,7 @@ public class MPCore : MonoBehaviour {
 	/// </summary>
 	private void HandlePlayerRemove(ulong playerId) {
 		// 自己已经离线,不需要再销毁
-		//if (playerId == Steamworks.MySteamId)
+		//if (playerId == Steamworks.UserSteamId)
 		//	return;
 
 		MPMain.LogInfo(
@@ -698,102 +702,102 @@ public class MPCore : MonoBehaviour {
 		}
 	}
 
-	///// <summary>
-	///// 主机接收BroadcastMessage 发送BroadcastMessage: 处理玩家标签更新
-	///// 客户端接收BroadcastMessage: 处理玩家标签更新
-	///// </summary>
-	//private void ProcessPlayerTagUpdate(NetDataReader reader) {
-	//	// 是主机,获取数据段
-	//	ArraySegment<byte> segment = default;
-	//	if (Steamworks.IsHost) {
-	//		segment = reader.GetRemainingBytesSegment();
-	//	}
+	/// <summary>
+	/// 主机接收BroadcastMessage 发送BroadcastMessage: 处理玩家标签更新
+	/// 客户端接收BroadcastMessage: 处理玩家标签更新
+	/// </summary>
+	private void ProcessPlayerTagUpdate(NetDataReader reader) {
+		// 是主机,获取数据段
+		ArraySegment<byte> segment = default;
+		if (Steamworks.IsHost) {
+			segment = reader.GetRemainingBytesSegment();
+		}
 
-	//	ulong playerId = reader.GetULong();
-	//	string receivedMsg = reader.GetString();
-	//	CommandConsole.Log($"{playerId}: {receivedMsg}");
-	//	// 控制台目前不支持中文
-	//	//string playerName = new Friend(playerId).Name;
-	//	//CommandConsole.Log($"{playerName}: {receivedMsg}");
-	//	RPManager.Players[playerId].UpdateNameTag(receivedMsg);
+		ulong playerId = reader.GetULong();
+		string receivedMsg = reader.GetString();
+		CommandConsole.Log($"{playerId}: {receivedMsg}");
+		// 控制台目前不支持中文
+		//string playerName = new Friend(playerId).Name;
+		//CommandConsole.Log($"{playerName}: {receivedMsg}");
+		RPManager.Players[playerId].UpdateNameTag(receivedMsg);
 
-	//	// 是主机,广播除发送者外所有人
-	//	if (Steamworks.IsHost) {
-	//		Broadcast(PacketType.BroadcastMessage, playerId, segment);
-	//	}
-	//}
+		// 是主机,广播除发送者外所有人
+		if (Steamworks.IsHost) {
+			Broadcast(PacketType.BroadcastMessage, playerId, segment);
+		}
+	}
 
-	///// <summary>
-	///// 主机接收PlayerTeleport 目标非本机转发PlayerTeleport
-	///// 客户端接收PlayerTeleport: 携带Mess数据发送RespondPlayerTeleport
-	///// </summary>
-	//private void ProcessPlayerTeleport(NetDataReader reader) {
-	//	// 请求方ID
-	//	var requestId = reader.GetULong();
-	//	// 响应方ID
-	//	var respondId = reader.GetULong();
-	//	// 不是自己并且不是主机,退出
-	//	if (respondId != Steamworks.MySteamId || !Steamworks.IsHost)
-	//		return;
-	//	// 不是自己并且是主机,转发
-	//	if (respondId != Steamworks.MySteamId || Steamworks.IsHost) {
-	//		ForwardToPeer(PacketType.PlayerTeleport, requestId, respondId, reader);
-	//		return;
-	//	}
-	//	// 获取数据
-	//	var deathFloorData = DEN_DeathFloor.instance.GetSaveData();
-	//	var writer = new NetDataWriter();
-	//	writer.Put((int)PacketType.RespondPlayerTeleport);
-	//	writer.Put(respondId);
-	//	writer.Put(requestId);
-	//	writer.Put(deathFloorData.relativeHeight);
-	//	writer.Put(deathFloorData.active);
-	//	writer.Put(deathFloorData.speed);
-	//	writer.Put(deathFloorData.speedMult);
-	//	var data = MPDataSerializer.WriterToBytes(writer);
+	/// <summary>
+	/// 主机接收PlayerTeleport 目标非本机转发PlayerTeleport
+	/// 客户端接收PlayerTeleport: 携带Mess数据发送RespondPlayerTeleport
+	/// </summary>
+	private void ProcessPlayerTeleport(NetDataReader reader) {
+		// 请求方ID
+		var requestId = reader.GetULong();
+		// 响应方ID
+		var respondId = reader.GetULong();
+		// 不是自己并且不是主机,退出
+		if (respondId != Steamworks.UserSteamId || !Steamworks.IsHost)
+			return;
+		// 不是自己并且是主机,转发
+		if (respondId != Steamworks.UserSteamId || Steamworks.IsHost) {
+			ForwardToPeer(PacketType.PlayerTeleport, requestId, respondId, reader);
+			return;
+		}
+		// 获取数据
+		var deathFloorData = DEN_DeathFloor.instance.GetSaveData();
+		var writer = new NetDataWriter();
+		writer.Put((int)PacketType.RespondPlayerTeleport);
+		writer.Put(respondId);
+		writer.Put(requestId);
+		writer.Put(deathFloorData.relativeHeight);
+		writer.Put(deathFloorData.active);
+		writer.Put(deathFloorData.speed);
+		writer.Put(deathFloorData.speedMult);
+		var data = MPDataSerializer.WriterToBytes(writer);
 
-	//	if (Steamworks.IsHost) {
-	//		// 是主机 直接发送
-	//		SteamNetworkEvents.TriggerSendToPeer(requestId, data, SendType.Reliable);
-	//	} else {
-	//		// 请求主机转发
-	//		SteamNetworkEvents.TriggerSendToHost(data, SendType.Reliable);
-	//	}
+		if (Steamworks.IsHost) {
+			// 是主机 直接发送
+			Steamworks.HandleSendToPeer(requestId, data, SendType.Reliable);
+		} else {
+			// 请求主机转发
+			Steamworks.HandleSendToHost(data, SendType.Reliable);
+		}
 
-	//}
+	}
 
-	///// <summary>
-	///// 主机接收RespondPlayerTeleport 目标非本机转发RespondPlayerTeleport
-	///// 客户端接收RespondPlayerTeleport: 同步Mess数据并传送
-	///// </summary>
-	//private void ProcessRespondPlayerTeleport(NetDataReader reader) {
-	//	// 响应方ID
-	//	var respondId = reader.GetULong();
-	//	// 请求方ID
-	//	var requestId = reader.GetULong();
-	//	// 不是自己并且不是主机,退出
-	//	if (respondId != Steamworks.MySteamId || !Steamworks.IsHost)
-	//		return;
-	//	// 不是自己并且是主机,转发
-	//	if (respondId != Steamworks.MySteamId || Steamworks.IsHost) {
-	//		ForwardToPeer(PacketType.PlayerTeleport, respondId, requestId, reader);
-	//		return;
-	//	}
+	/// <summary>
+	/// 主机接收RespondPlayerTeleport 目标非本机转发RespondPlayerTeleport
+	/// 客户端接收RespondPlayerTeleport: 同步Mess数据并传送
+	/// </summary>
+	private void ProcessRespondPlayerTeleport(NetDataReader reader) {
+		// 响应方ID
+		var respondId = reader.GetULong();
+		// 请求方ID
+		var requestId = reader.GetULong();
+		// 不是自己并且不是主机,退出
+		if (respondId != Steamworks.UserSteamId || !Steamworks.IsHost)
+			return;
+		// 不是自己并且是主机,转发
+		if (respondId != Steamworks.UserSteamId || Steamworks.IsHost) {
+			ForwardToPeer(PacketType.PlayerTeleport, respondId, requestId, reader);
+			return;
+		}
 
-	//	var deathFloorData = new DEN_DeathFloor.SaveData {
-	//		relativeHeight = reader.GetFloat(),
-	//		active = reader.GetBool(),
-	//		speed = reader.GetFloat(),
-	//		speedMult = reader.GetFloat(),
-	//	};
-	//	// 关闭可击杀效果
-	//	DEN_DeathFloor.instance.SetCanKill(new string[] { "false" });
-	//	// 重设计数器,期间位移视为传送
-	//	_teleport.Reset();
-	//	ENT_Player.GetPlayer().Teleport(RPManager.Players[respondId].PlayerObject.transform.position);
-	//	DEN_DeathFloor.instance.LoadDataFromSave(deathFloorData);
-	//	DEN_DeathFloor.instance.SetCanKill(new string[] { "true" });
-	//}
+		var deathFloorData = new DEN_DeathFloor.SaveData {
+			relativeHeight = reader.GetFloat(),
+			active = reader.GetBool(),
+			speed = reader.GetFloat(),
+			speedMult = reader.GetFloat(),
+		};
+		// 关闭可击杀效果
+		DEN_DeathFloor.instance.SetCanKill(new string[] { "false" });
+		// 重设计数器,期间位移视为传送
+		_teleport.Reset();
+		ENT_Player.GetPlayer().Teleport(RPManager.Players[respondId].PlayerObject.transform.position);
+		DEN_DeathFloor.instance.LoadDataFromSave(deathFloorData);
+		DEN_DeathFloor.instance.SetCanKill(new string[] { "true" });
+	}
 
 	/// <summary>
 	/// 转发网络数据包到指定的客户端
@@ -908,19 +912,21 @@ public class MPCore : MonoBehaviour {
 			// 接收: 世界状态同步
 			case PacketType.WorldStateSync:
 				break;
-			//// 接收: 广播消息
-			//case PacketType.BroadcastMessage:
-			//	ProcessPlayerTagUpdate(reader);
-			//	break;
+			// 接收: 广播消息
+			case PacketType.BroadcastMessage:
+				ProcessPlayerTagUpdate(reader);
+				break;
 
-			//// 接收: 请求传送
-			//case PacketType.PlayerTeleport:
-			//	ProcessPlayerTeleport(reader);
-			//	break;
-			//// 接收: 响应传送
-			//case PacketType.RespondPlayerTeleport:
-			//	ProcessRespondPlayerTeleport(reader);
-			//	break;
+			// 接收: 请求传送
+			case PacketType.PlayerTeleport:
+				ProcessPlayerTeleport(reader);
+				break;
+			// 接收: 响应传送
+			case PacketType.RespondPlayerTeleport:
+				ProcessRespondPlayerTeleport(reader);
+				break;
+			default:
+				break;
 		}
 	}
 }

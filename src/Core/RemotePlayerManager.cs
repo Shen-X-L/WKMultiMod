@@ -124,7 +124,7 @@ public class RemotePlayerContainer {
 	private RemotePlayer _playerComponent;
 	private RemoteHand _leftHandComponent;
 	private RemoteHand _rightHandComponent;
-	private RemoteTag _nameTextMesh;
+	private RemoteTag _nameTagController;
 
 	public PlayerData PlayerData {
 		get {
@@ -337,10 +337,10 @@ public class RemotePlayerContainer {
 
 		// 添加看板与缩放组件
 		var billboard = textObject.AddComponent<LootAt>();
-		billboard.baseScale = 0.1f; // 这里的缩放决定了文字在屏幕上的视觉大小
-		billboard.minScale = 0.05f;
 
-		_nameTextMesh = textObject.AddComponent<RemoteTag>();
+		// 挂载管理组件并初始化
+		_nameTagController = textObject.AddComponent<RemoteTag>();
+		_nameTagController.Initialize(PlayId); // 传入 SteamID
 
 		return textObject;
 	}
@@ -380,7 +380,7 @@ public class RemotePlayerContainer {
 		_playerComponent = null;
 		_leftHandComponent = null;
 		_rightHandComponent = null;
-		_nameTextMesh = null;
+		_nameTagController = null;
 	}
 
 	// 通过数据进行更新
@@ -444,6 +444,19 @@ public class RemotePlayerContainer {
 			_leftHandComponent.UpdateFromHandData(playerData.LeftHand);
 			_rightHandComponent.UpdateFromHandData(playerData.RightHand);
 		}
+	}
+
+	// 进行头部文字更新
+	public void UpdateNameTag(string text) {
+		if (string.IsNullOrEmpty(text)) { return; }
+		if (_nameTagController == null) {
+			MPMain.LogError(
+				"[RPCont] PlayerNameTag的组件未添加",
+				"[RPCont] PlayerNameTag component not added");
+			return;
+		}
+		_nameTagController.SetDynamicMessage(text);
+		return;
 	}
 
 	// 赋予可攀爬组件
