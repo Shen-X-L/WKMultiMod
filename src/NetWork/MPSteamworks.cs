@@ -46,9 +46,12 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	// 本机Id
 	private ulong _userSteamId;
 	public ulong UserSteamId { get => _userSteamId; private set => _userSteamId = value; }
-
 	// 之前的主机Id
 	private ulong _lastKnownHostSteamId;
+	public ulong HostSteamId { get => _lastKnownHostSteamId; private set => _lastKnownHostSteamId = value; }
+	// 广播Id
+	private const ulong _broadcastId = 0;
+	public ulong BroadcastId { get => _broadcastId; }
 
 	// 获取当前大厅Id
 	public ulong CurrentLobbyId {
@@ -148,10 +151,10 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// </summary>
 	public void DisconnectAll() {
 		// 关闭客户端连接
-		_connectionManager?.Close(); 
+		_connectionManager?.Close();
 		_connectionManager = null; // 必须置空，防止 Update 继续 Receive
-		// 关闭服务器套接字
-		_socketManager?.Close();     
+								   // 关闭服务器套接字
+		_socketManager?.Close();
 		_socketManager = null;
 
 		// 清理所有连接记录
@@ -189,7 +192,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅客户端 发送数据: 本机->主机玩家
 	/// </summary>
-	public void HandleSendToHost(byte[] data, SendType sendType = SendType.Reliable, 
+	public void HandleSendToHost(byte[] data, SendType sendType = SendType.Reliable,
 		ushort laneIndex = 0) {
 
 		if (IsHost || _connectionManager == null) {
@@ -197,7 +200,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 		}
 		var result = _connectionManager.Connection.SendMessage(data, sendType, laneIndex);
 		if (result != Result.OK) {
-			if(_debugTick1.TryTick())
+			if (_debugTick1.TryTick())
 				MPMain.LogInfo(
 					$"[MPSW] 消息发送失败! 结果: {result.ToString()}, 数据大小: {data.Length.ToString()}",
 					$"[MPSW] Message sending failed! Result: {result.ToString()}, Data size: {data.Length.ToString()}");
@@ -212,7 +215,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅客户端 发送数据: 本机->主机玩家
 	/// </summary>
-	public void HandleSendToHost(byte[] data, int offset, int length, 
+	public void HandleSendToHost(byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		if (IsHost || _connectionManager == null) {
@@ -235,7 +238,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅主机 发送数据: 本机->所有连接玩家
 	/// </summary>
-	public void HandleBroadcast(byte[] data, SendType sendType = SendType.Reliable, 
+	public void HandleBroadcast(byte[] data, SendType sendType = SendType.Reliable,
 		ushort laneIndex = 0) {
 
 		// Debug
@@ -268,7 +271,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅主机 发送数据: 本机->所有连接玩家
 	/// </summary>
-	public void HandleBroadcast(byte[] data, int offset, int length, 
+	public void HandleBroadcast(byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		// Debug
@@ -302,7 +305,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// 仅主机 发送数据: 本机->除个别玩家外所有连接玩家
 	/// </summary>
 	/// <param name="steamId">被排除的玩家</param>
-	public void HandleBroadcastExcept(ulong steamId, byte[] data, 
+	public void HandleBroadcastExcept(ulong steamId, byte[] data,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		// Debug
@@ -726,7 +729,8 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 				// 触发主机变更总线
 				SteamNetworkEvents.TriggerLobbyHostChanged(lobby, _lastKnownHostSteamId);
 			}
-
+			// 更新主机Id
+			_lastKnownHostSteamId = lobby.Owner.Id;
 		}
 	}
 
@@ -795,8 +799,6 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 		byte[] bytes = new byte[size];
 		System.Runtime.InteropServices.Marshal.Copy(data, bytes, 0, size);
 		ReceiveNetworkMessage(_lastKnownHostSteamId, bytes);
-		//// 触发总线 RemotePlayerManager
-		//SteamNetworkEvents.TriggerPlayerConnected(steamId);
 	}
 
 	// 仅客户端: 连接被本地或远程关闭
