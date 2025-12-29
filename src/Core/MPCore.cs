@@ -12,6 +12,7 @@ using WKMultiMod.src.Data;
 using WKMultiMod.src.NetWork;
 using WKMultiMod.src.Util;
 using static WKMultiMod.src.Data.MPDataSerializer;
+using static System.Buffers.Binary.BinaryPrimitives;
 namespace WKMultiMod.src.Core;
 
 public class MPCore : MonoBehaviour {
@@ -706,24 +707,21 @@ public class MPCore : MonoBehaviour {
 	/// 主机接收BroadcastMessage 发送BroadcastMessage: 处理玩家标签更新
 	/// 客户端接收BroadcastMessage: 处理玩家标签更新
 	/// </summary>
-	private void ProcessPlayerTagUpdate(NetDataReader reader) {
-		// 是主机,获取数据段
-		ArraySegment<byte> segment = default;
-		if (Steamworks.IsHost) {
-			segment = reader.GetRemainingBytesSegment();
-		}
+	private void ProcessPlayerTagUpdate(ArraySegment<byte> payload) {
+		var reader = new NetDataReader(payload.Array, payload.Offset, payload.Count);
 
-		ulong playerId = reader.GetULong();
-		string receivedMsg = reader.GetString();
-		CommandConsole.Log($"{playerId}: {receivedMsg}");
+		ulong playerId = reader.GetULong(); // 读取具体 ID
+		string msg = reader.GetString();    // 读取消息
+
+		CommandConsole.Log($"{playerId}: {msg}");
 		// 控制台目前不支持中文
 		//string playerName = new Friend(playerId).Name;
-		//CommandConsole.Log($"{playerName}: {receivedMsg}");
-		RPManager.Players[playerId].UpdateNameTag(receivedMsg);
+		//CommandConsole.Log($"{playerName}: {msg}");
+		RPManager.Players[playerId].UpdateNameTag(msg);
 
 		// 是主机,广播除发送者外所有人
 		if (Steamworks.IsHost) {
-			Broadcast(PacketType.BroadcastMessage, playerId, segment);
+			Broadcast(PacketType.BroadcastMessage, playerId, payload);
 		}
 	}
 
@@ -731,17 +729,17 @@ public class MPCore : MonoBehaviour {
 	/// 主机接收PlayerTeleport 目标非本机转发PlayerTeleport
 	/// 客户端接收PlayerTeleport: 携带Mess数据发送RespondPlayerTeleport
 	/// </summary>
-	private void ProcessPlayerTeleport(NetDataReader reader) {
+	private void ProcessPlayerTeleport(ArraySegment<byte> payload) {
 		// 请求方ID
-		var requestId = reader.GetULong();
+		ulong requestId = ReadUInt64LittleEndian(payload);
 		// 响应方ID
-		var respondId = reader.GetULong();
+		ulong respondId = ReadUInt64LittleEndian(payload.Slice(8));
 		// 不是自己并且不是主机,退出
-		if (respondId != Steamworks.UserSteamId || !Steamworks.IsHost)
+		if (respondId != Steamworks.UserSteamId && !Steamworks.IsHost)
 			return;
 		// 不是自己并且是主机,转发
-		if (respondId != Steamworks.UserSteamId || Steamworks.IsHost) {
-			ForwardToPeer(PacketType.PlayerTeleport, requestId, respondId, reader);
+		if (respondId != Steamworks.UserSteamId && Steamworks.IsHost) {
+			ForwardToPeer(PacketType.PlayerTeleport, requestId, respondId, payload);
 			return;
 		}
 		// 获取数据
@@ -763,7 +761,6 @@ public class MPCore : MonoBehaviour {
 			// 请求主机转发
 			Steamworks.HandleSendToHost(data, SendType.Reliable);
 		}
-
 	}
 
 	/// <summary>
@@ -830,6 +827,27 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
+	/// 转发网络数据包到指定的客户端
+	/// </summary>
+	/// <param name="packetType">数据包类型</param>
+	/// <param name="requestId">请求方ID</param>
+	/// <param name="respondId">响应方ID（接收方）</param>
+	/// <param name="reader">包含原始数据的读取器</param>
+	/// <param name="sendType">发送类型（默认可靠）</param>
+	private void ForwardToPeer(PacketType packetType, ulong requestId,
+		ulong respondId, ArraySegment<byte> dataSegment, SendType sendType = SendType.Reliable) {
+		// 创建新的写入器
+		var writer = new NetDataWriter();
+
+		// 按照指定顺序写入包头
+		writer.Put((int)packetType);
+		writer.Put(dataSegment.Array, dataSegment.Offset, dataSegment.Count);
+
+		// 发送到目标对等方
+		Steamworks.HandleSendToPeer(respondId, writer.Data, 0, writer.Length, sendType);
+	}
+
+	/// <summary>
 	/// 广播数据包到所有客户端 (除了发送者)
 	/// </summary>
 	/// <param name="packetType">数据包类型</param>
@@ -857,9 +875,8 @@ public class MPCore : MonoBehaviour {
 		ArraySegment<byte> dataSegment, SendType sendType = SendType.Reliable) {
 		var writer = new NetDataWriter();
 		writer.Put((int)packetType);
-		writer.Put(senderId);
 		writer.Put(dataSegment.Array, dataSegment.Offset, dataSegment.Count);
-		Steamworks.HandleBroadcastExcept(senderId, writer.Data, sendType);
+		Steamworks.HandleBroadcastExcept(senderId, writer.Data, 0, writer.Length, sendType);
 	}
 
 	// 开启多人联机模式
@@ -879,54 +896,67 @@ public class MPCore : MonoBehaviour {
 	/// <param name="playId"></param>
 	/// <param name="data"></param>
 	private void HandleReceiveData(ulong playId, byte[] data) {
-		//// Debug
-		//if (_debugTick.Test()) {
-		//	MPMain.Logger.LogInfo($"[MPCore Process] 接收数据");
-		//}
+		if (data == null || data.Length < 4) return;
 
-		// 基本验证：确保数据足够读取一个整数(数据包类型)
-		var reader = MPDataSerializer.BytesToReader(data);
-		PacketType packetType = (PacketType)reader.GetInt();
+		// 直接解析头部
+		ReadOnlySpan<byte> span = data;
+		PacketType packetType = (PacketType)ReadInt32LittleEndian(span);
+
+		// 虽然你后续可能还需要转回 ArraySegment 给旧接口，但逻辑很清晰
+		var payload = new ArraySegment<byte>(data, 4, data.Length - 4);
 
 		switch (packetType) {
 			// 仅主机接收: 请求初始化数据
-			case PacketType.WorldInitRequest:
+			case PacketType.WorldInitRequest: {
 				HandleWorldInitRequest(playId);
 				break;
+			}
 			// 接收: 联机世界初始化数据
-			case PacketType.WorldInitData:
+			case PacketType.WorldInitData: {
+				var reader = new NetDataReader(payload.Array, payload.Offset, payload.Count);
 				HandleWorldInit(reader);
 				break;
+			}
 			// 接收: 创建玩家映射
-			case PacketType.PlayerCreate:
-				HandlePlayerCreate(reader.GetULong());
+			case PacketType.PlayerCreate: {
+				HandlePlayerCreate(ReadUInt64LittleEndian(span.Slice(4)));
 				break;
+			}
 			// 接收: 销毁玩家映射
-			case PacketType.PlayerRemove:
-				HandlePlayerRemove(reader.GetULong());
+			case PacketType.PlayerRemove: {
+				HandlePlayerRemove(ReadUInt64LittleEndian(span.Slice(4)));
 				break;
+			}
 			// 接收: 玩家数据更新
-			case PacketType.PlayerDataUpdate:
+			case PacketType.PlayerDataUpdate: {
+				var reader = new NetDataReader(payload.Array, payload.Offset, payload.Count);
 				HandlePlayerDataUpdate(reader);
 				break;
+			}
 			// 接收: 世界状态同步
-			case PacketType.WorldStateSync:
+			case PacketType.WorldStateSync: {
 				break;
+			}
 			// 接收: 广播消息
-			case PacketType.BroadcastMessage:
-				ProcessPlayerTagUpdate(reader);
+			case PacketType.BroadcastMessage: {
+				ProcessPlayerTagUpdate(payload);
 				break;
-
+			}
 			// 接收: 请求传送
-			case PacketType.PlayerTeleport:
-				ProcessPlayerTeleport(reader);
+			case PacketType.PlayerTeleport: {
+				ProcessPlayerTeleport(payload);
 				break;
+			}
 			// 接收: 响应传送
-			case PacketType.RespondPlayerTeleport:
+			case PacketType.RespondPlayerTeleport: {
+				var reader = new NetDataReader(payload.Array, payload.Offset, payload.Count);
 				ProcessRespondPlayerTeleport(reader);
 				break;
-			default:
+			}
+
+			default: {
 				break;
+			}
 		}
 	}
 }

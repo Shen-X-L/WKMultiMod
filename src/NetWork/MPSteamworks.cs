@@ -189,8 +189,8 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅客户端 发送数据: 本机->主机玩家
 	/// </summary>
-	public void HandleSendToHost(
-		byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+	public void HandleSendToHost(byte[] data, SendType sendType = SendType.Reliable, 
+		ushort laneIndex = 0) {
 
 		if (IsHost || _connectionManager == null) {
 			return;
@@ -210,10 +210,33 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	}
 
 	/// <summary>
+	/// 仅客户端 发送数据: 本机->主机玩家
+	/// </summary>
+	public void HandleSendToHost(byte[] data, int offset, int length, 
+		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+
+		if (IsHost || _connectionManager == null) {
+			return;
+		}
+		var result = _connectionManager.Connection.SendMessage(data, offset, length, sendType, laneIndex);
+		if (result != Result.OK) {
+			if (_debugTick1.TryTick())
+				MPMain.LogInfo(
+					$"[MPSW] 消息发送失败! 结果: {result.ToString()}, 数据大小: {data.Length.ToString()}",
+					$"[MPSW] Message sending failed! Result: {result.ToString()}, Data size: {data.Length.ToString()}");
+		} else {
+			//if (_debugTick1.TryTick())
+			//	MPMain.LogError(
+			//		$"[MPSW] 消息发送成功! 结果: {result.ToString()}, 数据大小: {data.Length.ToString()}",
+			//		$"[MPSW] message successfully sent! Result: {result}, Data Size: {data.Length}");
+		}
+	}
+
+	/// <summary>
 	/// 仅主机 发送数据: 本机->所有连接玩家
 	/// </summary>
-	public void HandleBroadcast(
-		byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+	public void HandleBroadcast(byte[] data, SendType sendType = SendType.Reliable, 
+		ushort laneIndex = 0) {
 
 		// Debug
 		bool canLog = _debugTick.TryTick();
@@ -243,11 +266,44 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	}
 
 	/// <summary>
+	/// 仅主机 发送数据: 本机->所有连接玩家
+	/// </summary>
+	public void HandleBroadcast(byte[] data, int offset, int length, 
+		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+
+		// Debug
+		bool canLog = _debugTick.TryTick();
+		if (canLog) {
+			MPMain.LogInfo(
+				$"[MPSW] 开始广播数据,当前连接数: {_connectedClients.Count.ToString()}",
+				$"[MPSW] Started broadcasting data, current connections: {_connectedClients.Count.ToString()}");
+		}
+
+		foreach (var (steamId, connection) in _connectedClients) {
+			try {
+				if (canLog) {
+					MPMain.LogInfo(
+						$"[MPSW] 广播数据,当前连接: " +
+						$"SteamId: {steamId.ToString()} 连接Id: {connection.connection.Id.ToString()}",
+						$"[MPSW] Sending data to connections. " +
+						$"SteamId: {steamId.ToString()} ConnectionId: {connection.connection.Id.ToString()}");
+				}
+
+				connection.connection.SendMessage(data, offset, length, sendType, laneIndex);
+			} catch (Exception ex) {
+				MPMain.LogError(
+					$"[MPSW] 广播数据异常: {ex.Message}",
+					$"[MPSW] Broadcasting data exception: {ex.Message}");
+			}
+		}
+	}
+
+	/// <summary>
 	/// 仅主机 发送数据: 本机->除个别玩家外所有连接玩家
 	/// </summary>
 	/// <param name="steamId">被排除的玩家</param>
-	public void HandleBroadcastExcept(
-		ulong steamId, byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+	public void HandleBroadcastExcept(ulong steamId, byte[] data, 
+		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		// Debug
 		bool canLog = _debugTick.TryTick();
@@ -278,13 +334,63 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	}
 
 	/// <summary>
+	/// 仅主机 发送数据: 本机->除个别玩家外所有连接玩家
+	/// </summary>
+	/// <param name="steamId">被排除的玩家</param>
+	public void HandleBroadcastExcept(ulong steamId, byte[] data, int offset, int length,
+		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+
+		// Debug
+		bool canLog = _debugTick.TryTick();
+		if (canLog) {
+			MPMain.LogInfo(
+				$"[MPSW] 开始广播数据,当前连接数: {_connectedClients.Count.ToString()}",
+				$"[MPSW] Started broadcasting data, current connections: {_connectedClients.Count.ToString()}");
+		}
+
+		foreach (var (tempSteamId, connection) in _connectedClients) {
+			if (steamId == tempSteamId)
+				continue;
+			try {
+				if (canLog) {
+					MPMain.LogInfo(
+						$"[MPSW] 广播数据,当前连接: " +
+						$"SteamId: {tempSteamId.ToString()} 连接Id: {connection.connection.Id.ToString()}",
+						$"[MPSW] Sending data to connections. " +
+						$"SteamId: {tempSteamId.ToString()} ConnectionId: {connection.connection.Id.ToString()}");
+				}
+				connection.connection.SendMessage(data, offset, length, sendType, laneIndex);
+			} catch (Exception ex) {
+				MPMain.LogError(
+					$"[MPSW] 广播数据异常: {ex.Message}",
+					$"[MPSW] Broadcasting data exception: {ex.Message}");
+			}
+		}
+	}
+
+	/// <summary>
 	/// 仅主机 发送数据: 本机->特定玩家
 	/// </summary>
-	public void HandleSendToPeer(
-		ulong steamId, byte[] data, SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+	public void HandleSendToPeer(ulong steamId, byte[] data,
+		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		try {
 			_connectedClients[steamId].connection.SendMessage(data, sendType, laneIndex);
+		} catch (Exception ex) {
+			MPMain.LogError(
+				$"[MPSW] 单播数据异常: {ex.Message} SteamId: {steamId.ToString()}",
+				$"[MPSW] Unicast data exception: {ex.Message} SteamId: {steamId.ToString()}");
+		}
+	}
+
+	/// <summary>
+	/// 仅主机 发送数据: 本机->特定玩家
+	/// </summary>
+	public void HandleSendToPeer(ulong steamId, byte[] data, int offset, int length,
+		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+
+		try {
+			_connectedClients[steamId].connection.SendMessage(data, offset, length, sendType, laneIndex);
 		} catch (Exception ex) {
 			MPMain.LogError(
 				$"[MPSW] 单播数据异常: {ex.Message} SteamId: {steamId.ToString()}",
