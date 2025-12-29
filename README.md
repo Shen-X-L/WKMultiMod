@@ -18,7 +18,6 @@ This is a Unity MOD for the game  *White Knuckle* , implementing basic networked
 
 * Chaotic object lifecycle management, which may lead to unexpected behavior.
 * Currently only supports mapping player capsules; synchronization for other objects is not yet implemented.
-* Log output contains extensive Chinese text and is quite messy, requiring manual filtering for relevant information.
 
 **Potential Future Goals:**
 
@@ -47,11 +46,6 @@ graph RL
         3b[Sync Inventory]
         3c[Sync Pickup Items]
         3e[Sync Entity Data]
-    end
-
-    %% Module 4: Network Architecture
-    subgraph Network Architecture
-        4b["Support Hybrid Networking (Legacy LiteNetLib + Steam)"]
     end
 
     %% Dependency Connections (cross-module and within modules)
@@ -153,7 +147,7 @@ The project file (`WhiteKnuckleMod.csproj`) is configured with key references an
 
 ## Multiplayer Functionality
 
-### Version 0.13
+### Version 0.13/0.14
 
 After enabling cheat mode (`cheats`) in-game, use the following commands:
 
@@ -162,7 +156,10 @@ After enabling cheat mode (`cheats`) in-game, use the following commands:
 * `getlobbyid` - Get the lobby room code.
 * `join <room_code>` - Join a lobby using the room code.
   * Example: `join 109775241951624817`
-
+* `talk <text>` - Speak via the overhead label.
+  * Example: `talk help me`
+* `tpto <steamId(suffix match)>` - Teleport between players
+  * Example: `tpto 22 (target ID: 561198279116422)`
 ### Version 0.12
 
 After enabling cheat mode (`cheats`) in-game, use the following commands:
@@ -175,8 +172,15 @@ After enabling cheat mode (`cheats`) in-game, use the following commands:
 
 ### Configuration Options
 
-There are no configurable options at this time.
+shenxl.MultiPlayerMod.cfg 中
+```
+[Debug]
 
+## 值为0时使用中文输出日志, Use English logs when the value is 1.
+# Setting type: Int32
+# Default value: 1
+LogLanguage = 0
+```
 ## Contributing
 
 Welcome to submit Issues for bug reports or suggestions! Pull Requests are also welcome.
