@@ -18,7 +18,7 @@
 
 * 对象生命周期混乱, 可能导致未预期的行为.
 * 目前仅支持映射玩家胶囊, 其他物体尚未实现同步.
-* 
+
  **可能的目标** :
 
 ```mermaid
@@ -97,7 +97,9 @@ dotnet build -c Release
 WhiteKnuckleMod/
 ├──src/
 │   ├─Component/
-│   │   └─Component.cs              # 组件类,负责处理网络数据
+│   │   ├─RemoteHand.cs             # 手部组件类,映射手部位置
+│   │   ├─RemotePlayer.cs           # 玩家组件类,映射玩家位置,旋转
+│   │   └─RemoteTag.cs              # 标签组件类,映射玩家Id与消息位置
 │   ├─Core/
 │   │   ├─LocalPlayerManager.cs     # 本地玩家信息打包类
 │   │   ├─MPCore.cs                 # 核心类,负责主要事件处理
@@ -111,14 +113,15 @@ WhiteKnuckleMod/
 │   │   └─NetworkEvents.cs          # 网络总线
 │   ├─Patch/
 │   │   └─Patch.cs                  # 补丁,实现拦截或注入
-│   └─Util/                    
+│   └─Util/  
+│       ├─DictionaryExtensions.cs   # 查找键以指定数字结尾的项
 │       ├─TickTimer.cs              # Debug控制输出频率计数器
 │       └─TypeConverter.cs          # 字符串转Bool工具
 ├── lib/                            # 外部依赖库目录 (需自行添加) 
 │   └── README.md                   # 依赖库获取说明
 ├── WhiteKnuckleMod.sln             # Visual Studio 解决方案文件
 ├── WhiteKnuckleMod.csproj          # 项目配置文件
-└── README.md                       # 本文档
+└── README_CN.md                    # 本文档
 ```
 
 ## 开发指南
