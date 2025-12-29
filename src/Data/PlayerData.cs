@@ -137,7 +137,6 @@ public static class MPDataSerializer {
 		data.LeftHand.PosY = reader.GetFloat();
 		data.LeftHand.PosZ = reader.GetFloat();
 
-
 		// 右手数据
 		data.RightHand.PosX = reader.GetFloat();
 		data.RightHand.PosY = reader.GetFloat();

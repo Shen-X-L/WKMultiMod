@@ -7,11 +7,17 @@ namespace WKMultiMod.src.NetWork;
 
 // 数据包类型枚举 - 定义不同类型的网络消息
 public enum PacketType {
-	ConnectedToServer = 0,  // 客机->主机: 请求初始化世界数据
-	InitializeWorld = 1,    // 主机->客机: 接收初始化世界数据,创建玩家,重加载地图
-	CreatePlayer = 2,       // 主机->客机: 创建新玩家
-	DestroyPlayer = 3,       // 主机->客机: 移除玩家
+	WorldInitRequest = 0,  // 客机->主机: 请求初始化世界数据
+	WorldInitData = 1,		// 主机->客机: 接收初始化世界数据,创建玩家,重加载地图
+	PlayerCreate = 2,       // 主机->客机: 创建新玩家
+	PlayerRemove = 3,       // 主机->客机: 移除玩家
 	PlayerDataUpdate = 4,   // 客机->主机->客机: 玩家数据更新
+	WorldStateSync = 5,         // 主机->客机: 世界状态同步, 如Mess高度
+	BroadcastMessage = 6,       // 客机->主机->客机: 广播信息
+
+	// 临时措施
+	PlayerTeleport = 40,        // 客机->主机->客机: 请求传送
+	RespondPlayerTeleport = 41, // 客机->主机->客机: 响应传送
 }
 
 public static class SteamNetworkEvents {

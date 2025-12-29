@@ -72,7 +72,7 @@ public class RemotePlayerManager : MonoBehaviour {
 	}
 
 	// 创建玩家对象
-	public RemotePlayerContainer CreatePlayer(ulong playId) {
+	public RemotePlayerContainer PlayerCreate(ulong playId) {
 		if (Players.TryGetValue(playId, out RemotePlayerContainer value))
 			return value;
 
@@ -86,7 +86,7 @@ public class RemotePlayerManager : MonoBehaviour {
 	}
 
 	// 清除特定玩家
-	public void DestroyPlayer(ulong playId) {
+	public void PlayerRemove(ulong playId) {
 		if (Players.TryGetValue(playId, out var container)) {
 			container.Destroy();
 			Players.Remove(playId);
@@ -121,10 +121,10 @@ public class RemotePlayerContainer {
 	public GameObject RightHandObject { get; private set; }
 	public GameObject NameTagObject { get; private set; }
 
-	private RemotePlayerComponent _playerComponent;
-	private RemoteHandComponent _leftHandComponent;
-	private RemoteHandComponent _rightHandComponent;
-	private PlayerNameTag _nameTextMesh;
+	private RemotePlayer _playerComponent;
+	private RemoteHand _leftHandComponent;
+	private RemoteHand _rightHandComponent;
+	private RemoteTag _nameTextMesh;
 
 	public PlayerData PlayerData {
 		get {
@@ -217,7 +217,7 @@ public class RemotePlayerContainer {
 		// 添加攀爬组件
 		AddHandholdComponents(player);
 		// 远程玩家组件
-		_playerComponent = player.AddComponent<RemotePlayerComponent>();
+		_playerComponent = player.AddComponent<RemotePlayer>();
 
 		// 设置外观
 		ConfigurePlayerAppearance(player);
@@ -289,9 +289,9 @@ public class RemotePlayerContainer {
 		AddHandholdComponents(leftHand);
 		AddHandholdComponents(rightHand);
 		// 远程手部组件
-		_leftHandComponent = leftHand.AddComponent<RemoteHandComponent>();
+		_leftHandComponent = leftHand.AddComponent<RemoteHand>();
 		_leftHandComponent.hand = HandType.Left;
-		_rightHandComponent = rightHand.AddComponent<RemoteHandComponent>();
+		_rightHandComponent = rightHand.AddComponent<RemoteHand>();
 		_rightHandComponent.hand = HandType.Right;
 
 		// 配置手部外观
@@ -336,11 +336,11 @@ public class RemotePlayerContainer {
 		textMesh.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
 		// 添加看板与缩放组件
-		var billboard = textObject.AddComponent<LootAtComponent>();
+		var billboard = textObject.AddComponent<LootAt>();
 		billboard.baseScale = 0.1f; // 这里的缩放决定了文字在屏幕上的视觉大小
 		billboard.minScale = 0.05f;
 
-		_nameTextMesh = textObject.AddComponent<PlayerNameTag>();
+		_nameTextMesh = textObject.AddComponent<RemoteTag>();
 
 		return textObject;
 	}
@@ -393,7 +393,7 @@ public class RemotePlayerContainer {
 
 		// 检查组件是否存在,如果不存在尝试获取
 		if (_playerComponent == null) {
-			_playerComponent = PlayerObject.GetComponent<RemotePlayerComponent>();
+			_playerComponent = PlayerObject.GetComponent<RemotePlayer>();
 			if (_playerComponent == null) {
 				// Debug
 				MPMain.LogError(
@@ -404,7 +404,7 @@ public class RemotePlayerContainer {
 		}
 
 		if (_leftHandComponent == null) {
-			_leftHandComponent = LeftHandObject.GetComponent<RemoteHandComponent>();
+			_leftHandComponent = LeftHandObject.GetComponent<RemoteHand>();
 			if (_leftHandComponent == null) {
 				// Debug
 				MPMain.LogError(
@@ -415,7 +415,7 @@ public class RemotePlayerContainer {
 		}
 
 		if (_rightHandComponent == null) {
-			_rightHandComponent = RightHandObject.GetComponent<RemoteHandComponent>();
+			_rightHandComponent = RightHandObject.GetComponent<RemoteHand>();
 			if (_rightHandComponent == null) {
 				// Debug
 				MPMain.LogError(

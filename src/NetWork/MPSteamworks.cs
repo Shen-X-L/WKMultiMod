@@ -54,7 +54,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	public ulong CurrentLobbyId {
 		get { return _currentLobby.Id.Value; }
 	}
-	// 检查是否在房间中
+	// 检查是否在大厅中
 	public bool IsInLobby {
 		get { return _currentLobby.Id.IsValid; }
 	}
@@ -202,10 +202,10 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 					$"[MPSW] 消息发送失败! 结果: {result.ToString()}, 数据大小: {data.Length.ToString()}",
 					$"[MPSW] Message sending failed! Result: {result.ToString()}, Data size: {data.Length.ToString()}");
 		} else {
-			if (_debugTick1.TryTick())
-				MPMain.LogError(
-					$"[MPSW] 消息发送成功! 结果: {result.ToString()}, 数据大小: {data.Length.ToString()}",
-					$"[MPSW] message successfully sent! Result: {result}, Data Size: {data.Length}");
+			//if (_debugTick1.TryTick())
+			//	MPMain.LogError(
+			//		$"[MPSW] 消息发送成功! 结果: {result.ToString()}, 数据大小: {data.Length.ToString()}",
+			//		$"[MPSW] message successfully sent! Result: {result}, Data Size: {data.Length}");
 		}
 	}
 
@@ -399,7 +399,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	}
 
 	/// <summary>
-	/// 创建房间(主机模式)- 异步版本
+	/// 创建大厅(主机模式)- 异步版本
 	/// </summary>
 	public async Task<bool> CreateRoomAsync(string roomName, int maxPlayers) {
 		// 清理全部连接
@@ -467,7 +467,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	}
 
 	/// <summary>
-	/// 加入房间(客户端模式)- 异步版本
+	/// 加入大厅(客户端模式)- 异步版本
 	/// </summary>
 	public async Task<bool> JoinRoomAsync(Lobby lobby) {
 		// 清理全部连接
@@ -569,11 +569,6 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 			// 发布事件到总线
 			SteamNetworkEvents.TriggerLobbyMemberJoined(friend.Id);
-
-			//// 连接到新玩家
-			//if (friend.Id != SteamClient.SteamId&&IsHost) {
-			//	ConnectToPlayer(friend.Id);
-			//}
 		}
 	}
 
@@ -610,9 +605,9 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// 主机变更->LobbyHostChanged总线
 	/// </summary>
 	private void OnLobbyMemberDataChanged(Lobby lobby, Friend friend) {
-		// 还是原房间
+		// 还是原大厅
 		if (lobby.Id == _currentLobby.Id) {
-			// 更新部分房间数据
+			// 更新部分大厅数据
 			_currentLobby = lobby;
 			// 获取当前大厅真正的主机（Owner）
 			SteamId currentOwnerId = lobby.Owner.Id;

@@ -4,7 +4,7 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>WKMultiMod</AssemblyName>
 		<Product>WKMultiMod</Product>
-		<Version>0.14.1.1</Version>
+		<Version>0.14.3.4</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>
