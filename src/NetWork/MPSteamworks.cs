@@ -452,50 +452,6 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	}
 
 	/// <summary>
-	/// 处理主机请求现有玩家列表
-	/// </summary>
-	private void HandleHostRequestExistingPlayers(SteamId newPlayerSteamId) {
-		if (!IsHost) return;
-
-		// 获取所有连接中的SteamId(除了新玩家)
-		var existingSteamIds = new List<SteamId>();
-		foreach (var steamId in _connectedClients.Keys) {
-			if (steamId != newPlayerSteamId && steamId != SteamClient.SteamId) {
-				existingSteamIds.Add(steamId);
-			}
-		}
-		// 这里只是记录,实际转换在Core中完成
-		MPMain.LogInfo(
-			$"[MPSW] 主机获取到 {existingSteamIds.Count} 个现有玩家连接",
-			$"[MPSW] Host obtained {existingSteamIds.Count} existing player connections.");
-	}
-
-	/// <summary>
-	/// 主动连接到指定玩家(纯网络连接,不处理业务逻辑)
-	/// </summary>
-	//private void ConnectToPlayer(SteamId steamId) {
-	//	try {
-	//		if (this._connectionManager.ContainsKey(steamId)) {
-	//			MPMain.LogWarning(
-	//				$"[MPSW] 已经连接过玩家. SteamId: {steamId.ToString()}",
-	//				$"[MPSW] Already connected to player. SteamId: {steamId.ToString()}");
-	//			return;
-	//		}
-
-	//		var connectionManager = SteamNetworkingSockets.ConnectRelay<SteamConnectionManager>(steamId, 1);
-	//		this._connectionManager[steamId] = connectionManager;
-	//		_connectedClients[steamId] = connectionManager.Connection;
-	//		MPMain.LogInfo(
-	//			$"[MPSW] 正在出站连接玩家. SteamId: {steamId.ToString()}",
-	//			$"[MPSW] Connecting to player. SteamId: {steamId.ToString()}");
-	//	} catch (Exception ex) {
-	//		MPMain.LogError(
-	//			$"[MPSW] 连接玩家异常: {ex.Message}",
-	//			$"[MPSW] Exception while connecting to player: {ex.Message}");
-	//	}
-	//}
-
-	/// <summary>
 	/// 主动连接到主机
 	/// </summary>
 	public void ConnectToHost() {
@@ -505,6 +461,23 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 		}
 		_connectionManager = SteamNetworkingSockets.ConnectRelay<ConnectionManager>(hostId, 1);
 		_connectionManager.Interface = this; // 设置回调接口
+	}
+
+	/// <summary>
+	/// 创建监听socket
+	/// </summary>
+	public void CreateListeningSocket() {
+		if (!IsHost) {
+			return;
+		}
+		try {
+			_socketManager = SteamNetworkingSockets.CreateRelaySocket<SocketManager>(1);
+			_socketManager.Interface = this;
+		} catch (Exception socketEx) {
+			MPMain.LogError(
+				$"[MPSW] 创建Socket失败: {socketEx.Message}",
+				$"[MPSW] Create Socket exception: {socketEx.Message}");
+		}
 	}
 
 	/// <summary>
@@ -549,14 +522,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 			_currentLobby.Owner = new Friend(SteamClient.SteamId);
 
 			// 获取Socket
-			try {
-				_socketManager = SteamNetworkingSockets.CreateRelaySocket<SocketManager>(1);
-				_socketManager.Interface = this;
-			} catch (Exception socketEx) {
-				MPMain.LogError(
-					$"[MPSW] 创建Socket失败: {socketEx.Message}",
-					$"[MPSW] Create Socket exception: {socketEx.Message}");
-			}
+			CreateListeningSocket();
 
 			return true; // 成功
 		} catch (Exception ex) {
@@ -598,19 +564,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 				$"[MPSW] 加入大厅成功: {roomName}",
 				$"[MPSW] Successfully joined lobby: {roomName}");
 
-			//// 获取Socket
-			//// 在主机离线,该玩家被提升为主机时使用
-			//try {
-			//	_socketManager = SteamNetworkingSockets.CreateRelaySocket<SteamSocketManager>(1);
-			//  _socketManager.Interface = this;
-			//} catch (Exception socketEx) {
-			//	MPMain.LogError(
-			//		$"[MPSW] 创建Socket失败: {socketEx.Message}",
-			//		$"[MPSW] Create Socket exception: {socketEx.Message}");
-			//}
-
 			return true;
-
 		} catch (Exception ex) {
 			MPMain.LogError(
 				$"[MPSW] 加入大厅异常: {ex.Message}",
@@ -714,23 +668,36 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// 主机变更->LobbyHostChanged总线
 	/// </summary>
 	private void OnLobbyMemberDataChanged(Lobby lobby, Friend friend) {
-		// 还是原大厅
-		if (lobby.Id == _currentLobby.Id) {
+		// 大厅变更
+		if (lobby.Id != _currentLobby.Id) {
 			// 更新部分大厅数据
 			_currentLobby = lobby;
-			// 获取当前大厅真正的主机（Owner）
-			SteamId currentOwnerId = lobby.Owner.Id;
-			// 检查所有权是否发生了变更
-			if (_lastKnownHostSteamId != 0 && _lastKnownHostSteamId != currentOwnerId) {
-				MPMain.LogInfo(
-					$"[MPCore] 主机变更: {_lastKnownHostSteamId.ToString()} -> {currentOwnerId.ToString()}",
-					$"[MPCore] Host change: {_lastKnownHostSteamId.ToString()} -> {currentOwnerId.ToString()}");
-
-				// 触发主机变更总线
-				SteamNetworkEvents.TriggerLobbyHostChanged(lobby, _lastKnownHostSteamId);
+			MPMain.LogInfo(
+				$"[MPCore] 大厅变更: {_currentLobby.Id.ToString()} -> {lobby.Id.ToString()}",
+				$"[MPCore] Lobby change: {_currentLobby.Id.ToString()} -> {lobby.Id.ToString()}");
+			return;
+		}
+		// 原大厅 更新部分大厅数据
+		_currentLobby = lobby;
+		// 获取当前大厅真正的主机(Owner)
+		SteamId currentOwnerId = lobby.Owner.Id;
+		// 检查所有权是否发生了变更
+		if (_lastKnownHostSteamId != 0 && _lastKnownHostSteamId != currentOwnerId) {
+			MPMain.LogInfo(
+				$"[MPCore] 主机变更: {_lastKnownHostSteamId.ToString()} -> {currentOwnerId.ToString()}",
+				$"[MPCore] Host change: {_lastKnownHostSteamId.ToString()} -> {currentOwnerId.ToString()}");
+			
+			if (!IsHost) {
+				// 连接主机
+				ConnectToHost();
+			} else {
+				// 重新创建监听Socket
+				CreateListeningSocket();
 			}
+			// 触发主机变更总线
+			SteamNetworkEvents.TriggerLobbyHostChanged(lobby, _lastKnownHostSteamId);
 			// 更新主机Id
-			_lastKnownHostSteamId = lobby.Owner.Id;
+			_lastKnownHostSteamId = currentOwnerId;
 		}
 	}
 

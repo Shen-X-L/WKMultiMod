@@ -25,6 +25,7 @@
 
 	<ItemGroup>
 		<Folder Include="Shaders\" />
+		<Folder Include="temp\GameSourceReference\" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -39,5 +40,14 @@
 			<HintPath>%(Identity)</HintPath>
 			<Private>false</Private>
 		</Reference>
+	</ItemGroup>
+	<ItemGroup>
+		<!-- 你的Mod代码(正常编译) -->
+		<Compile Include="src\**\*.cs" />
+
+		<!-- 游戏源代码(不编译，仅查看) -->
+		<None Include="temp\**\*.cs">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 </Project>

@@ -10,7 +10,7 @@ public class TickTimer {
 	public float Progress => Mathf.Clamp01((Time.time - _lastTickTime) / _interval);
 	/// 距离下次Tick还有多少秒
 	public float TimeRemaining => Mathf.Max(0, _interval - (Time.time - _lastTickTime));
-	/// 是否已经到达Tick时间（仅检查）
+	/// 是否已经到达Tick时间(仅检查)
 	public bool IsTickReached => Time.time - _lastTickTime >= _interval;
 
 	/// <summary>
@@ -62,7 +62,7 @@ public class TickTimer {
 	}
 
 	/// <summary>
-	/// 强制触发一次Tick（无论是否到达间隔时间）
+	/// 强制触发一次Tick(无论是否到达间隔时间)
 	/// </summary>
 	public void ForceTick() {
 		_lastTickTime = Time.time;

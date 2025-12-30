@@ -14,6 +14,7 @@ using WKMultiMod.src.NetWork;
 using WKMultiMod.src.Util;
 using static System.Buffers.Binary.BinaryPrimitives;
 using static WKMultiMod.src.Data.MPDataSerializer;
+using WKMultiMod.src.Test;
 namespace WKMultiMod.src.Core;
 
 public class MPCore : MonoBehaviour {
@@ -280,9 +281,10 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.AddCommand("leave", Leave);
 		CommandConsole.AddCommand("chaos", ChaosMod);
 		CommandConsole.AddCommand("getlobbyid", GetLobbyId);
-		CommandConsole.AddCommand("test", GetAllConnections);
+		CommandConsole.AddCommand("getconnections", GetAllConnections);
 		CommandConsole.AddCommand("talk", Talk);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
+		CommandConsole.AddCommand("test", Test, false);
 	}
 
 	// 命令实现
@@ -508,21 +510,21 @@ public class MPCore : MonoBehaviour {
 	/// 大厅所有权变更
 	/// </summary>
 	private void ProcessLobbyHostChanged(Lobby lobby, SteamId hostId) {
-		//// 这里删除旧主机的玩家对象
-		//RPManager.DestroyPlayer(hostId);
+		// 这里删除旧主机的玩家对象
+		RPManager.PlayerRemove(hostId);
 
-		//// 处理身份切换
-		//if (Steamworks.IsHost) {
-		//	// 成为新主机
-		//	ProcessIAmNewHost();
-		//} 
+		// 处理身份切换
+		if (Steamworks.IsHost) {
+			// 成为新主机
+			ProcessIAmNewHost();
+		}
 	}
 
 	/// <summary>
 	/// 成为新主机时执行
 	/// </summary>
 	private void ProcessIAmNewHost() {
-		// 停止握手协程（以防还在运行）
+		// 停止握手协程(以防还在运行)
 		if (HasInitialized == false) {
 			StopCoroutine(InitHandshakeRoutine());
 			// 要求所有现存客机重新发送一次完整数据
@@ -920,5 +922,9 @@ public class MPCore : MonoBehaviour {
 				break;
 			}
 		}
+	}
+
+	public void Test(string[] args) {
+		src.Test.Test.Main();
 	}
 }

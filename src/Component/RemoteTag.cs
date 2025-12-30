@@ -55,7 +55,7 @@ public class RemoteTag : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 初始化设置（由 CreateNameTagObject 调用一次）
+	/// 初始化设置(由 CreateNameTagObject 调用一次)
 	/// </summary>
 	public void Initialize(ulong playId) {
 		_steamId = playId;

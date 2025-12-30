@@ -460,7 +460,7 @@ public class RemotePlayerContainer {
 	}
 
 	// 赋予可攀爬组件
-	private void AddHandholdComponents(GameObject gameObject) {
+	public static void AddHandholdComponents(GameObject gameObject) {
 		// 添加 ObjectTagger 组件
 		ObjectTagger tagger = gameObject.AddComponent<ObjectTagger>();
 		if (tagger != null) {
