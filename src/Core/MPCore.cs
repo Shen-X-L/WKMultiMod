@@ -554,6 +554,7 @@ public class MPCore : MonoBehaviour {
 			return;
 		// 获取数据
 		var deathFloorData = DEN_DeathFloor.instance.GetSaveData();
+		var positionData = ENT_Player.GetPlayer().transform.position;
 		var writer = new NetDataWriter();
 		writer.Put((int)PacketType.RespondTeleport);
 		writer.Put(respondId);
@@ -562,6 +563,9 @@ public class MPCore : MonoBehaviour {
 		writer.Put(deathFloorData.active);
 		writer.Put(deathFloorData.speed);
 		writer.Put(deathFloorData.speedMult);
+		writer.Put(positionData.x);
+		writer.Put(positionData.y);
+		writer.Put(positionData.z);
 		var data = MPDataSerializer.WriterToBytes(writer);
 		SteamNetworkEvents.TriggerSendToPeer(data, requestId, SendType.Reliable);
 	}
@@ -581,11 +585,14 @@ public class MPCore : MonoBehaviour {
 			speed = reader.GetFloat(),
 			speedMult = reader.GetFloat(),
 		};
+		var posX = reader.GetFloat();
+		var posY = reader.GetFloat();
+		var posZ = reader.GetFloat();
 		// 关闭可击杀效果
 		DEN_DeathFloor.instance.SetCanKill(new string[] { "false" });
 		// 重设计数器,期间位移视为传送
 		_teleport.Reset();
-		ENT_Player.GetPlayer().Teleport(RPManager.Players[respondId].PlayerObject.transform.position);
+		ENT_Player.GetPlayer().Teleport(new Vector3(posX, posY, posZ));
 		DEN_DeathFloor.instance.LoadDataFromSave(deathFloorData);
 		DEN_DeathFloor.instance.SetCanKill(new string[] { "true" });
 	}
