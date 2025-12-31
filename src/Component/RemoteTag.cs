@@ -48,7 +48,7 @@ public class LootAt : MonoBehaviour {
 // 这个组件用来修改玩家名字
 public class RemoteTag : MonoBehaviour {
 	private TextMesh _textMesh;
-	private SteamId _steamId;
+	public ulong _steamId;
 
 	void Awake() {
 		_textMesh = GetComponent<TextMesh>();
@@ -69,7 +69,10 @@ public class RemoteTag : MonoBehaviour {
 	public void RefreshName() {
 		if (_textMesh == null) return;
 		// 直接通过 SteamId 获取名称
-		_textMesh.text = new Friend(_steamId).Name;
+		string playerName = new Friend(_steamId).Name;
+		_textMesh.text =
+			$"{playerName}\n" +
+			$"ID: {_steamId}\n";
 	}
 
 	/// <summary>
@@ -78,10 +81,12 @@ public class RemoteTag : MonoBehaviour {
 	public void SetDynamicMessage(string message) {
 		if (_textMesh == null) return;
 
-		// 示例：显示 "名字: 消息内容"
+		// 示例：显示 "名字\n: 消息内容"
 		string playerName = new Friend(_steamId).Name;
 		_textMesh.text =
-			$"{playerName}: {(message.Length <= 10 ? message : message.Substring(0, 10))}";
+			$"{playerName}\n" +
+			$"ID: {_steamId}\n" +
+			$"{(message.Length <= 10 ? message : message.Substring(0, 10))}";
 
 	}
 }

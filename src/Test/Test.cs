@@ -78,6 +78,7 @@ public static class Test {
 		if (tagger != null) {
 			tagger.tags.Add("Handhold");
 			tagger.tags.Add("Damageable");
+			tagger.tags.Add("Entity");
 		}
 
 		// 添加RemoteEntity组件
