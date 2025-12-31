@@ -80,9 +80,8 @@ public static class Test {
 			tagger.tags.Add("Damageable");
 		}
 
-
 		// 添加RemoteEntity组件
-		var entity = gameObject.GetComponent<RemoteEntity>();
+		var entity = gameObject.AddComponent<RemoteEntity>();
 
 		// 添加 CL_Handhold 组件 (攀爬逻辑)
 		var handholdComponent = gameObject.AddComponent<CL_Handhold>();
