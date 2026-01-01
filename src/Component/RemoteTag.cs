@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using WKMultiMod.src.Core;
 
 namespace WKMultiMod.src.Component;
 
@@ -12,8 +13,9 @@ public class LootAt : MonoBehaviour {
 
 	[Header("Scaling Settings")]
 	public bool maintainScreenSize = true;
-	public float baseScale = 0.5f; // 初始缩放比例
-	public float minScale = 0.3f;  // 最小缩放
+	public float baseScale = 1f; // 初始缩放比例
+	public float maxScale = MPMain.NameTagSizeMax;  // 最小缩放
+	public float minScale = MPMain.NameTagSizeMin;  // 最小缩放
 
 	void LateUpdate() {
 		// 持续检查并尝试获取主摄像机
@@ -38,7 +40,7 @@ public class LootAt : MonoBehaviour {
 			float newScale = distance * baseScale * 0.1f;
 
 			// 限制最小值,防止离太近时消失
-			newScale = Mathf.Max(newScale, minScale);
+			newScale = Mathf.Clamp(newScale, minScale, maxScale);
 
 			transform.localScale = new Vector3(newScale, newScale, newScale);
 		}

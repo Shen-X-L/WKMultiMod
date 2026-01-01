@@ -34,7 +34,6 @@ graph RL
 
     %% Module 2: Player Interaction
     subgraph Player Interaction
-        2a[Mutual Damage]
         2b[Item Grabbing/Stealing]
         2c[Add New Items]
         2e[Respawn After Death]
