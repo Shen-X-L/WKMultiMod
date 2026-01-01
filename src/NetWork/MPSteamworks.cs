@@ -2,6 +2,7 @@
 using Steamworks;
 using Steamworks.Data;
 using System;
+using System.Buffers;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -18,9 +19,10 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 网络消息结构
 	/// </summary>
-	private struct NetworkMessage {
-		public SteamId SenderId;
-		public byte[] Data;
+	public struct NetworkMessage {
+		public ulong SenderId;
+		public byte[] Data;      // 这是从池里借来的缓冲区
+		public int Length;       // 实际有效数据长度
 		public DateTime ReceiveTime;
 	}
 
@@ -52,6 +54,8 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 	// 消息队列
 	private ConcurrentQueue<NetworkMessage> _messageQueue = new ConcurrentQueue<NetworkMessage>();
+	// 数据池
+	private static readonly ArrayPool<byte> _messagePool = ArrayPool<byte>.Shared;
 
 	// 本机Id
 	private ulong _userSteamId;
@@ -463,10 +467,18 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 接收数据: 任意玩家->消息队列
 	/// </summary>
-	public void ReceiveNetworkMessage(SteamId senderId, byte[] data) {
+	private void HandleIncomingRawData(SteamId senderId, IntPtr data, int size) {
+		// 1. 从池里借出一块内存。注意：buffer.Length 可能 >= size
+		byte[] buffer = _messagePool.Rent(size);
+
+		// 2. 将非托管指针数据拷贝到借来的数组中
+		System.Runtime.InteropServices.Marshal.Copy(data, buffer, 0, size);
+
+		// 3. 入队
 		_messageQueue.Enqueue(new NetworkMessage {
-			SenderId = senderId,
-			Data = data,
+			SenderId = senderId.Value,
+			Data = buffer,
+			Length = size,
 			ReceiveTime = DateTime.UtcNow
 		});
 	}
@@ -480,13 +492,21 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 		while (processedCount < maxMessagesPerFrame && _messageQueue.TryDequeue(out var message)) {
 			try {
-				// 直接转发到总线,不处理业务逻辑
-				MPEventBus.Net.NotifyReceive(message.SenderId.Value, message.Data);
+				// 使用 ArraySegment 包装
+				var segment = new ArraySegment<byte>(message.Data, 0, message.Length);
+
+				// 触发总线
+				MPEventBus.Net.NotifyReceive(message.SenderId, segment);
+
 				processedCount++;
 			} catch (Exception ex) {
 				MPMain.LogError(
 					$"[MPSW] 消息队列转发消息异常: {ex.Message}",
 					$"[MPSW] MessageQueue forwarding message to MPCore exception: {ex.Message}");
+
+			} finally {
+				// 数据归还缓冲区
+				_messagePool.Return(message.Data);
 			}
 		}
 	}
@@ -869,9 +889,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	void ISocketManager.OnMessage(Connection connection, NetIdentity identity,
 								  IntPtr data, int size, long messageNum,
 								  long recvTime, int channel) {
-		byte[] bytes = new byte[size];
-		System.Runtime.InteropServices.Marshal.Copy(data, bytes, 0, size);
-		ReceiveNetworkMessage(identity.SteamId, bytes);
+		HandleIncomingRawData(identity.SteamId, data, size);
 	}
 	#endregion
 
@@ -890,9 +908,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 	// 仅客户端: 接收消息
 	void IConnectionManager.OnMessage(IntPtr data, int size, long messageNum, long recvTime, int channel) {
-		byte[] bytes = new byte[size];
-		System.Runtime.InteropServices.Marshal.Copy(data, bytes, 0, size);
-		ReceiveNetworkMessage(_lastKnownHostSteamId, bytes);
+		HandleIncomingRawData(_lastKnownHostSteamId, data, size);
 	}
 
 	// 仅客户端: 连接被本地或远程关闭

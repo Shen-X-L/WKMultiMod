@@ -27,8 +27,8 @@ public enum PacketType {
 public static class MPEventBus {
 	public static class Net {
 		// 接收事件：网络 -> 远程玩家管理类
-		public static event Action<ulong, byte[]> OnReceiveData;
-		public static void NotifyReceive(ulong steamId, byte[] data)
+		public static event Action<ulong, ArraySegment<byte>> OnReceiveData;
+		public static void NotifyReceive(ulong steamId, ArraySegment<byte> data)
 			=> OnReceiveData?.Invoke(steamId, data);
 
 		// 接收事件: 玩家连接信息 玩家 -> 主机

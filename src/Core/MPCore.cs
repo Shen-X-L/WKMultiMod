@@ -7,15 +7,16 @@ using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMultiMod.src.Data;
 using WKMultiMod.src.NetWork;
+using WKMultiMod.src.Test;
 using WKMultiMod.src.Util;
 using static System.Buffers.Binary.BinaryPrimitives;
 using static WKMultiMod.src.Util.MPReaderPool;
 using static WKMultiMod.src.Util.MPWriterPool;
-using WKMultiMod.src.Test;
 namespace WKMultiMod.src.Core;
 
 public class MPCore : MonoBehaviour {
@@ -885,8 +886,8 @@ public class MPCore : MonoBehaviour {
 	/// </summary>
 	/// <param name="connectionId"></param>
 	/// <param name="data"></param>
-	private void HandleReceiveData(ulong connectionId, byte[] data) {
-		if (data == null || data.Length < 20) return;
+	private void HandleReceiveData(ulong connectionId, ArraySegment<byte> data) {
+		if (data.Array == null || data.Count < 20) return;
 
 		// 直接解析头部
 		ReadOnlySpan<byte> span = data;
@@ -916,7 +917,7 @@ public class MPCore : MonoBehaviour {
 		// 包类型
 		PacketType packetType = (PacketType)ReadInt32LittleEndian(span.Slice(16));
 		// 包具体数据
-		var payload = new ArraySegment<byte>(data, 20, data.Length - 20);
+		var payload = data.Slice(20);
 
 		switch (packetType) {
 			// 仅主机接收: 请求初始化数据
@@ -1001,35 +1002,53 @@ public class MPCore : MonoBehaviour {
 	/// <summary>
 	/// 转发网络数据包到指定的客户端
 	/// </summary>
-	private void ForwardToPeer(ulong targetId, byte[] data) {
-		PacketType type = (PacketType)ReadInt32LittleEndian(data.AsSpan(16, 4));
+	private void ForwardToPeer(ulong targetId, ArraySegment<byte> data) {
+		// 直接从 segment 获取偏移和长度
+		int offset = data.Offset;
+		int count = data.Count;
+		// 解析类型
+		PacketType type = (PacketType)BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(16, 4));
 		SendType st = (type == PacketType.PlayerDataUpdate)
-			? SendType.Unreliable | SendType.NoNagle : SendType.Reliable;
+			? SendType.Unreliable : SendType.Reliable;
 
-		Steamworks.HandleSendToPeer(targetId, data, st);
+		Steamworks.HandleSendToPeer(targetId, data.Array, st);
 	}
 
 	/// <summary>
 	/// 广播数据包到所有客户端
 	/// </summary>
-	public void Broadcast(byte[] data) {
-		PacketType type = (PacketType)ReadInt32LittleEndian(data.AsSpan(16, 4));
-		SendType st = (type == PacketType.PlayerDataUpdate)
-			? SendType.Unreliable | SendType.NoNagle : SendType.Reliable;
+	public void Broadcast(ArraySegment<byte> data) {
+		// 直接从 segment 获取偏移和长度
+		int offset = data.Offset;
+		int count = data.Count;
 
-		Steamworks.HandleBroadcast(data, st);
+		// 解析类型
+		PacketType type = (PacketType)BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(16, 4));
+
+		SendType st = (type == PacketType.PlayerDataUpdate)
+			? SendType.Unreliable : SendType.Reliable;
+
+		// 将全套参数传给底层
+		Steamworks.HandleBroadcast(data.Array, offset, count, st);
 	}
 
 	/// <summary>
 	/// 广播数据包到所有客户端 (除了发送者)
 	/// </summary>
 	/// <param name="senderId">发送方ID</param>
-	public void BroadcastExcept(ulong senderId, byte[] data) {
-		PacketType type = (PacketType)ReadInt32LittleEndian(data.AsSpan(16, 4));
-		SendType st = (type == PacketType.PlayerDataUpdate)
-			? SendType.Unreliable | SendType.NoNagle : SendType.Reliable;
+	public void BroadcastExcept(ulong senderId, ArraySegment<byte> data) {
+		// 直接从 segment 获取偏移和长度
+		int offset = data.Offset;
+		int count = data.Count;
 
-		Steamworks.HandleBroadcastExcept(senderId, data, st);
+		// 解析类型
+		PacketType type = (PacketType)BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(16, 4));
+
+		SendType st = (type == PacketType.PlayerDataUpdate)
+			? SendType.Unreliable : SendType.Reliable;
+
+		// 将全套参数传给底层
+		Steamworks.HandleBroadcastExcept(senderId, data.Array, offset, count, st);
 	}
 	#endregion
 

@@ -47,4 +47,8 @@
 	  <EmbeddedResource Remove="temp\**" />
 	  <None Remove="temp\**" />
 	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="temp\README.md" />
+	</ItemGroup>
 </Project>
