@@ -4,39 +4,12 @@ using System.Numerics;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
+using WKMultiMod.src.Component;
 using WKMultiMod.src.Core;
 using WKMultiMod.src.Util;
 using Vector3 = UnityEngine.Vector3;
 
 namespace WKMultiMod.src.Test;
-
-public class RemoteEntity : GameEntity {
-	public TickTimer attackTimer = new TickTimer(1.0f);
-	public TickTimer debugTimer = new TickTimer(5.0f);
-	// 固定更新逻辑
-	public override void TickUpdate() {
-		if (debugTimer != null && debugTimer.TryTick()) {
-			MPMain.LogInfo("[Test] TickUpdate()调用", "[Test] TickUpdate() function call");
-		}
-	}
-	// 受到伤害时调用
-	public override bool Damage(float amount, string type) { 
-		MPMain.LogInfo(
-			$"[Test] 收到伤害: 数值={amount.ToString()}, 类型={type.ToString()}", 
-			$"[Test] Damage received: Amount={amount.ToString()}, Type={type.ToString()}");
-		return false;
-	}
-	// 传送实体
-	public override void Teleport(Vector3 pos) {
-		base.transform.position = pos;
-	}
-	// 添加力(基础实现)
-	public override void AddForce(Vector3 v, string source = "") {
-		MPMain.LogInfo(
-			$"[Test] AddForce调用: 力作用={v.ToString()}, 来源={source}", 
-			$"[Test] AddForce called: Force={v.ToString()}, Source={source}");
-	}
-}
 public static class Test { 
 	public static void Main() {
 		var player = GameObject.CreatePrimitive(PrimitiveType.Capsule);

@@ -26,9 +26,9 @@ public class PlayerData {
 	public bool IsTeleport;
 
 	// PlayerId(8) + TimestampTicks(8) + 位置(12) + 旋转(16) + 
-	// 左手(13) + 右手(13) + IsTeleport(1)
+	// 左手(12) + 右手(12) + IsTeleport(1)
 	// 包长度
-	public static int CalculateSize => 8 + 8 + 12 + 16 + 13 + 13 + 1;
+	public static int CalculateSize => 8 + 8 + 12 + 16 + 12 + 12 + 1;
 
 	public Vector3 Position {
 		get => new Vector3(PosX, PosY, PosZ); // 直接返回,无 GC 压力
@@ -155,15 +155,6 @@ public static class MPDataSerializer {
 	public static byte[] WriterToBytes(NetDataWriter writer) {
 		// 简单直接的方法
 		return writer.AsReadOnlySpan().ToArray();
-	}
-
-	/// <summary>
-	/// byte[] 转 NetDataReader
-	/// </summary>
-	public static NetDataReader BytesToReader(byte[] data) {
-		var reader = new NetDataReader();
-		reader.SetSource(data);
-		return reader;
 	}
 }
 

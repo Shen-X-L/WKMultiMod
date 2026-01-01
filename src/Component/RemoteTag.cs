@@ -37,7 +37,7 @@ public class LootAt : MonoBehaviour {
 			// 核心公式：缩放值 = 距离 * 基础大小 * 修正系数
 			float newScale = distance * baseScale * 0.1f;
 
-			// 限制最小值，防止离太近时消失
+			// 限制最小值,防止离太近时消失
 			newScale = Mathf.Max(newScale, minScale);
 
 			transform.localScale = new Vector3(newScale, newScale, newScale);
@@ -48,7 +48,7 @@ public class LootAt : MonoBehaviour {
 // 这个组件用来修改玩家名字
 public class RemoteTag : MonoBehaviour {
 	private TextMesh _textMesh;
-	public ulong _steamId;
+	public ulong SteamId;
 
 	void Awake() {
 		_textMesh = GetComponent<TextMesh>();
@@ -58,7 +58,7 @@ public class RemoteTag : MonoBehaviour {
 	/// 初始化设置(由 CreateNameTagObject 调用一次)
 	/// </summary>
 	public void Initialize(ulong playId) {
-		_steamId = playId;
+		SteamId = playId;
 		// 初始显示 Steam 名称
 		RefreshName();
 	}
@@ -69,10 +69,10 @@ public class RemoteTag : MonoBehaviour {
 	public void RefreshName() {
 		if (_textMesh == null) return;
 		// 直接通过 SteamId 获取名称
-		string playerName = new Friend(_steamId).Name;
+		string playerName = new Friend(SteamId).Name;
 		_textMesh.text =
 			$"{playerName}\n" +
-			$"ID: {_steamId}\n";
+			$"ID: {SteamId}\n";
 	}
 
 	/// <summary>
@@ -82,10 +82,10 @@ public class RemoteTag : MonoBehaviour {
 		if (_textMesh == null) return;
 
 		// 示例：显示 "名字\n: 消息内容"
-		string playerName = new Friend(_steamId).Name;
+		string playerName = new Friend(SteamId).Name;
 		_textMesh.text =
 			$"{playerName}\n" +
-			$"ID: {_steamId}\n" +
+			$"ID: {SteamId}\n" +
 			$"{(message.Length <= 10 ? message : message.Substring(0, 10))}";
 
 	}
