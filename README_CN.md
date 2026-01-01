@@ -18,7 +18,6 @@
 
 * 对象生命周期混乱, 可能导致未预期的行为.
 * 目前仅支持映射玩家胶囊, 其他物体尚未实现同步.
-* 日志输出存在大量中文且较为混乱, 需要手动筛选相关信息.
 
  **可能的目标** :
 
@@ -47,11 +46,6 @@ graph RL
         3b[同步物品栏]
         3c[同步可拾取物品]
         3e[同步实体数据]
-    end
-
-    %% 模块 4：网络架构
-    subgraph 网络架构
-        4b[支持旧LiteNetLib和steam混合联机]
     end
 
     %% 依赖关系连接 (跨模块和模块内)
@@ -103,14 +97,15 @@ dotnet build -c Release
 WhiteKnuckleMod/
 ├──src/
 │   ├─Component/
-│   │   └─Component.cs              # 组件类,负责处理网络数据
+│   │   ├─RemoteHand.cs             # 手部组件类,映射手部位置
+│   │   ├─RemotePlayer.cs           # 玩家组件类,映射玩家位置,旋转
+│   │   └─RemoteTag.cs              # 标签组件类,映射玩家Id与消息位置
 │   ├─Core/
 │   │   ├─LocalPlayerManager.cs     # 本地玩家信息打包类
 │   │   ├─MPCore.cs                 # 核心类,负责主要事件处理
 │   │   ├─MPMain.cs                 # 启动类,用来启动补丁
 │   │   └─RemotePlayerManager.cs    # 远程玩家对象管理类
 │   ├─Data/
-│   │   ├─DataEnum.cs               # 枚举定义类
 │   │   └─PlayerData.cs             # 玩家网络数据定义 + 序列化工具类
 │   ├─NetWork/
 │   │   ├─MPLiteNet.cs              # 暂时废弃
@@ -118,14 +113,15 @@ WhiteKnuckleMod/
 │   │   └─NetworkEvents.cs          # 网络总线
 │   ├─Patch/
 │   │   └─Patch.cs                  # 补丁,实现拦截或注入
-│   └─Util/                    
+│   └─Util/  
+│       ├─DictionaryExtensions.cs   # 查找键以指定数字结尾的项
 │       ├─TickTimer.cs              # Debug控制输出频率计数器
 │       └─TypeConverter.cs          # 字符串转Bool工具
 ├── lib/                            # 外部依赖库目录 (需自行添加) 
 │   └── README.md                   # 依赖库获取说明
 ├── WhiteKnuckleMod.sln             # Visual Studio 解决方案文件
 ├── WhiteKnuckleMod.csproj          # 项目配置文件
-└── README.md                       # 本文档
+└── README_CN.md                    # 本文档
 ```
 
 ## 开发指南
@@ -153,15 +149,19 @@ WhiteKnuckleMod/
 
 ## 联机功能
 
-## 0.13
+## 0.13/0.14
 
 在游戏中开启作弊模式 (`cheats`) 后, 可使用以下命令:
 
 * `host <名称> [最大玩家数]` - 创建大厅.
   * 示例:`host abcde`
-* `getlobbyid` - 获取大厅房间码
-* `join <房间码>` - 通过房间码,加入大厅
+* `getlobbyid` - 获取大厅大厅码
+* `join <大厅码>` - 通过大厅码,加入大厅
   * 示例: `join 109775241951624817`
+* `talk <文字(目前控制台不支持中文)>` - 来在头顶的标签上说话
+  * 示例: `talk help me`
+* `tpto <steamId(后缀匹配)>` - 进行玩家间tp
+  * 示例 `tpto 22(目标id 561198279116422)` 
 
 ## 0.12
 
@@ -175,7 +175,15 @@ WhiteKnuckleMod/
 
 ### 配置选项
 
-目前暂无配置文件.
+shenxl.MultiPlayerMod.cfg 中
+```
+[Debug]
+
+## 值为0时使用中文输出日志, Use English logs when the value is 1.
+# Setting type: Int32
+# 默认值: 1
+LogLanguage = 0
+```
 
 ## 贡献指南
 

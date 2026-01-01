@@ -18,7 +18,6 @@ This is a Unity MOD for the game  *White Knuckle* , implementing basic networked
 
 * Chaotic object lifecycle management, which may lead to unexpected behavior.
 * Currently only supports mapping player capsules; synchronization for other objects is not yet implemented.
-* Log output contains extensive Chinese text and is quite messy, requiring manual filtering for relevant information.
 
 **Potential Future Goals:**
 
@@ -47,11 +46,6 @@ graph RL
         3b[Sync Inventory]
         3c[Sync Pickup Items]
         3e[Sync Entity Data]
-    end
-
-    %% Module 4: Network Architecture
-    subgraph Network Architecture
-        4b["Support Hybrid Networking (Legacy LiteNetLib + Steam)"]
     end
 
     %% Dependency Connections (cross-module and within modules)
@@ -103,24 +97,27 @@ dotnet build -c Release
 WhiteKnuckleMod/
 ├── src/
 │   ├─ Component/
-│   │   └─ Component.cs              # Component class, handles network data
+│   │   ├─RemoteHand.cs             # update multi hand position.
+│   │   ├─RemotePlayer.cs           # update multi player position and rotation.
+│   │   └─RemoteTag.cs              # update multi player ID and message position.
 │   ├─ Core/
-│   │   ├─ LocalPlayerManager.cs     # Local player info packaging class
-│   │   ├─ MPCore.cs                 # Core class, handles main events
-│   │   ├─ MPMain.cs                 # Startup class, initializes patches
-│   │   └─ RemotePlayerManager.cs    # Remote player object management
+│   │   ├─ LocalPlayerManager.cs    # Local player info packaging class
+│   │   ├─ MPCore.cs                # Core class, handles main events
+│   │   ├─ MPMain.cs                # Startup class, initializes patches
+│   │   └─ RemotePlayerManager.cs   # Remote player object management
 │   ├─ Data/
-│   │   ├─ DataEnum.cs               # Enum definitions
-│   │   └─ PlayerData.cs             # Player network data + serialization utils
+│   │   ├─ DataEnum.cs              # Enum definitions
+│   │   └─ PlayerData.cs            # Player network data + serialization utils
 │   ├─ NetWork/
-│   │   ├─ MPLiteNet.cs              # (Currently deprecated)
-│   │   ├─ MPSteamworks.cs           # Separated Steam networking logic
-│   │   └─ NetworkEvents.cs          # Network event bus
+│   │   ├─ MPLiteNet.cs             # (Currently deprecated)
+│   │   ├─ MPSteamworks.cs          # Separated Steam networking logic
+│   │   └─ NetworkEvents.cs         # Network event bus
 │   ├─ Patch/
-│   │   └─ Patch.cs                  # Patches for interception/injection
+│   │   └─ Patch.cs                 # Patches for interception/injection
 │   └─ Util/
-│       ├─ TickTimer.cs              # Debug output frequency counter
-│       └─ TypeConverter.cs          # String-to-bool utility
+│       ├─DictionaryExtensions.cs   # Find items whose keys end with a specified number.
+│       ├─ TickTimer.cs             # Debug output frequency counter
+│       └─ TypeConverter.cs         # String-to-bool utility
 ├── lib/                            # External dependencies (add manually)
 │   └── README.md                   # Dependency acquisition guide
 ├── WhiteKnuckleMod.sln
@@ -153,7 +150,7 @@ The project file (`WhiteKnuckleMod.csproj`) is configured with key references an
 
 ## Multiplayer Functionality
 
-### Version 0.13
+### Version 0.13/0.14
 
 After enabling cheat mode (`cheats`) in-game, use the following commands:
 
@@ -162,7 +159,10 @@ After enabling cheat mode (`cheats`) in-game, use the following commands:
 * `getlobbyid` - Get the lobby room code.
 * `join <room_code>` - Join a lobby using the room code.
   * Example: `join 109775241951624817`
-
+* `talk <text>` - Speak via the overhead label.
+  * Example: `talk help me`
+* `tpto <steamId(suffix match)>` - Teleport between players
+  * Example: `tpto 22 (target ID: 561198279116422)`
 ### Version 0.12
 
 After enabling cheat mode (`cheats`) in-game, use the following commands:
@@ -175,8 +175,15 @@ After enabling cheat mode (`cheats`) in-game, use the following commands:
 
 ### Configuration Options
 
-There are no configurable options at this time.
+shenxl.MultiPlayerMod.cfg 中
+```
+[Debug]
 
+## 值为0时使用中文输出日志, Use English logs when the value is 1.
+# Setting type: Int32
+# Default value: 1
+LogLanguage = 0
+```
 ## Contributing
 
 Welcome to submit Issues for bug reports or suggestions! Pull Requests are also welcome.
