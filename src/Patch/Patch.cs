@@ -8,53 +8,6 @@ using Object = UnityEngine.Object;
 
 namespace WKMultiMod.src.Patch;
 
-[HarmonyPatch(typeof(SteamManager))]
-public class Patch_SteamManager_Awake {
-	private static bool _hasCoreInjected = false;
-
-	[HarmonyPostfix]
-	[HarmonyPatch("Awake")]
-	public static void Postfix(SteamManager __instance) {
-		MPMain.LogInfo(
-			"[Patch] SteamManager.Awake 调用,准备注入MPCore",
-			"[Patch] SteamManager.Awake called, preparing to inject core.");
-
-		if (_hasCoreInjected) {
-			MPMain.LogWarning(
-				"[Patch] Core已经注入过,跳过",
-				"[Patch] MPCore already injected, skipping.");
-			return;
-		}
-
-		// 简化的检查：只看是否已经存在任何MultiPlayerCore实例
-		var existingCore = Object.FindObjectOfType<MPCore>();
-		if (existingCore != null) {
-			MPMain.LogWarning(
-				$"[Patch] 已存在核心实例: {existingCore.name}",
-				$"[Patch] MPCore instance already exists. GameObjectName: {existingCore.name}");
-			_hasCoreInjected = true;
-			return;
-		}
-
-		// 创建核心对象
-		try {
-			GameObject coreGameObject = new GameObject("MultiplayerCore");
-			coreGameObject.transform.SetParent(__instance.transform, false);
-			coreGameObject.AddComponent<MPCore>();
-
-			MPMain.LogInfo(
-				"[Patch] MPCore 对象已成功注入 SteamManager",
-				"[Patch] MPCore object successfully injected into SteamManager.");
-			_hasCoreInjected = true;
-
-		} catch (System.Exception e) {
-			MPMain.LogError(
-				$"[Patch] 注入核心失败: {e.Message}",
-				$"[Patch] Failed to inject MPCore: {e.Message}");
-		}
-	}
-}
-
 // 补丁类: 强制解锁所有进度
 [HarmonyPatch(typeof(CL_ProgressionManager), "HasProgressionUnlock")]
 class Patch_Progression_ForceUnlock {
@@ -96,17 +49,3 @@ class Patch_SpawnSettings_StandardizeChance {
 		return true; // 非混乱模式, 执行原始方法
 	}
 }
-
-// 补丁类: 标准化关卡生成
-// 貌似没用
-//[HarmonyPatch(typeof(M_Subregion), "CanSpawn")]
-//class Patch_MSubregion_CanSpawn {
-//	static bool Prefix(ref bool __result) {
-//		// 检查联机状态变量：
-//		if (MultiPlayerMain.IsMultiplayerActive) {
-//			__result = true; // 如果联机, 强制返回 True (启用标准化)
-//			return false;    // 跳过原始方法
-//		}
-//		return true; // 如果未联机, 继续执行原始方法 (禁用标准化)
-//	}
-//}

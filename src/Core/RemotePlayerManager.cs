@@ -2,6 +2,7 @@
 using Steamworks;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
@@ -9,6 +10,7 @@ using WKMultiMod.src.Component;
 using WKMultiMod.src.Data;
 using WKMultiMod.src.Util;
 using static WKMultiMod.src.Data.PlayerData;
+using Vector3 = UnityEngine.Vector3;
 
 namespace WKMultiMod.src.Core;
 
@@ -22,12 +24,8 @@ public class RemotePlayerManager : MonoBehaviour {
 	internal Dictionary<ulong, RemotePlayerContainer> Players = new Dictionary<ulong, RemotePlayerContainer>();
 
 	void Awake() {
-		//MPMain.Logger.LogInfo("[RPMan] RemotePlayerManager Awake");
-
 		// 确保根对象存在
 		EnsureRootObject();
-
-		//MPMain.Logger.LogInfo("[RPMan] Remote Player Manager initialization completed");
 	}
 
 	void OnDestroy() {
@@ -46,8 +44,8 @@ public class RemotePlayerManager : MonoBehaviour {
 	/// 确保根对象存在
 	/// </summary>
 	private void EnsureRootObject() {
-		// 直接在MultiplayerCore_Injected下查找或创建
-		var coreTransform = transform.parent; // MultiplayerCore_Injected
+		// 直接在MultiplayerCore下查找或创建
+		var coreTransform = transform.parent; // MultiplayerCore
 		var rootName = "RemotePlayers";
 
 		if (coreTransform.Find(rootName) == null) {
@@ -74,7 +72,7 @@ public class RemotePlayerManager : MonoBehaviour {
 	}
 
 	// 创建玩家对象
-	public RemotePlayerContainer CreatePlayer(ulong playId) {
+	public RemotePlayerContainer PlayerCreate(ulong playId) {
 		if (Players.TryGetValue(playId, out RemotePlayerContainer value))
 			return value;
 
@@ -88,7 +86,7 @@ public class RemotePlayerManager : MonoBehaviour {
 	}
 
 	// 清除特定玩家
-	public void DestroyPlayer(ulong playId) {
+	public void PlayerRemove(ulong playId) {
 		if (Players.TryGetValue(playId, out var container)) {
 			container.Destroy();
 			Players.Remove(playId);
@@ -98,32 +96,17 @@ public class RemotePlayerManager : MonoBehaviour {
 	// 处理玩家数据
 	public void ProcessPlayerData(ulong playId, PlayerData playerData) {
 
-		//// Debug
-		//if (_debugTick.Test()) {
-		//	MPMain.Logger.LogInfo($"[RPContainer] 接收数据 " +
-		//		$"Player.Position: {playerData.Position.ToString()} " +
-		//		$"Player.Rotation: {playerData.Rotation.ToString()} " +
-		//		$"LeftHand.isFree: {playerData.LeftHand.IsFree.ToString()} " +
-		//		$"LeftHand: {playerData.LeftHand.Position.ToString()} " +
-		//		$"RightHand.isFree: {playerData.RightHand.IsFree.ToString()} " +
-		//		$"RightHand: {playerData.RightHand.Position.ToString()} ");
-		//}
-
 		// 以后加上时间戳处理
-		var RPcontainer = Players[playId];
-		if (RPcontainer == null) {
+		if (Players.TryGetValue(playId, out var RPcontainer)) {
+			RPcontainer.UpdatePlayerData(playerData);
+			return;
+		} else if (_debugTick.TryTick()) {
 			MPMain.LogError(
-				$"[RPMan] 未找到远程对象 ID: {playId.ToString()}",
+				$"[RPMan] 未找到远程映射对象 ID: {playId.ToString()}",
 				$"[RPMan] Remote player object not found. ID: {playId.ToString()}");
 			return;
 		}
-
-		RPcontainer.UpdatePlayerData(playerData);
 		return;
-	}
-
-	public RemotePlayerContainer GetContainerByPlayerId(ulong playId) { 
-		return Players[playId];
 	}
 }
 
@@ -132,16 +115,33 @@ public class RemotePlayerManager : MonoBehaviour {
 // 单个玩家的容器类
 public class RemotePlayerContainer {
 
-	public ulong PlayId { get; set; }
+	public ulong PlayerId { get; set; }
 	public GameObject PlayerObject { get; private set; }
 	public GameObject LeftHandObject { get; private set; }
 	public GameObject RightHandObject { get; private set; }
 	public GameObject NameTagObject { get; private set; }
 
-	private RemotePlayerComponent _playerComponent;
-	private RemoteHandComponent _leftHandComponent;
-	private RemoteHandComponent _rightHandComponent;
-	private PlayerNameTag _nameTagController;
+	private RemotePlayer _remotePlayer;
+	private RemoteHand _remoteLeftHand;
+	private RemoteHand _remoteRightHand;
+	private RemoteTag _remoteTag;
+	private RemoteEntity _remoteEntity;
+
+	public PlayerData PlayerData {
+		get {
+			var data = new PlayerData {
+				playId = this.PlayerId,
+				TimestampTicks = DateTime.UtcNow.Ticks,
+				IsTeleport = true,
+			};
+			data.Position = PlayerObject.transform.position;
+			data.Rotation = PlayerObject.transform.rotation;
+
+			data.LeftHand = new HandData {};
+			data.RightHand = new HandData {};
+			return data;
+		}
+	}
 
 	// 初始化时直接传送玩家
 	private float _initializationTime;
@@ -149,7 +149,7 @@ public class RemotePlayerContainer {
 
 	// 构造函数 - 只设置基本信息
 	public RemotePlayerContainer(ulong playId) {
-		PlayId = playId;
+		PlayerId = playId;
 		_initializationTime = Time.time;
 	}
 
@@ -165,111 +165,17 @@ public class RemotePlayerContainer {
 			}
 			// Debug
 			MPMain.LogInfo(
-				$"[RPCont] 远程玩家映射成功 ID: {PlayId.ToString()}",
-				$"[RPCont] Remote player mapping succeeded ID: {PlayId.ToString()}");
+				$"[RPCont] 远程玩家映射成功 ID: {PlayerId.ToString()}",
+				$"[RPCont] Remote player mapping succeeded ID: {PlayerId.ToString()}");
 			return true;
 		} catch (Exception ex) {
 			// Debug
 			MPMain.LogError(
-				$"[RPCont] 远程玩家映射失败 ID: {PlayId.ToString()}, Error: {ex.Message}",
-				$"[RPCont] Failed to map remote player ID: {PlayId.ToString()}, Error: {ex.Message}");
+				$"[RPCont] 远程玩家映射失败 ID: {PlayerId.ToString()}, Error: {ex.Message}",
+				$"[RPCont] Failed to map remote player ID: {PlayerId.ToString()}, Error: {ex.Message}"); 
 			CleanupOnFailure();
 			return false;
 		}
-	}
-
-	// 销毁方法 - 清理所有资源
-	public void Destroy() {
-		SafeDestroy(PlayerObject);
-		SafeDestroy(LeftHandObject);
-		SafeDestroy(RightHandObject);
-		SafeDestroy(NameTagObject);
-
-		// 清理引用
-		PlayerObject = null;
-		LeftHandObject = null;
-		RightHandObject = null;
-		NameTagObject = null;
-		_playerComponent = null;
-		_leftHandComponent = null;
-		_rightHandComponent = null;
-		_nameTagController = null;
-	}
-
-	// 通过数据进行更新
-	public void UpdatePlayerData(PlayerData playerData) {
-
-		// 缺少部分对象
-		if (PlayerObject == null || LeftHandObject == null
-			|| RightHandObject == null || NameTagObject == null)
-			return;
-
-		// 检查组件是否存在,如果不存在尝试获取
-		if (_playerComponent == null) {
-			_playerComponent = PlayerObject.GetComponent<RemotePlayerComponent>();
-			if (_playerComponent == null) {
-				// Debug
-				MPMain.LogError(
-					"[RPCont] PlayerObject的组件未添加",
-					"[RPCont] PlayerObject component not added");
-				return;
-			}
-		}
-
-		if (_leftHandComponent == null) {
-			_leftHandComponent = LeftHandObject.GetComponent<RemoteHandComponent>();
-			if (_leftHandComponent == null) {
-				// Debug
-				MPMain.LogError(
-					"[RPCont] LeftHandObject的组件未添加",
-					"[RPCont] LeftHandObject component not added");
-				return;
-			}
-		}
-
-		if (_rightHandComponent == null) {
-			_rightHandComponent = RightHandObject.GetComponent<RemoteHandComponent>();
-			if (_rightHandComponent == null) {
-				// Debug
-				MPMain.LogError(
-					"[RPCont] RightHandObject的组件未添加",
-					"[RPCont] RightHandObject component not added");
-				return;
-			}
-		}
-
-		// 判断是否处于初始化 5 秒内
-		bool isInInitPhase = (Time.time - _initializationTime) < FORCED_TELEPORT_DURATION;
-
-		if (playerData.IsTeleport || isInInitPhase) {
-			// 使用组件的传送方法
-			_playerComponent.Teleport(playerData.Position, playerData.Rotation);
-			Vector3 leftTarget = playerData.LeftHand.Position;
-			_leftHandComponent.Teleport(leftTarget);
-
-			// 3. 处理右手传送
-			Vector3 rightTarget = playerData.RightHand.Position;
-			_rightHandComponent.Teleport(rightTarget);
-		} else {
-			// 使用插值更新
-			_playerComponent.UpdatePosition(playerData.Position);
-			_playerComponent.UpdateRotation(playerData.Rotation);
-			_leftHandComponent.UpdateFromHandData(playerData.LeftHand);
-			_rightHandComponent.UpdateFromHandData(playerData.RightHand);
-		}
-	}
-
-	// 进行头部文字更新
-	public void UpdateNameTag(string text) { 
-		if (string.IsNullOrEmpty(text)) { return; }
-		if (_nameTagController == null) {
-			MPMain.LogError(
-				"[RPCont] PlayerNameTag的组件未添加",
-				"[RPCont] PlayerNameTag component not added");
-			return;
-		}
-		_nameTagController.SetDynamicMessage(text);
-		return;
 	}
 
 	// 创建并组装对象
@@ -292,8 +198,7 @@ public class RemotePlayerContainer {
 	// 创建玩家对象
 	private GameObject CreatePlayerObject() {
 		var player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-		player.name = "RemotePlayer_" + PlayId;
-
+		player.name = "RemotePlayer_" + PlayerId;
 		// 配置触发器
 		var collider = player.GetComponent<CapsuleCollider>();
 		if (collider != null) {
@@ -310,10 +215,18 @@ public class RemotePlayerContainer {
 		physicsCollider.center = new Vector3(0, 0.1f, 0);
 
 		// 添加攀爬组件
-		AddHandholdComponents(player);
+		AddHandHold(player);
+		// 配置标签
+		ObjectTagger tagger = player.GetComponent<ObjectTagger>();
+		if (tagger != null) {
+			tagger.tags.Add("Damageable");  //被伤害标签
+			tagger.tags.Add("Entity");      //实体标签
+		}
 		// 远程玩家组件
-		_playerComponent = player.AddComponent<RemotePlayerComponent>();
-
+		_remotePlayer = player.AddComponent<RemotePlayer>();
+		// 远程实体组件
+		_remoteEntity = player.AddComponent<RemoteEntity>();
+		_remoteEntity.PlayerId = PlayerId;
 		// 设置外观
 		ConfigurePlayerAppearance(player);
 
@@ -333,7 +246,7 @@ public class RemotePlayerContainer {
 
 		// 创建左眼
 		GameObject leftEye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-		leftEye.name = "RemotePlayer_LeftEye_" + PlayId;
+		leftEye.name = "RemotePlayer_LeftEye_" + PlayerId;
 		leftEye.transform.SetParent(player.transform);
 		leftEye.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
 		leftEye.transform.localPosition = new Vector3(-0.15f, 0.5f, 0.45f);
@@ -345,7 +258,7 @@ public class RemotePlayerContainer {
 
 		// 创建右眼
 		GameObject rightEye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-		rightEye.name = "RemotePlayer_RightEye_" + PlayId;
+		rightEye.name = "RemotePlayer_RightEye_" + PlayerId;
 		rightEye.transform.SetParent(player.transform);
 		rightEye.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
 		rightEye.transform.localPosition = new Vector3(0.15f, 0.5f, 0.45f);
@@ -360,12 +273,12 @@ public class RemotePlayerContainer {
 	private (GameObject leftHand, GameObject rightHand) CreateHandObjects() {
 		// 创建左手
 		GameObject leftHand = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-		leftHand.name = "RemotePlayer_LeftHand_" + PlayId;
+		leftHand.name = "RemotePlayer_LeftHand_" + PlayerId;
 		leftHand.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
 
 		// 创建右手
 		GameObject rightHand = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-		rightHand.name = "RemotePlayer_RightHand_" + PlayId;
+		rightHand.name = "RemotePlayer_RightHand_" + PlayerId;
 		rightHand.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
 
 		// 配置触发器
@@ -381,13 +294,13 @@ public class RemotePlayerContainer {
 		}
 
 		// 添加攀爬组件
-		AddHandholdComponents(leftHand);
-		AddHandholdComponents(rightHand);
+		AddHandHold(leftHand);
+		AddHandHold(rightHand);
 		// 远程手部组件
-		_leftHandComponent = leftHand.AddComponent<RemoteHandComponent>();
-		_leftHandComponent.hand = HandType.Left;
-		_rightHandComponent = rightHand.AddComponent<RemoteHandComponent>();
-		_rightHandComponent.hand = HandType.Right;
+		_remoteLeftHand = leftHand.AddComponent<RemoteHand>();
+		_remoteLeftHand.hand = HandType.Left;
+		_remoteRightHand = rightHand.AddComponent<RemoteHand>();
+		_remoteRightHand.hand = HandType.Right;
 
 		// 配置手部外观
 		ConfigureHandAppearance(leftHand, rightHand);
@@ -418,11 +331,11 @@ public class RemotePlayerContainer {
 
 	// 创建文本框
 	private GameObject CreateNameTagObject() {
-		var textObject = new GameObject("PlayerID_Text_" + PlayId);
+		var textObject = new GameObject("PlayerID_Text_" + PlayerId);
 		textObject.transform.localPosition = new Vector3(0f, 1.5f, 0f);
 
 		var textMesh = textObject.AddComponent<TextMesh>();
-		textMesh.text = "play Id: " + PlayId;
+		textMesh.text = "Player: " + PlayerId;
 		textMesh.fontSize = 20;
 		textMesh.characterSize = 1.0f;
 		textMesh.anchor = TextAnchor.MiddleCenter;
@@ -430,16 +343,17 @@ public class RemotePlayerContainer {
 		textMesh.fontStyle = FontStyle.Bold;
 		textMesh.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
-		textObject.AddComponent<LootAtComponent>(); // 负责面向相机和缩放
+		// 添加看板与缩放组件
+		var billboard = textObject.AddComponent<LootAt>();
 
 		// 挂载管理组件并初始化
-		_nameTagController = textObject.AddComponent<PlayerNameTag>();
-		_nameTagController.Initialize(PlayId); // 传入 SteamID
+		_remoteTag = textObject.AddComponent<RemoteTag>();
+		_remoteTag.Initialize(PlayerId); // 传入 SteamID
 
 		return textObject;
 	}
 
-	// 清理对象
+	// 清理整个对象
 	private void CleanupOnFailure() {
 		// 清理已创建的对象
 		SafeDestroy(PlayerObject);
@@ -448,7 +362,7 @@ public class RemotePlayerContainer {
 		SafeDestroy(NameTagObject);
 	}
 
-	// 安全销毁
+	// 清理单个对象
 	private void SafeDestroy(GameObject obj) {
 		if (obj != null) {
 			if (Application.isPlaying) {
@@ -459,12 +373,108 @@ public class RemotePlayerContainer {
 		}
 	}
 
+	// 销毁方法 - 清理所有资源
+	public void Destroy() {
+		SafeDestroy(PlayerObject);
+		SafeDestroy(LeftHandObject);
+		SafeDestroy(RightHandObject);
+		SafeDestroy(NameTagObject);
+
+		// 清理引用
+		PlayerObject = null;
+		LeftHandObject = null;
+		RightHandObject = null;
+		NameTagObject = null;
+		_remotePlayer = null;
+		_remoteLeftHand = null;
+		_remoteRightHand = null;
+		_remoteTag = null;
+	}
+
+	// 通过数据进行更新
+	public void UpdatePlayerData(PlayerData playerData) {
+
+		// 缺少部分对象
+		if (PlayerObject == null || LeftHandObject == null
+			|| RightHandObject == null || NameTagObject == null)
+			return;
+
+		// 检查组件是否存在,如果不存在尝试获取
+		if (_remotePlayer == null) {
+			_remotePlayer = PlayerObject.GetComponent<RemotePlayer>();
+			if (_remotePlayer == null) {
+				// Debug
+				MPMain.LogError(
+					"[RPCont] PlayerObject的组件未添加",
+					"[RPCont] PlayerObject component not added");
+				return;
+			}
+		}
+
+		if (_remoteLeftHand == null) {
+			_remoteLeftHand = LeftHandObject.GetComponent<RemoteHand>();
+			if (_remoteLeftHand == null) {
+				// Debug
+				MPMain.LogError(
+					"[RPCont] LeftHandObject的组件未添加",
+					"[RPCont] LeftHandObject component not added");
+				return;
+			}
+		}
+
+		if (_remoteRightHand == null) {
+			_remoteRightHand = RightHandObject.GetComponent<RemoteHand>();
+			if (_remoteRightHand == null) {
+				// Debug
+				MPMain.LogError(
+					"[RPCont] RightHandObject的组件未添加",
+					"[RPCont] RightHandObject component not added");
+				return;
+			}
+		}
+
+		// 判断是否处于初始化 5 秒内
+		bool isInInitPhase = (Time.time - _initializationTime) < FORCED_TELEPORT_DURATION;
+
+		if (playerData.IsTeleport || isInInitPhase) {
+			// 使用组件的传送方法
+			_remotePlayer.Teleport(playerData.Position, playerData.Rotation);
+			Vector3 leftTarget = playerData.LeftHand.Position;
+			_remoteLeftHand.Teleport(leftTarget);
+
+			// 3. 处理右手传送
+			Vector3 rightTarget = playerData.RightHand.Position;
+			_remoteRightHand.Teleport(rightTarget);
+		} else {
+			// 使用插值更新
+			_remotePlayer.UpdatePosition(playerData.Position);
+			_remotePlayer.UpdateRotation(playerData.Rotation);
+			_remoteLeftHand.UpdateFromHandData(playerData.LeftHand);
+			_remoteRightHand.UpdateFromHandData(playerData.RightHand);
+		}
+	}
+
+	// 进行头部文字更新
+	public void UpdateNameTag(string text) {
+		if (string.IsNullOrEmpty(text)) { return; }
+		if (_remoteTag == null) {
+			MPMain.LogError(
+				"[RPCont] PlayerNameTag的组件未添加",
+				"[RPCont] PlayerNameTag component not added");
+			return;
+		}
+		_remoteTag.SetDynamicMessage(text);
+		return;
+	}
+
 	// 赋予可攀爬组件
-	private void AddHandholdComponents(GameObject gameObject) {
+	public static void AddHandHold(GameObject gameObject) {
 		// 添加 ObjectTagger 组件
 		ObjectTagger tagger = gameObject.AddComponent<ObjectTagger>();
 		if (tagger != null) {
-			tagger.tags.Add("Handhold");
+			tagger.tags.Add("Handhold");    //攀爬标签
+			tagger.tags.Add("Damageable");  //被伤害标签
+			tagger.tags.Add("Entity");      //实体标签
 		}
 
 		// 添加 CL_Handhold 组件 (攀爬逻辑)

@@ -12,7 +12,7 @@ public static class DictionaryExtensions {
 	/// (result, matchingKeys) - 返回值 和 匹配的键列表
 	/// </returns>
 	public static List<ulong> FindByKeySuffix<T>(
-		this Dictionary<ulong, T> dictionary,ulong suffix) {
+		this Dictionary<ulong, T> dictionary, ulong suffix) {
 
 		var matchingKeys = new List<ulong>();
 
