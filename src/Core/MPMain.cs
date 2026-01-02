@@ -15,7 +15,7 @@ public class MPMain : BaseUnityPlugin {
 
 	public const string ModGUID = "shenxl.MultiPlayerMod";
 	public const string ModName = "MultiPlayer Mod";
-	public const string ModVersion = "0.13.12.6";
+	public const string ModVersion = "0.13.12.7";
 
 	// 单例实例
 	public static MPMain Instance { get; set; }
@@ -67,17 +67,17 @@ public class MPMain : BaseUnityPlugin {
 	}
 
 	public static void LogInfo(string chineseLog, string englishLog) {
-		if (_debugLogLanguage.Value == 0) Logger.LogInfo(chineseLog);
+		if (MPConfig.DebugLogLanguage == 0) Logger.LogInfo(chineseLog);
 		else Logger.LogInfo(englishLog);
 	}
 
 	public static void LogWarning(string chineseLog, string englishLog) {
-		if (_debugLogLanguage.Value == 0) Logger.LogWarning(chineseLog);
+		if (MPConfig.DebugLogLanguage == 0) Logger.LogWarning(chineseLog);
 		else Logger.LogWarning(englishLog);
 	}
 
 	public static void LogError(string chineseLog, string englishLog) {
-		if (_debugLogLanguage.Value == 0) Logger.LogError(chineseLog);
+		if (MPConfig.DebugLogLanguage == 0) Logger.LogError(chineseLog);
 		else Logger.LogError(englishLog);
 	}
 }
