@@ -15,8 +15,38 @@ public class RemoteEntity : GameEntity {
 	}
 	// 受到伤害时调用
 	public override bool Damage(float amount, string type) {
-		// 发送伤害通知事件
-		MPEventBus.Game.NotifyPlayerDamage(PlayerId, amount/5, type);
+		//MPMain.Logger.LogInfo($"伤害{amount.ToString()} 类型{type}");
+		var baseDamage = amount * MPConfig.AllActive;
+		switch (type) {
+			case "Hammer":
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.HammerActive, type);
+				break;
+			case "rebar":
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.RebarActive, type);
+				break;
+			case "returnrebar":
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.ReturnRebarActive, type);
+				break;
+			case "rebarexplosion":
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.RebarExplosionActive, type);
+				break;
+			case "explosion":
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.RebarExplosionActive, type);
+				break;
+			case "piton":
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.PitonActive, type);
+				break;
+			case "flare":
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.FlareActive, type);
+				break;
+			case "ice":
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.IceActive, type);
+				break;
+			default:
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.OtherActive, type);
+				break;
+		}
+		// 会不会死由对方决定
 		return false;
 	}
 	// 传送实体

@@ -11,9 +11,9 @@ public class Patch_ENT_Player {
 	[HarmonyPostfix]
 	[HarmonyPatch("Kill")]
 	public static void Postfix(ENT_Player __instance, string type) {
-
-		MPEventBus.Game.NotifyPlayerDeath();
-
-		MPMain.LogInfo($"[Patch] 玩家死亡,类型: {type}", $"[Patch] Player death,type: {type}");
+		if (MPCore.IsMultiplayerActive) {
+			MPEventBus.Game.NotifyPlayerDeath();
+			MPMain.LogInfo($"[Patch] 玩家死亡,类型: {type}", $"[Patch] Player death,type: {type}");
+		}
 	}
 }
