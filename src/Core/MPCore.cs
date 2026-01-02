@@ -42,7 +42,7 @@ public class MPCore : MonoBehaviour {
 
 	// 世界种子 - 用于同步游戏世界生成
 	public int WorldSeed { get; private set; }
-	// 用于控制是否启用关卡标准化 Patch
+	// 是否在多人模式
 	public static bool IsMultiplayerActive { get; private set; } = false;
 	// 混乱模式开关
 	public static bool IsChaosMod { get; private set; } = false;
@@ -194,6 +194,7 @@ public class MPCore : MonoBehaviour {
 
 		switch (scene.name) {
 			case "Game-Main":
+			case "Playground":
 				// 注册命令和初始化世界数据
 				if (CommandConsole.instance != null) {
 					RegisterCommands();
@@ -343,7 +344,7 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.AddCommand("getconnections", GetAllConnections);
 		CommandConsole.AddCommand("talk", Talk);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
-		CommandConsole.AddCommand("test", Test, false);
+		CommandConsole.AddCommand("test", Test.Test.Main, false);
 	}
 
 	// 命令实现
@@ -814,7 +815,36 @@ public class MPCore : MonoBehaviour {
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
 		var player = senderId;
-		ENT_Player.GetPlayer().Damage(amount, type);
+		var baseDamage = amount * MPConfig.AllActive;
+		switch (type) {
+			case "Hammer":
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.HammerActive, type);
+				break;
+			case "rebar":
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarActive, type);
+				break;
+			case "returnrebar":
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ReturnRebarActive, type);
+				break;
+			case "rebarexplosion":
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionActive, type);
+				break;
+			case "explosion":
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionActive, type);
+				break;
+			case "piton":
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.PitonActive, type);
+				break;
+			case "flare":
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.FlareActive, type);
+				break;
+			case "ice":
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.IceActive, type);
+				break;
+			default:
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.OtherActive, type);
+				break;
+		}
 	}
 
 	/// <summary>
@@ -1051,8 +1081,4 @@ public class MPCore : MonoBehaviour {
 		Steamworks.HandleBroadcastExcept(senderId, data.Array, offset, count, st);
 	}
 	#endregion
-
-	public void Test(string[] args) {
-		src.Test.Test.Main();
-	}
 }

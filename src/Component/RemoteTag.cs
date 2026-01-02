@@ -14,7 +14,7 @@ public class LootAt : MonoBehaviour {
 	[Header("Scaling Settings")]
 	public bool maintainScreenSize = true;
 	public float baseScale = 1f; // 初始缩放比例
-	public float maxScale = MPMain.NameTagSizeMax;  // 最小缩放
+	public float maxScale = MPMain.NameTagSizeMax;  // 最大缩放
 	public float minScale = MPMain.NameTagSizeMin;  // 最小缩放
 
 	void LateUpdate() {

@@ -11,7 +11,7 @@ using Vector3 = UnityEngine.Vector3;
 
 namespace WKMultiMod.src.Test;
 public static class Test { 
-	public static void Main() {
+	public static void Main(string[] args) {
 		var player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
 		player.name = "RemoteEntity";
 
