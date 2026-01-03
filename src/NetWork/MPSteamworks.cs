@@ -695,7 +695,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 			_currentLobby = lobby;
 			string roomName = _currentLobby.GetData("name")
-				?? (MPMain.DebugLogLanguage == 0 ? "未知大厅" : "Unknown lobby");
+				?? (MPConfig.DebugLogLanguage == 0 ? "未知大厅" : "Unknown lobby");
 			MPMain.LogInfo(
 				$"[MPSW] 加入大厅成功: {roomName}",
 				$"[MPSW] Successfully joined lobby: {roomName}");
