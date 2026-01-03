@@ -28,25 +28,6 @@ public class MPMain : BaseUnityPlugin {
 	// 核心实例访问器
 	public static MPCore Core => MPCore.Instance;
 
-	// Debug日志语言类型
-	private static ConfigEntry<int> _debugLogLanguage;
-	public static int DebugLogLanguage {
-		get { return _debugLogLanguage.Value; }
-	}
-
-
-	// 头顶名称标签字体最大值
-	private static ConfigEntry<float> _nameTagSizeMax;
-	// 头顶名称标签字体最小值
-	private static ConfigEntry<float> _nameTagSizeMin;
-
-	public static float NameTagSizeMax {
-		get { return _nameTagSizeMax.Value; }
-	}
-	public static float NameTagSizeMin {
-		get { return _nameTagSizeMin.Value; }
-	}
-
 	// Awake在对象创建时调用, 早于Start
 	private void Awake() {
 		// 单例检查
@@ -58,19 +39,7 @@ public class MPMain : BaseUnityPlugin {
 
 		// 日志初始化
 		Logger = base.Logger;
-		Logger.LogInfo($"[MPMain] {ModGUID} {ModVersion} 已加载");
-
-		_debugLogLanguage = Config.Bind<int>(
-			"Debug", "LogLanguage", 1,
-			"值为0时使用中文输出日志, Use English logs when the value is 1.");
-		_nameTagSizeMax = Config.Bind<float>(
-			"RemotePlayer", "NameTagSizeMax", 0.3f,
-			"This value sets the maximum size for player name tags above their heads.");
-
-		_nameTagSizeMin = Config.Bind<float>(
-			"RemotePlayer", "NameTagSizeMin", 0.15f,
-			"This value sets the minimum size for player name tags above their heads.");
-
+		Logger.LogInfo($"[MPMain] {ModGUID} {ModVersion} loaded");
 
 		//// 日后生命周期完善时使用这个单例创建
 		//// 1. 创建一个新的, GameObject
@@ -82,24 +51,29 @@ public class MPMain : BaseUnityPlugin {
 		// 使用Harmony打补丁
 		_harmony = new Harmony($"{ModGUID}");
 		_harmony.PatchAll();
+
+		// 配置初始化
+		MPConfig.Initialize(base.Config);
 	}
 
 	private void OnDestroy() {
-		Logger.LogInfo("[MPMain] MultiPalyerMain (启动器) 已被销毁.");
+		LogInfo(
+			"[MPMain] MPMain (启动器) 已被销毁.",
+			"[MPMain] MPMain (Launcher) has been destroyed.");
 	}
 
 	public static void LogInfo(string chineseLog, string englishLog) {
-		if (_debugLogLanguage.Value == 0) Logger.LogInfo(chineseLog);
+		if (MPConfig.DebugLogLanguage == 0) Logger.LogInfo(chineseLog);
 		else Logger.LogInfo(englishLog);
 	}
 
 	public static void LogWarning(string chineseLog, string englishLog) {
-		if (_debugLogLanguage.Value == 0) Logger.LogWarning(chineseLog);
+		if (MPConfig.DebugLogLanguage == 0) Logger.LogWarning(chineseLog);
 		else Logger.LogWarning(englishLog);
 	}
 
 	public static void LogError(string chineseLog, string englishLog) {
-		if (_debugLogLanguage.Value == 0) Logger.LogError(chineseLog);
+		if (MPConfig.DebugLogLanguage == 0) Logger.LogError(chineseLog);
 		else Logger.LogError(englishLog);
 	}
 }

@@ -13,11 +13,10 @@
 			https://nuget.samboy.dev/v3/index.json
 		</RestoreAdditionalProjectSources>
 		<RootNamespace>WKMultiMod</RootNamespace>
-
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="LiteNetLib" Version="1.3.1" />
+		<PackageReference Include="LiteNetLib" Version="1.3.5" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -25,11 +24,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Folder Include="lib\BepInEx\" />
+		<Folder Include="lib\GameData\" />
 		<Folder Include="Shaders\" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- BepInEx DLL -->
+		<!-- BepInEx 相关 DLL -->
 		<Reference Include="lib\BepInEx\**\*.dll">
 			<HintPath>%(Identity)</HintPath>
 			<Private>false</Private>
@@ -46,9 +47,5 @@
 	  <Compile Remove="temp\**" />
 	  <EmbeddedResource Remove="temp\**" />
 	  <None Remove="temp\**" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Include="temp\README.md" />
 	</ItemGroup>
 </Project>

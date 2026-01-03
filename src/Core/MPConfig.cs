@@ -134,7 +134,7 @@ Passive配置项控制玩家受到的伤害倍率
 			"Multiplier for all damage dealt by the player.\n" +
 			"玩家造成所有伤害类型的伤害倍率");
 		_allPassive = config.Bind<float>(
-			"RemotePlayerPvP", "AllActive", 1.0f,
+			"RemotePlayerPvP", "AllPassive", 1.0f,
 			"Multiplier for all damage received by the player.\n" +
 			"玩家受到所有伤害类型的伤害倍率");
 
