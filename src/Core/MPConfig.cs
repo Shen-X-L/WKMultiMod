@@ -144,7 +144,7 @@ Passive配置项控制玩家受到的伤害倍率
 			"Multiplier for hammer damage dealt by the player.\n" +
 			"玩家可以使用锤子造成伤害的伤害倍率");
 		_hammerPassive = config.Bind<float>(
-			"RemotePlayePvPr", "HammerPassive", 1.0f,
+			"RemotePlayerPvP", "HammerPassive", 1.0f,
 			"Multiplier for hammer damage received by the player.\n" +
 			"玩家受到锤子伤害的伤害倍率");
 
