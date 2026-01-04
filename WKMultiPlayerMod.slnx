@@ -1,3 +1,12 @@
 <Solution>
-  <Project Path="WKMultiPlayerMod.csproj" />
+  <Folder Name="/lib/" />
+  <Folder Name="/src/">
+    <Project Path="src/WKMultiPlayerMod.csproj" />
+  </Folder>
+  <Folder Name="/temp/">
+    <Project Path="temp/temp.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/test.csproj" />
+  </Folder>
 </Solution>

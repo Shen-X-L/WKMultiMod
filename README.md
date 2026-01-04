@@ -96,27 +96,24 @@ dotnet build -c Release
 WhiteKnuckleMod/
 ├── src/
 │   ├─ Component/
-│   │   ├─RemoteHand.cs             # update multi hand position.
-│   │   ├─RemotePlayer.cs           # update multi player position and rotation.
-│   │   └─RemoteTag.cs              # update multi player ID and message position.
+│   │   └─ Component.cs              # Component class, handles network data
 │   ├─ Core/
-│   │   ├─ LocalPlayerManager.cs    # Local player info packaging class
-│   │   ├─ MPCore.cs                # Core class, handles main events
-│   │   ├─ MPMain.cs                # Startup class, initializes patches
-│   │   └─ RemotePlayerManager.cs   # Remote player object management
+│   │   ├─ LocalPlayerManager.cs     # Local player info packaging class
+│   │   ├─ MPCore.cs                 # Core class, handles main events
+│   │   ├─ MPMain.cs                 # Startup class, initializes patches
+│   │   └─ RemotePlayerManager.cs    # Remote player object management
 │   ├─ Data/
-│   │   ├─ DataEnum.cs              # Enum definitions
-│   │   └─ PlayerData.cs            # Player network data + serialization utils
+│   │   ├─ DataEnum.cs               # Enum definitions
+│   │   └─ PlayerData.cs             # Player network data + serialization utils
 │   ├─ NetWork/
-│   │   ├─ MPLiteNet.cs             # (Currently deprecated)
-│   │   ├─ MPSteamworks.cs          # Separated Steam networking logic
-│   │   └─ NetworkEvents.cs         # Network event bus
+│   │   ├─ MPLiteNet.cs              # (Currently deprecated)
+│   │   ├─ MPSteamworks.cs           # Separated Steam networking logic
+│   │   └─ NetworkEvents.cs          # Network event bus
 │   ├─ Patch/
-│   │   └─ Patch.cs                 # Patches for interception/injection
+│   │   └─ Patch.cs                  # Patches for interception/injection
 │   └─ Util/
-│       ├─DictionaryExtensions.cs   # Find items whose keys end with a specified number.
-│       ├─ TickTimer.cs             # Debug output frequency counter
-│       └─ TypeConverter.cs         # String-to-bool utility
+│       ├─ TickTimer.cs              # Debug output frequency counter
+│       └─ TypeConverter.cs          # String-to-bool utility
 ├── lib/                            # External dependencies (add manually)
 │   └── README.md                   # Dependency acquisition guide
 ├── WhiteKnuckleMod.sln

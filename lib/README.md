@@ -1,17 +1,17 @@
-# ÒÀÀµ¿âËµÃ÷ | Library Dependencies
+# ä¾èµ–åº“è¯´æ˜ | Library Dependencies
 
-## ÖĞÎÄËµÃ÷
+## ä¸­æ–‡è¯´æ˜
 
-ÄúĞèÒª´ÓÒÔÏÂÓÎÏ·Ä¿Â¼»ñÈ¡ËùĞèµÄ DLL ÎÄ¼ş²¢·ÅÈë `lib/` ÎÄ¼ş¼ĞÖĞ£º
+æ‚¨éœ€è¦ä»ä»¥ä¸‹æ¸¸æˆç›®å½•è·å–æ‰€éœ€çš„ DLL æ–‡ä»¶å¹¶æ”¾å…¥ `lib/` æ–‡ä»¶å¤¹ä¸­ï¼š
 
 ```sh
 steamapps\common\White Knuckle\White Knuckle_Data\Managed
 
 ```
 
-### ĞèÒªµÄÎÄ¼şÁĞ±í£º
+### éœ€è¦çš„æ–‡ä»¶åˆ—è¡¨ï¼š
 
-- `BeplnEx\Core`(5.4.23)
+- `BepInEx\Core`(5.4.23)
 - `ALINE.dll`
 - `Assembly-CSharp-firstpass.dll`
 - `Assembly-CSharp.dll`
@@ -24,13 +24,13 @@ steamapps\common\White Knuckle\White Knuckle_Data\Managed
 - `UnityEngine.UI.dll`
 
 
-### ²Ù×÷²½Öè£º
+### æ“ä½œæ­¥éª¤ï¼š
 
-1. È·±£ÒÑ°²×°ÓÎÏ· **White Knuckle**
-2. µ¼º½µ½ÉÏÊö Steam ÓÎÏ·Ä¿Â¼
-3. ¸´ÖÆÁĞ³öµÄËùÓĞ DLL ÎÄ¼ş
-4. Õ³Ìùµ½±¾ÏîÄ¿µÄ `lib/` ÎÄ¼ş¼ĞÖĞ
-5. ÖØĞÂ¹¹½¨ÏîÄ¿¼´¿ÉÊ¹ÓÃ
+1. ç¡®ä¿å·²å®‰è£…æ¸¸æˆ **White Knuckle**
+2. å¯¼èˆªåˆ°ä¸Šè¿° Steam æ¸¸æˆç›®å½•
+3. å¤åˆ¶åˆ—å‡ºçš„æ‰€æœ‰ DLL æ–‡ä»¶
+4. ç²˜è´´åˆ°æœ¬é¡¹ç›®çš„ `lib/` æ–‡ä»¶å¤¹ä¸­
+5. é‡æ–°æ„å»ºé¡¹ç›®å³å¯ä½¿ç”¨
 
 ---
 
@@ -65,16 +65,16 @@ steamapps\common\White Knuckle\White Knuckle_Data\Managed
 
 ---
 
-## ?? °æÈ¨ËµÃ÷ | Copyright Notice
+## âš ï¸ ç‰ˆæƒè¯´æ˜ | Copyright Notice
 
-**ÖØÒªÌáÊ¾ | Important Notice:**
+**é‡è¦æç¤º | Important Notice:**
 
-ÕâĞ© DLL ÎÄ¼şÊÇÓÎÏ· **White Knuckle** µÄ×é³É²¿·Ö, ÊÜ°æÈ¨·¨±£»¤¡£  
+è¿™äº› DLL æ–‡ä»¶æ˜¯æ¸¸æˆ **White Knuckle** çš„ç»„æˆéƒ¨åˆ†, å—ç‰ˆæƒæ³•ä¿æŠ¤ã€‚  
 These DLL files are part of the game **White Knuckle** and are protected by copyright law.
 
-- Çë½ö½«ÕâĞ©ÎÄ¼şÓÃÓÚ¸öÈËÑ§Ï°ºÍÑĞ¾¿Ä¿µÄ
+- è¯·ä»…å°†è¿™äº›æ–‡ä»¶ç”¨äºä¸ªäººå­¦ä¹ å’Œç ”ç©¶ç›®çš„
 - Please use these files only for personal learning and research purposes
-- Äú±ØĞëÓµÓĞºÏ·¨µÄÓÎÏ·¸±±¾²ÅÄÜ»ñÈ¡ÕâĞ©ÎÄ¼ş
+- æ‚¨å¿…é¡»æ‹¥æœ‰åˆæ³•çš„æ¸¸æˆå‰¯æœ¬æ‰èƒ½è·å–è¿™äº›æ–‡ä»¶
 - You must own a legitimate copy of the game to obtain these files
-- ±¾²Ö¿â²»°üº¬ÈÎºÎÊÜ°æÈ¨±£»¤µÄÓÎÏ·ÎÄ¼ş
+- æœ¬ä»“åº“ä¸åŒ…å«ä»»ä½•å—ç‰ˆæƒä¿æŠ¤çš„æ¸¸æˆæ–‡ä»¶
 - This repository does not contain any copyrighted game files
