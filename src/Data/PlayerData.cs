@@ -1,10 +1,11 @@
-﻿using LiteNetLib.Utils;
-using Steamworks;
+﻿using Steamworks;
 using System;
 using UnityEngine;
 using static WKMultiMod.Data.PlayerData;
 
 namespace WKMultiMod.Data;
+
+
 
 [System.Serializable]
 public class PlayerData {
@@ -80,7 +81,7 @@ public static class MPDataSerializer {
 	/// </summary>
 	/// <param name="writer"></param>
 	/// <param name="data"></param>
-	public static void WriteToNetData(NetDataWriter writer, PlayerData data) {
+	public static void WriteToNetData(DataWriter writer, PlayerData data) {
 		// 基础信息
 		writer.Put(data.playId);
 		writer.Put(data.TimestampTicks);   // long
@@ -114,7 +115,7 @@ public static class MPDataSerializer {
 	/// </summary>
 	/// <param name="reader"></param>
 	/// <returns></returns>
-	public static PlayerData ReadFromNetData(NetDataReader reader) {
+	public static PlayerData ReadFromNetData(DataReader reader) {
 		var data = new PlayerData();
 
 		data.playId = reader.GetULong();
@@ -135,6 +136,7 @@ public static class MPDataSerializer {
 		data.LeftHand.PosY = reader.GetFloat();
 		data.LeftHand.PosZ = reader.GetFloat();
 
+
 		// 右手数据
 		data.RightHand.PosX = reader.GetFloat();
 		data.RightHand.PosY = reader.GetFloat();
@@ -145,14 +147,6 @@ public static class MPDataSerializer {
 		data.IsTeleport = reader.GetBool();
 
 		return data;
-	}
-
-	/// <summary>
-	/// NetDataWriter 转 byte[]
-	/// </summary>
-	public static byte[] WriterToBytes(NetDataWriter writer) {
-		// 简单直接的方法
-		return writer.AsReadOnlySpan().ToArray();
 	}
 }
 

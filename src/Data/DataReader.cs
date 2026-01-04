@@ -29,30 +29,50 @@ public class DataReader {
 		_position = 0;
 	}
 
+	#region[读取基本类型]
+	// 读取 bool (1 字节)
 	public bool GetBool() {
 		bool val = _data.Span[_position] != 0;
 		_position += 1;
 		return val;
 	}
 
+	// 读取 byte (8 位无符号整数)
 	public byte GetByte() {
 		byte val = _data.Span[_position];
 		_position += 1;
 		return val;
 	}
 
+	// 读取 int (32 位有符号整数)
 	public int GetInt() {
 		int val = BinaryPrimitives.ReadInt32LittleEndian(_data.Span.Slice(_position));
 		_position += 4;
 		return val;
 	}
 
+	// 读取 uint (32 位无符号整数)
+	public uint GetUInt() {
+		uint val = BinaryPrimitives.ReadUInt32LittleEndian(_data.Span.Slice(_position));
+		_position += 4;
+		return val;
+	}
+
+	// 读取 long (64 位有符号整数)
+	public long GetLong() {
+		long val = BinaryPrimitives.ReadInt64LittleEndian(_data.Span.Slice(_position));
+		_position += 8;
+		return val;
+	}
+
+	// 读取 ulong (64 位无符号整数)
 	public ulong GetULong() {
 		ulong val = BinaryPrimitives.ReadUInt64LittleEndian(_data.Span.Slice(_position));
 		_position += 8;
 		return val;
 	}
 
+	// 读取 float (32 位单精度浮点数)
 	public float GetFloat() {
 		int intVal = BinaryPrimitives.ReadInt32LittleEndian(_data.Span.Slice(_position));
 		_position += 4;
@@ -60,12 +80,16 @@ public class DataReader {
 		return BitConverter.Int32BitsToSingle(intVal);
 	}
 
+	// 读取 double (64 位双精度浮点数)
 	public double GetDouble() {
 		long longVal = BinaryPrimitives.ReadInt64LittleEndian(_data.Span.Slice(_position));
 		_position += 8;
 		return BitConverter.Int64BitsToDouble(longVal);
 	}
+	#endregion
 
+	#region[读取复合类型]
+	// 获取字符串 (先读取长度 再读取内容)
 	public string GetString() {
 		int length = GetInt();
 		if (length <= 0) return string.Empty;
@@ -90,4 +114,5 @@ public class DataReader {
 		_position += length;
 		return result;
 	}
+	#endregion
 }
