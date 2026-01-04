@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using WKMultiMod.Core;
-using WKMultiMod.src.Util;
+using WKMultiMod.Util;
 using static Steamworks.InventoryItem;
 
 namespace WKMultiMod.Component;

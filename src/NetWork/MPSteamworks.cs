@@ -1,5 +1,4 @@
-﻿using LiteNetLib.Utils;
-using Steamworks;
+﻿using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Buffers;
@@ -9,7 +8,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using WKMultiMod.Core;
-using WKMultiMod.src.Data;
+using WKMultiMod.Data;
 using WKMultiMod.Util;
 
 namespace WKMultiMod.NetWork;
@@ -190,6 +189,16 @@ public class MPSteamworks : MonoBehaviour {
 	}
 
 	#region[发送数据函数]
+
+	/// <summary>
+	/// 专门为 DataWriter 准备的重载,实现零拷贝转发
+	/// </summary>
+	public void HandleSendToHost(DataWriter writer, SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+		// 从 Writer 获取视图(ArraySegment 是结构体,包装它是轻量级的)
+		var segment = writer.Data;
+		HandleSendToHost(segment.Array, segment.Offset, segment.Count, sendType, laneIndex);
+	}
+
 	/// <summary>
 	/// 发送数据: 本机->总线->主机玩家
 	/// </summary>
@@ -203,6 +212,7 @@ public class MPSteamworks : MonoBehaviour {
 			}
 		}
 	}
+
 	/// <summary>
 	/// 发送数据: 本机->总线->主机玩家
 	/// </summary>
@@ -215,6 +225,15 @@ public class MPSteamworks : MonoBehaviour {
 				connection.SendMessage(data, offset, length, sendType, laneIndex);
 			}
 		}
+	}
+
+	/// <summary>
+	/// 专门为 DataWriter 准备的重载,实现零拷贝转发
+	/// </summary>
+	public void HandleBroadcast(DataWriter writer, SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+		// 从 Writer 获取视图(ArraySegment 是结构体,包装它是轻量级的)
+		var segment = writer.Data;
+		HandleBroadcast(segment.Array, segment.Offset, segment.Count, sendType, laneIndex);
 	}
 
 	/// <summary>
@@ -249,6 +268,7 @@ public class MPSteamworks : MonoBehaviour {
 			}
 		}
 	}
+
 	/// <summary>
 	/// 发送数据: 本机->总线->所有连接玩家
 	/// </summary>
@@ -280,6 +300,15 @@ public class MPSteamworks : MonoBehaviour {
 					$"[MPSW] Broadcasting data exception: {ex.Message}");
 			}
 		}
+	}
+
+	/// <summary>
+	/// 专门为 DataWriter 准备的重载,实现零拷贝转发
+	/// </summary>
+	public void HandleSendToPeer(SteamId steamId, DataWriter writer, SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+		// 从 Writer 获取视图(ArraySegment 是结构体,包装它是轻量级的)
+		var segment = writer.Data;
+		HandleSendToPeer(steamId, segment.Array, segment.Offset, segment.Count, sendType, laneIndex);
 	}
 
 	/// <summary>
@@ -728,7 +757,7 @@ public class MPSteamworks : MonoBehaviour {
 		if (lobby.Id == _currentLobby.Id) {
 			// 更新部分房间数据
 			_currentLobby = lobby;
-			// 获取当前大厅真正的主机（Owner）
+			// 获取当前大厅真正的主机(Owner)
 			SteamId currentOwnerId = lobby.Owner.Id;
 			// 检查所有权是否发生了变更
 			if (_lastKnownHostId != 0 && _lastKnownHostId != currentOwnerId) {

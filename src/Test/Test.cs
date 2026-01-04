@@ -5,8 +5,8 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
 using WKMultiMod.Component;
-using WKMultiMod.src.Core;
-using WKMultiMod.src.Util;
+using WKMultiMod.Core;
+using WKMultiMod.Util;
 using Vector3 = UnityEngine.Vector3;
 
 namespace WKMultiMod.Test;

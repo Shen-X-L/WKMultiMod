@@ -1,5 +1,4 @@
 ﻿
-using LiteNetLib.Utils;
 using Steamworks;
 using Steamworks.Data;
 using System;
@@ -39,7 +38,6 @@ public class MPCore : MonoBehaviour {
 
 	// 玩家数据发送时间 每秒30次
 	private TickTimer _playerDataTick = new TickTimer(30);
-	private readonly NetDataWriter _playerDataWriter = new NetDataWriter();
 	private TickTimer _teleport = new TickTimer(1);
 
 	// 世界种子 - 用于同步游戏世界生成
@@ -259,18 +257,16 @@ public class MPCore : MonoBehaviour {
 		// 如果计时器到时间,设为不传送
 		playerData.IsTeleport = !_teleport.IsTickReached;
 
+		var writer = GetWriter();
+
 		// 进行数据写入
-		_playerDataWriter.Put((int)PacketType.PlayerDataUpdate);
-		MPDataSerializer.WriteToNetData(_playerDataWriter, playerData);
+		writer.Put((int)PacketType.PlayerDataUpdate);
+		MPDataSerializer.WriteToNetData(writer, playerData);
 		// 触发Steam数据发送
 		// 转为byte[]
 		// 使用不可靠+立即发送
 		// 广播所有人
-		Steamworks.HandleBroadcast(
-			MPDataSerializer.WriterToBytes(_playerDataWriter),
-			SendType.Unreliable | SendType.NoNagle);
-
-		_playerDataWriter.Reset();
+		Steamworks.HandleBroadcast(writer, SendType.Unreliable | SendType.NoNagle);
 		return;
 	}
 
@@ -282,8 +278,7 @@ public class MPCore : MonoBehaviour {
 		writer.Put((int)PacketType.PlayerDamage);
 		writer.Put(amount);
 		writer.Put(type);
-		var data = MPDataSerializer.WriterToBytes(writer);
-		Steamworks.HandleSendToPeer(steamId, data, SendType.Reliable);
+		Steamworks.HandleSendToPeer(steamId, writer);
 	}
 
 	/// <summary>
@@ -296,8 +291,7 @@ public class MPCore : MonoBehaviour {
 		writer.Put(force.y);
 		writer.Put(force.z);
 		writer.Put(source);
-		var data = MPDataSerializer.WriterToBytes(writer);
-		Steamworks.HandleSendToPeer(steamId, data, SendType.Reliable);
+		Steamworks.HandleSendToPeer(steamId, writer);
 	}
 	#endregion
 
@@ -455,13 +449,12 @@ public class MPCore : MonoBehaviour {
 		// 将参数数组组合成一个字符串
 		string message = string.Join(" ", args);
 
-		NetDataWriter writer = GetWriter();
+		var writer = GetWriter();
 		writer.Put((int)PacketType.BroadcastMessage);
 		writer.Put(message); // 自动处理长度和编码
 
 		// 发送给所有人
-		var data = MPDataSerializer.WriterToBytes(writer);
-		Steamworks.HandleBroadcast(data, SendType.Reliable);
+		Steamworks.HandleBroadcast(writer);
 	}
 
 	/// <summary>
@@ -491,9 +484,7 @@ public class MPCore : MonoBehaviour {
 			// 找到对应id,发出传送请求
 			var writer = GetWriter();
 			writer.Put((int)PacketType.PlayerTeleport);
-
-			var seedData = MPDataSerializer.WriterToBytes(writer);
-			Steamworks.HandleSendToPeer(ids[0], seedData, SendType.Reliable);
+			Steamworks.HandleSendToPeer(ids[0], writer);
 		}
 	}
 	#endregion
@@ -572,8 +563,7 @@ public class MPCore : MonoBehaviour {
 				"[MPCore] Requested initialization data from the host.");
 			var writer = GetWriter();
 			writer.Put((int)PacketType.WorldInitRequest);
-			var requestData = MPDataSerializer.WriterToBytes(writer);
-			Steamworks.HandleSendToHost(requestData);
+			Steamworks.HandleSendToHost(writer);
 			yield return new WaitForSeconds(2.0f);
 		}
 	}
@@ -599,9 +589,7 @@ public class MPCore : MonoBehaviour {
 		var writer = GetWriter();
 		writer.Put((int)PacketType.WorldInitData);
 		writer.Put(WorldLoader.instance.seed);
-
-		var seedData = MPDataSerializer.WriterToBytes(writer);
-		Steamworks.HandleSendToPeer(steamId, seedData, SendType.Reliable);
+		Steamworks.HandleSendToPeer(steamId, writer);
 
 		// 可以添加其他初始化数据,如游戏状态、物品状态等
 
@@ -628,15 +616,14 @@ public class MPCore : MonoBehaviour {
 		writer.Put(positionData.x);
 		writer.Put(positionData.y);
 		writer.Put(positionData.z);
-		var data = MPDataSerializer.WriterToBytes(writer);
-		Steamworks.HandleSendToPeer(senderId, data, SendType.Reliable);
+		Steamworks.HandleSendToPeer(senderId, writer);
 	}
 
 	/// <summary>
 	/// 处理玩家传送响应
 	/// </summary>
 	/// <param name="senderId">发送ID</param>
-	private void HandleRespondTeleport(SteamId senderId, NetDataReader reader) {
+	private void HandleRespondTeleport(SteamId senderId, DataReader reader) {
 		var deathFloorData = new DEN_DeathFloor.SaveData {
 			relativeHeight = reader.GetFloat(),
 			active = reader.GetBool(),
@@ -658,7 +645,7 @@ public class MPCore : MonoBehaviour {
 	/// <summary>
 	/// 主机/客户端接收PlayerDamage: 受到伤害
 	/// </summary>
-	private void HandlePlayerDamage(NetDataReader reader) {
+	private void HandlePlayerDamage(DataReader reader) {
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
 		var baseDamage = amount * MPConfig.AllActive;
@@ -696,7 +683,7 @@ public class MPCore : MonoBehaviour {
 	/// <summary>
 	/// 主机/客户端接收PlayerAddForce: 受到冲击力
 	/// </summary>
-	private void HandlePlayerAddForce(NetDataReader reader) {
+	private void HandlePlayerAddForce(DataReader reader) {
 		Vector3 force = new Vector3 {
 			x = reader.GetFloat(),
 			y = reader.GetFloat(),
