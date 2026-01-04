@@ -1,12 +1,24 @@
 <Solution>
-  <Folder Name="/lib/" />
+  <Folder Name="/lib/">
+    <File Path="lib/README.md" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/WKMultiPlayerMod.csproj" />
   </Folder>
   <Folder Name="/temp/">
-    <Project Path="temp/temp.csproj" />
+    <Project Path="temp/temp.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/test/">
-    <Project Path="test/test.csproj" />
+    <Project Path="test/test.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/解决方案项/">
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+    <File Path="README_CN.md" />
   </Folder>
 </Solution>
