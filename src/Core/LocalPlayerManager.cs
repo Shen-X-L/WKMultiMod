@@ -5,12 +5,12 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 using UnityEngine;
-using WKMultiMod.src.Data;
+using WKMultiMod.Data;
 using WKMultiMod.src.NetWork;
 using WKMultiMod.src.Util;
-using static WKMultiMod.src.Data.PlayerData;
+using static WKMultiMod.Data.PlayerData;
 
-namespace WKMultiMod.src.Core;
+namespace WKMultiMod.Core;
 
 //仅获取本地玩家信息并触发事件给其他系统使用
 //仅在联机时创建一个实例

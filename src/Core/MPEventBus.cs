@@ -5,7 +5,7 @@ using System;
 using UnityEngine;
 using static Steamworks.InventoryItem;
 
-namespace WKMultiMod.src.Core;
+namespace WKMultiMod.Core;
 
 // 数据包类型枚举 - 定义不同类型的网络消息
 public enum PacketType {

@@ -2,14 +2,14 @@
 
 ## 中文说明
 
-您需要从以下游戏目录获取所需的 DLL 文件并放入 `lib/` 文件夹中：
+您需要从以下游戏目录获取所需的 DLL 文件并放入 `lib/` 文件夹中:
 
 ```sh
 steamapps\common\White Knuckle\White Knuckle_Data\Managed
 
 ```
 
-### 需要的文件列表：
+### 需要的文件列表:
 
 - `BepInEx\Core`(5.4.23)
 - `ALINE.dll`
@@ -24,7 +24,7 @@ steamapps\common\White Knuckle\White Knuckle_Data\Managed
 - `UnityEngine.UI.dll`
 
 
-### 操作步骤：
+### 操作步骤:
 
 1. 确保已安装游戏 **White Knuckle**
 2. 导航到上述 Steam 游戏目录

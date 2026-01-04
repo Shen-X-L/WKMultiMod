@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace WKMultiMod.src.Util;
+namespace WKMultiMod.Util;
 
 public static class MPReaderPool {
 	// 为每个线程创建一个独立的 Reader 实例

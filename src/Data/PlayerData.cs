@@ -2,9 +2,9 @@
 using Steamworks;
 using System;
 using UnityEngine;
-using static WKMultiMod.src.Data.PlayerData;
+using static WKMultiMod.Data.PlayerData;
 
-namespace WKMultiMod.src.Data;
+namespace WKMultiMod.Data;
 
 
 

@@ -3,10 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMultiMod.src.Core;
+using WKMultiMod.Core;
 using Object = UnityEngine.Object;
 
-namespace WKMultiMod.src.Patch;
+namespace WKMultiMod.Patch;
 
 // 补丁类: 强制解锁所有进度
 [HarmonyPatch(typeof(CL_ProgressionManager), "HasProgressionUnlock")]

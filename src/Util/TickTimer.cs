@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace WKMultiMod.src.Util;
+namespace WKMultiMod.Util;
 
 public class TickTimer {
 	// 特定频率

@@ -9,18 +9,17 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using WKMultiMod.src.Data;
-using WKMultiMod.src.NetWork;
-using WKMultiMod.src.Util;
-using WKMultiMod.src.Test;
 using static MonoMod.Cil.RuntimeILReferenceBag.FastDelegateInvokers;
-using static WKMultiMod.src.Core.MPEventBus;
-using static WKMultiMod.src.Util.MPReaderPool;
-using static WKMultiMod.src.Util.MPWriterPool;
+using static WKMultiMod.Core.MPEventBus;
+using static WKMultiMod.Util.MPReaderPool;
+using static WKMultiMod.Util.MPWriterPool;
 
 using static Steamworks.InventoryItem;
+using WKMultiMod.Data;
+using WKMultiMod.Util;
+using WKMultiMod.NetWork;
 
-namespace WKMultiMod.src.Core;
+namespace WKMultiMod.Core;
 
 public class MPCore : MonoBehaviour {
 

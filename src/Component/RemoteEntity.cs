@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMultiMod.src.Core;
+using WKMultiMod.Core;
 using WKMultiMod.src.Util;
 using static Steamworks.InventoryItem;
 
-namespace WKMultiMod.src.Component;
+namespace WKMultiMod.Component;
 
 public class RemoteEntity : GameEntity {
 	public ulong PlayerId;

@@ -6,9 +6,8 @@ using HarmonyLib.Tools;
 using Steamworks;
 using System;
 using UnityEngine;
-using WKMultiMod.src.Core;
 
-namespace WKMultiMod.src.Core;
+namespace WKMultiMod.Core;
 
 [BepInPlugin(ModGUID, ModName, ModVersion)]
 public class MPMain : BaseUnityPlugin {
