@@ -1,4 +1,4 @@
-﻿using LiteNetLib.Utils;
+﻿
 using Steamworks;
 using Steamworks.Data;
 using System;
@@ -204,6 +204,20 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 		return _currentLobby.Id.Value;
 	}
 	#region[发送数据函数]
+
+	/// <summary>
+	/// 主机/客户端 发送数据: 本机->目标玩家
+	/// </summary>
+	public void Send(ulong targetId, DataWriter writer,
+					 SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+		var segment = writer.Data;
+		if (IsHost) {
+			HandleSendToPeer(targetId, segment.Array, segment.Offset, segment.Count, sendType, laneIndex);
+		} else {
+			HandleSendToHost(segment.Array, segment.Offset, segment.Count, sendType, laneIndex);
+		}
+	}
+
 	/// <summary>
 	/// 主机/客户端 发送数据: 本机->目标玩家
 	/// </summary>
@@ -215,6 +229,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 			HandleSendToHost(data, sendType, laneIndex);
 		}
 	}
+
 	/// <summary>
 	/// 主机/客户端 发送数据: 本机->目标玩家
 	/// </summary>
@@ -224,6 +239,18 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 			HandleSendToPeer(targetId, data, offset, length, sendType, laneIndex);
 		} else {
 			HandleSendToHost(data, offset, length, sendType, laneIndex);
+		}
+	}
+
+	/// <summary>
+	/// 主机/客户端 发送数据: 本机->所有连接玩家
+	/// </summary>
+	public void Broadcast(DataWriter writer, SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+		var segment = writer.Data;
+		if (IsHost) {
+			HandleBroadcast(segment.Array, segment.Offset, segment.Count, sendType, laneIndex);
+		} else {
+			HandleSendToHost(segment.Array, segment.Offset, segment.Count, sendType, laneIndex);
 		}
 	}
 
@@ -253,7 +280,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅客户端 发送数据: 本机->主机玩家
 	/// </summary>
-	public void HandleSendToHost(byte[] data, SendType sendType = SendType.Reliable,
+	private void HandleSendToHost(byte[] data, SendType sendType = SendType.Reliable,
 		ushort laneIndex = 0) {
 
 		if (IsHost || _connectionManager == null) {
@@ -276,7 +303,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅客户端 发送数据: 本机->主机玩家
 	/// </summary>
-	public void HandleSendToHost(byte[] data, int offset, int length,
+	internal void HandleSendToHost(byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		if (IsHost || _connectionManager == null) {
@@ -299,7 +326,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅主机 发送数据: 本机->所有连接玩家
 	/// </summary>
-	public void HandleBroadcast(byte[] data, SendType sendType = SendType.Reliable,
+	private void HandleBroadcast(byte[] data, SendType sendType = SendType.Reliable,
 		ushort laneIndex = 0) {
 
 		// Debug
@@ -332,7 +359,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅主机 发送数据: 本机->所有连接玩家
 	/// </summary>
-	public void HandleBroadcast(byte[] data, int offset, int length,
+	internal void HandleBroadcast(byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		// Debug
@@ -366,7 +393,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// 仅主机 发送数据: 本机->除个别玩家外所有连接玩家
 	/// </summary>
 	/// <param name="steamId">被排除的玩家</param>
-	public void HandleBroadcastExcept(ulong steamId, byte[] data,
+	private void HandleBroadcastExcept(ulong steamId, byte[] data,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		// Debug
@@ -401,7 +428,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// 仅主机 发送数据: 本机->除个别玩家外所有连接玩家
 	/// </summary>
 	/// <param name="steamId">被排除的玩家</param>
-	public void HandleBroadcastExcept(ulong steamId, byte[] data, int offset, int length,
+	internal void HandleBroadcastExcept(ulong steamId, byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		// Debug
@@ -435,7 +462,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅主机 发送数据: 本机->特定玩家
 	/// </summary>
-	public void HandleSendToPeer(ulong steamId, byte[] data,
+	private void HandleSendToPeer(ulong steamId, byte[] data,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		try {
@@ -450,7 +477,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅主机 发送数据: 本机->特定玩家
 	/// </summary>
-	public void HandleSendToPeer(ulong steamId, byte[] data, int offset, int length,
+	internal void HandleSendToPeer(ulong steamId, byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		try {

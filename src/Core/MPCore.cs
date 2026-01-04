@@ -1,5 +1,4 @@
 ﻿
-using LiteNetLib.Utils;
 using Steamworks;
 using Steamworks.Data;
 using System;
@@ -37,7 +36,6 @@ public class MPCore : MonoBehaviour {
 
 	// 玩家数据发送时间 每秒30次
 	private TickTimer _playerDataTick = new TickTimer(30);
-	private readonly NetDataWriter _playerDataWriter = new NetDataWriter();
 	private TickTimer _teleport = new TickTimer(0.5f);
 
 	// 世界种子 - 用于同步游戏世界生成
@@ -263,37 +261,16 @@ public class MPCore : MonoBehaviour {
 		playerData.IsTeleport = !_teleport.IsTickReached;
 
 		// 进行数据写入
-		_playerDataWriter.Reset();
-		_playerDataWriter.Put(Steamworks.UserSteamId);
-		_playerDataWriter.Put(Steamworks.BroadcastId);
-		_playerDataWriter.Put((int)PacketType.PlayerDataUpdate);
-		MPDataSerializer.WriteToNetData(_playerDataWriter, playerData);
+		var writer = GetWriter();
+		writer.Put(Steamworks.UserSteamId);
+		writer.Put(Steamworks.BroadcastId);
+		writer.Put((int)PacketType.PlayerDataUpdate);
+		MPDataSerializer.WriteToNetData(writer, playerData);
 
 		// 触发Steam数据发送
 		// 转为byte[]
 		// 使用不可靠+立即发送
-		if (Steamworks.IsHost) {
-			// 广播所有人
-			Steamworks.HandleBroadcast(
-				MPDataSerializer.WriterToBytes(_playerDataWriter),
-				SendType.Unreliable | SendType.NoNagle);
-		} else {
-			// 直写到主机
-			Steamworks.HandleSendToHost(
-				MPDataSerializer.WriterToBytes(_playerDataWriter),
-				SendType.Unreliable | SendType.NoNagle);
-		}
-
-		//// 获取内部缓冲区及其长度,避免 Copy 为 byte[]
-		//byte[] rawBuffer = _playerDataWriter.Data;
-		//ushort length = (ushort)_playerDataWriter.Length;
-
-		//if (Steamworks.IsHost) {
-		//	SteamNetworkEvents.TriggerBroadcast(rawBuffer, SendType.Unreliable | SendType.NoNagle, length);
-		//} else {
-		//	SteamNetworkEvents.TriggerSendToHost(rawBuffer, SendType.Unreliable | SendType.NoNagle, length);
-		//}
-
+		Steamworks.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
 		return;
 	}
 
@@ -307,8 +284,7 @@ public class MPCore : MonoBehaviour {
 		writer.Put((int)PacketType.PlayerDamage);
 		writer.Put(amount);
 		writer.Put(type);
-		var data = MPDataSerializer.WriterToBytes(writer);
-		Steamworks.Send(steamId, data, SendType.Reliable);
+		Steamworks.Send(steamId, writer);
 	}
 
 	/// <summary>
@@ -323,8 +299,7 @@ public class MPCore : MonoBehaviour {
 		writer.Put(force.y);
 		writer.Put(force.z);
 		writer.Put(source);
-		var data = MPDataSerializer.WriterToBytes(writer);
-		Steamworks.Send(steamId, data, SendType.Reliable);
+		Steamworks.Send(steamId, writer);
 	}
 
 	#endregion
@@ -462,22 +437,16 @@ public class MPCore : MonoBehaviour {
 		// 将参数数组组合成一个字符串
 		string message = string.Join(" ", args);
 
-		NetDataWriter writer = GetWriter();
+		var writer = GetWriter();
 		writer.Put(Steamworks.UserSteamId);
 		writer.Put(Steamworks.BroadcastId);
 		writer.Put((int)PacketType.BroadcastMessage);
 
 		// 自动处理长度和编码
 		writer.Put(message);
-		var data = MPDataSerializer.WriterToBytes(writer);
 
 		// 发送给所有人
-		if (Steamworks.IsHost) {
-			Steamworks.HandleBroadcast(data, SendType.Reliable);
-		} else {
-			Steamworks.HandleSendToHost(data, SendType.Reliable);
-		}
-
+		Steamworks.Broadcast(writer);
 	}
 
 	/// <summary>
@@ -510,15 +479,7 @@ public class MPCore : MonoBehaviour {
 			writer.Put(ids[0]);
 			writer.Put((int)PacketType.PlayerTeleport);
 
-			var sendData = MPDataSerializer.WriterToBytes(writer);
-
-			if (Steamworks.IsHost) {
-				// 是主机,直接发送
-				Steamworks.HandleSendToPeer(ids[0], sendData, SendType.Reliable);
-			} else {
-				// 不是主机,请求转发
-				Steamworks.HandleSendToHost(sendData, SendType.Reliable);
-			}
+			Steamworks.Send(ids[0], writer);
 		}
 	}
 
@@ -613,7 +574,7 @@ public class MPCore : MonoBehaviour {
 				"[MPCore] Unexpectedly became the host before initialization was complete; need to request data from existing clients.");
 			//var writer = GetWriter();
 			//writer.Put((int)PacketType.RequestClientSync);
-			//SteamNetworkEvents.TriggerBroadcast(MPDataSerializer.WriterToBytes(writer), SendType.Reliable);
+			//Steamworks.Broadcast(writer);
 		}
     }
 	#endregion
@@ -631,8 +592,7 @@ public class MPCore : MonoBehaviour {
 			writer.Put(Steamworks.UserSteamId);
 			writer.Put(Steamworks.HostSteamId);
 			writer.Put((int)PacketType.WorldInitRequest);
-			var requestData = MPDataSerializer.WriterToBytes(writer);
-			Steamworks.HandleSendToHost(requestData);
+			Steamworks.Send(Steamworks.HostSteamId, writer);
 			yield return new WaitForSeconds(2.0f);
 		}
 	}
@@ -668,8 +628,7 @@ public class MPCore : MonoBehaviour {
 		}
 
 		// 可以添加其他初始化数据,如游戏状态、物品状态等
-		var seedData = MPDataSerializer.WriterToBytes(writer);
-		Steamworks.Send(steamId, seedData, SendType.Reliable);
+		Steamworks.Send(steamId, writer);
 		// Debug
 		MPMain.LogInfo(
 			"[MPCore] 已向新玩家发送初始化数据",
@@ -722,7 +681,7 @@ public class MPCore : MonoBehaviour {
 		//	writer.Put((int)PacketType.PlayerCreate);
 		//	writer.Put(steamId.Value);
 		//	var data = MPDataSerializer.WriterToBytes(writer);
-		//	Steamworks.HandleBroadcastExcept(steamId, data, SendType.Reliable);
+		//	Steamworks.HandleBroadcastExcept(steamId, data);
 		//}
 	}
 
@@ -759,7 +718,7 @@ public class MPCore : MonoBehaviour {
 		//	writer.Put((int)PacketType.PlayerRemove);
 		//	writer.Put(steamId.Value);
 		//	var data = MPDataSerializer.WriterToBytes(writer);
-		//	Steamworks.HandleBroadcastExcept(steamId, data, SendType.Reliable);
+		//	Steamworks.HandleBroadcastExcept(steamId, data);
 		//}
 	}
 
@@ -880,9 +839,8 @@ public class MPCore : MonoBehaviour {
 		writer.Put(position.x);
 		writer.Put(position.y);
 		writer.Put(position.z);
-		var data = MPDataSerializer.WriterToBytes(writer);
 
-		Steamworks.Send(senderId, data, SendType.Reliable);
+		Steamworks.Send(senderId, writer);
 	}
 
 	/// <summary>
@@ -1041,7 +999,7 @@ public class MPCore : MonoBehaviour {
 		SendType st = (type == PacketType.PlayerDataUpdate)
 			? SendType.Unreliable : SendType.Reliable;
 
-		Steamworks.HandleSendToPeer(targetId, data.Array, st);
+		Steamworks.HandleSendToPeer(targetId, data.Array, offset, count, st);
 	}
 
 	/// <summary>
