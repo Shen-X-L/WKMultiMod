@@ -4,12 +4,12 @@ using System.Numerics;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
-using WKMultiMod.src.Component;
-using WKMultiMod.src.Core;
-using WKMultiMod.src.Util;
+using WKMultiMod.Component;
+using WKMultiMod.Core;
+using WKMultiMod.Util;
 using Vector3 = UnityEngine.Vector3;
 
-namespace WKMultiMod.src.Test;
+namespace WKMultiMod.Test;
 public static class Test { 
 	public static void Main(string[] args) {
 		var player = GameObject.CreatePrimitive(PrimitiveType.Capsule);

@@ -4,10 +4,10 @@
 //using UnityEngine;
 //using UnityEngine.Events;
 //using UnityEngine.SceneManagement;
-//using WKMultiMod.src.Component;
-//using WKMultiMod.src.Core;
+//using WKMultiMod.Component;
+//using WKMultiMod.Core;
 //using static ENT_Player;
-//using static WKMultiMod.src.Data.PlayerData;
+//using static WKMultiMod.Data.PlayerData;
 //using Quaternion = UnityEngine.Quaternion;
 //using Vector3 = UnityEngine.Vector3;
 

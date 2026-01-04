@@ -2,6 +2,40 @@
   <Folder Name="/lib/">
     <File Path="lib/README.md" />
   </Folder>
+  <Folder Name="/lib/BepInEx/">
+    <File Path="lib/BepInEx/0Harmony.dll" />
+    <File Path="lib/BepInEx/0Harmony.xml" />
+    <File Path="lib/BepInEx/BepInEx.dll" />
+    <File Path="lib/BepInEx/BepInEx.Harmony.dll" />
+    <File Path="lib/BepInEx/BepInEx.Harmony.xml" />
+    <File Path="lib/BepInEx/BepInEx.Preloader.dll" />
+    <File Path="lib/BepInEx/BepInEx.Preloader.xml" />
+    <File Path="lib/BepInEx/BepInEx.xml" />
+    <File Path="lib/BepInEx/HarmonyXInterop.dll" />
+    <File Path="lib/BepInEx/Mono.Cecil.dll" />
+    <File Path="lib/BepInEx/Mono.Cecil.Mdb.dll" />
+    <File Path="lib/BepInEx/Mono.Cecil.Pdb.dll" />
+    <File Path="lib/BepInEx/Mono.Cecil.Rocks.dll" />
+    <File Path="lib/BepInEx/MonoMod.RuntimeDetour.dll" />
+    <File Path="lib/BepInEx/MonoMod.RuntimeDetour.xml" />
+    <File Path="lib/BepInEx/MonoMod.Utils.dll" />
+    <File Path="lib/BepInEx/MonoMod.Utils.xml" />
+  </Folder>
+  <Folder Name="/lib/GameData/">
+    <File Path="lib/GameData/ALINE.dll" />
+    <File Path="lib/GameData/Assembly-CSharp-firstpass.dll" />
+    <File Path="lib/GameData/Assembly-CSharp.dll" />
+    <File Path="lib/GameData/Facepunch.Steamworks.Win64.dll" />
+    <File Path="lib/GameData/Unity.Mathematics.dll" />
+    <File Path="lib/GameData/Unity.Mathematics.Extensions.dll" />
+    <File Path="lib/GameData/Unity.Mathematics.Extensions.Hybrid.dll" />
+    <File Path="lib/GameData/UnityEngine.CoreModule.dll" />
+    <File Path="lib/GameData/UnityEngine.dll" />
+    <File Path="lib/GameData/UnityEngine.InputLegacyModule.dll" />
+    <File Path="lib/GameData/UnityEngine.PhysicsModule.dll" />
+    <File Path="lib/GameData/UnityEngine.TextRenderingModule.dll" />
+    <File Path="lib/GameData/UnityEngine.UI.dll" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/WKMultiPlayerMod.csproj" />
   </Folder>
@@ -14,11 +48,5 @@
     <Project Path="test/test.csproj">
       <Build Solution="Debug|*" Project="false" />
     </Project>
-  </Folder>
-  <Folder Name="/解决方案项/">
-    <File Path=".gitattributes" />
-    <File Path=".gitignore" />
-    <File Path="README.md" />
-    <File Path="README_CN.md" />
   </Folder>
 </Solution>

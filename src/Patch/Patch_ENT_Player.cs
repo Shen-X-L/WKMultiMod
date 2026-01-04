@@ -2,9 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using WKMultiMod.src.Core;
+using WKMultiMod.Core;
 
-namespace WKMultiMod.src.Patch;
+namespace WKMultiMod.Patch;
 
 [HarmonyPatch(typeof(ENT_Player))]
 public class Patch_ENT_Player {

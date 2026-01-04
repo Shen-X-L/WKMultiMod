@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace WKMultiMod.src.Core;
+namespace WKMultiMod.Core;
 public class MPConfig {
 	// Debug日志语言类型
 	private static ConfigEntry<int> _debugLogLanguage;

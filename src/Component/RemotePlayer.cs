@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
-namespace WKMultiMod.src.Component;
+namespace WKMultiMod.Component;
 // MultiPlayerComponent: 管理玩家的网络同步位置和旋转
 public class RemotePlayer : MonoBehaviour {
 	private Vector3 _targetPosition;    // 目标位置

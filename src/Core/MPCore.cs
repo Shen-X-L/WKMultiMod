@@ -10,14 +10,14 @@ using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using WKMultiMod.src.Data;
-using WKMultiMod.src.NetWork;
-using WKMultiMod.src.Test;
-using WKMultiMod.src.Util;
+using WKMultiMod.NetWork;
+using WKMultiMod.Data;
+using WKMultiMod.Test;
+using WKMultiMod.Util;
 using static System.Buffers.Binary.BinaryPrimitives;
-using static WKMultiMod.src.Util.MPReaderPool;
-using static WKMultiMod.src.Util.MPWriterPool;
-namespace WKMultiMod.src.Core;
+using static WKMultiMod.Util.MPReaderPool;
+using static WKMultiMod.Util.MPWriterPool;
+namespace WKMultiMod.Core;
 
 public class MPCore : MonoBehaviour {
 

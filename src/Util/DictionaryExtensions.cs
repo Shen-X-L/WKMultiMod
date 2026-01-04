@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace WKMultiMod.src.Util;
+namespace WKMultiMod.Util;
 
 public static class DictionaryExtensions {
 	/// <summary>

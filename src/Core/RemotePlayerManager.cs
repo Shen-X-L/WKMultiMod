@@ -6,13 +6,13 @@ using System.Numerics;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
-using WKMultiMod.src.Component;
-using WKMultiMod.src.Data;
-using WKMultiMod.src.Util;
-using static WKMultiMod.src.Data.PlayerData;
+using WKMultiMod.Component;
+using WKMultiMod.Data;
+using WKMultiMod.Util;
+using static WKMultiMod.Data.PlayerData;
 using Vector3 = UnityEngine.Vector3;
 
-namespace WKMultiMod.src.Core;
+namespace WKMultiMod.Core;
 
 // 生命周期为全局
 public class RemotePlayerManager : MonoBehaviour {

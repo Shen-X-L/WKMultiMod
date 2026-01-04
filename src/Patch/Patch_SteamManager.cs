@@ -3,10 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMultiMod.src.Core;
+using WKMultiMod.Core;
 using Object = UnityEngine.Object;
 
-namespace WKMultiMod.src.Patch;
+namespace WKMultiMod.Patch;
 
 [HarmonyPatch(typeof(SteamManager))]
 public class Patch_SteamManager {

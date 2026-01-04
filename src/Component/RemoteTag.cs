@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMultiMod.src.Core;
+using WKMultiMod.Core;
 
-namespace WKMultiMod.src.Component;
+namespace WKMultiMod.Component;
 
 // BillboardComponent: 使文本框始终面向摄像机
 public class LootAt : MonoBehaviour {

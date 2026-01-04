@@ -8,11 +8,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-using WKMultiMod.src.Core;
-using WKMultiMod.src.Data;
-using WKMultiMod.src.Util;
+using WKMultiMod.Core;
+using WKMultiMod.Data;
+using WKMultiMod.Util;
 
-namespace WKMultiMod.src.NetWork;
+namespace WKMultiMod.NetWork;
 
 // 只做连接,不做业务逻辑
 public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {

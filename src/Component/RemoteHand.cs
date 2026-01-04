@@ -3,10 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMultiMod.src.Data;
-using static WKMultiMod.src.Data.PlayerData;
+using WKMultiMod.Data;
+using static WKMultiMod.Data.PlayerData;
 
-namespace WKMultiMod.src.Component;
+namespace WKMultiMod.Component;
 // MultiPlayerHandComponent: 管理玩家手部的网络同步位置
 public class RemoteHand : MonoBehaviour {
 	public HandType hand;    // 手部标识 (0: 左手, 1: 右手)
