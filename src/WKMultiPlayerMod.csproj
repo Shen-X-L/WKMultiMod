@@ -24,28 +24,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Folder Include="lib\BepInEx\" />
-		<Folder Include="lib\GameData\" />
-		<Folder Include="Shaders\" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<!-- BepInEx 相关 DLL -->
-		<Reference Include="lib\BepInEx\**\*.dll">
-			<HintPath>%(Identity)</HintPath>
-			<Private>false</Private>
+		<Reference Include="..\lib\BepInEx\*.dll">
+			<Private>False</Private>
 		</Reference>
 
-		<!-- 游戏相关 DLL -->
-		<Reference Include="lib\GameData\**\*.dll">
-			<HintPath>%(Identity)</HintPath>
-			<Private>false</Private>
+		<Reference Include="..\lib\GameData\*.dll">
+			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Compile Remove="temp\**" />
-	  <EmbeddedResource Remove="temp\**" />
-	  <None Remove="temp\**" />
-	</ItemGroup>
 </Project>

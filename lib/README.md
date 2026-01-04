@@ -11,7 +11,7 @@ steamapps\common\White Knuckle\White Knuckle_Data\Managed
 
 ### 需要的文件列表：
 
-- `BeplnEx\Core`(5.4.23)
+- `BepInEx\Core`(5.4.23)
 - `ALINE.dll`
 - `Assembly-CSharp-firstpass.dll`
 - `Assembly-CSharp.dll`
