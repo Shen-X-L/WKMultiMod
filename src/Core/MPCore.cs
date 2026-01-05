@@ -774,34 +774,34 @@ public class MPCore : MonoBehaviour {
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
 		var player = senderId;
-		var baseDamage = amount * MPConfig.AllActive;
+		var baseDamage = amount * MPConfig.AllPassive;
 		switch (type) {
 			case "Hammer":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.HammerActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.HammerPassive, type);
 				break;
 			case "rebar":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarPassive, type);
 				break;
 			case "returnrebar":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ReturnRebarActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ReturnRebarPassive, type);
 				break;
 			case "rebarexplosion":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionPassive, type);
 				break;
 			case "explosion":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ExplosionPassive, type);
 				break;
 			case "piton":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.PitonActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.PitonPassive, type);
 				break;
 			case "flare":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.FlareActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.FlarePassive, type);
 				break;
 			case "ice":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.IceActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.IcePassive, type);
 				break;
 			default:
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.OtherActive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.OtherPassive, type);
 				break;
 		}
 	}
