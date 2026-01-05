@@ -15,7 +15,7 @@ public class RemoteEntity : GameEntity {
 	}
 	// 受到伤害时调用
 	public override bool Damage(float amount, string type) {
-		//MPMain.Logger.LogInfo($"伤害{amount.ToString()} 类型{type}");
+		MPMain.Logger.LogInfo($"伤害{amount.ToString()} 类型{type}");
 		var baseDamage = amount * MPConfig.AllActive;
 		switch (type) {
 			case "Hammer":
@@ -31,7 +31,7 @@ public class RemoteEntity : GameEntity {
 				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.RebarExplosionActive, type);
 				break;
 			case "explosion":
-				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.RebarExplosionActive, type);
+				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.ExplosionActive, type);
 				break;
 			case "piton":
 				MPEventBus.Game.NotifyPlayerDamage(PlayerId, baseDamage * MPConfig.PitonActive, type);

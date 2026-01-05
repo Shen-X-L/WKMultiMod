@@ -53,11 +53,17 @@ public class MPConfig {
 	public static float ReturnRebarActive { get { return _returnRebarActive.Value; } }
 	public static float ReturnRebarPassive { get { return _returnRebarPassive.Value; } }
 
-	// rebarexplosion (爆炸破片)
+	// rebarexplosion (爆炸钢筋)
 	private static ConfigEntry<float> _rebarExplosionActive;
 	private static ConfigEntry<float> _rebarExplosionPassive;
 	public static float RebarExplosionActive { get { return _rebarExplosionActive.Value; } }
 	public static float RebarExplosionPassive { get { return _rebarExplosionPassive.Value; } }
+
+	// rebarexplosion (爆炸)
+	private static ConfigEntry<float> _explosionActive;
+	private static ConfigEntry<float> _explosionPassive;
+	public static float ExplosionActive { get { return _explosionActive.Value; } }
+	public static float ExplosionPassive { get { return _explosionPassive.Value; } }
 
 	// ice (造冰枪-冰锥)
 	private static ConfigEntry<float> _iceActive;
@@ -104,7 +110,7 @@ Final Damage = Base Damage × AllActive Multiplier × AllPassive Multiplier × C
 * 钢筋/骨矛 - 类型rebar 伤害10
 * 带绳钢筋 - 类型 伤害10
 * 神器长矛(投出/返回) - 类型returnrebar 伤害10
-* 爆炸钢筋 - 类型explosion 伤害10 - 类型rebarexplosion 伤害10
+* 爆炸钢筋 - 类型explosion 伤害10 - 类型rebarexplosion 伤害10 × 2
 * 造冰枪(不蓄力/蓄力) - 类型ice 伤害10 - 类型 伤害 0 × 2
 
 Active配置项控制玩家造成的伤害倍率
@@ -188,15 +194,25 @@ Passive配置项控制玩家受到的伤害倍率
 			"Multiplier for artifact spear (returnrebar) damage received by the player.\n" +
 			"玩家受到神器长矛伤害的伤害倍率");
 
-		// rebarexplosion (爆炸破片)
+		// rebarexplosion (爆炸钢筋)
 		_rebarExplosionActive = config.Bind<float>(
 			"RemotePlayerPvP", "RebarExplosionActive", 1.0f,
 			"Multiplier for explosion shrapnel (rebarexplosion) damage dealt by the player.\n" +
-			"玩家造成爆炸破片伤害的伤害倍率");
+			"玩家造成爆炸钢筋伤害的伤害倍率");
 		_rebarExplosionPassive = config.Bind<float>(
 			"RemotePlayerPvP", "RebarExplosionPassive", 1.0f,
 			"Multiplier for explosion shrapnel (rebarexplosion) damage received by the player.\n" +
-			"玩家受到爆炸破片伤害的伤害倍率");
+			"玩家受到爆炸钢筋伤害的伤害倍率");
+
+		// explosion (爆炸)
+		_explosionActive = config.Bind<float>(
+			"RemotePlayerPvP", "ExplosionActive", 1.0f,
+			"Multiplier for explosion shrapnel (explosion) damage dealt by the player.\n" +
+			"玩家造成爆炸溅射伤害的伤害倍率");
+		_explosionPassive = config.Bind<float>(
+			"RemotePlayerPvP", "ExplosionPassive", 1.0f,
+			"Multiplier for explosion shrapnel (explosion) damage received by the player.\n" +
+			"玩家受到爆炸溅射伤害的伤害倍率");
 
 		// ice (造冰枪-冰锥)
 		_iceActive = config.Bind<float>(
