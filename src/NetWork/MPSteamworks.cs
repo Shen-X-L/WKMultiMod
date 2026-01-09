@@ -197,12 +197,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 			"[MPSW] All network connections have been disconnected.");
 	}
 	#endregion
-	/// <summary>
-	/// 获取大厅Id
-	/// </summary>
-	public ulong GetLobbyId() {
-		return _currentLobby.Id.Value;
-	}
+
 	#region[发送数据函数]
 
 	/// <summary>
@@ -559,6 +554,13 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	#endregion
 
 	#region[创建/加入大厅 连接函数]
+	/// <summary>
+	/// 获取大厅Id
+	/// </summary>
+	public ulong GetLobbyId() {
+		return _currentLobby.Id.Value;
+	}
+
 	/// <summary>
 	/// 主动连接到主机
 	/// </summary>

@@ -36,13 +36,33 @@
     <File Path="lib/GameData/UnityEngine.TextRenderingModule.dll" />
     <File Path="lib/GameData/UnityEngine.UI.dll" />
   </Folder>
+  <Folder Name="/lib/Temp/">
+    <File Path="lib/Temp/Unity.Mathematics.dll" />
+    <File Path="lib/Temp/Unity.Netcode.Components.dll" />
+    <File Path="lib/Temp/Unity.Netcode.Runtime.dll" />
+    <File Path="lib/Temp/Unity.Networking.Transport.dll" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/WKMultiPlayerMod.csproj" />
   </Folder>
-  <Folder Name="/temp/">
-    <Project Path="temp/temp.csproj">
-      <Build Solution="Debug|*" Project="false" />
-    </Project>
+  <Folder Name="/temp/" />
+  <Folder Name="/temp/DailyKnuckle/">
+    <Project Path="temp/DailyKnuckle/DailyKnuckle.csproj" />
+  </Folder>
+  <Folder Name="/temp/GameSource/">
+    <Project Path="temp/GameSource/GameSource.csproj" />
+  </Folder>
+  <Folder Name="/temp/MoreCommand/">
+    <Project Path="temp/MoreCommand/MoreCommand.csproj" />
+  </Folder>
+  <Folder Name="/temp/SteamWorks/">
+    <File Path="temp/SteamWorks/SteamWorks.csproj" />
+  </Folder>
+  <Folder Name="/temp/WKMP/">
+    <Project Path="temp/WKMP/WKMP.csproj" />
+  </Folder>
+  <Folder Name="/temp/WK_IShowSeed/">
+    <Project Path="temp/WK_IShowSeed/WK_IShowSeed.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/test.csproj">
