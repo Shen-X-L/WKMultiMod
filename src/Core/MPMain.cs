@@ -13,7 +13,13 @@ public class MPMain : BaseUnityPlugin {
 
 	public const string ModGUID = "shenxl.MultiPlayerMod";
 	public const string ModName = "MultiPlayer Mod";
+<<<<<<< HEAD:src/Core/MPMain.cs
 	public const string ModVersion = "0.14.4.8";
+=======
+	public const string ModVersion = "1.0.1.0";
+
+	public static string path = Paths.PluginPath;
+>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/Core/MPMain.cs
 
 	// 单例实例
 	public static MPMain Instance { get; set; }

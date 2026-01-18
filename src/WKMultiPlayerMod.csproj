@@ -2,9 +2,15 @@
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.1</TargetFramework>
+<<<<<<< HEAD:src/WKMultiPlayerMod.csproj
 		<AssemblyName>WKMultiMod</AssemblyName>
 		<Product>WKMultiMod</Product>
 		<Version>0.14.4.7</Version>
+=======
+		<AssemblyName>WKMultiPlayerMod</AssemblyName>
+		<Product>WKMultiPlayerMod</Product>
+		<Version>1.0.1.0</Version>
+>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/WKMultiPlayerMod.csproj
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>

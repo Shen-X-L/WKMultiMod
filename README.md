@@ -12,12 +12,10 @@ This is a Unity MOD for the game  *White Knuckle* , implementing basic networked
 * **Some code in this project is AI-generated.**
 * Consequently,  **the quality of much of the code is likely very poor** . Please use with caution.
 * The online multiplayer functionality code is  **forked from a previous online mod project** .
-* You are **solely responsible for assessing and bearing any risks** (including but not limited to security and stability issues) associated with using this MOD for development or hosting multiplayer ports.
 
 **Known Issues:**
 
 * Chaotic object lifecycle management, which may lead to unexpected behavior.
-* Currently only supports mapping player capsules; synchronization for other objects is not yet implemented.
 
 **Potential Future Goals:**
 
@@ -26,8 +24,6 @@ graph RL
     %% Module 1: Player Display
     subgraph Player Display
         1a[Hand Sprites]
-        1b[Player Body Imported Models]
-        1c[Animated Body Models]
         1d[Display Other Players' Held Items]
         1e[Custom Hand Sprites]
     end
@@ -49,7 +45,6 @@ graph RL
 
     %% Dependency Connections (cross-module and within modules)
     1a --> 1e
-    1b --> 1c
     3b --> 1d
     1a --> 1d
     1d --> 2b
@@ -94,31 +89,58 @@ dotnet build -c Release
 
 ```
 WhiteKnuckleMod/
-├── src/
-│   ├─ Component/
-│   │   └─ Component.cs              # Component class, handles network data
+├── src/Core/                       # Mod core logic
+│   ├─ Component/                   # Components that depend on game libraries, cannot be moved to Unity project
+│   │   ├─ LocalPlayer.cs           # Component class, responsible for local player positioning
+│   │   └─ RemoteEntity.cs          # Component class, responsible for dealing damage to other players
 │   ├─ Core/
-│   │   ├─ LocalPlayerManager.cs     # Local player info packaging class
-│   │   ├─ MPCore.cs                 # Core class, handles main events
-│   │   ├─ MPMain.cs                 # Startup class, initializes patches
-│   │   └─ RemotePlayerManager.cs    # Remote player object management
+│   │   ├─ MPConfig.cs              # Reads configuration file data
+│   │   ├─ MPCore.cs                # Core class, handles main events
+│   │   └─ MPMain.cs                # Startup class, initializes patches
 │   ├─ Data/
-│   │   ├─ DataEnum.cs               # Enum definitions
-│   │   └─ PlayerData.cs             # Player network data + serialization utils
+│   │   ├─ DataReader.cs            # Reads data from ArraySegment<byte>/byte[]
+│   │   ├─ DataWriter.cs            # Writes data to ArraySegment<byte>
+│   │   ├─ MPDataSerializer.cs      # Serializes/deserializes PlayerData
+│   │   └─ MPEventBusNet.cs         # Network data bus, facilitates communication between MPCore and MPSteamworks
 │   ├─ NetWork/
-│   │   ├─ MPLiteNet.cs              # (Currently deprecated)
-│   │   ├─ MPSteamworks.cs           # Separated Steam networking logic
-│   │   └─ NetworkEvents.cs          # Network event bus
+│   │   ├─ MPLiteNet.cs             # (Currently deprecated)
+│   │   └─ MPSteamworks.cs          # Separated Steam networking logic class
 │   ├─ Patch/
-│   │   └─ Patch.cs                  # Patches for interception/injection
-│   └─ Util/
-│       ├─ TickTimer.cs              # Debug output frequency counter
-│       └─ TypeConverter.cs          # String-to-bool utility
-├── lib/                            # External dependencies (add manually)
+│   │   ├─ Patch.cs                 # Patches for map synchronization via unlock progress + disabled flipping
+│   │   ├─ Patch_ENT_Player.cs      # Patches for capturing player events
+│   │   └─ Patch_SteamManager.cs    # Patches for initializing MPCore via SteamManager lifecycle
+│   ├─ RemoteManager/
+│   │   ├─ RemotePlayerContainer.cs # Handles data updates and logic for a single remote player object
+│   │   └─ RemotePlayerManager.cs   # Manages lifecycle of all remote player objects
+│   ├─ Test/
+│   │   └─ Test.cs                  # Non-game-impacting test functions, allows quick modifications
+│   └─ Util/                    
+│       ├─ DictionaryExtensions.cs  # Dictionary suffix matching for tpto command
+│       ├─ MPDataPool.cs            # Thread-isolated read/write object pool
+│       ├─ TickTimer.cs             # Debug output frequency controller
+│       └─ TypeConverter.cs         # String-to-bool utility
+│
+├── src/Shared/                     # Extracted Unity component logic for sharing with Unity project for rapid prefab construction
+│   ├─ Component/                   # Components usable in Unity project
+│   │   ├─ LookAt.cs                # Forces label to face player, scales label to maintain constant size
+│   │   ├─ RemoteHand.cs            # Controls hand position via network data
+│   │   ├─ RemotePlayer.cs          # Controls player position via network data
+│   │   ├─ RemoteTag.cs             # Controls label content via network data
+│   │   └─ SimpleArmIK.cs           # Uses IK to connect arm to hand
+│   ├─ Data/ 
+│   │   ├─ HandData.cs              # Hand position data
+│   │   ├─ MPEventBusGame.cs        # In-game data bus
+│   │   └─ PlayerData.cs            # Player position data
+│   └─ MK_Component/                # Game-internal components, cannot be directly assigned, handled via mapping components
+│       ├─ MK_CL_Handhold.cs        # Mapping for in-game CL_Handhold
+│       ├─ MK_ObjectTagger.cs       # Mapping for in-game ObjectTagger
+│       └─ MK_RemoteEntity.cs       # Mapping for mod's RemoteEntity
+│
+├── lib/                            # External dependency directory (must be added manually)
 │   └── README.md                   # Dependency acquisition guide
-├── WhiteKnuckleMod.sln
-├── WhiteKnuckleMod.csproj
-└── README.md
+├── WhiteKnuckleMod.sln             # Visual Studio solution file
+├── WhiteKnuckleMod.csproj          # Project configuration file
+└── README.md                       # This document
 ```
 
 ## Development Guide

@@ -12,13 +12,11 @@
 * 本项目中 **部分代码由 AI 生成** .
 * 因此,  **部分代码质量可能非常糟糕** , 请谨慎参考.
 * 联机功能相关的代码 **fork自之前存在的联机mod项目** .
-* 对于使用此 MOD 进行开发、搭建联机端口可能带来的 **任何风险 (包括但不限于安全、稳定性问题) ** , 请 **自行评估并承担** .
 
  **存在的问题** :
 
 * 对象生命周期混乱, 可能导致未预期的行为.
-* 目前仅支持映射玩家胶囊, 其他物体尚未实现同步.
-* 
+
  **可能的目标** :
 
 ```mermaid
@@ -26,8 +24,6 @@ graph RL
     %% 模块 1：玩家显示方面
     subgraph 玩家显示方面
         1a[手部精灵图]
-        1b[玩家身体导入模型]
-        1c[导入动作的身体模型]
         1d[显示其他玩家手持物]
         1e[自定义手部精灵图]
     end
@@ -49,7 +45,6 @@ graph RL
 
     %% 依赖关系连接 (跨模块和模块内)
     1a --> 1e
-    1b --> 1c
     3b --> 1d
     1a --> 1d
     1d --> 2b
@@ -94,25 +89,52 @@ dotnet build -c Release
 
 ```
 WhiteKnuckleMod/
-├──src/
-│   ├─Component/
-│   │   └─Component.cs              # 组件类,负责处理网络数据
+├──src/Core/        # Mod核心逻辑
+│   ├─Component/            # 所有需要游戏本体库无法移至Unity项目的组件
+│   │   ├─LocalPlayer.cs    # 组件类,负责玩家本地位置
+│   │   └─RemoteEntity.cs   # 组件类,负责对其他玩家的伤害
 │   ├─Core/
-│   │   ├─LocalPlayerManager.cs     # 本地玩家信息打包类
-│   │   ├─MPCore.cs                 # 核心类,负责主要事件处理
-│   │   ├─MPMain.cs                 # 启动类,用来启动补丁
-│   │   └─RemotePlayerManager.cs    # 远程玩家对象管理类
+│   │   ├─MPConfig.cs   # 读取配置文件的数据
+│   │   ├─MPCore.cs     # 核心类,负责主要事件处理
+│   │   └─MPMain.cs     # 启动类,用来启动补丁
 │   ├─Data/
-│   │   └─PlayerData.cs             # 玩家网络数据定义 + 序列化工具类
+│   │   ├─DataReader.cs         # 读取ArraySegment<byte>/byte[]内部数据
+│   │   ├─DataWriter.cs         # 写入ArraySegment<byte>数据
+│   │   ├─MPDataSerializer.cs   # 将PlayerData序列化/反序列化
+│   │   └─MPEventBusNet.cs      # 网络数据总线,负责MPCore和MPSteamworks交流
 │   ├─NetWork/
-│   │   ├─MPLiteNet.cs              # 暂时废弃
-│   │   ├─MPSteamworks.cs           # 拆分的steam网络逻辑类
-│   │   └─NetworkEvents.cs          # 网络总线
+│   │   ├─MPLiteNet.cs      # 暂时废弃
+│   │   └─MPSteamworks.cs   # 拆分的steam网络逻辑类
 │   ├─Patch/
-│   │   └─Patch.cs                  # 补丁,实现拦截或注入
-│   └─Util/                    
+│   │   ├─Patch.cs                  # 补丁,通过解锁进度+禁用翻转实现地图同步
+│   │   ├─Patch_ENT_Player.cs       # 补丁,获取玩家的事件
+│   │   └─Patch_SteamManager.cs     # 补丁,通过SteamManager的生命周期来初始化MPCore
+│   ├─RemoteManager/
+│   │   ├─RemotePlayerContainer.cs  # 负责单个远程玩家对象的数据更新等逻辑
+│   │   └─RemotePlayerManager       # 管理全部远程玩家对象的生命周期
+│   ├─Test/
+│   │   └─Test.cs/  # 不影响游戏的测试函数,可以快速修改
+│   └─Util/ 
+│       ├─DictionaryExtensions.cs   # 字典后缀匹配,用于tpto命令
+│       ├─MPDataPool.cs             # 线程独立的读写对象池
 │       ├─TickTimer.cs              # Debug控制输出频率计数器
 │       └─TypeConverter.cs          # 字符串转Bool工具
+│
+├──src/Shared/      # 提取的Unity组件逻辑,用于共享到unity项目快速构建预制体
+│   ├─Component/    # 可以在Unity项目使用的组件
+│   │   ├─LookAt.cs         # 让标签强制面向玩家,缩放标签使大小不变
+│   │   ├─RemoteHand.cs     # 通过网络数据控制手部位置
+│   │   ├─RemotePlayer.cs   # 通过网络数据控制玩家位置
+│   │   ├─RemoteTag.cs      # 通过网络数据控制标签内容
+│   │   └─SimpleArmIK.cs    # 通过IK使胳膊连接到手
+│   ├─Data/ 
+│   │   ├─HandData.cs           # 手部位置数据
+│   │   ├─MPEventBusGame.cs     # 游戏内数据总线
+│   │   └─PlayerData.cs         # 玩家位置数据
+│   └─MK_Component/     # 游戏内的组件,无法直接赋予,通过映射组件处理
+│       ├─MK_CL_Handhold.cs     # 游戏内CL_Handhold的映射
+│       ├─MK_ObjectTagger.cs    # 游戏内ObjectTagger的映射
+│       └─MK_RemoteEntity.cs    # Mod的RemoteEntity的映射
 ├── lib/                            # 外部依赖库目录 (需自行添加) 
 │   └── README.md                   # 依赖库获取说明
 ├── WhiteKnuckleMod.sln             # Visual Studio 解决方案文件
@@ -145,7 +167,7 @@ WhiteKnuckleMod/
 
 ## 联机功能
 
-## 0.13/0.14
+## 1.0/0.13/0.14
 
 在游戏中开启作弊模式 (`cheats`) 后, 可使用以下命令:
 

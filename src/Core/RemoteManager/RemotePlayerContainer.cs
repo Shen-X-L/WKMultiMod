@@ -1,10 +1,10 @@
 ﻿using Steamworks;
 using System;
 using System.Collections.Generic;
-using System.Numerics;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
+<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
 using WKMultiMod.Component;
 using WKMultiMod.Data;
 using WKMultiMod.Util;
@@ -109,16 +109,23 @@ public class RemotePlayerManager : MonoBehaviour {
 	}
 }
 
+========
+using WKMPMod.Component;
+using WKMPMod.Core;
+using WKMPMod.Data;
+using WKMPMod.Shared.MK_Component;
+using Object = UnityEngine.Object;
+>>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 
+namespace WKMPMod.RemoteManager;
 
 // 单个玩家的容器类
 public class RemotePlayerContainer {
-
 	public ulong PlayerId { get; set; }
 	public GameObject PlayerObject { get; private set; }
-	public GameObject LeftHandObject { get; private set; }
-	public GameObject RightHandObject { get; private set; }
-	public GameObject NameTagObject { get; private set; }
+	//public GameObject LeftHandObject { get; private set; }
+	//public GameObject RightHandObject { get; private set; }
+	//public GameObject NameTagObject { get; private set; }
 
 	private RemotePlayer _remotePlayer;
 	private RemoteHand _remoteLeftHand;
@@ -136,8 +143,8 @@ public class RemotePlayerContainer {
 			data.Position = PlayerObject.transform.position;
 			data.Rotation = PlayerObject.transform.rotation;
 
-			data.LeftHand = new HandData {};
-			data.RightHand = new HandData {};
+			data.LeftHand = new HandData { };
+			data.RightHand = new HandData { };
 			return data;
 		}
 	}
@@ -145,15 +152,47 @@ public class RemotePlayerContainer {
 	// 初始化时直接传送玩家
 	private float _initializationTime;
 	private const float FORCED_TELEPORT_DURATION = 5.0f; // 强制传送持续时间
-
 	// 构造函数 - 只设置基本信息
 	public RemotePlayerContainer(ulong playId) {
 		PlayerId = playId;
 		_initializationTime = Time.time;
 	}
 
+<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
 	// 初始化方法 - 负责创建所有对象
 	public bool Initialize(Transform persistentParent = null) {
+========
+	// 新初始化方法
+	public bool Initialize(GameObject prefab, Transform persistentParent = null) {
+		try {
+			// 创建对象
+			PlayerObject = Object.Instantiate(prefab, Vector3.zero, Quaternion.identity);
+			InitializeAllComponent(PlayerObject);
+			// 设置持久化
+			if (persistentParent != null) {
+				PlayerObject.transform.SetParent(persistentParent, false);
+			}
+			// Debug
+			MPMain.LogInfo(
+				$"[RPCont] 远程玩家映射成功 ID: {PlayerId.ToString()}",
+				$"[RPCont] Remote player mapping succeeded ID: {PlayerId.ToString()}");
+			return true;
+		} catch (Exception ex) {
+			// Debug
+			MPMain.LogError(
+				$"[RPCont] 远程玩家映射失败 ID: {PlayerId.ToString()}, Error: {ex.Message}",
+				$"[RPCont] Failed to map remote player ID: {PlayerId.ToString()}, Error: {ex.Message}");
+
+			Object.Destroy(PlayerObject);
+
+			return false;
+		}
+	}
+
+	/*
+	// 旧初始化方法 - 负责创建所有对象
+	public bool OldInitialize(Transform persistentParent = null) {
+>>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 		try {
 			// 创建对象
 			CreatePlayerHierarchy();
@@ -171,12 +210,43 @@ public class RemotePlayerContainer {
 			// Debug
 			MPMain.LogError(
 				$"[RPCont] 远程玩家映射失败 ID: {PlayerId.ToString()}, Error: {ex.Message}",
-				$"[RPCont] Failed to map remote player ID: {PlayerId.ToString()}, Error: {ex.Message}"); 
+				$"[RPCont] Failed to map remote player ID: {PlayerId.ToString()}, Error: {ex.Message}");
 			CleanupOnFailure();
 			return false;
 		}
 	}
+	*/
 
+	#region[新创建组件函数]
+
+	public void InitializeAllComponent(GameObject instance) {
+		// 直接在实例中寻找这些组件,无需手动写循环遍历
+		_remotePlayer = instance.GetComponentInChildren<RemotePlayer>();
+		_remoteTag = instance.GetComponentInChildren<RemoteTag>();
+		_remoteEntity = instance.GetComponentInChildren<RemoteEntity>();
+
+		// 处理左右手：获取所有 RemoteHand,然后通过内部字段区分
+		RemoteHand[] hands = instance.GetComponentsInChildren<RemoteHand>();
+		foreach (var hand in hands) {
+			if (hand.hand == HandType.Left) _remoteLeftHand = hand;
+			else if (hand.hand == HandType.Right) _remoteRightHand = hand;
+		}
+
+		// 初始化数据
+		InitializeAllComponentData();
+	}
+
+	// 初始化远程实体组件
+	private void InitializeAllComponentData() {
+		// 标签组件初始化命名
+		_remoteTag.Initialize(PlayerId, PlayerName);
+		_remoteEntity.PlayerId = PlayerId;
+	}
+
+	#endregion
+
+	#region[旧创建对象函数]
+	/*
 	// 创建并组装对象
 	private void CreatePlayerHierarchy() {
 		// 创建主玩家对象
@@ -200,11 +270,19 @@ public class RemotePlayerContainer {
 		player.name = "RemotePlayer_" + PlayerId;
 		// 配置触发器
 		var collider = player.GetComponent<CapsuleCollider>();
+<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
 		if (collider != null) {
 			collider.isTrigger = true;
 			collider.radius = 0.5f;
 			collider.height = 2.0f;
 		}
+========
+
+		collider.isTrigger = true;
+		collider.radius = 0.5f;
+		collider.height = 2.0f;
+
+>>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 
 		// 添加物理碰撞器
 		var physicsCollider = player.AddComponent<CapsuleCollider>();
@@ -351,7 +429,15 @@ public class RemotePlayerContainer {
 
 		return textObject;
 	}
+<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
 
+========
+	*/
+	#endregion
+
+	#region[旧对象清理]
+	/*
+>>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 	// 清理整个对象
 	private void CleanupOnFailure() {
 		// 清理已创建的对象
@@ -389,15 +475,36 @@ public class RemotePlayerContainer {
 		_remoteRightHand = null;
 		_remoteTag = null;
 	}
+	*/
 
+<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
+========
+	#endregion
+
+	#region[新对象清理函数]
+
+	// 销毁方法 - 清理所有资源
+	public void Destroy() {
+		GameObject.Destroy(PlayerObject);
+
+		// 清理引用
+		PlayerObject = null;
+		_remotePlayer = null;
+		_remoteLeftHand = null;
+		_remoteRightHand = null;
+		_remoteTag = null;
+	}
+
+	#endregion
+
+	#region[数据更新]
+
+>>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 	// 通过数据进行更新
 	public void UpdatePlayerData(PlayerData playerData) {
 
-		// 缺少部分对象
-		if (PlayerObject == null || LeftHandObject == null
-			|| RightHandObject == null || NameTagObject == null)
-			return;
-
+		/*
+		 * 旧获取组件方法
 		// 检查组件是否存在,如果不存在尝试获取
 		if (_remotePlayer == null) {
 			_remotePlayer = PlayerObject.GetComponent<RemotePlayer>();
@@ -431,6 +538,7 @@ public class RemotePlayerContainer {
 				return;
 			}
 		}
+		*/
 
 		// 判断是否处于初始化 5 秒内
 		bool isInInitPhase = (Time.time - _initializationTime) < FORCED_TELEPORT_DURATION;
@@ -466,6 +574,13 @@ public class RemotePlayerContainer {
 		return;
 	}
 
+<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
+========
+	#endregion
+
+	#region[旧工具函数]
+
+>>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 	// 赋予可攀爬组件
 	public static void AddHandHold(GameObject gameObject) {
 		// 添加 ObjectTagger 组件
@@ -491,5 +606,3 @@ public class RemotePlayerContainer {
 		}
 	}
 }
-
-
