@@ -4,124 +4,18 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
-<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
-using WKMultiMod.Component;
-using WKMultiMod.Data;
-using WKMultiMod.Util;
-using static WKMultiMod.Data.PlayerData;
-using Vector3 = UnityEngine.Vector3;
-
-namespace WKMultiMod.Core;
-
-// 生命周期为全局
-public class RemotePlayerManager : MonoBehaviour {
-
-	// Debug日志输出间隔
-	private TickTimer _debugTick = new TickTimer(5f);
-
-	// 存储所有远程对象
-	internal Dictionary<ulong, RemotePlayerContainer> Players = new Dictionary<ulong, RemotePlayerContainer>();
-
-	void Awake() {
-		// 确保根对象存在
-		EnsureRootObject();
-	}
-
-	void OnDestroy() {
-		ResetAll();
-	}
-
-	// 清除全部玩家
-	public void ResetAll() {
-		foreach (var container in Players.Values) {
-			container.Destroy();
-		}
-		Players.Clear();
-	}
-
-	/// <summary>
-	/// 确保根对象存在
-	/// </summary>
-	private void EnsureRootObject() {
-		// 直接在MultiplayerCore下查找或创建
-		var coreTransform = transform.parent; // MultiplayerCore
-		var rootName = "RemotePlayers";
-
-		if (coreTransform.Find(rootName) == null) {
-			var rootObj = new GameObject(rootName);
-			rootObj.transform.SetParent(coreTransform, false);
-		}
-	}
-
-	/// <summary>
-	/// 获取远程玩家根Transform
-	/// </summary>
-	private Transform GetRemotePlayersRoot() {
-		var coreTransform = transform.parent;
-		var rootName = "RemotePlayers";
-
-		var root = coreTransform.Find(rootName);
-		if (root == null) {
-			// 如果找不到,创建一个(应该不会发生,因为EnsureRootObject已调用)
-			root = new GameObject(rootName).transform;
-			root.SetParent(coreTransform, false);
-		}
-
-		return root;
-	}
-
-	// 创建玩家对象
-	public RemotePlayerContainer PlayerCreate(ulong playId) {
-		if (Players.TryGetValue(playId, out RemotePlayerContainer value))
-			return value;
-
-		var container = new RemotePlayerContainer(playId);
-
-		// 使用专门的根对象
-		container.Initialize(GetRemotePlayersRoot());
-
-		Players[playId] = container;
-		return container;
-	}
-
-	// 清除特定玩家
-	public void PlayerRemove(ulong playId) {
-		if (Players.TryGetValue(playId, out var container)) {
-			container.Destroy();
-			Players.Remove(playId);
-		}
-	}
-
-	// 处理玩家数据
-	public void ProcessPlayerData(ulong playId, PlayerData playerData) {
-
-		// 以后加上时间戳处理
-		if (Players.TryGetValue(playId, out var RPcontainer)) {
-			RPcontainer.UpdatePlayerData(playerData);
-			return;
-		} else if (_debugTick.TryTick()) {
-			MPMain.LogError(
-				$"[RPMan] 未找到远程映射对象 ID: {playId.ToString()}",
-				$"[RPMan] Remote player object not found. ID: {playId.ToString()}");
-			return;
-		}
-		return;
-	}
-}
-
-========
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Shared.MK_Component;
 using Object = UnityEngine.Object;
->>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 
 namespace WKMPMod.RemoteManager;
 
 // 单个玩家的容器类
 public class RemotePlayerContainer {
 	public ulong PlayerId { get; set; }
+	public string PlayerName { get; set; }
 	public GameObject PlayerObject { get; private set; }
 	//public GameObject LeftHandObject { get; private set; }
 	//public GameObject RightHandObject { get; private set; }
@@ -155,13 +49,10 @@ public class RemotePlayerContainer {
 	// 构造函数 - 只设置基本信息
 	public RemotePlayerContainer(ulong playId) {
 		PlayerId = playId;
+		PlayerName = new Friend(PlayerId).Name;
 		_initializationTime = Time.time;
 	}
 
-<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
-	// 初始化方法 - 负责创建所有对象
-	public bool Initialize(Transform persistentParent = null) {
-========
 	// 新初始化方法
 	public bool Initialize(GameObject prefab, Transform persistentParent = null) {
 		try {
@@ -192,7 +83,6 @@ public class RemotePlayerContainer {
 	/*
 	// 旧初始化方法 - 负责创建所有对象
 	public bool OldInitialize(Transform persistentParent = null) {
->>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 		try {
 			// 创建对象
 			CreatePlayerHierarchy();
@@ -270,19 +160,11 @@ public class RemotePlayerContainer {
 		player.name = "RemotePlayer_" + PlayerId;
 		// 配置触发器
 		var collider = player.GetComponent<CapsuleCollider>();
-<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
-		if (collider != null) {
-			collider.isTrigger = true;
-			collider.radius = 0.5f;
-			collider.height = 2.0f;
-		}
-========
 
 		collider.isTrigger = true;
 		collider.radius = 0.5f;
 		collider.height = 2.0f;
 
->>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 
 		// 添加物理碰撞器
 		var physicsCollider = player.AddComponent<CapsuleCollider>();
@@ -425,19 +307,15 @@ public class RemotePlayerContainer {
 
 		// 挂载管理组件并初始化
 		_remoteTag = textObject.AddComponent<RemoteTag>();
-		_remoteTag.Initialize(PlayerId); // 传入 SteamID
+		_remoteTag.Initialize(PlayerId, PlayerName); // 传入 SteamID
 
 		return textObject;
 	}
-<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
-
-========
 	*/
 	#endregion
 
 	#region[旧对象清理]
 	/*
->>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 	// 清理整个对象
 	private void CleanupOnFailure() {
 		// 清理已创建的对象
@@ -477,8 +355,6 @@ public class RemotePlayerContainer {
 	}
 	*/
 
-<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
-========
 	#endregion
 
 	#region[新对象清理函数]
@@ -499,7 +375,6 @@ public class RemotePlayerContainer {
 
 	#region[数据更新]
 
->>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 	// 通过数据进行更新
 	public void UpdatePlayerData(PlayerData playerData) {
 
@@ -574,21 +449,16 @@ public class RemotePlayerContainer {
 		return;
 	}
 
-<<<<<<<< HEAD:src/Core/RemotePlayerManager.cs
-========
 	#endregion
 
 	#region[旧工具函数]
 
->>>>>>>> 5fe8c71 (1.0.1.0更新重试机制):src/Core/RemoteManager/RemotePlayerContainer.cs
 	// 赋予可攀爬组件
 	public static void AddHandHold(GameObject gameObject) {
 		// 添加 ObjectTagger 组件
 		ObjectTagger tagger = gameObject.AddComponent<ObjectTagger>();
 		if (tagger != null) {
 			tagger.tags.Add("Handhold");    //攀爬标签
-			tagger.tags.Add("Damageable");  //被伤害标签
-			tagger.tags.Add("Entity");      //实体标签
 		}
 
 		// 添加 CL_Handhold 组件 (攀爬逻辑)
@@ -605,4 +475,6 @@ public class RemotePlayerContainer {
 			gameObject.GetComponent<CL_Handhold>().handholdRenderer = objectRenderer;
 		}
 	}
+
+	#endregion
 }

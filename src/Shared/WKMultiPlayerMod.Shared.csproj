@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net472</TargetFramework>
+
+		<LangVersion>10.0</LangVersion>
+
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<ItemGroup>
+			<SharedOutputFiles Include="$(TargetDir)$(TargetName).dll" />
+		</ItemGroup>
+		<!--生成.dll复制到lib\Shared\-->
+		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)lib\Shared\" SkipUnchangedFiles="true" />
+		<!--生成.dll复制到Unity项目下-->
+		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="D:\DevelopmentPortfolio\Unity\Project\My Asset Built-In\Assets\Plugins" SkipUnchangedFiles="true" />
+	</Target>
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Reference Include="..\..\lib\Unity\*.dll">
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+</Project>
