@@ -258,6 +258,8 @@ public class MPCore : MonoBehaviour {
 		var writer = GetWriter();
 
 		// 进行数据写入
+		writer.Put(Steamworks.UserSteamId);
+		writer.Put(Steamworks.BroadcastId);
 		writer.Put((int)PacketType.PlayerDataUpdate);
 		MPDataSerializer.WriteToNetData(writer, data);
 		// 触发Steam数据发送
