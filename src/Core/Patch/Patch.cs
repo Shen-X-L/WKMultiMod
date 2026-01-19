@@ -33,19 +33,3 @@ public static class Patch_M_Level_Awake {
 		}
 	}
 }
-
-//补丁类: 标准化关卡生成几率
-//会一直生成稀有事件和稀有关卡 过于搞笑 所以注释掉了
-//做成了一个搞笑的混乱模式选项
-[HarmonyPatch(typeof(SpawnTable.SpawnSettings), "GetEffectiveSpawnChance")]
-class Patch_SpawnSettings_StandardizeChance {
-	public static bool Prefix(SpawnTable.SpawnSettings __instance, ref float __result) {
-		// 混乱模式下, 强制事件生成几率为 1.0f (100%)
-		if (MPCore.IsChaosMod) {
-			// 其他情况, 强制 1.0f
-			__result = 1f;
-			return false; // 跳过原始复杂的计算和过滤
-		}
-		return true; // 非混乱模式, 执行原始方法
-	}
-}

@@ -38,4 +38,15 @@ public static class MPWriterPool {
 		_threadWriter.Reset(); // 清空之前的数据,准备重新写入
 		return _threadWriter;
 	}
+
+	public static DataWriter GetWriter(ulong senderId, ulong targetId, PacketType type) {
+		if (_threadWriter == null) {
+			_threadWriter = new DataWriter();
+		}
+		_threadWriter.Reset(); // 清空之前的数据,准备重新写入
+		_threadWriter.Put(senderId);
+		_threadWriter.Put(targetId);
+		_threadWriter.Put((int)type);
+		return _threadWriter;
+	}
 }

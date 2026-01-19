@@ -42,6 +42,23 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 	// 大厅缓存
 	private Lobby _currentLobby;
+	// 获取当前大厅Id
+	public ulong CurrentLobbyId {
+		get { return _currentLobby.Id.Value; }
+	}
+	// 检查是否在大厅中
+	public bool IsInLobby {
+		get { return _currentLobby.Id.IsValid; }
+	}
+
+	// 本机Id
+	public ulong UserSteamId { get; private set; }
+	// 之前的主机Id
+	public ulong HostSteamId { get; private set; }
+	// 广播Id
+	public ulong BroadcastId { get; } = 0;
+	// 特殊Id (必须解包)
+	public ulong SpecialId { get; } = 1;
 
 	// 服务器套接字管理器
 	internal SocketManager _socketManager;
@@ -52,32 +69,13 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	// 连接协程句柄
 	private Coroutine _connectionRoutine;
 
+	// 是否有链接
+	public bool HasConnections { get; private set; }
+
 	// 消息队列
 	private ConcurrentQueue<NetworkMessage> _messageQueue = new ConcurrentQueue<NetworkMessage>();
 	// 数据池
 	private static readonly ArrayPool<byte> _messagePool = ArrayPool<byte>.Shared;
-
-	// 本机Id
-	private ulong _userSteamId;
-	public ulong UserSteamId { get => _userSteamId; private set => _userSteamId = value; }
-	// 之前的主机Id
-	private ulong _lastKnownHostSteamId;
-	public ulong HostSteamId { get => _lastKnownHostSteamId; private set => _lastKnownHostSteamId = value; }
-	// 广播Id
-	private const ulong _broadcastId = 0;
-	public ulong BroadcastId { get => _broadcastId; }
-
-	// 获取当前大厅Id
-	public ulong CurrentLobbyId {
-		get { return _currentLobby.Id.Value; }
-	}
-	// 检查是否在大厅中
-	public bool IsInLobby {
-		get { return _currentLobby.Id.IsValid; }
-	}
-
-	// 是否有链接
-	public bool HasConnections { get; private set; }
 
 	// 检查是否是大厅所有者
 	public bool IsHost {
@@ -85,6 +83,14 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 			if (_currentLobby.Id == 0) return false;
 			return _currentLobby.Owner.Id == SteamClient.SteamId;
 		}
+	}
+
+	// 判断玩家是否在大厅
+	public bool IsMemberInLobby(SteamId targetId) {
+		foreach (var member in _currentLobby.Members) {
+			if (member.Id == targetId) return true;
+		}
+		return false;
 	}
 
 	#region[生命周期函数]
@@ -179,7 +185,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 		// 状态重置
 		HasConnections = false;
-		_lastKnownHostSteamId = 0;
+		HostSteamId = 0;
 
 		// 离开大厅(如果有)
 		if (_currentLobby.Id.IsValid) {
@@ -197,12 +203,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 			"[MPSW] All network connections have been disconnected.");
 	}
 	#endregion
-	/// <summary>
-	/// 获取大厅Id
-	/// </summary>
-	public ulong GetLobbyId() {
-		return _currentLobby.Id.Value;
-	}
+
 	#region[发送数据函数]
 
 	/// <summary>
@@ -278,6 +279,16 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	}
 
 	/// <summary>
+	/// 仅主机 发送数据: 本机->除个别玩家外所有连接玩家
+	/// </summary>
+	public void BroadcastExcept(ulong steamId, byte[] data, int offset, int length,
+					 SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
+		if (IsHost) {
+			HandleBroadcastExcept(steamId, data, offset, length, sendType, laneIndex);
+		}
+	}
+
+	/// <summary>
 	/// 仅客户端 发送数据: 本机->主机玩家
 	/// </summary>
 	private void HandleSendToHost(byte[] data, SendType sendType = SendType.Reliable,
@@ -303,7 +314,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅客户端 发送数据: 本机->主机玩家
 	/// </summary>
-	internal void HandleSendToHost(byte[] data, int offset, int length,
+	private void HandleSendToHost(byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		if (IsHost || _connectionManager == null) {
@@ -359,7 +370,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅主机 发送数据: 本机->所有连接玩家
 	/// </summary>
-	internal void HandleBroadcast(byte[] data, int offset, int length,
+	private void HandleBroadcast(byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		// Debug
@@ -428,7 +439,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// 仅主机 发送数据: 本机->除个别玩家外所有连接玩家
 	/// </summary>
 	/// <param name="steamId">被排除的玩家</param>
-	internal void HandleBroadcastExcept(ulong steamId, byte[] data, int offset, int length,
+	private void HandleBroadcastExcept(ulong steamId, byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		// Debug
@@ -477,7 +488,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 仅主机 发送数据: 本机->特定玩家
 	/// </summary>
-	internal void HandleSendToPeer(ulong steamId, byte[] data, int offset, int length,
+	private void HandleSendToPeer(ulong steamId, byte[] data, int offset, int length,
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		try {
@@ -774,7 +785,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// </summary>
 	private void HandleLobbyEntered(Lobby lobby) {
 		_currentLobby = lobby;
-		_lastKnownHostSteamId = lobby.Owner.Id;
+		HostSteamId = lobby.Owner.Id;
 		MPMain.LogInfo(
 			$"[MPSW] 进入大厅. 大厅Id: {lobby.Id.ToString()}",
 			$"[MPSW] Entered lobby. LobbyId: {lobby.Id.ToString()}");
@@ -853,7 +864,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 		// 获取当前大厅真正的主机(Owner)
 		SteamId currentOwnerId = lobby.Owner.Id;
 		// 检查所有权是否发生了变更
-		if (_lastKnownHostSteamId != 0 && _lastKnownHostSteamId != currentOwnerId) {
+		if (HostSteamId != 0 && HostSteamId != currentOwnerId) {
 			if (currentOwnerId == SteamClient.SteamId) {
 				// 重新创建监听Socket
 				CreateListeningSocket();
@@ -862,13 +873,13 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 				TryConnectToHost();
 			}
 			MPMain.LogInfo(
-				$"[MPCore] 主机变更: {_lastKnownHostSteamId.ToString()} -> {currentOwnerId.ToString()}",
-				$"[MPCore] Host change: {_lastKnownHostSteamId.ToString()} -> {currentOwnerId.ToString()}");
+				$"[MPCore] 主机变更: {HostSteamId.ToString()} -> {currentOwnerId.ToString()}",
+				$"[MPCore] Host change: {HostSteamId.ToString()} -> {currentOwnerId.ToString()}");
 
 			// 触发主机变更总线
-			MPEventBusNet.NotifyLobbyHostChanged(lobby, _lastKnownHostSteamId);
+			MPEventBusNet.NotifyLobbyHostChanged(lobby, HostSteamId);
 			// 更新主机Id
-			_lastKnownHostSteamId = currentOwnerId;
+			HostSteamId = currentOwnerId;
 		}
 	}
 	#endregion
@@ -935,7 +946,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 	// 仅客户端: 接收消息
 	void IConnectionManager.OnMessage(IntPtr data, int size, long messageNum, long recvTime, int channel) {
-		HandleIncomingRawData(_lastKnownHostSteamId, data, size);
+		HandleIncomingRawData(HostSteamId, data, size);
 	}
 
 	// 仅客户端: 连接被本地或远程关闭
