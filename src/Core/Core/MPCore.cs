@@ -2,39 +2,19 @@
 using Steamworks;
 using Steamworks.Data;
 using System;
+using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.RemoteManager;
 using WKMPMod.Util;
-using WKMPMod.Component;
-using static MonoMod.Cil.RuntimeILReferenceBag.FastDelegateInvokers;
-using static MonoMod.RuntimeDetour.Platforms.DetourNativeMonoPosixPlatform;
-using static Steamworks.InventoryItem;
-using static WKMPMod.Data.MPEventBusNet;
+using static System.Buffers.Binary.BinaryPrimitives;
 using static WKMPMod.Util.MPReaderPool;
 using static WKMPMod.Util.MPWriterPool;
-using WKMPMod.RemoteManager;
-
 namespace WKMPMod.Core;
-
-[Flags]
-public enum MPStatus {
-	NotInitialized = 0b0,    // 未初始化
-	Initialized = 0b1,       // 已初始化
-
-	NotInLobby = 0b00_0,     // 未加入大厅
-	JoiningLobby = 0b01_0,   // 正在加入大厅
-	InLobby = 0b10_0,        // 已加入大厅
-	LobbyConnectionError = 0b11_0,// 大厅连接错误
-
-	INIT_MASK = 0b1,    // 初始化掩码
-	LOBBY_MASK = 0b11_0,// 大厅状态掩码
-}
 
 public class MPCore : MonoBehaviour {
 
@@ -46,27 +26,27 @@ public class MPCore : MonoBehaviour {
 	// 标识这是否是"有效"实例(防止使用游戏初期被销毁的实例)
 	public static bool HasValidInstance => Instance != null && Instance.isActiveAndEnabled;
 
-	// Steam网络管理器 远程玩家管理器 本地数据获取类
+	// Steam网络管理器 远程玩家管理器 
 	internal MPSteamworks Steamworks { get; private set; }
 	internal RemotePlayerManager RPManager { get; private set; }
-	internal LocalPlayer LPManager { get; private set; }
+	// 本地数据获取类已经变成静态类
+	//internal LocalPlayerManager LPManager { get; private set; }
+
+	// 玩家数据发送时间 每秒30次
+	private TickTimer _playerDataTick = new TickTimer(30);
+	private TickTimer _teleport = new TickTimer(0.5f);
 
 	// 世界种子 - 用于同步游戏世界生成
 	public int WorldSeed { get; private set; }
-	// 多人模式状态
-	public static MPStatus MultiplayerStatus { get; private set; } = MPStatus.NotInitialized;
-	// 是否处于大厅中
-	public static bool IsInLobby =>
-		(MultiplayerStatus & MPStatus.LOBBY_MASK) == MPStatus.InLobby 
-		|| (MultiplayerStatus & MPStatus.LOBBY_MASK) == MPStatus.JoiningLobby;
-	public static bool IsInitialized =>
-		(MultiplayerStatus & MPStatus.INIT_MASK) == MPStatus.Initialized;
+	// 是否在多人模式
+	public static bool IsMultiplayerActive { get; private set; } = false;
 	// 混乱模式开关
 	public static bool IsChaosMod { get; private set; } = false;
-
+	// 是否已初始化
+	public static bool HasInitialized { get; private set; } = false;
 
 	// 注意：日志通过 MultiPlayerMain.Logger 访问
-	#region[生命周期/状态设置 函数]
+
 	void Awake() {
 		// Debug
 		MPMain.Logger.LogInfo("[MPCore] MultiplayerCore Awake");
@@ -93,7 +73,14 @@ public class MPCore : MonoBehaviour {
 	}
 
 	void Update() {
-		LPManager.ShouldSendData = IsInLobby && IsInitialized && Steamworks.HasConnections;
+		// 没有开启多人时停止更新
+		if (IsMultiplayerActive == false || HasInitialized == false)
+			return;
+		// 没有链接时停止更新
+		if (!Instance.Steamworks.HasConnections)
+			return;
+		// 发送本地玩家数据
+		SeedLocalPlayerData();
 	}
 
 	/// <summary>
@@ -107,10 +94,10 @@ public class MPCore : MonoBehaviour {
 			// 创建远程玩家管理器
 			RPManager = gameObject.AddComponent<RemotePlayerManager>();
 
-			// 创建本地信息获取发送管理器
-			LPManager = gameObject.AddComponent<LocalPlayer>();
+			//// 创建本地信息获取发送管理器
+			//LPManager = gameObject.AddComponent<LocalPlayerManager>();
 
-			// 订阅网络事件
+			// 订阅事件
 			SubscribeToEvents();
 			// Debug
 			MPMain.LogInfo(
@@ -128,22 +115,22 @@ public class MPCore : MonoBehaviour {
 	/// </summary>
 	private void SubscribeToEvents() {
 		// 订阅网络数据接收事件
-		MPEventBusNet.OnReceiveData += HandleReceiveData;
+		MPEventBus.Net.OnReceiveData += HandleReceiveData;
 
 		// 订阅大厅事件
-		MPEventBusNet.OnLobbyEntered += HandleLobbyEntered;
-		MPEventBusNet.OnLobbyMemberJoined += HandleLobbyMemberJoined;
-		MPEventBusNet.OnLobbyMemberLeft += HandleLobbyMemberLeft;
+		MPEventBus.Net.OnLobbyEntered += ProcessLobbyEntered;
+		MPEventBus.Net.OnLobbyMemberJoined += ProcessLobbyMemberJoined;
+		MPEventBus.Net.OnLobbyMemberLeft += ProcessLobbyMemberLeft;
+		MPEventBus.Net.OnLobbyHostChanged += ProcessLobbyHostChanged;
 
 		// 订阅玩家连接事件
-		MPEventBusNet.OnPlayerConnected += HandlePlayerConnected;
-		MPEventBusNet.OnPlayerDisconnected += HandlePlayerDisconnected;
+		MPEventBus.Net.OnPlayerConnected += ProcessPlayerConnected;
+		MPEventBus.Net.OnPlayerDisconnected += ProcessPlayerDisconnected;
 
 		// 订阅游戏事件
-		MPEventBusGame.OnPlayerMove += SeedLocalPlayerData;
-		MPEventBusGame.OnPlayerDamage += ProcessPlayerDamage;
-		MPEventBusGame.OnPlayerAddForce += ProcessPlayerAddForce;
-		MPEventBusGame.OnPlayerDeath += ResetStateVariables;
+		MPEventBus.Game.OnPlayerDamage += ProcessPlayerDamage;
+		MPEventBus.Game.OnPlayerAddForce += ProcessPlayerAddForce;
+		MPEventBus.Game.OnPlayerDeath += ResetStateVariables;
 	}
 
 	/// <summary>
@@ -151,23 +138,22 @@ public class MPCore : MonoBehaviour {
 	/// </summary>
 	private void UnsubscribeFromEvents() {
 		// 退订网络数据接收事件
-		MPEventBusNet.OnReceiveData -= HandleReceiveData;
+		MPEventBus.Net.OnReceiveData -= HandleReceiveData;
 
 		// 退订大厅事件
-		MPEventBusNet.OnLobbyEntered -= HandleLobbyEntered;
-		MPEventBusNet.OnLobbyMemberJoined -= HandleLobbyMemberJoined;
-		MPEventBusNet.OnLobbyMemberLeft -= HandleLobbyMemberLeft;
+		MPEventBus.Net.OnLobbyEntered -= ProcessLobbyEntered;
+		MPEventBus.Net.OnLobbyMemberJoined -= ProcessLobbyMemberJoined;
+		MPEventBus.Net.OnLobbyMemberLeft -= ProcessLobbyMemberLeft;
+		MPEventBus.Net.OnLobbyHostChanged -= ProcessLobbyHostChanged;
 
 		// 退订玩家连接事件
-		MPEventBusNet.OnPlayerConnected -= HandlePlayerConnected;
-		MPEventBusNet.OnPlayerDisconnected -= HandlePlayerDisconnected;
+		MPEventBus.Net.OnPlayerConnected -= ProcessPlayerConnected;
+		MPEventBus.Net.OnPlayerDisconnected -= ProcessPlayerDisconnected;
 
 		// 退订游戏事件
-		MPEventBusGame.OnPlayerMove -= SeedLocalPlayerData;
-		MPEventBusGame.OnPlayerDamage -= ProcessPlayerDamage;
-		MPEventBusGame.OnPlayerAddForce -= ProcessPlayerAddForce;
-		MPEventBusGame.OnPlayerDeath -= ResetStateVariables;
-		
+		MPEventBus.Game.OnPlayerDamage -= ProcessPlayerDamage;
+		MPEventBus.Game.OnPlayerAddForce -= ProcessPlayerAddForce;
+		MPEventBus.Game.OnPlayerDeath -= ResetStateVariables;
 	}
 
 	/// <summary>
@@ -223,6 +209,7 @@ public class MPCore : MonoBehaviour {
 			default:
 				ResetStateVariables();
 				break;
+
 		}
 	}
 
@@ -233,59 +220,90 @@ public class MPCore : MonoBehaviour {
 		CloseMultiPlayerMode();
 		Steamworks.DisconnectAll();
 		RPManager.ResetAll();
+		MPMain.LogInfo(
+			"[MPCore] 所有资源清理完毕",
+			"[MPCore] All resources cleaned up");
 	}
 
+
+	// 开启多人联机模式
+	public static void StartMultiPlayerMode() {
+		IsMultiplayerActive = true;
+		HasInitialized = true;
+	}
 	// 关闭多人联机模式
 	public static void CloseMultiPlayerMode() {
-		MultiplayerStatus = MPStatus.NotInitialized | MPStatus.NotInLobby;
+		IsMultiplayerActive = false;
+		HasInitialized = false;
 	}
-	#endregion
 
 	#region[游戏数据收集处理]
-
 	/// <summary>
-	/// 发送本地玩家数据
+	/// 客户端/主机: 发送本地玩家数据
 	/// </summary>
-	private void SeedLocalPlayerData(PlayerData data) {
-		var writer = GetWriter();
+	private void SeedLocalPlayerData() {
+		// 限制发送频率(20Hz)
+		if (!_playerDataTick.TryTick())
+			return;
+
+		var playerData = LocalPlayerManager.CreateLocalPlayerData(Steamworks.UserSteamId);
+		if (playerData == null) {
+			MPMain.LogError(
+				"[LPMan] 本地玩家信息异常",
+				"[LPMan] Local player data acquisition exception.");
+			return;
+		}
+
+		// 使用tp命令会重设计时器
+		// 如果计时器到时间,设为不传送
+		playerData.IsTeleport = !_teleport.IsTickReached;
 
 		// 进行数据写入
+		var writer = GetWriter();
+		writer.Put(Steamworks.UserSteamId);
+		writer.Put(Steamworks.BroadcastId);
 		writer.Put((int)PacketType.PlayerDataUpdate);
-		MPDataSerializer.WriteToNetData(writer, data);
+		MPDataSerializer.WriteToNetData(writer, playerData);
+
 		// 触发Steam数据发送
 		// 转为byte[]
 		// 使用不可靠+立即发送
-		// 广播所有人
-		Steamworks.HandleBroadcast(writer, SendType.Unreliable | SendType.NoNagle);
+		Steamworks.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
 		return;
 	}
 
 	/// <summary>
-	/// 发送伤害其他玩家数据
+	/// 客户端/主机: 发送伤害其他玩家数据
 	/// </summary>
 	private void ProcessPlayerDamage(ulong steamId, float amount, string type) {
 		var writer = GetWriter();
+		writer.Put(Steamworks.UserSteamId);
+		writer.Put(steamId);
 		writer.Put((int)PacketType.PlayerDamage);
 		writer.Put(amount);
 		writer.Put(type);
-		Steamworks.HandleSendToPeer(steamId, writer);
+		Steamworks.Send(steamId, writer);
 	}
 
 	/// <summary>
-	/// 发送给予其他玩家冲击力数据
+	/// 客户端/主机: 发送基于其他玩家冲击力数据
 	/// </summary>
 	private void ProcessPlayerAddForce(ulong steamId, Vector3 force, string source) {
 		var writer = GetWriter();
+		writer.Put(Steamworks.UserSteamId);
+		writer.Put(steamId);
 		writer.Put((int)PacketType.PlayerAddForce);
 		writer.Put(force.x);
 		writer.Put(force.y);
 		writer.Put(force.z);
 		writer.Put(source);
-		Steamworks.HandleSendToPeer(steamId, writer);
+		Steamworks.Send(steamId, writer);
 	}
+
 	#endregion
 
 	#region[命令注册]
+
 	/// <summary>
 	/// 命令注册
 	/// </summary>
@@ -296,12 +314,10 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.AddCommand("leave", Leave);
 		CommandConsole.AddCommand("chaos", ChaosMod);
 		CommandConsole.AddCommand("getlobbyid", GetLobbyId);
-		CommandConsole.AddCommand("allconnections", GetAllConnections);
+		CommandConsole.AddCommand("getconnections", GetAllConnections);
 		CommandConsole.AddCommand("talk", Talk);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
-		CommandConsole.AddCommand("test0", Test.Test.LoadSlugcat, false);
-		CommandConsole.AddCommand("test1", Test.Test.CreateSlugcat, false);
-		CommandConsole.AddCommand("test2", Test.Test.GetGraphicsAPI, false);
+		CommandConsole.AddCommand("test", Test.Test.Main, false);
 	}
 
 	// 命令实现
@@ -309,7 +325,7 @@ public class MPCore : MonoBehaviour {
 	/// 创建大厅
 	/// </summary>
 	public void Host(string[] args) {
-		if (IsInLobby) {
+		if (IsMultiplayerActive) {
 			CommandConsole.LogError("You are already in online mode, \n" +
 				"please use the leave command to leave and then go online");
 			return;
@@ -320,22 +336,18 @@ public class MPCore : MonoBehaviour {
 		}
 
 		string roomName = args[0];
-		int maxPlayers = args.Length >= 2 ? int.Parse(args[1]) : 6;
+		int maxPlayers = args.Length >= 2 ? int.Parse(args[1]) : 4;
 		// Debug
 		MPMain.LogInfo(
 			$"[MPCore] 正在创建大厅: {roomName}...",
 			$"[MPCore] Creating lobby: {roomName}...");
 
-		//设置为正在连接
-		MultiplayerStatus = MPStatus.JoiningLobby;
-
 		// 使用协程版本(内部已改为异步)
 		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
 			if (success) {
-				MultiplayerStatus = MPStatus.InLobby | MPStatus.Initialized;
-				HandleWorldInitRequest(WorldLoader.instance.seed);
+				StartMultiPlayerMode();
+				WorldLoader.ReloadWithSeed(new string[] { WorldLoader.instance.seed.ToString() });
 			} else {
-				MultiplayerStatus = MPStatus.LobbyConnectionError;
 				CommandConsole.LogError("Fail to create lobby");
 			}
 		});
@@ -345,7 +357,7 @@ public class MPCore : MonoBehaviour {
 	/// 加入大厅
 	/// </summary>
 	public void Join(string[] args) {
-		if (IsInLobby) {
+		if (IsMultiplayerActive) {
 			CommandConsole.LogError("You are already in online mode, \n" +
 				"please use the leave command to leave and then go online");
 			return;
@@ -360,14 +372,12 @@ public class MPCore : MonoBehaviour {
 				$"[MPCore] 正在加入大厅: {lobbyId.ToString()}...",
 				$"[MPCore] Joining lobby: {lobbyId.ToString()}...");
 
-			//设置为正在连接
-			MultiplayerStatus = MPStatus.JoiningLobby;
-
 			Steamworks.JoinRoom(lobbyId, (success) => {
 				if (success) {
-					MultiplayerStatus = MPStatus.InLobby;
+					//由加载器实现模式切换
+					//StartMultiPlayerMode();
+					IsMultiplayerActive = true;
 				} else {
-					MultiplayerStatus = MPStatus.LobbyConnectionError;
 					CommandConsole.LogError("Fail to join lobby");
 				}
 			});
@@ -388,7 +398,7 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 没什么用 
+	/// 没什么用
 	/// </summary>
 	public void ChaosMod(string[] args) {
 		if (args.Length <= 0) {
@@ -403,43 +413,21 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 获取大厅ID
+	/// 获取大厅Id
 	/// </summary>
 	public void GetLobbyId(string[] args) {
-		if (!IsInLobby) {
+		if (!IsMultiplayerActive) {
 			CommandConsole.LogError("Please use this command after online");
 			return;
 		}
-		CommandConsole.Log($"Lobby Id: {Steamworks.LobbyId.ToString()}");
+		CommandConsole.Log($"Lobby Id: {Steamworks.GetLobbyId().ToString()}");
 	}
 
 	/// <summary>
-	/// 调试用,获取所有链接
-	/// </summary>
-	public void GetAllConnections(string[] args) {
-		if (!IsInLobby) {
-			CommandConsole.LogError("You need in online mode, \n" +
-				"please use the host or join");
-			return;
-		}
-		CommandConsole.Log("View BepInEx Console");
-		foreach (var (steamid, connection) in Steamworks._outgoingConnections) {
-			MPMain.LogInfo(
-				$"[MPCore] 出站连接 SteamId: {steamid.ToString()} 连接Id: {connection.ToString()}",
-				$"[MPCore] Outgoing connections SteamId: {steamid.ToString()} connections Id: {connection.ToString()}");
-		}
-		foreach (var (steamid, connection) in Steamworks._allConnections) {
-			MPMain.LogInfo(
-				$"[MPCore] 全部连接 SteamId: {steamid.ToString()} 连接Id: {connection.ToString()}",
-				$"[MPCore] All connections SteamId: {steamid.ToString()} connections Id: {connection.ToString()}");
-		}
-	}
-
-	/// <summary>
-	/// 发送信息到他人控制台
+	/// 发送信息
 	/// </summary>
 	public void Talk(string[] args) {
-		if (!IsInLobby) {
+		if (!IsMultiplayerActive) {
 			CommandConsole.LogError("You need in online mode, \n" +
 				"please use the host or join");
 			return;
@@ -448,25 +436,24 @@ public class MPCore : MonoBehaviour {
 		string message = string.Join(" ", args);
 
 		var writer = GetWriter();
+		writer.Put(Steamworks.UserSteamId);
+		writer.Put(Steamworks.BroadcastId);
 		writer.Put((int)PacketType.BroadcastMessage);
-		writer.Put(message); // 自动处理长度和编码
+
+		// 自动处理长度和编码
+		writer.Put(message);
 
 		// 发送给所有人
-		Steamworks.HandleBroadcast(writer);
+		Steamworks.Broadcast(writer);
 	}
 
 	/// <summary>
 	/// 向某人TP
 	/// </summary>
 	public void TpToPlayer(string[] args) {
-		if (!IsInLobby) {
+		if (!IsMultiplayerActive) {
 			CommandConsole.LogError("You need in online mode, \n" +
 				"please use the host or join");
-			return;
-		}
-		if (!IsInitialized) {
-			CommandConsole.LogError("World not initialized yet. \n" +
-				"Please wait for world initialization.");
 			return;
 		}
 		if (ulong.TryParse(args[0], out ulong playerId)) {
@@ -486,114 +473,160 @@ public class MPCore : MonoBehaviour {
 			}
 			// 找到对应id,发出传送请求
 			var writer = GetWriter();
+			writer.Put(Steamworks.UserSteamId);
+			writer.Put(ids[0]);
 			writer.Put((int)PacketType.PlayerTeleport);
-			Steamworks.HandleSendToPeer(ids[0], writer);
+
+			Steamworks.Send(ids[0], writer);
+		}
+	}
+
+	/// <summary>
+	/// 调试用,主机获取所有链接
+	/// </summary>
+	public void GetAllConnections(string[] args) {
+		if (!IsMultiplayerActive) {
+			CommandConsole.LogError("You need in online mode, \n" +
+				"please use the host or join");
+			return;
+		}
+		foreach (var (steamid, connection) in Steamworks._connectedClients) {
+			MPMain.LogInfo(
+				$"[MPCore] 全部连接 SteamId: {steamid.ToString()} 连接Id: {connection.ToString()}",
+				$"[MPCore] All connections SteamId: {steamid.ToString()} connections Id: {connection.ToString()}");
 		}
 	}
 	#endregion
 
-	#region[大厅/连接事件触发函数]
+	#region [大厅事件处理]
 	/// <summary>
-	/// 处理大厅成员加入 连接新成员
-	/// </summary> 
-	private void HandleLobbyMemberJoined(SteamId steamId) {
-		if (steamId == Steamworks.UserSteamId) return;
-		// Debug
-		MPMain.LogInfo(
-			$"[MPCore] 玩家加入大厅: {steamId.ToString()}",
-			$"[MPCore] New player joined the lobby: {steamId.ToString()}");
-
-		//Steamworks.ConnectToPlayer(steamId);
-	}
-
-	/// <summary>
-	/// 处理加入大厅事件
+	/// 加入大厅回调
 	/// </summary>
-	/// <param name="lobby"></param>
-	private void HandleLobbyEntered(Lobby lobby) {
+	private void ProcessLobbyEntered(Lobby lobby) {
 		// Debug
 		MPMain.LogInfo(
 			$"[MPCore] 正在加入大厅,ID: {lobby.Id.ToString()}",
 			$"[MPCore] Joining the lobby, ID: {lobby.Id.ToString()}");
 
+		// 启动多人模式标准, 这里的触发可能先于join回调
+		IsMultiplayerActive = true;
+
 		// 启动协程发送请求初始化数据
-		StartCoroutine(InitHandshakeRoutine());
+		if (!Steamworks.IsHost) {
+			StartCoroutine(InitHandshakeRoutine());
+		}
 	}
 
 	/// <summary>
-	/// 处理离开大厅事件
+	/// 有其他玩家加入大厅回调 创建玩家映射
 	/// </summary>
-	/// <param name="steamId"></param>
-	private void HandleLobbyMemberLeft(SteamId steamId) {
-		// Debug
+	private void ProcessLobbyMemberJoined(SteamId steamId) {
+		if (steamId == Steamworks.UserSteamId) {
+			return;
+		}
+
 		MPMain.LogInfo(
-			$"[MPCore] 玩家离开大厅: {steamId.ToString()}",
-			$"[MPCore] Player left the lobby: {steamId.ToString()}");
-	}
-
-	/// <summary>
-	/// 处理玩家接入事件
-	/// </summary>
-	private void HandlePlayerConnected(SteamId steamId) {
-		// 创建玩家
+			$"[MPCore] 创建玩家映射 Id: {steamId.ToString()}",
+			$"[MPCore] Create player Id: {steamId.ToString()}");
 		RPManager.PlayerCreate(steamId);
 	}
 
 	/// <summary>
-	/// 处理玩家断连
+	/// 有其他玩家离开大厅回调 删除玩家映射
 	/// </summary>
-	private void HandlePlayerDisconnected(SteamId steamId) {
+	private void ProcessLobbyMemberLeft(SteamId steamId) {
 		// Debug
+		// 自己已经离线,不需要再销毁
+		//if (playerId == Steamworks.UserSteamId)
+		//	return;
+
 		MPMain.LogInfo(
-			$"[MPCore] 玩家断连: {steamId.ToString()}",
-			$"[MPCore] Player disconnected: {steamId.ToString()}");
-		RPManager.PlayerRemove(steamId.Value);
+			$"[MPCore] 销毁玩家映射 Id: {steamId.ToString()}",
+			$"[MPCore] Destroy player Id: {steamId.ToString()}");
+	}
+
+	/// <summary>
+	/// 大厅所有权变更
+	/// </summary>
+	private void ProcessLobbyHostChanged(Lobby lobby, SteamId hostId) {
+		// 这里删除旧主机的玩家对象
+		RPManager.PlayerRemove(hostId);
+
+		// 处理身份切换
+		if (Steamworks.IsHost) {
+			// 成为新主机
+			ProcessIAmNewHost();
+		}
+	}
+
+	/// <summary>
+	/// 成为新主机时执行
+	/// </summary>
+	private void ProcessIAmNewHost() {
+		// 停止握手协程(以防还在运行)
+		if (HasInitialized == false) {
+			StopCoroutine(InitHandshakeRoutine());
+			// 要求所有现存客机重新发送一次完整数据
+			MPMain.LogInfo(
+				"[MPCore] 意外在未初始化的情况下成为主机,需要向现存客户端要求数据",
+				"[MPCore] Unexpectedly became the host before initialization was complete; need to request data from existing clients.");
+			//var writer = GetWriter();
+			//writer.Put((int)PacketType.RequestClientSync);
+			//Steamworks.Broadcast(writer);
+		}
 	}
 	#endregion
 
 	#region [网络数据处理]
 	/// <summary>
-	/// 协程请求种子
+	/// 客户端发送WorldInitRequest: 协程请求初始化数据
 	/// </summary>
 	public IEnumerator InitHandshakeRoutine() {
-		yield return new WaitForSeconds(1.0f);
-		// 在大厅并且未加载
-		while (IsInLobby && !IsInitialized) {
+		while (!HasInitialized && IsMultiplayerActive) {
 			MPMain.LogInfo(
 				"[MPCore] 已向主机请求初始化数据",
 				"[MPCore] Requested initialization data from the host.");
 			var writer = GetWriter();
+			writer.Put(Steamworks.UserSteamId);
+			writer.Put(Steamworks.HostSteamId);
 			writer.Put((int)PacketType.WorldInitRequest);
-			Steamworks.HandleSendToHost(writer);
-			yield return new WaitForSeconds(4.0f);
+			Steamworks.Send(Steamworks.HostSteamId, writer);
+			yield return new WaitForSeconds(2.0f);
 		}
 	}
 
 	/// <summary>
-	/// 加载世界种子
+	/// 主机接收WorldInitRequest: 请求初始化数据
+	/// 发送WorldInitData: 初始化数据给新玩家
 	/// </summary>
-	/// <param name="seed"></param>
-	private void HandleWorldInitRequest(int seed) {
-		// Debug
-		MPMain.LogInfo(
-			$"[MPCore] 加载世界, 种子号: {seed.ToString()}",
-			$"[MPCore] Loaging world, seed: {seed.ToString()}");
-		WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
-		MultiplayerStatus |= MPStatus.Initialized;
-	}
-
-	/// <summary>
-	/// 发送初始化数据给新玩家
-	/// </summary>
-	private void HandleWorldInit(SteamId steamId) {
+	/// <todo>将writer的拷贝byte[]改成byte[]视图,实现零拷贝</todo>
+	private void HandleWorldInitRequest(SteamId steamId) {
 		// 发送世界种子
 		var writer = GetWriter();
+		writer.Put(Steamworks.UserSteamId);
+		writer.Put(steamId);
 		writer.Put((int)PacketType.WorldInitData);
 		writer.Put(WorldLoader.instance.seed);
-		Steamworks.HandleSendToPeer(steamId, writer);
+
+		// 玩家列表
+		List<ulong> playerList = new List<ulong>();
+		// 主机本身
+		playerList.Add(Steamworks.UserSteamId);
+		// 发送已存在玩家数据
+		foreach (var playerId in Steamworks._connectedClients.Keys) {
+			// 如果映射玩家的Id是其自己,跳过发送
+			if (steamId == playerId)
+				continue;
+			playerList.Add(playerId);
+		}
+
+		writer.Put(playerList.Count);
+		foreach (var playerId in playerList) {
+			writer.Put(playerId);
+		}
 
 		// 可以添加其他初始化数据,如游戏状态、物品状态等
-
+		Steamworks.Send(steamId, writer);
 		// Debug
 		MPMain.LogInfo(
 			"[MPCore] 已向新玩家发送初始化数据",
@@ -601,82 +634,172 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 处理玩家传送请求
+	/// 客户端接收WorldInitData: 新加入玩家,加载世界种子和已存在玩家
 	/// </summary>
-	/// <param name="senderId">发送方ID</param>
-	private void HandleRequestTeleport(SteamId senderId) {
-		// 获取数据
-		var deathFloorData = DEN_DeathFloor.instance.GetSaveData();
-		var positionData = ENT_Player.GetPlayer().transform.position;
-		var writer = GetWriter();
-		writer.Put((int)PacketType.RespondPlayerTeleport);
-		writer.Put(deathFloorData.relativeHeight);
-		writer.Put(deathFloorData.active);
-		writer.Put(deathFloorData.speed);
-		writer.Put(deathFloorData.speedMult);
-		writer.Put(positionData.x);
-		writer.Put(positionData.y);
-		writer.Put(positionData.z);
-		Steamworks.HandleSendToPeer(senderId, writer);
+	private void HandleWorldInit(ArraySegment<byte> payload) {
+		var reader = GetReader(payload);
+
+		// 获取种子
+		int seed = reader.GetInt();
+
+		// 获取玩家数
+		int playerCount = reader.GetInt();
+
+		StartMultiPlayerMode();
+
+		// Debug
+		MPMain.LogInfo(
+			$"[MPCore] 加载世界, 种子号: {seed.ToString()}",
+			$"[MPCore] Loaging world, seed: {seed.ToString()}");
+		WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
+
+		for (int i = 0; i < playerCount; i++) {
+			ulong playerId = reader.GetULong(); // 记得使用 GetULong 对应 SteamId
+			RPManager.PlayerCreate(playerId);
+			MPMain.LogInfo(
+				$"[MPCore] 创建已存在的玩家 Id: {playerId.ToString()}",
+				$"[MPCore] Create an existing player Id: {playerId.ToString()}");
+		}
 	}
 
 	/// <summary>
-	/// 处理玩家传送响应
+	/// 主机接收事件总线OnPlayerConnected 发送PlayerCreate: 处理玩家接入事件
 	/// </summary>
-	/// <param name="senderId">发送ID</param>
-	private void HandleRespondTeleport(SteamId senderId, DataReader reader) {
-		var deathFloorData = new DEN_DeathFloor.SaveData {
-			relativeHeight = reader.GetFloat(),
-			active = reader.GetBool(),
-			speed = reader.GetFloat(),
-			speedMult = reader.GetFloat(),
-		};
-		var posX = reader.GetFloat();
-		var posY = reader.GetFloat();
-		var posZ = reader.GetFloat();
-		// 关闭可击杀效果
-		DEN_DeathFloor.instance.SetCanKill(new string[] { "false" });
-		// 重设计数器,期间位移视为传送
-		LPManager.TriggerTeleport();
-		ENT_Player.GetPlayer().Teleport(new Vector3(posX, posY, posZ));
-		DEN_DeathFloor.instance.LoadDataFromSave(deathFloorData);
-		DEN_DeathFloor.instance.SetCanKill(new string[] { "true" });
+	private void ProcessPlayerConnected(SteamId steamId) {
+		//// Debug
+		//MPMain.LogInfo(
+		//	$"[MPCore] 玩家接入: {steamId.ToString()}",
+		//	$"[MPCore] Player connected: {steamId.ToString()}");
+		//// 创建玩家
+		//if (Steamworks.IsHost) {
+		//	RPManager.PlayerCreate(steamId);
+		//	var writer = GetWriter();
+		//	writer.Put(Steamworks.UserSteamId);
+		//	writer.Put(Steamworks.BroadcastId);
+		//	writer.Put((int)PacketType.PlayerCreate);
+		//	writer.Put(steamId.Value);
+		//	var data = MPDataSerializer.WriterToBytes(writer);
+		//	Steamworks.HandleBroadcastExcept(steamId, data);
+		//}
+	}
+
+	/// <summary>
+	/// 客户端接收PlayerCreate: 创建玩家映射
+	/// </summary>
+	private void HandlePlayerCreate(ulong playerId) {
+		// 不需要创建自己的映射
+		//if (playerId == Steamworks.UserSteamId) {
+		//	return;
+		//}
+
+		//MPMain.LogInfo(
+		//	$"[MPCore] 创建玩家映射 Id: {playerId.ToString()}",
+		//	$"[MPCore] Create player Id: {playerId.ToString()}");
+		//RPManager.PlayerCreate(playerId);
+	}
+
+	/// <summary>
+	/// 主机事件总线OnPlayerDisconnected 发送PlayerRemove: 处理玩家断连 
+	/// 客户端事件总线OnPlayerDisconnected: 对可能的主机离线进行删除
+	/// </summary>
+	private void ProcessPlayerDisconnected(SteamId steamId) {
+		//// Debug
+		//MPMain.LogInfo(
+		//	$"[MPCore] 玩家断连: {steamId.ToString()}",
+		//	$"[MPCore] Player disconnected: {steamId.ToString()}");
+		//RPManager.PlayerRemove(steamId.Value);
+		//// 如果是主机 广播删除玩家映射
+		//if (Steamworks.IsHost) {
+		//	var writer = GetWriter();
+		//	writer.Put(Steamworks.UserSteamId);
+		//	writer.Put(Steamworks.BroadcastId);
+		//	writer.Put((int)PacketType.PlayerRemove);
+		//	writer.Put(steamId.Value);
+		//	var data = MPDataSerializer.WriterToBytes(writer);
+		//	Steamworks.HandleBroadcastExcept(steamId, data);
+		//}
+	}
+
+	/// <summary>
+	/// 客户端接收PlayerRemove: 销毁玩家映射
+	/// </summary>
+	private void HandlePlayerRemove(ulong playerId) {
+		// 自己已经离线,不需要再销毁
+		//if (playerId == Steamworks.UserSteamId)
+		//	return;
+
+		//MPMain.LogInfo(
+		//	$"[MPCore] 销毁玩家映射 Id: {playerId.ToString()}",
+		//	$"[MPCore] Destroy player Id: {playerId.ToString()}");
+		//RPManager.PlayerRemove(playerId);
+	}
+
+	/// <summary>
+	/// 主机/客户端接收PlayerDataUpdate: 处理玩家数据更新
+	/// </summary>
+	private void HandlePlayerDataUpdate(ArraySegment<byte> payload) {
+		var reader = GetReader(payload);
+
+		// 如果是从转发给自己的,忽略
+		var playerData = MPDataSerializer.ReadFromNetData(reader);
+		var playId = playerData.playId;
+		if (playId == Steamworks.UserSteamId) {
+			return;
+		}
+		RPManager.ProcessPlayerData(playId, playerData);
+	}
+
+	/// <summary>
+	/// 主机/客户端接收BroadcastMessage: 处理玩家标签更新
+	/// </summary>
+	private void HandlePlayerTagUpdate(ulong senderId, ArraySegment<byte> payload) {
+		var reader = GetReader(payload);
+
+		string msg = reader.GetString();    // 读取消息
+
+		CommandConsole.Log($"{senderId}: {msg}");
+		// 控制台目前不支持中文
+		//string playerName = new Friend(playerId).Name;
+		//CommandConsole.Log($"{playerName}: {msg}");
+		RPManager.Players[senderId].UpdateNameTag(msg);
 	}
 
 	/// <summary>
 	/// 主机/客户端接收PlayerDamage: 受到伤害
 	/// </summary>
-	private void HandlePlayerDamage(DataReader reader) {
+	private void HandlePlayerDamage(ulong senderId, ArraySegment<byte> payload) {
+		var reader = GetReader(payload);
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
-		var baseDamage = amount * MPConfig.AllPassive;
+		var player = senderId;
+		var baseDamage = amount * MPConfig.AllActive;
 		switch (type) {
 			case "Hammer":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.HammerPassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.HammerActive, type);
 				break;
 			case "rebar":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarPassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarActive, type);
 				break;
 			case "returnrebar":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ReturnRebarPassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ReturnRebarActive, type);
 				break;
 			case "rebarexplosion":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionPassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionActive, type);
 				break;
 			case "explosion":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ExplosionPassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionActive, type);
 				break;
 			case "piton":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.PitonPassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.PitonActive, type);
 				break;
 			case "flare":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.FlarePassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.FlareActive, type);
 				break;
 			case "ice":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.IcePassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.IceActive, type);
 				break;
 			default:
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.OtherPassive, type);
+				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.OtherActive, type);
 				break;
 		}
 	}
@@ -684,7 +807,8 @@ public class MPCore : MonoBehaviour {
 	/// <summary>
 	/// 主机/客户端接收PlayerAddForce: 受到冲击力
 	/// </summary>
-	private void HandlePlayerAddForce(DataReader reader) {
+	private void HandlePlayerAddForce(ulong senderId, ArraySegment<byte> payload) {
+		var reader = GetReader(payload);
 		Vector3 force = new Vector3 {
 			x = reader.GetFloat(),
 			y = reader.GetFloat(),
@@ -695,58 +819,222 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
+	/// 主机/客户端接收PlayerTeleport
+	/// 发送RespondPlayerTeleport: 携带Mess数据
+	/// </summary>
+	private void HandlePlayerTeleport(ulong senderId, ArraySegment<byte> payload) {
+		// 获取数据
+		var deathFloorData = DEN_DeathFloor.instance.GetSaveData();
+		var position = ENT_Player.GetPlayer().transform.position;
+		var writer = GetWriter();
+		writer.Put(Steamworks.UserSteamId);// 作为接收方重新变成发送方
+		writer.Put(senderId);// 作为发送方重新变成接收方
+		writer.Put((int)PacketType.RespondPlayerTeleport);
+		writer.Put(deathFloorData.relativeHeight);
+		writer.Put(deathFloorData.active);
+		writer.Put(deathFloorData.speed);
+		writer.Put(deathFloorData.speedMult);
+		writer.Put(position.x);
+		writer.Put(position.y);
+		writer.Put(position.z);
+
+		Steamworks.Send(senderId, writer);
+	}
+
+	/// <summary>
+	/// 主机/客户端接收RespondPlayerTeleport: 同步Mess数据并传送
+	/// </summary>
+	private void HandleRespondPlayerTeleport(ulong senderId, ArraySegment<byte> payload) {
+		var reader = GetReader(payload);
+
+		var deathFloorData = new DEN_DeathFloor.SaveData {
+			relativeHeight = reader.GetFloat(),
+			active = reader.GetBool(),
+			speed = reader.GetFloat(),
+			speedMult = reader.GetFloat(),
+		};
+		var position = new Vector3 {
+			x = reader.GetFloat(),
+			y = reader.GetFloat(),
+			z = reader.GetFloat(),
+		};
+		// 关闭可击杀效果
+		DEN_DeathFloor.instance.SetCanKill(new string[] { "false" });
+		// 重设计数器,期间位移视为传送
+		_teleport.Reset();
+		ENT_Player.GetPlayer().Teleport(position);
+		DEN_DeathFloor.instance.LoadDataFromSave(deathFloorData);
+		DEN_DeathFloor.instance.SetCanKill(new string[] { "true" });
+	}
+
+	/// <summary>
 	/// 处理网络接收数据
 	/// </summary>
-	private void HandleReceiveData(ulong senderId, ArraySegment<byte> data) {
+	/// <param name="connectionId"></param>
+	/// <param name="data"></param>
+	private void HandleReceiveData(ulong connectionId, ArraySegment<byte> data) {
+		if (data.Array == null || data.Count < 20) return;
 
-		// 基本验证：确保数据足够读取一个整数(数据包类型)
-		var reader = GetReader(data);
-		PacketType packetType = (PacketType)reader.GetInt();
+		// 直接解析头部
+		ReadOnlySpan<byte> span = data;
+		// 发送方ID
+		ulong senderId = ReadUInt64LittleEndian(span);
+		// 接收方ID
+		ulong targetId = ReadUInt64LittleEndian(span.Slice(8));
+
+		// 主机特权：分拣转发
+		if (Steamworks.IsHost) {
+			// 验证：如果发件人 ID 和物理连接 ID 对不上,可能是伪造包
+			if (senderId != connectionId) return;
+
+			// 转发：目标不是我,也不是广播
+			if (targetId != Steamworks.UserSteamId && targetId != Steamworks.BroadcastId) {
+				ForwardToPeer(targetId, data);
+				return; // 结束
+			}
+
+			// 广播：如果是广播,且不是我发出的
+			if (targetId == Steamworks.BroadcastId && connectionId != Steamworks.UserSteamId) {
+				BroadcastExcept(senderId, data);
+				// 继续往下走,因为主机也要处理广播包
+			}
+		}
+
+		// 包类型
+		PacketType packetType = (PacketType)ReadInt32LittleEndian(span.Slice(16));
+		// 包具体数据
+		var payload = data.Slice(20);
 
 		switch (packetType) {
-			// 接收种子加载
-			case PacketType.WorldInitData:
-				HandleWorldInitRequest(reader.GetInt());
+			// 仅主机接收: 请求初始化数据
+			case PacketType.WorldInitRequest: {
+				HandleWorldInitRequest(senderId);
 				break;
-			// 接收玩家数据更新
-			case PacketType.PlayerDataUpdate:
-				var playerData = MPDataSerializer.ReadFromNetData(reader);
-				RPManager.ProcessPlayerData(senderId, playerData);
+			}
+			// 接收: 联机世界初始化数据
+			case PacketType.WorldInitData: {
+				HandleWorldInit(payload);
 				break;
-			// 接收世界初始化请求
-			case PacketType.WorldInitRequest:
-				HandleWorldInit(senderId);
+			}
+			// 接收: 创建玩家映射
+			case PacketType.PlayerCreate: {
+				//if (payload.Count >= 8) {
+				//	ulong newPlayerId = ReadUInt64LittleEndian(payload);
+				//	HandlePlayerCreate(newPlayerId);
+				//} else {
+				//	// 处理异常情况：载荷长度不足
+				//	MPMain.LogError(
+				//		"[MPCore] PlayerCreate 包数据长度不足 8 字节",
+				//		"[MPCore] PlayerCreate packet data length is less than 8 bytes.");
+				//}
 				break;
-			// 接收信息
-			case PacketType.BroadcastMessage:
-				string receivedMsg = reader.GetString();
-				CommandConsole.Log($"{senderId.ToString()}: {receivedMsg}");
-				// 控制台目前不支持中文
-				//string playerName = new Friend(playerId).Name;
-				//CommandConsole.Log($"{playerName}: {receivedMsg}");
-				RPManager.Players.TryGetValue(senderId, out var RPcontainer);
-				RPcontainer?.UpdateNameTag(receivedMsg);
+			}
+			// 接收: 销毁玩家映射
+			case PacketType.PlayerRemove: {
+				//if (payload.Count >= 8) {
+				//	HandlePlayerRemove(ReadUInt64LittleEndian(payload));
+				//} else {
+				//	// 处理异常情况：载荷长度不足
+				//	MPMain.LogError(
+				//		"[MPCore] PlayerRemove 包数据长度不足 8 字节",
+				//		"[MPCore] PlayerRemove packet data length is less than 8 bytes.");
+				//}
 				break;
-			// 接收传送请求
-			case PacketType.PlayerTeleport:
-				HandleRequestTeleport(senderId);
+			}
+			// 接收: 玩家数据更新
+			case PacketType.PlayerDataUpdate: {
+				HandlePlayerDataUpdate(payload);
 				break;
-			// 接收传送响应
-			case PacketType.RespondPlayerTeleport:
-				HandleRespondTeleport(senderId, reader);
+			}
+			// 接收: 世界状态同步
+			case PacketType.WorldStateSync: {
 				break;
+			}
+			// 接收: 广播消息
+			case PacketType.BroadcastMessage: {
+				HandlePlayerTagUpdate(senderId, payload);
+				break;
+			}
 			// 接收: 受到伤害
 			case PacketType.PlayerDamage: {
-				HandlePlayerDamage(reader);
+				HandlePlayerDamage(senderId, payload);
 				break;
 			}
 			// 接收: 受到冲击力
 			case PacketType.PlayerAddForce: {
-				HandlePlayerAddForce(reader);
+				HandlePlayerAddForce(senderId, payload);
+				break;
+			}
+
+			// 接收: 请求传送
+			case PacketType.PlayerTeleport: {
+				HandlePlayerTeleport(senderId, payload);
+				break;
+			}
+			// 接收: 响应传送
+			case PacketType.RespondPlayerTeleport: {
+				HandleRespondPlayerTeleport(senderId, payload);
+				break;
+			}
+
+			default: {
 				break;
 			}
 		}
 	}
 	#endregion
 
+	#region[网络发送工具类]
+	/// <summary>
+	/// 转发网络数据包到指定的客户端
+	/// </summary>
+	private void ForwardToPeer(ulong targetId, ArraySegment<byte> data) {
+		// 直接从 segment 获取偏移和长度
+		int offset = data.Offset;
+		int count = data.Count;
+		// 解析类型
+		PacketType type = (PacketType)BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(16, 4));
+		SendType st = (type == PacketType.PlayerDataUpdate)
+			? SendType.Unreliable : SendType.Reliable;
+
+		Steamworks.HandleSendToPeer(targetId, data.Array, offset, count, st);
+	}
+
+	/// <summary>
+	/// 广播数据包到所有客户端
+	/// </summary>
+	public void Broadcast(ArraySegment<byte> data) {
+		// 直接从 segment 获取偏移和长度
+		int offset = data.Offset;
+		int count = data.Count;
+
+		// 解析类型
+		PacketType type = (PacketType)BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(16, 4));
+
+		SendType st = (type == PacketType.PlayerDataUpdate)
+			? SendType.Unreliable : SendType.Reliable;
+
+		// 将全套参数传给底层
+		Steamworks.HandleBroadcast(data.Array, offset, count, st);
+	}
+
+	/// <summary>
+	/// 广播数据包到所有客户端 (除了发送者)
+	/// </summary>
+	/// <param name="senderId">发送方ID</param>
+	public void BroadcastExcept(ulong senderId, ArraySegment<byte> data) {
+		// 直接从 segment 获取偏移和长度
+		int offset = data.Offset;
+		int count = data.Count;
+
+		// 解析类型
+		PacketType type = (PacketType)BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(16, 4));
+
+		SendType st = (type == PacketType.PlayerDataUpdate)
+			? SendType.Unreliable : SendType.Reliable;
+
+		// 将全套参数传给底层
+		Steamworks.HandleBroadcastExcept(senderId, data.Array, offset, count, st);
+	}
+	#endregion
 }
