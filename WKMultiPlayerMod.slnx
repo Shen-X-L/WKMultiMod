@@ -25,25 +25,42 @@
     <File Path="lib/GameData/ALINE.dll" />
     <File Path="lib/GameData/Assembly-CSharp-firstpass.dll" />
     <File Path="lib/GameData/Assembly-CSharp.dll" />
+    <File Path="lib/GameData/DarkMachineUI.dll" />
     <File Path="lib/GameData/Facepunch.Steamworks.Win64.dll" />
-    <File Path="lib/GameData/Unity.Mathematics.dll" />
-    <File Path="lib/GameData/Unity.Mathematics.Extensions.dll" />
-    <File Path="lib/GameData/Unity.Mathematics.Extensions.Hybrid.dll" />
-    <File Path="lib/GameData/UnityEngine.CoreModule.dll" />
-    <File Path="lib/GameData/UnityEngine.dll" />
-    <File Path="lib/GameData/UnityEngine.InputLegacyModule.dll" />
-    <File Path="lib/GameData/UnityEngine.PhysicsModule.dll" />
-    <File Path="lib/GameData/UnityEngine.TextRenderingModule.dll" />
-    <File Path="lib/GameData/UnityEngine.UI.dll" />
   </Folder>
+  <Folder Name="/lib/Shared/" />
   <Folder Name="/lib/Temp/">
-    <File Path="lib/Temp/Unity.Mathematics.dll" />
     <File Path="lib/Temp/Unity.Netcode.Components.dll" />
     <File Path="lib/Temp/Unity.Netcode.Runtime.dll" />
     <File Path="lib/Temp/Unity.Networking.Transport.dll" />
+    <File Path="lib/Temp/Unity.TextMeshPro.dll" />
+    <File Path="lib/Temp/UnityEngine.ImageConversionModule.dll" />
+    <File Path="lib/Temp/UnityEngine.TextCoreFontEngineModule.dll" />
+    <File Path="lib/Temp/UnityEngine.TextCoreTextEngineModule.dll" />
+    <File Path="lib/Temp/UnityEngine.TextRenderingModule.dll" />
+    <File Path="lib/Temp/UnityEngine.UI.dll" />
+    <File Path="lib/Temp/UnityEngine.UIElementsModule.dll" />
+    <File Path="lib/Temp/UnityEngine.UIModule.dll" />
   </Folder>
-  <Folder Name="/src/">
-    <Project Path="src/WKMultiPlayerMod.csproj" />
+  <Folder Name="/lib/Unity/">
+    <File Path="lib/Unity/Unity.Mathematics.dll" />
+    <File Path="lib/Unity/Unity.Mathematics.Extensions.dll" />
+    <File Path="lib/Unity/Unity.Mathematics.Extensions.Hybrid.dll" />
+    <File Path="lib/Unity/Unity.Postprocessing.Runtime.dll" />
+    <File Path="lib/Unity/UnityEngine.AssetBundleModule.dll" />
+    <File Path="lib/Unity/UnityEngine.CoreModule.dll" />
+    <File Path="lib/Unity/UnityEngine.dll" />
+    <File Path="lib/Unity/UnityEngine.InputLegacyModule.dll" />
+    <File Path="lib/Unity/UnityEngine.PhysicsModule.dll" />
+    <File Path="lib/Unity/UnityEngine.TextRenderingModule.dll" />
+    <File Path="lib/Unity/UnityEngine.UI.dll" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/WKMultiPlayerMod.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/WKMultiPlayerMod.Shared.csproj" />
   </Folder>
   <Folder Name="/temp/" />
   <Folder Name="/temp/DailyKnuckle/">
@@ -57,6 +74,9 @@
   </Folder>
   <Folder Name="/temp/SteamWorks/">
     <File Path="temp/SteamWorks/SteamWorks.csproj" />
+  </Folder>
+  <Folder Name="/temp/WKLib/">
+    <Project Path="temp/WKLib/WKLib.csproj" />
   </Folder>
   <Folder Name="/temp/WKMP/">
     <Project Path="temp/WKMP/WKMP.csproj" />
