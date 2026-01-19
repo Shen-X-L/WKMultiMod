@@ -66,14 +66,25 @@ public class MPMain : BaseUnityPlugin {
 		if (MPConfig.DebugLogLanguage == 0) Logger.LogInfo(chineseLog);
 		else Logger.LogInfo(englishLog);
 	}
+	public static void LogInfo(string log) {
+		Logger.LogInfo(log);
+	}
 
 	public static void LogWarning(string chineseLog, string englishLog) {
 		if (MPConfig.DebugLogLanguage == 0) Logger.LogWarning(chineseLog);
 		else Logger.LogWarning(englishLog);
 	}
 
+	public static void LogWarning(string log) {
+		Logger.LogWarning(log);
+	}
+
 	public static void LogError(string chineseLog, string englishLog) {
 		if (MPConfig.DebugLogLanguage == 0) Logger.LogError(chineseLog);
 		else Logger.LogError(englishLog);
+	}
+
+	public static void LogError(string log) {
+		Logger.LogError(log);
 	}
 }
