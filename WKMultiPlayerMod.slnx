@@ -64,25 +64,37 @@
   </Folder>
   <Folder Name="/temp/" />
   <Folder Name="/temp/DailyKnuckle/">
-    <Project Path="temp/DailyKnuckle/DailyKnuckle.csproj" />
+    <Project Path="temp/DailyKnuckle/DailyKnuckle.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/temp/GameSource/">
-    <Project Path="temp/GameSource/GameSource.csproj" />
+    <Project Path="temp/GameSource/GameSource.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/temp/MoreCommand/">
-    <Project Path="temp/MoreCommand/MoreCommand.csproj" />
+    <Project Path="temp/MoreCommand/MoreCommand.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/temp/SteamWorks/">
     <File Path="temp/SteamWorks/SteamWorks.csproj" />
   </Folder>
   <Folder Name="/temp/WKLib/">
-    <Project Path="temp/WKLib/WKLib.csproj" />
+    <Project Path="temp/WKLib/WKLib.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/temp/WKMP/">
-    <Project Path="temp/WKMP/WKMP.csproj" />
+    <Project Path="temp/WKMP/WKMP.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/temp/WK_IShowSeed/">
-    <Project Path="temp/WK_IShowSeed/WK_IShowSeed.csproj" />
+    <Project Path="temp/WK_IShowSeed/WK_IShowSeed.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/test.csproj">

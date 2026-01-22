@@ -10,7 +10,7 @@ public class Patch_ENT_Player {
 	[HarmonyPatch("Kill")]
 	public static void Postfix(ENT_Player __instance, string type) {
 		if (MPCore.IsInLobby) {
-			MPEventBusGame.NotifyPlayerDeath();
+			MPEventBusGame.NotifyPlayerDeath(type);
 			MPMain.LogInfo($"[Patch] 玩家死亡,类型: {type}", $"[Patch] Player death,type: {type}");
 		}
 	}

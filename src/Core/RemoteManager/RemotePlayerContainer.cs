@@ -445,7 +445,7 @@ public class RemotePlayerContainer {
 				"[RPCont] PlayerNameTag component not added");
 			return;
 		}
-		_remoteTag.SetDynamicMessage(text);
+		_remoteTag.Message = text;
 		return;
 	}
 

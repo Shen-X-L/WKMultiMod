@@ -13,8 +13,8 @@ using WKMPMod.NetWork;
 using WKMPMod.RemoteManager;
 using WKMPMod.Util;
 using static System.Buffers.Binary.BinaryPrimitives;
-using static WKMPMod.Util.MPReaderPool;
-using static WKMPMod.Util.MPWriterPool;
+using static WKMPMod.Data.MPReaderPool;
+using static WKMPMod.Data.MPWriterPool;
 namespace WKMPMod.Core;
 
 [Flags]
@@ -81,7 +81,6 @@ public class MPCore : MonoBehaviour {
 		// 初始化网络监听器和远程玩家管理器
 		InitializeAllManagers();
 	}
-
 	void Start() {
 		// 订阅场景切换
 		SceneManager.sceneLoaded += OnSceneLoaded;
@@ -127,6 +126,7 @@ public class MPCore : MonoBehaviour {
 
 			//// 创建本地信息获取发送管理器
 			LPManager = gameObject.AddComponent<LocalPlayer>();
+			LPManager.Initialize(Steamworks.UserSteamId);
 
 			// 订阅事件
 			SubscribeToEvents();
@@ -162,7 +162,7 @@ public class MPCore : MonoBehaviour {
 		MPEventBusGame.OnPlayerMove += SeedLocalPlayerData;
 		MPEventBusGame.OnPlayerDamage += HandlePlayerDamage;
 		MPEventBusGame.OnPlayerAddForce += HandlePlayerAddForce;
-		MPEventBusGame.OnPlayerDeath += ResetStateVariables;
+		MPEventBusGame.OnPlayerDeath += HandlePlayerDeath;
 	}
 
 	/// <summary>
@@ -186,7 +186,7 @@ public class MPCore : MonoBehaviour {
 		MPEventBusGame.OnPlayerMove -= SeedLocalPlayerData;
 		MPEventBusGame.OnPlayerDamage -= HandlePlayerDamage;
 		MPEventBusGame.OnPlayerAddForce -= HandlePlayerAddForce;
-		MPEventBusGame.OnPlayerDeath -= ResetStateVariables;
+		MPEventBusGame.OnPlayerDeath -= HandlePlayerDeath;
 	}
 
 	#endregion
@@ -290,6 +290,10 @@ public class MPCore : MonoBehaviour {
 		writer.Put(source);
 		Steamworks.Send(steamId, writer);
 	}
+
+	private void HandlePlayerDeath(string type) {
+		ResetStateVariables();
+	} 
 
 	#endregion
 
