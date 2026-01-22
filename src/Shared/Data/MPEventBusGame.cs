@@ -21,6 +21,6 @@ public static class MPEventBusGame {
 		=> OnPlayerAddForce?.Invoke(steamId, force, source);
 
 	// 游戏事件: 玩家死亡
-	public static event Action OnPlayerDeath;
-	public static void NotifyPlayerDeath() => OnPlayerDeath?.Invoke();
+	public static event Action<string> OnPlayerDeath;
+	public static void NotifyPlayerDeath(string type) => OnPlayerDeath?.Invoke(type);
 }

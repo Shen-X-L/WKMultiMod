@@ -3,13 +3,15 @@
 namespace WKMPMod.Component;
 
 // BillboardComponent: 使文本框始终面向摄像机
-public class LootAt : MonoBehaviour {
+public class LookAt : MonoBehaviour {
 	private Camera? mainCamera;
 
 	[Header("锁定大小")]
 	public bool maintainScreenSize = true;
 	[Header("初始缩放比例")]
 	public float baseScale = 0.05f; // 初始缩放比例
+	[Header("用户设置缩放比例")]
+	public float userScale = 1f;
 
 	void LateUpdate() {
 		if (mainCamera == null) {
@@ -33,7 +35,7 @@ public class LootAt : MonoBehaviour {
 			}
 
 			// 应用基础大小调节
-			float finalScale = scaleMultiplier * baseScale;
+			float finalScale = scaleMultiplier * baseScale * userScale;
 
 			transform.localScale = new Vector3(finalScale, finalScale, finalScale);
 		}
