@@ -106,5 +106,6 @@
     <File Path=".gitignore" />
     <File Path="README.md" />
     <File Path="README_CN.md" />
+    <File Path="TODO.md" />
   </Folder>
 </Solution>

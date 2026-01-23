@@ -93,6 +93,8 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 		return false;
 	}
 
+	// 获取全部在线玩家
+	public IEnumerable<Friend> Friends { get; private set; }
 	#region[生命周期函数]
 	void Awake() {
 		//SteamClient.Init(3195790u);
@@ -209,7 +211,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 主机/客户端 发送数据: 本机->目标玩家
 	/// </summary>
-	public void Send(ulong targetId, DataWriter writer,
+	public void SendToPeer(ulong targetId, DataWriter writer,
 					 SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 		var segment = writer.Data;
 		if (IsHost) {
@@ -222,7 +224,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 主机/客户端 发送数据: 本机->目标玩家
 	/// </summary>
-	public void Send(ulong targetId, byte[] data,
+	public void SendToPeer(ulong targetId, byte[] data,
 					 SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 		if (IsHost) {
 			HandleSendToPeer(targetId, data, sendType, laneIndex);
@@ -234,7 +236,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// <summary>
 	/// 主机/客户端 发送数据: 本机->目标玩家
 	/// </summary>
-	public void Send(ulong targetId, byte[] data, int offset, int length,
+	public void SendToPeer(ulong targetId, byte[] data, int offset, int length,
 					 SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 		if (IsHost) {
 			HandleSendToPeer(targetId, data, offset, length, sendType, laneIndex);

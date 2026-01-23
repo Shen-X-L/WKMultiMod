@@ -30,6 +30,27 @@ public enum MPStatus {
 	INIT_MASK = 0b1,    // 初始化掩码
 	LOBBY_MASK = 0b11_0,// 大厅状态掩码
 }
+public static class MPStatusExtension {
+	// 设置特定字段
+	public static MPStatus SetField(this ref MPStatus status, MPStatus mask, MPStatus value) {
+		// 清除原有值，设置新值
+		return status = (status & ~mask) | (value & mask);
+	}
+
+	// 获取特定字段
+	public static MPStatus GetField(this MPStatus status, MPStatus mask) {
+		return status & mask;
+	}
+
+	public static bool IsInLobby(this MPStatus status) {
+		return GetField(status, MPStatus.LOBBY_MASK) == MPStatus.InLobby
+			|| GetField(status, MPStatus.LOBBY_MASK) == MPStatus.JoiningLobby;
+	}
+
+	public static bool IsInitialized(this MPStatus status) {
+		return GetField(status, MPStatus.INIT_MASK) == MPStatus.Initialized;
+	}
+}
 
 public class MPCore : MonoBehaviour {
 
@@ -48,17 +69,12 @@ public class MPCore : MonoBehaviour {
 
 	// 世界种子 - 用于同步游戏世界生成
 	public int WorldSeed { get; private set; }
-	// 多人模式状态
-	public static MPStatus MultiplayerStatus { get; private set; } = MPStatus.NotInitialized;
-	// 是否处于大厅中
-	public static bool IsInLobby =>
-		(MultiplayerStatus & MPStatus.LOBBY_MASK) == MPStatus.InLobby
-		|| (MultiplayerStatus & MPStatus.LOBBY_MASK) == MPStatus.JoiningLobby;
-	public static bool IsInitialized =>
-		(MultiplayerStatus & MPStatus.INIT_MASK) == MPStatus.Initialized;
-	// 混乱模式开关
-	public static bool IsChaosMod { get; private set; } = false;
 
+	// 多人模式状态
+	private static MPStatus _multiPlayerStatus = MPStatus.NotInitialized;
+	public static MPStatus MultiPlayerStatus { get => _multiPlayerStatus; private set => _multiPlayerStatus = value; }
+	public static bool IsInLobby => MultiPlayerStatus.IsInLobby();
+	public static bool IsInitialized => MultiPlayerStatus.IsInitialized();
 
 	#region[Unity组件生命周期函数]
 
@@ -194,19 +210,14 @@ public class MPCore : MonoBehaviour {
 	/// <summary>
 	/// 场景加载完成时调用
 	/// </summary>
-	/// <param name="scene"></param>
-	/// <param name="mode"></param>
 	private void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
 		// Debug
 		MPMain.LogInfo(
 			$"[MPCore] 场景加载完成: {scene.name}",
 			$"[MPCore] Scene loading completed: {scene.name}");
 
-		IsChaosMod = false;
-
 		switch (scene.name) {
-			case "Game-Main":
-			case "Playground":
+			case "Game-Main": {
 				// 注册命令和初始化世界数据
 				if (CommandConsole.instance != null) {
 					RegisterCommands();
@@ -217,7 +228,20 @@ public class MPCore : MonoBehaviour {
 						"[MPCore] After scene loading, the CommandConsole instance is still null; cannot register commands.");
 				}
 				break;
-
+			}
+			case "Playground": {
+				// 注册命令和初始化世界数据
+				if (CommandConsole.instance != null) {
+					RegisterCommands();
+					_multiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.Initialized);
+				} else {
+					// Debug
+					MPMain.LogError(
+						"[MPCore] 场景加载后 CommandConsole 实例仍为 null, 无法注册命令.",
+						"[MPCore] After scene loading, the CommandConsole instance is still null; cannot register commands.");
+				}
+				break;
+			}
 			case "Main-Menu":
 				ResetStateVariables();
 				break;
@@ -232,20 +256,24 @@ public class MPCore : MonoBehaviour {
 	#region[状态设置]
 
 	/// <summary>
+	/// 死亡时延迟退出联机模式
+	/// </summary>
+	private IEnumerator OnDeathSequence() {
+		yield return new WaitForSeconds(0.5f);
+		ResetStateVariables();
+		yield break;
+	}
+
+	/// <summary>
 	/// 退出联机模式时重置设置
 	/// </summary>
 	private void ResetStateVariables() {
-		CloseMultiPlayerMode();
+		MultiPlayerStatus = MPStatus.NotInitialized | MPStatus.NotInLobby;
 		Steamworks.DisconnectAll();
 		RPManager.ResetAll();
 		MPMain.LogInfo(
 			"[MPCore] 所有资源清理完毕",
 			"[MPCore] All resources cleaned up");
-	}
-
-	// 关闭多人联机模式
-	public static void CloseMultiPlayerMode() {
-		MultiplayerStatus = MPStatus.NotInitialized | MPStatus.NotInLobby;
 	}
 
 	#endregion
@@ -276,7 +304,7 @@ public class MPCore : MonoBehaviour {
 		var writer = GetWriter(Steamworks.UserSteamId, steamId, PacketType.PlayerDamage);
 		writer.Put(amount);
 		writer.Put(type);
-		Steamworks.Send(steamId, writer);
+		Steamworks.SendToPeer(steamId, writer);
 	}
 
 	/// <summary>
@@ -288,11 +316,28 @@ public class MPCore : MonoBehaviour {
 		writer.Put(force.y);
 		writer.Put(force.z);
 		writer.Put(source);
-		Steamworks.Send(steamId, writer);
+		Steamworks.SendToPeer(steamId, writer);
 	}
 
+	/// <summary>
+	/// 发送玩家死亡信息
+	/// </summary>
 	private void HandlePlayerDeath(string type) {
-		ResetStateVariables();
+		var writer = GetWriter(Steamworks.UserSteamId, Steamworks.BroadcastId, PacketType.PlayerDeath);
+		writer.Put(type);
+		Steamworks.Broadcast(writer);
+
+		switch (SceneManager.GetActiveScene().name) {
+			case "Game-Main": {
+				// 断开网络连接
+				StartCoroutine(OnDeathSequence());
+				break;
+			}
+			default: {
+
+				break;
+			}
+		}
 	} 
 
 	#endregion
@@ -311,9 +356,7 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.AddCommand("getconnections", GetAllConnections);
 		CommandConsole.AddCommand("talk", Talk);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
-		CommandConsole.AddCommand("test0", Test.Test.LoadSlugcat, false);
-		CommandConsole.AddCommand("test1", Test.Test.CreateSlugcat, false);
-		CommandConsole.AddCommand("test2", Test.Test.GetGraphicsAPI, false);
+		CommandConsole.AddCommand("test0", Test.Test.GetGraphicsAPI, false);
 	}
 
 	// 命令实现
@@ -338,11 +381,25 @@ public class MPCore : MonoBehaviour {
 			$"[MPCore] 正在创建大厅: {roomName}...",
 			$"[MPCore] Creating lobby: {roomName}...");
 
+		//设置为正在连接
+		_multiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
+
 		// 使用协程版本(内部已改为异步)
 		Steamworks.CreateRoom(roomName, maxPlayers, (success) => {
 			if (success) {
-				MultiplayerStatus = MPStatus.InLobby | MPStatus.Initialized;
-				WorldLoader.ReloadWithSeed(new string[] { WorldLoader.instance.seed.ToString() });
+				// 这个触发比加入大厅回调触发慢
+				_multiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.InLobby);
+				_multiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.Initialized);
+
+				switch (SceneManager.GetActiveScene().name) {
+					case "Game-Main": {
+						WorldLoader.ReloadWithSeed(new string[] { WorldLoader.instance.seed.ToString() });
+						break;
+					}
+					default: {
+						break;
+					}
+				}
 			} else {
 				CommandConsole.LogError("Fail to create lobby");
 			}
@@ -368,12 +425,14 @@ public class MPCore : MonoBehaviour {
 				$"[MPCore] 正在加入大厅: {lobbyId.ToString()}...",
 				$"[MPCore] Joining lobby: {lobbyId.ToString()}...");
 
+			//设置为正在连接
+			_multiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
+
 			Steamworks.JoinRoom(lobbyId, (success) => {
 				if (success) {
-					//由加载器实现模式切换
-					//StartMultiPlayerMode();
-					MultiplayerStatus = MPStatus.InLobby;
+					_multiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 				} else {
+					_multiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 					CommandConsole.LogError("Fail to join lobby");
 				}
 			});
@@ -455,7 +514,7 @@ public class MPCore : MonoBehaviour {
 			// 找到对应id,发出传送请求
 			var writer = GetWriter(Steamworks.UserSteamId, ids[0], PacketType.PlayerTeleport);
 
-			Steamworks.Send(ids[0], writer);
+			Steamworks.SendToPeer(ids[0], writer);
 		}
 	}
 
@@ -472,6 +531,15 @@ public class MPCore : MonoBehaviour {
 			MPMain.LogInfo(
 				$"[MPCore] 全部连接 SteamId: {steamid.ToString()} 连接Id: {connection.ToString()}",
 				$"[MPCore] All connections SteamId: {steamid.ToString()} connections Id: {connection.ToString()}");
+		}
+	}
+
+	/// <summary>
+	/// 获取全部玩家
+	/// </summary>
+	public void GetAllPlayer(string[] args) {
+		foreach (var friend in Steamworks.Friends) {
+			CommandConsole.Log($"Name: {friend.Name}, Id: {friend.Id}");
 		}
 	}
 	#endregion
@@ -580,8 +648,8 @@ public class MPCore : MonoBehaviour {
 				"[MPCore] 已向主机请求初始化数据",
 				"[MPCore] Requested initialization data from the host.");
 			var writer = GetWriter(Steamworks.UserSteamId, Steamworks.HostSteamId, PacketType.WorldInitRequest);
-			Steamworks.Send(Steamworks.HostSteamId, writer);
-			yield return new WaitForSeconds(2.0f);
+			Steamworks.SendToPeer(Steamworks.HostSteamId, writer);
+			yield return new WaitForSeconds(4.0f);
 		}
 	}
 
@@ -613,7 +681,7 @@ public class MPCore : MonoBehaviour {
 		}
 
 		// 可以添加其他初始化数据,如游戏状态、物品状态等
-		Steamworks.Send(steamId, writer);
+		Steamworks.SendToPeer(steamId, writer);
 		// Debug
 		MPMain.LogInfo(
 			"[MPCore] 已向新玩家发送初始化数据",
@@ -636,10 +704,11 @@ public class MPCore : MonoBehaviour {
 		MPMain.LogInfo(
 			$"[MPCore] 加载世界, 种子号: {seed.ToString()}",
 			$"[MPCore] Loaging world, seed: {seed.ToString()}");
-		WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
 
-		// 设为已初始化
-		MultiplayerStatus |= MPStatus.Initialized;
+		// 种子相同默认为已经联机过,只不过断开了
+		if (seed != WorldLoader.instance.seed)
+			WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
+		_multiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.Initialized);
 
 		for (int i = 0; i < playerCount; i++) {
 			ulong playerId = reader.GetULong(); // 记得使用 GetULong 对应 SteamId
@@ -747,6 +816,20 @@ public class MPCore : MonoBehaviour {
 	}
 
 	/// <summary>
+	/// 主机/客户端接收PlayerDeath: 玩家死亡
+	/// </summary>
+	private void ProcessPlayerDeath(ulong senderId, ArraySegment<byte> payload) {
+		var reader = GetReader(payload);
+		string type = reader.GetString();
+		string playerName = new Friend(senderId).Name;
+		if (MPConfig.LogLanguage == 0)
+			CommandConsole.Log($"{playerName} 因 {type} 而死");
+		else
+			CommandConsole.Log($"{playerName} died due to {type}");
+
+	}
+
+	/// <summary>
 	/// 主机/客户端接收PlayerTeleport
 	/// 发送RespondPlayerTeleport: 携带Mess数据
 	/// </summary>
@@ -764,7 +847,7 @@ public class MPCore : MonoBehaviour {
 		writer.Put(position.y);
 		writer.Put(position.z);
 
-		Steamworks.Send(senderId, writer);
+		Steamworks.SendToPeer(senderId, writer);
 	}
 
 	/// <summary>
@@ -876,6 +959,11 @@ public class MPCore : MonoBehaviour {
 				ProcessPlayerAddForce(senderId, payload);
 				break;
 			}
+			// 接收: 玩家死亡
+			case PacketType.PlayerDeath: {
+				ProcessPlayerDeath(senderId, payload);
+				break;
+			}
 
 			// 接收: 请求传送
 			case PacketType.PlayerTeleport: {
@@ -908,7 +996,7 @@ public class MPCore : MonoBehaviour {
 		SendType st = (type == PacketType.PlayerDataUpdate)
 			? SendType.Unreliable : SendType.Reliable;
 
-		Steamworks.Send(targetId, data.Array, offset, count, st);
+		Steamworks.SendToPeer(targetId, data.Array, offset, count, st);
 	}
 
 	/// <summary>
