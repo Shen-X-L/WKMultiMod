@@ -30,11 +30,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	/// 客户端连接信息类
 	/// 封装SteamID和连接对象
 	/// </summary>
-	public struct Client {
-		public SteamId steamId;      // Steam用户ID
-		public Connection connection; // Steamworks连接对象
-	}
-
+	/// 
 	// Debug日志输出间隔
 	private TickTimer _debugTick = new TickTimer(5.0f);
 	private TickTimer _debugTick1 = new TickTimer(3.0f);
@@ -65,7 +61,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 	// 客户端连接管理器
 	internal ConnectionManager _connectionManager;
 	// 已连接客户端字典
-	internal Dictionary<ulong, Client> _connectedClients;
+	internal Dictionary<SteamId, Connection> _connectedClients;
 	// 连接协程句柄
 	private Coroutine _connectionRoutine;
 
@@ -182,7 +178,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 		// 清理所有连接记录
 		// 字典初始化/清理
-		if (_connectedClients == null) _connectedClients = new Dictionary<ulong, Client>();
+		if (_connectedClients == null) _connectedClients = new Dictionary<SteamId, Connection>();
 		else _connectedClients.Clear();
 
 		// 状态重置
@@ -355,12 +351,12 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 				if (canLog) {
 					MPMain.LogInfo(
 						$"[MPSW] 广播数据,当前连接: " +
-						$"SteamId: {steamId.ToString()} 连接Id: {connection.connection.Id.ToString()}",
+						$"SteamId: {steamId.ToString()} 连接Id: {connection.Id.ToString()}",
 						$"[MPSW] Sending data to connections. " +
-						$"SteamId: {steamId.ToString()} ConnectionId: {connection.connection.Id.ToString()}");
+						$"SteamId: {steamId.ToString()} ConnectionId: {connection.Id.ToString()}");
 				}
 
-				connection.connection.SendMessage(data, sendType, laneIndex);
+				connection.SendMessage(data, sendType, laneIndex);
 			} catch (Exception ex) {
 				MPMain.LogError(
 					$"[MPSW] 广播数据异常: {ex.Message}",
@@ -388,12 +384,12 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 				if (canLog) {
 					MPMain.LogInfo(
 						$"[MPSW] 广播数据,当前连接: " +
-						$"SteamId: {steamId.ToString()} 连接Id: {connection.connection.Id.ToString()}",
+						$"SteamId: {steamId.ToString()} 连接Id: {connection.Id.ToString()}",
 						$"[MPSW] Sending data to connections. " +
-						$"SteamId: {steamId.ToString()} ConnectionId: {connection.connection.Id.ToString()}");
+						$"SteamId: {steamId.ToString()} ConnectionId: {connection.Id.ToString()}");
 				}
 
-				connection.connection.SendMessage(data, offset, length, sendType, laneIndex);
+				connection.SendMessage(data, offset, length, sendType, laneIndex);
 			} catch (Exception ex) {
 				MPMain.LogError(
 					$"[MPSW] 广播数据异常: {ex.Message}",
@@ -424,11 +420,11 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 				if (canLog) {
 					MPMain.LogInfo(
 						$"[MPSW] 广播数据,当前连接: " +
-						$"SteamId: {tempSteamId.ToString()} 连接Id: {connection.connection.Id.ToString()}",
+						$"SteamId: {tempSteamId.ToString()} 连接Id: {connection.Id.ToString()}",
 						$"[MPSW] Sending data to connections. " +
-						$"SteamId: {tempSteamId.ToString()} ConnectionId: {connection.connection.Id.ToString()}");
+						$"SteamId: {tempSteamId.ToString()} ConnectionId: {connection.Id.ToString()}");
 				}
-				connection.connection.SendMessage(data, sendType, laneIndex);
+				connection.SendMessage(data, sendType, laneIndex);
 			} catch (Exception ex) {
 				MPMain.LogError(
 					$"[MPSW] 广播数据异常: {ex.Message}",
@@ -459,11 +455,11 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 				if (canLog) {
 					MPMain.LogInfo(
 						$"[MPSW] 广播数据,当前连接: " +
-						$"SteamId: {tempSteamId.ToString()} 连接Id: {connection.connection.Id.ToString()}",
+						$"SteamId: {tempSteamId.ToString()} 连接Id: {connection.Id.ToString()}",
 						$"[MPSW] Sending data to connections. " +
-						$"SteamId: {tempSteamId.ToString()} ConnectionId: {connection.connection.Id.ToString()}");
+						$"SteamId: {tempSteamId.ToString()} ConnectionId: {connection.Id.ToString()}");
 				}
-				connection.connection.SendMessage(data, offset, length, sendType, laneIndex);
+				connection.SendMessage(data, offset, length, sendType, laneIndex);
 			} catch (Exception ex) {
 				MPMain.LogError(
 					$"[MPSW] 广播数据异常: {ex.Message}",
@@ -479,7 +475,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		try {
-			_connectedClients[steamId].connection.SendMessage(data, sendType, laneIndex);
+			_connectedClients[steamId].SendMessage(data, sendType, laneIndex);
 		} catch (Exception ex) {
 			MPMain.LogError(
 				$"[MPSW] 单播数据异常: {ex.Message} SteamId: {steamId.ToString()}",
@@ -494,7 +490,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 		SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
 
 		try {
-			_connectedClients[steamId].connection.SendMessage(data, offset, length, sendType, laneIndex);
+			_connectedClients[steamId].SendMessage(data, offset, length, sendType, laneIndex);
 		} catch (Exception ex) {
 			MPMain.LogError(
 				$"[MPSW] 单播数据异常: {ex.Message} SteamId: {steamId.ToString()}",
@@ -735,7 +731,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 
 			_currentLobby = lobby;
 			string roomName = _currentLobby.GetData("name")
-				?? (MPConfig.DebugLogLanguage == 0 ? "未知大厅" : "Unknown lobby");
+				?? (MPConfig.LogLanguage == 0 ? "未知大厅" : "Unknown lobby");
 			MPMain.LogInfo(
 				$"[MPSW] 加入大厅成功: {roomName}",
 				$"[MPSW] Successfully joined lobby: {roomName}");
@@ -907,10 +903,7 @@ public class MPSteamworks : MonoBehaviour, ISocketManager, IConnectionManager {
 				$"Connection Id: {connection.Id} Connection state: {info.State}");
 
 		if (!_connectedClients.ContainsKey(steamId)) {
-			_connectedClients.Add(steamId, new Client {
-				steamId = steamId,
-				connection = connection,
-			});
+			_connectedClients.Add(steamId, connection);
 			MPEventBusNet.NotifyPlayerConnected(steamId);
 			HasConnections = true;
 		}
