@@ -10,17 +10,13 @@ public class MPConfig {
 	public static int DataSendFrequency { get { return _dataSendFrequency.Value; } }
 
 	// Debug日志语言类型
-	private static ConfigEntry<int> _debugLogLanguage;
-	public static int DebugLogLanguage { get { return _debugLogLanguage.Value; } }
+	private static ConfigEntry<int> _logLanguage;
+	public static int LogLanguage { get { return _logLanguage.Value; } }
 
 	// 头顶名称标签字体最大值
-	private static ConfigEntry<float> _nameTagSizeMax;
-	// 头顶名称标签字体最小值
-	private static ConfigEntry<float> _nameTagSizeMin;
-
-	public static float NameTagSizeMax { get { return _nameTagSizeMax.Value; } }
-	public static float NameTagSizeMin { get { return _nameTagSizeMin.Value; } }
-
+	private static ConfigEntry<float> _nameTagScale;
+	public static float NameTagScale { get { return _nameTagScale.Value; } }
+	
 	// All (所有伤害)
 	private static ConfigEntry<float> _allActive;
 	private static ConfigEntry<float> _allPassive;
@@ -128,19 +124,14 @@ Passive配置项控制玩家受到的伤害倍率
 			"Sets how many times per second data is sent to other players.\n" +
 			"设置每秒向其他玩家发送数据的次数.");
 
-		_debugLogLanguage = config.Bind<int>(
+		_logLanguage = config.Bind<int>(
 			"Debug", "LogLanguage", 1,
 			"值为0时使用中文输出日志, Use English logs when the value is 1.");
 
-		_nameTagSizeMax = config.Bind<float>(
-			"RemotePlayer", "NameTagSizeMax", 0.5f,
-			"This value sets the maximum size for player name tags above their heads.\n" +
-			"这个值设置玩家头部名称最大的大小");
-
-		_nameTagSizeMin = config.Bind<float>(
-			"RemotePlayer", "NameTagSizeMin", 0.3f,
-			"This value sets the minimum size for player name tags above their heads.\n" +
-			"这个值设置玩家头部名称最小的大小");
+		_nameTagScale = config.Bind<float>(
+			"RemotePlayer", "NameTagScale", 1f,
+			"This value sets the scale size for player name tags above their heads.\n" +
+			"这个值设置玩家头部名称的缩放倍率");
 
 		// All (所有伤害)
 		_allActive = config.Bind<float>(
