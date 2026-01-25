@@ -22,7 +22,9 @@
     "PlayerDisconnected": "[MPCore] Player disconnected Id: {0}",
     "RequestedInitData": "[MPCore] Requested initialization data from the host.",
     "SentInitData": "[MPCore] Initialization data has been sent to the new player.",
-    "LoadingWorld": "[MPCore] Loading world, seed: {0}"
+    "LoadingWorld": "[MPCore] Loading world, seed: {0}",
+
+    "CreateExistingPlayer": "[MPCore] Create an existing player Id: {0}"
   },
   "MPMain": {
     "Destroy": "[MPMain] MPMain (Launcher) has been destroyed."
@@ -55,7 +57,8 @@
     "PlayerJoinedRoom": "[MPSW] Player joined room. SteamName: {0}",
     "PlayerLeftRoom": "[MPSW] Player left the room. SteamName: {0}",
     "PlayerDisconnectedFromLobby": "[MPSW] Player disconnected from the lobby. SteamName: {0}",
-    "HostChanged": "[MPCore] Host change: {0} -> {1}",
+    "LobbyIdChanged": "[MPSW] Lobby Id change: {0} -> {1}",
+    "HostChanged": "[MPSW] Host change: {0} -> {1}",
     "PlayerConnecting": "[MPSW] Player is connecting. SteamId: {0}",
     "PlayerConnected": "[MPSW] The player has already connected. SteamId: {0} Connection Id: {1} Connection state: {2}",
     "DisconnectedDetails": "[MPSW] Disconnected details: {0}",
@@ -68,7 +71,10 @@
     "ConnectionInitiator": "[MPSW] Initiator connection process started -> {0}",
     "ConnectionEeceiver": "[MPSW] Receiver waiting process starts <- {0}",
     "ReverseConnectionAttempt": "[MPSW] 10-second timeout: starting reverse attempt...",
-    "ConnectionProcessFailed": "[MPSW] Connection process completely failed, please check network connection or copy the log and submit it to developer's GitHub."
+    "ConnectionProcessFailed": "[MPSW] Connection process completely failed, please check network connection or copy the log and submit it to developer's GitHub.",
+
+    "ConnectToHostFailed": "[MPSW] Connect to host failed",
+    "AttemptingToConnect": "[MPSW] Attempting to connect to host... (Attempt {0})"
   },
 
   "CommandConsole": {

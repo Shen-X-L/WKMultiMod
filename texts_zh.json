@@ -22,7 +22,9 @@
     "PlayerDisconnected": "[MPCore] 玩家断连 Id: {0}",
     "RequestedInitData": "[MPCore] 已向主机请求初始化数据",
     "SentInitData": "[MPCore] 已向新玩家发送初始化数据",
-    "LoadingWorld": "[MPCore] 加载世界, 种子号: {0}"
+    "LoadingWorld": "[MPCore] 加载世界, 种子号: {0}",
+
+    "CreateExistingPlayer": "[MPCore] 创建已存在的玩家 Id: {0}"
   },
   "MPMain": {
     "Destroy": "[MPMain] MPMain (启动器) 已被销毁."
@@ -55,18 +57,24 @@
     "PlayerJoinedRoom": "[MPSW] 玩家加入大厅. SteamName: {0}",
     "PlayerLeftRoom": "[MPSW] 玩家离开大厅. SteamName: {0}",
     "PlayerDisconnectedFromLobby": "[MPSW] 玩家断开大厅连接. SteamName: {0}",
+    "LobbyIdChanged": "[MPSW] 大厅Id变更: {0} -> {1}",
     "HostChanged": "[MPSW] 主机变更: {0} -> {1}",
     "PlayerConnecting": "[MPSW] 玩家正在接入. SteamId: {0}",
     "PlayerConnected": "[MPSW] 玩家已经接入. SteamId: {0} 连接Id: {1} 连接状态: {2}",
     "DisconnectedDetails": "[MPSW] 连接断开详情: {0}",
     "AlreadyActiveConnected": "[MPSW] 已经主动连接玩家. SteamId: {0} 连接状态: {1}",
     "AsyncTaskFailed": "[MPSW] 异步任务执行失败: {0}",
+
     "SocketCreateException": "[MPSW] 创建Socket失败: {0}",
+
     "ConnectionAttemptFailed": "[MPSW] 第{0}次尝试连接{1}失败",
     "ConnectionInitiator": "[MPSW] 发起者连接流程开始 -> {0}",
     "ConnectionEeceiver": "[MPSW] 接收者等待流程开始 <- {0}",
     "ReverseConnectionAttempt": "[MPSW] 10秒超时, 开始反向尝试...",
-    "ConnectionProcessFailed": "[MPSW] 连接流程彻底失败, 请检测网络连接或复制日志向开发者github提交"
+    "ConnectionProcessFailed": "[MPSW] 连接流程彻底失败, 请检测网络连接或复制日志向开发者github提交",
+
+    "ConnectToHostFailed": "[MPSW] 连接主机失败",
+    "AttemptingToConnect": "[MPSW] 正在尝试连接主机... (第 {0} 次)"
   },
   "CommandConsole": {
     "AlreadyInOnlineMode": "您已处于在线模式, \n请使用 leave 命令离开后再进行联机",
