@@ -39,7 +39,7 @@ public class DataWriter : IDisposable {
 	public void Reset() {
 		_position = 0;
 		// 注意:通常不需要清除 _buffer 里的旧数据,
-		// 因为新的写入会通过 _position 覆盖旧数据。
+		// 因为新的写入会通过 _position 覆盖旧数据. 
 	}
 
 	#region[写入基本类型函数]
@@ -184,6 +184,7 @@ public class DataWriter : IDisposable {
 		}
 	}
 
+	// 清空
 	public void Dispose() {
 		if (_buffer != null) {
 			_pool.Return(_buffer);

@@ -1,6 +1,7 @@
 ﻿using HarmonyLib;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.Util;
 
 namespace WKMPMod.Patch;
 
@@ -11,7 +12,7 @@ public class Patch_ENT_Player {
 	public static void Postfix(ENT_Player __instance, string type) {
 		if (MPCore.IsInLobby) {
 			MPEventBusGame.NotifyPlayerDeath(type);
-			MPMain.LogInfo($"[Patch] 玩家死亡,类型: {type}", $"[Patch] Player death,type: {type}");
+			MPMain.LogInfo(Localization.Get("Patch", "PlayerDeath", type));
 		}
 	}
 }

@@ -1,4 +1,8 @@
 <Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="TestOnly" />
+  </Configurations>
   <Folder Name="/lib/">
     <File Path="lib/README.md" />
   </Folder>
@@ -27,6 +31,7 @@
     <File Path="lib/GameData/Assembly-CSharp.dll" />
     <File Path="lib/GameData/DarkMachineUI.dll" />
     <File Path="lib/GameData/Facepunch.Steamworks.Win64.dll" />
+    <File Path="lib/GameData/Newtonsoft.Json.dll" />
   </Folder>
   <Folder Name="/lib/Shared/" />
   <Folder Name="/lib/Temp/">
@@ -79,10 +84,17 @@
     </Project>
   </Folder>
   <Folder Name="/temp/SteamWorks/">
-    <File Path="temp/SteamWorks/SteamWorks.csproj" />
+    <Project Path="temp/SteamWorks/SteamWorks.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/temp/WKLib/">
     <Project Path="temp/WKLib/WKLib.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/temp/WKLib/WK_IShowSeed/">
+    <Project Path="temp/WK_IShowSeed/WK_IShowSeed.csproj">
       <Build Solution="Debug|*" Project="false" />
     </Project>
   </Folder>
@@ -91,14 +103,9 @@
       <Build Solution="Debug|*" Project="false" />
     </Project>
   </Folder>
-  <Folder Name="/temp/WK_IShowSeed/">
-    <Project Path="temp/WK_IShowSeed/WK_IShowSeed.csproj">
-      <Build Solution="Debug|*" Project="false" />
-    </Project>
-  </Folder>
   <Folder Name="/test/">
     <Project Path="test/test.csproj">
-      <Build Solution="Debug|*" Project="false" />
+      <Build Solution="Debug|Any CPU" Project="false" />
     </Project>
   </Folder>
   <Folder Name="/解决方案项/">
@@ -106,6 +113,8 @@
     <File Path=".gitignore" />
     <File Path="README.md" />
     <File Path="README_CN.md" />
+    <File Path="texts_en.json" />
+    <File Path="texts_zh.json" />
     <File Path="TODO.md" />
   </Folder>
 </Solution>

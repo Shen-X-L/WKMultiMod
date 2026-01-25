@@ -11,7 +11,7 @@ namespace WKMPMod.Component;
 
 //仅获取本地玩家信息并触发事件给其他系统使用
 //仅在联机时创建一个实例
-public class LocalPlayer: MonoBehaviour{
+public class LocalPlayer : MonoBehaviour {
 	private const float POSITION_CHANGE_THRESHOLD_SQR = 0.0025f; // 0.05单位的平方
 	private const float ROTATION_CHANGE_THRESHOLD_DEG = 0.5f;    // 最小旋转角度
 
@@ -83,7 +83,7 @@ public class LocalPlayer: MonoBehaviour{
 		if (!TryCreateLocalPlayerData(out PlayerData playerData))
 			return;
 
-		// 设置传送标记（传送冷却期间标记为传送）
+		// 设置传送标记(传送冷却期间标记为传送)
 		playerData.IsTeleport = !_teleportCooldownTimer.IsTickReached;
 
 		// 通过事件总线发送数据
@@ -119,14 +119,14 @@ public class LocalPlayer: MonoBehaviour{
 		if (_cachedPlayer == null) {
 			_cachedPlayer = ENT_Player.GetPlayer();
 			if (_cachedPlayer == null) {
-				Debug.LogError("[WKMP LocalPlayer] Local player data acquisition exception.");
+				MPMain.LogError(Localization.Get("LocalPlayer", "DataAcquisitionException"));
 				return false;
 			}
 			_cachedHands = _cachedPlayer.hands;
 		}
 
 		if (_cachedHands == null || _cachedHands.Length < 2) {
-			Debug.LogError("[WKMP LocalPlayer] Local hand data acquisition exception.");
+			MPMain.LogError(Localization.Get("LocalPlayer", "HandDataAcquisitionException"));
 			return false;
 		}
 
@@ -188,7 +188,7 @@ public class LocalPlayer: MonoBehaviour{
 	#endregion
 
 	#region 工具方法
-	/// 优化版的旋转相似性检查（避免Quaternion.Angle的开方运算）
+	/// 优化版的旋转相似性检查(避免Quaternion.Angle的开方运算)
 	private bool IsRotationSimilar(Quaternion a, Quaternion b, float thresholdDegrees) {
 		// 使用点积判断,比Quaternion.Angle更快
 		float cosThreshold = Mathf.Cos(thresholdDegrees * Mathf.Deg2Rad * 0.5f);
