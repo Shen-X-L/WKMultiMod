@@ -474,6 +474,10 @@ public class MPCore : MonoBehaviour {
 			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeOnline"));
 			return;
 		}
+		if (!IsInitialized) {
+			CommandConsole.LogError(Localization.Get("CommandConsole", "WorldNotInitialized"));
+			return;
+		}
 		if (ulong.TryParse(args[0], out ulong playerId)) {
 			var ids = DictionaryExtensions.FindByKeySuffix(RPManager.Players, playerId);
 			// 未找到对应id
@@ -535,9 +539,7 @@ public class MPCore : MonoBehaviour {
 		MPMain.LogInfo(Localization.Get("MPCore", "EnteringLobby", lobby.Id.ToString()));
 
 		// 启动协程发送请求初始化数据
-		if (!Steamworks.IsHost) {
-			StartCoroutine(InitHandshakeRoutine());
-		}
+		StartCoroutine(InitHandshakeRoutine());
 	}
 
 	/// <summary>
