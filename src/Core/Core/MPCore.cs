@@ -339,9 +339,10 @@ public class MPCore : MonoBehaviour {
 		CommandConsole.AddCommand("leave", Leave);
 		CommandConsole.AddCommand("getlobbyid", GetLobbyId);
 		CommandConsole.AddCommand("getconnections", GetAllConnections);
+		CommandConsole.AddCommand("getallplayer", GetAllPlayer);
 		CommandConsole.AddCommand("talk", Talk);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
-		CommandConsole.AddCommand("initialized", Initialized, false);
+		CommandConsole.AddCommand("initialized", Initialized);
 		CommandConsole.AddCommand("test", Test.Test.Main, false);
 	}
 
