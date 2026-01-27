@@ -1,21 +1,33 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net472</TargetFramework>
-
 		<LangVersion>10.0</LangVersion>
-
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<!-- 统一输出到解决方案的 bin 目录 -->
+		<!-- <OutputPath>$(SolutionDir)bin\$(Configuration)\</OutputPath> -->
+		<!-- 项目本身的 bin 目录 -->
+		<OutputPath>bin\$(Configuration)\</OutputPath>
 	</PropertyGroup>
 
+	<!-- AfterTargets="PostBuildEvent"表示在生成完成后执行 -->
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<!-- 创建名为 SharedOutputFiles 的项列表 -->
 		<ItemGroup>
 			<SharedOutputFiles Include="$(TargetDir)$(TargetName).dll" />
 		</ItemGroup>
 		<!--生成.dll复制到lib\Shared\-->
-		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)lib\Shared\" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(SharedOutputFiles)" 
+			DestinationFolder="$(SolutionDir)lib\Shared\" 
+			SkipUnchangedFiles="true" />
 		<!--生成.dll复制到Unity项目下-->
-		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="D:\DevelopmentPortfolio\Unity\Project\My Asset Built-In\Assets\Plugins" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(SharedOutputFiles)" 
+			DestinationFolder="D:\DevelopmentPortfolio\Unity\Project\My Asset Built-In\Assets\Plugins" 
+			SkipUnchangedFiles="true" />
+		<!--生成.dll复制到bin\解决方案配置-->
+		<Copy SourceFiles="@(SharedOutputFiles)"
+			DestinationFolder="$(SolutionDir)bin\$(Configuration)\"
+			SkipUnchangedFiles="true" />
 	</Target>
 
 	<PropertyGroup>
