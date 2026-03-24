@@ -28,6 +28,11 @@
 		<Copy SourceFiles="@(SharedOutputFiles)"
 			DestinationFolder="$(SolutionDir)bin\$(Configuration)\"
 			SkipUnchangedFiles="true" />
+		<!--生成.dll复制到游戏文件夹-->
+		<Copy SourceFiles="@(SharedOutputFiles)" 
+			DestinationFolder="D:\GAME\Steam\steamapps\common\White Knuckle\BepInEx\plugins\MP" 
+			SkipUnchangedFiles="true" />
+
 	</Target>
 
 	<PropertyGroup>

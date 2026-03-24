@@ -57,7 +57,7 @@ public class RemoteTag : MonoBehaviour {
 		}
 	}
 
-	private void LateUpdate() {
+	private void Update() {
 		if (!updateTick.TryTick())
 			return;
 		if (_cameraTransform == null) {

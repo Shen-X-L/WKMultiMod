@@ -50,13 +50,14 @@ public static class DictionaryExtensions {
 		foreach (var (k, vM) in minuend) {
 			if (subtrahend.TryGetValue(k, out var vS)) {
 				if (vM > vS) {
+					// 在S集存在 且 vM > vS
 					result[k] = (byte)(vM - vS);
 				}
-			}
-			else {
+			}else {
+				// 不在S集存在
 				result[k] = vM;
 			}
-				
+
 		}
 		return result;
 	}

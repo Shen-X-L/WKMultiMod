@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Text;
+using static WKMPMod.Core.GameModeManager;
 
 namespace WKMPMod.Data;
 
@@ -103,6 +104,31 @@ public class DataReader {
 	}
 	#endregion
 
+	#region[读取可空值类型]
+
+	public byte? GetNullableByte() {
+		bool hasValue = GetBool();  // 读取是否有值
+		if (!hasValue)
+			return null;
+		return GetByte();            // 读取实际值
+	}
+
+	public int? GetNullableInt() {
+		bool hasValue = GetBool();  // 读取是否有值
+		if (!hasValue)
+			return null;
+		return GetInt();            // 读取实际值
+	}
+
+	public float? GetNullableFloat() {
+		bool hasValue = GetBool();  // 读取是否有值
+		if (!hasValue)
+			return null;
+		return GetFloat();            // 读取实际值
+	}
+	
+	#endregion
+
 	#region[读取复合类型]
 	// 获取字符串 (先读取长度 再读取内容)
 	public string GetString() {
@@ -140,6 +166,17 @@ public class DataReader {
 			val[stringKey] = ushortValue;
 		}
 		return val;
+	}
+
+	// 获取 GameModeData
+	public GameModeData GetGameModeData() { 
+		var data = new GameModeData();
+		data.isIron = GetBool();
+		data.isHard = GetBool();
+		data.gameModeName = GetString();
+		data.gameModeObjectName = GetString();
+		data.seed = GetNullableInt();
+		return data;
 	}
 	#endregion
 }

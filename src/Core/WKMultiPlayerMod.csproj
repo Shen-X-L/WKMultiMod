@@ -4,7 +4,7 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>WKMultiPlayerMod</AssemblyName>
 		<Product>WKMultiPlayerMod</Product>
-		<Version>1.2.4</Version>
+		<Version>1.2.5</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>
@@ -17,6 +17,7 @@
 		<!-- <OutputPath>$(SolutionDir)bin\$(Configuration)\</OutputPath> -->
 		<!-- 项目本身的 bin 目录 -->
 		<OutputPath>bin\$(Configuration)\</OutputPath>
+		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
 	<ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -33,6 +34,8 @@
 		</ItemGroup>
 		<!--生成.dll复制到bin\解决方案配置-->
 		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)bin\$(Configuration)\" SkipUnchangedFiles="true" />
+		<!--生成.dll复制到游戏文件夹-->
+		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="D:\GAME\Steam\steamapps\common\White Knuckle\BepInEx\plugins\MP" SkipUnchangedFiles="true" />
 	</Target>
 
 	<ItemGroup>
@@ -50,6 +53,10 @@
 
 		<Reference Include="..\..\lib\Shared\*.dll">
 		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="NetWork\MPPacketRouter.cs~RF634c4182.TMP" />
 	</ItemGroup>
 
 </Project>

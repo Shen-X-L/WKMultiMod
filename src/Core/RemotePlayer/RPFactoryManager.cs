@@ -76,6 +76,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 	public void Cleanup(GameObject instance) {
 		if (instance == null) return;
 
+		// 没有ObjectIdentity组件 无法找到工厂ID,直接清理
 		var identity = instance.GetComponent<ObjectIdentity>();
 		if (identity == null || string.IsNullOrEmpty(identity.FactoryKey)) {
 			MPMain.LogError(Localization.Get("RPFactoryManager", "CannotDetermineFactory"));
@@ -84,7 +85,12 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 		}
 
 		if (_factories.TryGetValue(identity.FactoryKey, out var registration)) {
-			registration.Factory.Cleanup(instance);
+			try {
+				registration.Factory.Cleanup(instance);
+			} catch (Exception ex) {
+				MPMain.LogError(Localization.Get("RPFactoryManager", "FactoryCleanupException", identity.name, ex));
+				Object.Destroy(instance);
+			}
 		} else {
 			MPMain.LogError(Localization.Get("RPFactoryManager", "FactoryNotFoundCleanup", identity.name));
 			Object.Destroy(instance);

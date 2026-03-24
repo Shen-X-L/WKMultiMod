@@ -1,5 +1,6 @@
 using System.Net.NetworkInformation;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.Util;
 
 namespace test {
@@ -31,6 +32,14 @@ namespace test {
 		[Test]
 		public void TestSystemLanguage() {
 			Assert.That(Localization.GetGameLanguage, Is.EqualTo("zh"), "本地语言应为zh");
+		}
+
+		[Test]
+		public void TestDataWriter() {
+			DataWriter writer = new DataWriter();
+			int? a = 1;
+			writer.Put(a);
+			writer.Put(1);
 		}
 	}
 }

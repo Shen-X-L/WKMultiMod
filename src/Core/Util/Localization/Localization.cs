@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 using WKMPMod.Core;
 namespace WKMPMod.Util;
@@ -70,10 +71,13 @@ public static class Localization {
 			BuildFlatCache();
 		}
 
-		// 查找键
+		// 查找键,未找到
 		if (!_flatCache.TryGetValue(key, out string pattern)) {
-			// 键未找到: {key}
-			MPMain.LogWarning($"[Localization] Key not found: {key}");
+			string argsStr = args.Length > 0
+				? string.Join(", ", args.Select((a, i) => $"[{i}]: {a}"))
+				: "none";
+
+			MPMain.LogWarning($"[Localization] Key not found: {key} Args: {argsStr}");
 			return key;
 		}
 

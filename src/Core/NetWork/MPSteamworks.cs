@@ -493,8 +493,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			// 设置大厅信息
 			_currentLobby.SetData("name", roomName);
-			_currentLobby.SetData("game_version", Application.version);
-			_currentLobby.SetData("owner", SteamClient.SteamId.ToString());
+			_currentLobby.SetData("game", "White Knuckle");
+			_currentLobby.SetData("version", Application.version);
+			_currentLobby.SetData("owner", SteamClient.Name);
+			_currentLobby.SetData("gamemode", CL_GameManager.gamemode.gamemodeName);
 			_currentLobby.SetPublic();
 			_currentLobby.SetJoinable(true);
 			_currentLobby.Owner = new Friend(SteamClient.SteamId);

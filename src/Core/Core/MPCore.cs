@@ -11,7 +11,9 @@ using WKMPMod.Component;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
+using WKMPMod.UI;
 using WKMPMod.Util;
+using static UnityEngine.UI.GridLayoutGroup;
 using static WKMPMod.Data.MPReaderPool;
 using static WKMPMod.Data.MPWriterPool;
 
@@ -66,6 +68,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	private RPManager _RPManager;
 	private LocalPlayer _LocalPlayer;
 	private MPAssetManager _MPAssetManager;
+	private UIManager _UIManager;
 
 	// 世界种子 - 用于同步游戏世界生成
 	public int WorldSeed { get; private set; }
@@ -142,6 +145,9 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 创建本地信息获取发送管理器
 			_LocalPlayer = LocalPlayer.Instance;
 			_LocalPlayer.Initialize(MPSteamworks.Instance.UserSteamId, MPConfig.RemotePlayerModel);
+
+			// 创建UI管理器
+			_UIManager = UIManager.Instance;
 
 			// 初始化资源管理器
 			_MPAssetManager = MPAssetManager.Instance;
@@ -399,11 +405,11 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.AddCommand("getallplayer", GetAllPlayer);
 		CommandConsole.AddCommand("talk", Talk);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
-		CommandConsole.AddCommand("initialized", Initialized);
 		CommandConsole.AddCommand("changemodel", (str) => { 
 			_LocalPlayer.DefaulFactoryId = str[0];
 			MPConfig.RemotePlayerModel = str[0];
 		}, false);
+		CommandConsole.AddCommand("getalllobby", GetAllLobby);
 		CommandConsole.AddCommand("test", Test.Test.Main, false);
 		CommandConsole.AddCommand("cheatstest", Test.CheatsTest.Main);
 	}
@@ -456,38 +462,85 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 加入大厅
 	/// </summary>
-	public void Join(string[] args) {
-		if (IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "AlreadyInOnlineMode"));
-			return;
-		}
-		if (args.Length < 1) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "JoinUsage"));
-			return;
-		}
+	public async void Join(string[] args) {
+		try {
+			// 已经在大厅
+			if (IsInLobby) {
+				CommandConsole.LogError(Localization.Get("CommandConsole", "AlreadyInOnlineMode"));
+				return;
+			}
+			// 缺失名称/Id参数
+			if (args.Length < 1) {
+				CommandConsole.LogError(Localization.Get("CommandConsole", "JoinUsage"));
+				return;
+			}
 
-		if (!ulong.TryParse(args[0], out ulong lobbyId)) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "JoinFormatError"));
-			return;
-		}
+			string input = args[0];
+			Steamworks.Data.Lobby? targetLobby = null;
 
+			CommandConsole.Log($"[MP Debug] 正在按名称搜索大厅: {input}...");
+
+			var query = new Steamworks.Data.LobbyQuery()
+				.FilterDistanceWorldwide()
+				.WithKeyValue("game", "White Knuckle") // 确保是同一款游戏的
+				.WithKeyValue("name", input)           // 匹配名称
+				.WithMaxResults(5);
+
+			// 进行异步查询
+			var searchResults = await query.RequestAsync();
+
+			if (searchResults != null && searchResults.Length == 1) {
+				// 找到唯一名称大厅
+				targetLobby = searchResults[0];
+				CommandConsole.Log($"[MP Debug] 通过名称找到了大厅: {targetLobby.Value.Id} 正在加入");
+				if (targetLobby.HasValue) {
+					ExecuteJoinProcess(targetLobby.Value.Id);
+					return;
+				}
+			} else if(searchResults != null && searchResults.Length > 1) {
+				// 找到多个同名大厅
+				foreach (var result in searchResults) {
+					CommandConsole.Log(
+						$"[MP Debug] 发现大厅 Id: {result.Id} 名称: {result.GetData("name")} " +
+						$"房主: {result.GetData("owner")} 游戏模式: {result.GetData("gamemode")} ");
+				}
+				return;
+			} else {
+				// 通过数字寻找大厅并加入
+				CommandConsole.Log("[MP Debug] 未找到匹配名称的大厅，尝试使用 ID 连接...");
+
+				if (ulong.TryParse(input, out ulong lobbyId)) {
+					ExecuteJoinProcess(lobbyId);
+					return;
+				} else {
+					CommandConsole.LogError("[MP Debug] 无法找到匹配名称的大厅，且输入不是有效的 ID 格式");
+					return;
+				}
+			}
+		} catch (Exception e){
+			MPMain.LogError($"[MP Debug] 加入房间错误: {e.Message}");
+		}
+	}
+
+	/// <summary>
+	/// 连接到特定Id的大厅
+	/// </summary>
+	private void ExecuteJoinProcess(ulong lobbyId) {
 		MPMain.LogInfo(Localization.Get("MPCore", "JoiningLobby", lobbyId.ToString()));
 
-		//设置为正在连接
+		// 设置状态
 		MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 
 		_MPsteamworks.JoinRoom(lobbyId, (success) => {
 			if (success) {
 				MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.InLobby);
+				MPMain.LogInfo("成功进入大厅");
 			} else {
 				MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 				CommandConsole.LogError(Localization.Get("CommandConsole", "JoinLobbyFailed"));
 			}
 		});
 	}
-
-
-
 
 	/// <summary>
 	/// 离开大厅
@@ -588,9 +641,28 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 	}
 
-	public void Initialized(string[] args) {
-		MultiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.Initialized);
+	/// <summary>
+	/// 获取全部本mod开启的大厅
+	/// </summary>
+	public void GetAllLobby(string[] args) {
+		StartLobbySearchAsync();
 	}
+
+	private async void StartLobbySearchAsync() {
+		var query = new Steamworks.Data.LobbyQuery()
+			.FilterDistanceWorldwide()
+			.WithKeyValue("game", "White Knuckle")
+			.WithMaxResults(20);
+		var lobbies = await query.RequestAsync();
+		if (lobbies != null) {
+			foreach (var lobby in lobbies) {
+				CommandConsole.Log(
+					$"[MP Debug] 发现大厅 Id: {lobby.Id} 名称: {lobby.GetData("name")}" +
+					$"房主: {lobby.GetData("owner")} 游戏模式: {lobby.GetData("gamemode")}");
+			}
+		}
+	}
+
 	#endregion
 
 	#region[大厅/连接事件触发函数]

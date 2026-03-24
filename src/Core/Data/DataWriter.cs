@@ -3,6 +3,8 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
+using static WKMPMod.Core.GameModeManager;
 
 namespace WKMPMod.Data;
 
@@ -130,6 +132,39 @@ public class DataWriter : IDisposable {
 	}
 	#endregion
 
+	#region[写入可空值类型]
+	public DataWriter Put(byte? value) {
+		if (value == null) {
+			Put(false);
+		} else {
+			Put(true);
+			Put(value.Value);
+		}
+		return this;
+	}
+
+	public DataWriter Put(int? value) {
+		if (value == null) {
+			Put(false);
+		} else {
+			Put(true);
+			Put(value.Value);
+		}
+		return this;
+	}
+
+	public DataWriter Put(float? value) {
+		if (value == null) {
+			Put(false);
+		} else {
+			Put(true);
+			Put(value.Value);
+		}
+		return this;
+	}
+
+	#endregion
+
 	#region[写入复合类型函数]
 	// 写入全量数组
 	public DataWriter Put(byte[] value) {
@@ -189,6 +224,8 @@ public class DataWriter : IDisposable {
 		return this;
 	}
 
+	// 写入 字典<string, byte> 
+	// 用于 (物品名称,数量)
 	public DataWriter Put(Dictionary<string, byte> dict) {
 		if (dict == null) {
 			Put(0);  // 写入数量 0
@@ -205,8 +242,16 @@ public class DataWriter : IDisposable {
 		}
 		return this;
 	}
-	
-	
+
+	// 写入游戏模型数据
+	public DataWriter Put(GameModeData data) {
+		Put(data.isIron);
+		Put(data.isHard);
+		Put(data.gameModeName);
+		Put(data.gameModeObjectName);
+		Put(data.seed);
+		return this;
+	}
 	#endregion
 
 	// 确保缓冲区有足够的空间

@@ -2,12 +2,11 @@
 using JetBrains.Annotations;
 using Steamworks;
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using UnityEngine.Windows;
-using WKMPMod.Asset;
+using UnityEngine.SceneManagement;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.RemotePlayer;
@@ -26,6 +25,7 @@ public class Test : MonoBehaviour {
 	public static float y = 0;
 	public static float z = 0;
 	public static ulong id = 0;
+	public static Dictionary<string,M_Gamemode> gamemodeMap = new Dictionary<string, M_Gamemode>();
 	public static void Main(string[] args) {
 
 		if (args.Length == 0) {
@@ -53,6 +53,10 @@ public class Test : MonoBehaviour {
 			"15" => RunCommand(() => GetAllAssetGameObject(args[1])),  // 获取全部预制体测试,参数:预制体名称(string)
 			"16" => RunCommand(() => GetParticleEffectPrefab(args[1])),  // 获取粒子特效预制体测试,参数:预制体名称(string)
 			"17" => RunCommand(()=> MPCore.Instance.ResetStateVariables()),  // 重置状态变量测试
+			"18" => RunCommand(SearchAllLobby),	// 大厅搜索测试
+			"19" => RunCommand(LoadAllGameMode),	// 获取游戏模式
+			"20" => RunCommand(()=> LoadGamemode(args[1..])),	// 加载游戏模式
+			"21" => RunCommand(GetAllGameModeData),	// 获取同步时需要的数据
 			_ => RunCommand(() => Debug.Log($"未知命令: {args[0]}"))
 		};
 	}
@@ -238,6 +242,72 @@ public class Test : MonoBehaviour {
 		//	Debug.LogWarning($"[MP Debug]找不到粒子特效预制体: {prefabName}");
 		//}
 	}
+	// 启动异步搜索大厅函数
+	public static void SearchAllLobby() {
+		StartLobbySearchAsync();
+	}
+	private static async void StartLobbySearchAsync() {
+		try {
+			MPMain.LogInfo("[MP Debug] 搜索大厅...");
+
+			var query = new Steamworks.Data.LobbyQuery()
+				.FilterDistanceWorldwide()
+				.WithKeyValue("game", "White Knuckle")
+				.WithMaxResults(20);
+
+			var lobbies = await query.RequestAsync();
+
+			if (lobbies != null) {
+				foreach (var lobby in lobbies) {
+					Console.WriteLine($"[MP Debug] 发现大厅: {lobby.Id}");
+				}
+			}
+		} catch (Exception ex) {
+			MPMain.LogError($"[MP Debug] 搜索失败: {ex.Message}");
+		}
+	}
+	// 获取游戏模式
+	public static void LoadAllGameMode() {
+		// Resources.FindObjectsOfTypeAll 会找到所有已加载的对象
+		// 包括场景中的、Resources 中的、以及项目中的
+		M_Gamemode[] objects = Resources.FindObjectsOfTypeAll<M_Gamemode>();
+		// 过滤掉未保存的临时对象(可选)
+		foreach (M_Gamemode obj in objects) {
+			if (obj != null && !string.IsNullOrEmpty(obj.name)) {
+				MPMain.LogWarning($"[MP Debug] GameMode: {obj.gamemodeName} ObjectName: {obj.name}");
+				gamemodeMap[obj.gamemodeName] = obj;
+				gamemodeMap[obj.name] = obj;
+			}
+		}
+	}
+	// 加载游戏模式
+	public static void LoadGamemode(string[] args) {
+		string gamemodeName = string.Join(" ", args);
+		if (!gamemodeMap.TryGetValue(gamemodeName, out var m_Gamemode)) {
+			MPMain.LogError($"[MP Debug] 未找到对应游戏模式");
+			return;
+		}
+		if (UI_GamemodeScreen.instance == null) {
+			// 这个只有主菜单有
+			MPMain.LogError($"[MP Debug] UI_GamemodeScreen.instance为空");
+			CL_GameManager.gamemode = m_Gamemode;
+			// 测试铁指/困难的修改应该在什么时期使用
+			SettingsManager.SetSetting(["g_iron", "true"]);
+			SettingsManager.SetSetting(["g_hard", "true"]);
+			SceneManager.LoadScene(m_Gamemode.gamemodeScene);
+			return;
+		} else {
+			UI_GamemodeScreen.instance.Initialize(m_Gamemode);
+			UI_GamemodeScreen.instance.LoadGamemode();
+		}
+	}
+	// 获取全部所需数据
+	public static void GetAllGameModeData() {
+		MPMain.LogWarning($"[MP Debug] Is Iron Mod:{SettingsManager.GetSetting("g_iron")}");
+		MPMain.LogWarning($"[MP Debug] Is Hard Mod:{SettingsManager.GetSetting("g_hard")}");
+		MPMain.LogWarning($"[MP Debug] Gamemode:{CL_GameManager.gamemode}");
+		MPMain.LogWarning($"[MP Debug] World Seed:{WorldLoader.instance.seed}");
+	}
 }
 public class CheatsTest : MonoBehaviour {
 	public static void Main(string[] args) {
@@ -355,22 +425,22 @@ public class CheatsTest : MonoBehaviour {
 	public static void AddItemInInventoryQuaternionTest() {
 		var inventory = Inventory.instance;
 
-		void AddItemInInventoryQuaternionTest(string arg, Quaternion quaternion) {
+		void AddItemInInventoryQuaternionTest(string arg) {
 			// 从资源管理器获取预制体
 			GameObject prefabAsset = CL_AssetManager.GetAssetGameObject(arg);
-
-			// 实例化物品在 0,0.5,0 
-			var item = Instantiate(prefabAsset, new Vector3(0, 0.5f, 0), Quaternion.identity);
-			var item_Object = item.GetComponent<Item_Object>();
-			item_Object.itemData.bagRotation = quaternion; // 设置物品数据中的旋转
+			var item_Object = prefabAsset.GetComponent<Item_Object>();
+			item_Object.itemData.bagRotation = Quaternion.LookRotation(item_Object.itemData.upDirection); // 设置物品数据中的旋转
 			inventory.AddItemToInventoryCenter(item_Object.itemData);
 			// 隐藏镜像物品对象,因为它已经被添加到库存中,不需要在场景中显示
 			item_Object.gameObject.SetActive(value: false);
 		}
-		AddItemInInventoryQuaternionTest("Item_Rebar", Quaternion.Euler(90, 0, 0));
-		AddItemInInventoryQuaternionTest("Item_Rebar_Explosive", Quaternion.Euler(90, 0, 0));
-		AddItemInInventoryQuaternionTest("Item_RebarRope", Quaternion.Euler(90, 0, 0));
-		AddItemInInventoryQuaternionTest("Item_Rebar_Holiday", Quaternion.Euler(90, 0, 0));
-		AddItemInInventoryQuaternionTest("Item_RebarRope_Holiday", Quaternion.Euler(90, 0, 0));
+		// 不能用预制体生成,必须要实际对象
+		AddItemInInventoryQuaternionTest("Item_Rebar");
+		AddItemInInventoryQuaternionTest("Item_Rebar");
+		AddItemInInventoryQuaternionTest("Item_Rebar");
+		AddItemInInventoryQuaternionTest("Item_Rebar_Explosive");
+		AddItemInInventoryQuaternionTest("Item_RebarRope");
+		AddItemInInventoryQuaternionTest("Item_Rebar_Holiday");
+		AddItemInInventoryQuaternionTest("Item_RebarRope_Holiday");
 	}
 }

@@ -26,13 +26,11 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.WorldInitRequest)]
 	private static void HandleWorldInitRequest(ulong senderId, DataReader reader) {
-		// 发送世界种子
 		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.WorldInitData);
-		writer.Put(WorldLoader.instance.seed);
+		// 获取游戏模式数据 (是否铁指,是否困难,模式名称,模式对象名称,可能的种子)
+		writer.Put(GameModeManager.GetGameModeData());
+		// 发生到客户端
 		MPSteamworks.Instance.SendToPeer(senderId, writer);
-
-		// 可以添加其他初始化数据,如游戏状态、物品状态等
-
 		// Debug
 		MPMain.LogInfo(Localization.Get("MPMessageHandlers", "SentInitData"));
 	}
@@ -43,13 +41,11 @@ public class MPPacketHandlers {
 	/// <param name="seed"></param>
 	[MPPacketHandler(PacketType.WorldInitData)]
 	private static void HandleWorldInit(ulong senderId, DataReader reader) {
-		// 获取种子
-		int seed = reader.GetInt();
-		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "LoadingWorld", seed.ToString()));
-		// 种子相同默认为已经联机过,只不过断开了
-		if (seed != WorldLoader.instance.seed)
-			WorldLoader.ReloadWithSeed(new string[] { seed.ToString() });
+		// 获取游戏模式数据 
+		var gameModeData = reader.GetGameModeData();
+		// 加载游戏模式
+		GameModeManager.LoadGameMode(gameModeData);
+		// 设置多人模式加载标签为完成
 		MPCore.MultiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.Initialized);
 	}
 
