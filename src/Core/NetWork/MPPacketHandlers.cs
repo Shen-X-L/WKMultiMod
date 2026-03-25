@@ -28,7 +28,7 @@ public class MPPacketHandlers {
 	private static void HandleWorldInitRequest(ulong senderId, DataReader reader) {
 		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.WorldInitData);
 		// 获取游戏模式数据 (是否铁指,是否困难,模式名称,模式对象名称,可能的种子)
-		writer.Put(GameModeManager.GetGameModeData());
+		writer.Put(MPGameModeManager.GetGameModeData());
 		// 发生到客户端
 		MPSteamworks.Instance.SendToPeer(senderId, writer);
 		// Debug
@@ -44,7 +44,7 @@ public class MPPacketHandlers {
 		// 获取游戏模式数据 
 		var gameModeData = reader.GetGameModeData();
 		// 加载游戏模式
-		GameModeManager.LoadGameMode(gameModeData);
+		MPGameModeManager.LoadGameMode(gameModeData);
 		// 设置多人模式加载标签为完成
 		MPCore.MultiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.Initialized);
 	}
@@ -55,7 +55,7 @@ public class MPPacketHandlers {
 	[MPPacketHandler(PacketType.PlayerDataUpdate)]
 	private static void HandlePlayerDataUpdate(ulong senderId, DataReader reader) {
 		// 如果是从转发给自己的,忽略
-		var playerData = MPDataSerializer.ReadFromNetData(reader);
+		var playerData = reader.GetPlayerData();
 		var playerId = playerData.playId;
 		if (playerId == MPSteamworks.Instance.UserSteamId) {
 			return;

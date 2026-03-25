@@ -4,7 +4,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using static WKMPMod.Core.GameModeManager;
+using static WKMPMod.Core.MPGameModeManager;
 
 namespace WKMPMod.Data;
 
@@ -46,6 +46,7 @@ public class DataWriter : IDisposable {
 	}
 
 	#region[写入基本类型函数]
+
 	// 写入 bool (1 字节)
 	public DataWriter Put(bool value) {
 		EnsureCapacity(1);
@@ -130,9 +131,11 @@ public class DataWriter : IDisposable {
 		_position += 8;
 		return this;
 	}
+
 	#endregion
 
 	#region[写入可空值类型]
+
 	public DataWriter Put(byte? value) {
 		if (value == null) {
 			Put(false);
@@ -166,6 +169,7 @@ public class DataWriter : IDisposable {
 	#endregion
 
 	#region[写入复合类型函数]
+
 	// 写入全量数组
 	public DataWriter Put(byte[] value) {
 		if (value == null) return Put(0);
@@ -224,8 +228,13 @@ public class DataWriter : IDisposable {
 		return this;
 	}
 
-	// 写入 字典<string, byte> 
-	// 用于 (物品名称,数量)
+	#endregion
+
+	#region[写入自定义类型]
+
+	/// <summary>
+	/// 写入 Dictionary&lt;string, byte&gt; 用于(物品名称,数量)
+	/// </summary>
 	public DataWriter Put(Dictionary<string, byte> dict) {
 		if (dict == null) {
 			Put(0);  // 写入数量 0
@@ -243,7 +252,33 @@ public class DataWriter : IDisposable {
 		return this;
 	}
 
-	// 写入游戏模型数据
+	/// <summary>
+	/// 写入<see cref="PlayerData"> 玩家数据
+	/// </summary>
+	public DataWriter Put(PlayerData data) {
+		// 基础信息(id,时间戳)
+		Put(data.playId).Put(data.TimestampTicks);   // long
+
+		// 位置信息
+		Put(data.PosX).Put(data.PosY).Put(data.PosZ);
+
+		// 角度信息
+		Put(data.RotX).Put(data.RotY).Put(data.RotZ).Put(data.RotW);
+
+		// 左手位置数据
+		Put(data.LeftHand.PosX).Put(data.LeftHand.PosY).Put(data.LeftHand.PosZ);
+
+		// 右手数据
+		Put(data.RightHand.PosX).Put(data.RightHand.PosY).Put(data.RightHand.PosZ);
+
+		// 状态标志
+		Put(data.IsTeleport);
+		return this;
+	}
+
+	/// <summary>
+	/// 写入<see cref="GameModeData"> 游戏模式数据
+	/// </summary>
 	public DataWriter Put(GameModeData data) {
 		Put(data.isIron);
 		Put(data.isHard);
@@ -252,7 +287,10 @@ public class DataWriter : IDisposable {
 		Put(data.seed);
 		return this;
 	}
+
 	#endregion
+
+	#region[内存管理函数]
 
 	// 确保缓冲区有足够的空间
 	private void EnsureCapacity(int additional) {
@@ -273,6 +311,8 @@ public class DataWriter : IDisposable {
 			_position = 0;
 		}
 	}
+
+	#endregion
 
 }
 

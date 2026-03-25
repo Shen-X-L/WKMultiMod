@@ -12,11 +12,20 @@
     "NeedToBeOnline": "您需要在在线模式下使用此命令, \n请先使用 host 或 join 命令",
     "PlayerDeath": "{0} 被 {1} 杀死",
     "TargetIdNotFound": "未找到目标ID.此命令使用后缀匹配.\n例如: 目标ID: 76561198279116422 → tpto 6422.",
-    "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化."
+    "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化.",
+
+    "SearchingLobbyByName": "正在按名称搜索大厅: {0}...",
+    "FoundLobbyByName": "通过名称找到了大厅: {0} 正在加入",
+    "LobbyInfo": "发现大厅 Id: {0} 名称: {1} 房主: {2} 游戏模式: {3}",
+    "NoLobbyByNameTryId": "未找到匹配名称的大厅，尝试使用 ID 连接...",
+    "InvalidLobbyNameOrId": "无法找到匹配名称的大厅，且输入不是有效的 ID 格式"
   },
   "LocalPlayer": {
     "DataAcquisitionException": "[MP LP] 本地玩家数据获取异常.",
     "HandDataAcquisitionException": "[MP LP] 本地手部数据获取异常."
+  },
+  "MPAssetManager": {
+    "LoadAsset": "[MP AssetMan] 缓存游戏内资源: {0} {1}"
   },
   "MPCore": {
     "AllConnectionLog": "[MPCore] 全部连接 SteamId: {0} 连接Id: {1}",
@@ -36,7 +45,12 @@
     "PlayerJoinedLobby": "[MPCore] 玩家加入大厅 Id: {0}",
     "PlayerLeftLobby": "[MPCore] 玩家离开大厅 Id: {0}",
     "RequestedInitData": "[MPCore] 已向主机请求初始化数据",
-    "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}"
+    "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}",
+
+    "JoinLobbyException": "[MPCore] 加入大厅异常: {0}"
+  },
+  "MPGameModeManager": {
+    "GameModeNotFound": "[MP GameModeMan] 未找到名为 {0} 的对应游戏模式"
   },
   "MPMain": {
     "Destroy": "[MPMain] MPMain (启动器) 已被销毁."
@@ -125,7 +139,7 @@
     "FactoryAlreadyRegistered": "[MP RPFactoryMan] {0} 已经注册过",
     "FactoryNotFound": "[MP RPFactoryMan] {0} 未找到",
     "FactoryNotFoundCleanup": "[MP RPFactoryMan] 销毁工厂 {0} 未找到,直接销毁对象",
-    "FactoryRegistered": "[MP RPFactoryMan] {0} 注册成功",
+    "FactoryRegistered": "[MP RPFactoryMan] {0} 注册成功"
   },
   "RPManager": {
     "FactoryCreateObjectFailed": "[MP RPMan] 创建远程映射对象失败",

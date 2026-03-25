@@ -4,10 +4,11 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Core;
+using WKMPMod.Util;
 
 namespace WKMPMod.Core;
 
-public class GameModeManager {
+public class MPGameModeManager {
 	public struct GameModeData {
 		public bool isIron;
 		public bool isHard;
@@ -50,18 +51,20 @@ public class GameModeManager {
 			Initialize();
 		// 更改游戏模式
 		if (!gameModeDict.TryGetValue(data.gameModeName, out var m_Gamemode)) {
-			MPMain.LogError($"[MP Debug] 未找到对应游戏模式:{data.gameModeName}");
+			MPMain.LogError(Localization.Get("MPGameModeManager", "GameModeNotFound", data.gameModeName));
 		} else {
+			//CL_GameManager.gMan.SetGamemode(m_Gamemode);
 			CL_GameManager.gamemode = m_Gamemode;
 		}
 		// 更改难度
 		SettingsManager.settings.g_iron = data.isIron;
 		SettingsManager.settings.g_hard = data.isHard;
-		// 存在种子且种子不同时用种子
+		// 设置种子
 		if (data.seed is int value
-			&& WorldLoader.instance != null
-			&& value != WorldLoader.instance.seed) {
+				&& WorldLoader.instance != null
+				&& value != WorldLoader.instance.seed) {
 
+			//WorldLoader.ReloadWithSeed(new string[] { value.ToString() });//会主动重载游戏场景
 			WorldLoader.SetPresetSeed(value.ToString());
 		}
 		// 手动重载地图

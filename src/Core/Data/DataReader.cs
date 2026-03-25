@@ -3,7 +3,8 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Text;
-using static WKMPMod.Core.GameModeManager;
+using UnityEngine;
+using static WKMPMod.Core.MPGameModeManager;
 
 namespace WKMPMod.Data;
 
@@ -32,6 +33,7 @@ public class DataReader {
 	}
 
 	#region[读取基本类型]
+
 	// 读取 bool (1 字节)
 	public bool GetBool() {
 		bool val = _data.Span[_position] != 0;
@@ -102,6 +104,7 @@ public class DataReader {
 		_position += 8;
 		return BitConverter.Int64BitsToDouble(longVal);
 	}
+
 	#endregion
 
 	#region[读取可空值类型]
@@ -130,6 +133,7 @@ public class DataReader {
 	#endregion
 
 	#region[读取复合类型]
+
 	// 获取字符串 (先读取长度 再读取内容)
 	public string GetString() {
 		int length = GetInt();
@@ -156,7 +160,13 @@ public class DataReader {
 		return result;
 	}
 
-	// 获取 Dictionary<string, ushort>
+	#endregion
+
+	#region[读取自定义类型]
+
+	/// <summary>
+	/// 获取 Dictionary&lt;string, byte&gt; 用于(物品名称,数量)
+	/// </summary>
 	public Dictionary<string, byte> GetStringByteDict() { 
 		int length = GetInt();
 		var val = new Dictionary<string, byte>();
@@ -168,7 +178,45 @@ public class DataReader {
 		return val;
 	}
 
-	// 获取 GameModeData
+	/// <summary>
+	/// 获取<see cref="PlayerData"> 玩家数据
+	/// </summary>
+	public PlayerData GetPlayerData() {
+		var data = new PlayerData();
+		// 基础信息(id,时间戳)
+		data.playId = GetULong();
+		data.TimestampTicks = GetLong();
+
+		// 位置信息
+		data.PosX = GetFloat();
+		data.PosY = GetFloat();
+		data.PosZ = GetFloat();
+
+		// 角度信息
+		data.RotX = GetFloat();
+		data.RotY = GetFloat();
+		data.RotZ = GetFloat();
+		data.RotW = GetFloat();
+
+		// 左手数据
+		data.LeftHand.PosX = GetFloat();
+		data.LeftHand.PosY = GetFloat();
+		data.LeftHand.PosZ = GetFloat();
+
+		// 右手数据
+		data.RightHand.PosX = GetFloat();
+		data.RightHand.PosY = GetFloat();
+		data.RightHand.PosZ = GetFloat();
+
+		// 状态标志
+		data.IsTeleport = GetBool();
+
+		return data;
+	}
+
+	/// <summary>
+	/// 获取<see cref="GameModeData"> 游戏模式数据
+	/// </summary>
 	public GameModeData GetGameModeData() { 
 		var data = new GameModeData();
 		data.isIron = GetBool();
@@ -178,5 +226,6 @@ public class DataReader {
 		data.seed = GetNullableInt();
 		return data;
 	}
+
 	#endregion
 }

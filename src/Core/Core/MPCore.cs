@@ -331,7 +331,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
 
 		// 进行数据写入
-		MPDataSerializer.WriteToNetData(writer, data);
+		writer.Put(data);
 		// 触发Steam数据发送
 		// 转为byte[]
 		// 使用不可靠+立即发送
@@ -478,7 +478,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			string input = args[0];
 			Steamworks.Data.Lobby? targetLobby = null;
 
-			CommandConsole.Log($"[MP Debug] 正在按名称搜索大厅: {input}...");
+			CommandConsole.Log(Localization.Get("CommandConsole", "SearchingLobbyByName", input));
 
 			var query = new Steamworks.Data.LobbyQuery()
 				.FilterDistanceWorldwide()
@@ -492,33 +492,33 @@ public class MPCore : MonoSingleton<MPCore> {
 			if (searchResults != null && searchResults.Length == 1) {
 				// 找到唯一名称大厅
 				targetLobby = searchResults[0];
-				CommandConsole.Log($"[MP Debug] 通过名称找到了大厅: {targetLobby.Value.Id} 正在加入");
+				CommandConsole.Log(Localization.Get("CommandConsole", "FoundLobbyByName", targetLobby.Value.Id));
 				if (targetLobby.HasValue) {
 					ExecuteJoinProcess(targetLobby.Value.Id);
 					return;
 				}
 			} else if(searchResults != null && searchResults.Length > 1) {
 				// 找到多个同名大厅
-				foreach (var result in searchResults) {
-					CommandConsole.Log(
-						$"[MP Debug] 发现大厅 Id: {result.Id} 名称: {result.GetData("name")} " +
-						$"房主: {result.GetData("owner")} 游戏模式: {result.GetData("gamemode")} ");
+				foreach (var lobby in searchResults) {
+					CommandConsole.Log(Localization.Get(
+						"CommandConsole", "LobbyInfo", lobby.Id, lobby.GetData("name"), 
+						lobby.GetData("owner"), lobby.GetData("gamemode")));
 				}
 				return;
 			} else {
 				// 通过数字寻找大厅并加入
-				CommandConsole.Log("[MP Debug] 未找到匹配名称的大厅，尝试使用 ID 连接...");
+				CommandConsole.Log(Localization.Get("CommandConsole", "NoLobbyByNameTryId")); 
 
 				if (ulong.TryParse(input, out ulong lobbyId)) {
 					ExecuteJoinProcess(lobbyId);
 					return;
 				} else {
-					CommandConsole.LogError("[MP Debug] 无法找到匹配名称的大厅，且输入不是有效的 ID 格式");
+					CommandConsole.LogError(Localization.Get("CommandConsole", "InvalidLobbyNameOrId"));
 					return;
 				}
 			}
 		} catch (Exception e){
-			MPMain.LogError($"[MP Debug] 加入房间错误: {e.Message}");
+			MPMain.LogError(Localization.Get("MPCore", "JoinLobbyException", e.Message));
 		}
 	}
 
@@ -656,9 +656,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		var lobbies = await query.RequestAsync();
 		if (lobbies != null) {
 			foreach (var lobby in lobbies) {
-				CommandConsole.Log(
-					$"[MP Debug] 发现大厅 Id: {lobby.Id} 名称: {lobby.GetData("name")}" +
-					$"房主: {lobby.GetData("owner")} 游戏模式: {lobby.GetData("gamemode")}");
+				CommandConsole.Log(Localization.Get(
+					"CommandConsole", "LobbyInfo", lobby.Id, lobby.GetData("name"),
+					lobby.GetData("owner"), lobby.GetData("gamemode")));
 			}
 		}
 	}

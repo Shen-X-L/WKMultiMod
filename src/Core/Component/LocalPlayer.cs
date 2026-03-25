@@ -49,7 +49,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		// 发送本地玩家数据
 		TrySendLocalPlayerData();
 	}
-	#region 初始化方法
+	#region[初始化方法]
 
 	// 初始化定时器
 	private void InitializeTimers() {
@@ -76,7 +76,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	#endregion
 
-	#region 核心逻辑
+	#region[核心逻辑]
 
 	// 尝试发送本地玩家数据
 	private void TrySendLocalPlayerData() {

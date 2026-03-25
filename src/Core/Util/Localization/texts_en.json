@@ -12,11 +12,20 @@
     "NeedToBeOnline": "You need in online mode, \nplease use the host or join",
     "PlayerDeath": "{0} died due to {1}",
     "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
-    "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization."
+    "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
+
+    "SearchingLobbyByName": "Searching for lobby by name: {0}...",
+    "FoundLobbyByName": "Found lobby by name: {0}, joining...",
+    "LobbyInfo": "Found lobby Id: {0} Name: {1} Owner: {2} GameMode: {3}",
+    "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
+    "InvalidLobbyNameOrId": "Could not find a lobby with matching name and the input is not a valid ID format"
   },
   "LocalPlayer": {
     "DataAcquisitionException": "[MP LP] Local player data acquisition exception.",
     "HandDataAcquisitionException": "[MP LP] Local hand data acquisition exception."
+  },
+  "MPAssetManager": {
+    "LoadAsset": "[MP AssetMan] Loaded asset: {0} {1}"
   },
   "MPCore": {
     "AllConnectionLog": "[MPCore] All connections SteamId: {0} connections Id: {1}",
@@ -36,7 +45,12 @@
     "PlayerJoinedLobby": "[MPCore] New player joined the lobby, Id: {0}",
     "PlayerLeftLobby": "[MPCore] Player left the lobby Id: {0}",
     "RequestedInitData": "[MPCore] Requested initialization data from the host.",
-    "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}"
+    "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}",
+
+    "JoinLobbyException": "[MPCore] Join lobby exception: {0}"
+  },
+  "MPGameModeManager": {
+    "GameModeNotFound": "[MP GameModeMan] Game mode named {0} not found"
   },
   "MPMain": {
     "Destroy": "[MPMain] MPMain (Launcher) has been destroyed."
@@ -48,6 +62,7 @@
   },
   "MPPacketRouter": {
     "FailedToBind": "[MP Router] Failed to bind: {0} Message: {1}",
+    "HandlerException": "[MP Router] Packet type: {0} data processing exception: {1}",
     "NoServiceFound": "[MP Router] No service function found for the corresponding PacketType: {0}",
     "PacketHandlerOverridden": "[MP Router] PacketType {0} already has handler {1}, will be overridden by {2}.",
     "PacketTypeOutOfRange": "[MP Router] PacketType {0} exceeds FastHandlers array range (0-{1})",
@@ -68,7 +83,7 @@
     "ConnectionInitiator": "[MPSW] Initiator connection process started -> {0}",
     "ConnectionProcessFailed": "[MPSW] Connection process completely failed, please check network connection or copy the log and submit it to developer's GitHub.",
     "ConnectionTimeout": "[MPSW] Connection to player timed out. SteamId: {0}",
-    "CreateLobbyException": "[MPSW] Create Lobby exception: {0}",
+    "CreateLobbyException": "[MPSW] Create lobby exception: {0}",
     "CreateLobbyFailed": "[MPSW] Failed to create lobby",
     "DisconnectedDetails": "[MPSW] Disconnected details: {0}",
     "EnteredLobby": "[MPSW] Entered lobby. LobbyId: {0}",
@@ -124,14 +139,14 @@
     "FactoryAlreadyRegistered": "[MP RPFactoryMan] {0} already registered",
     "FactoryNotFound": "[MP RPFactoryMan] {0} not found",
     "FactoryNotFoundCleanup": "[MP RPFactoryMan] The destruction factory {0} was not found, and the object was directly destroyed",
-    "FactoryRegistered": "[MP RPFactoryMan] {0} registered successfully",
+    "FactoryRegistered": "[MP RPFactoryMan] {0} registered successfully"
   },
   "RPManager": {
     "FactoryCreateObjectFailed": "[MP RPMan] Failed to create the remote player object",
     "RemotePlayerObjectNotFound": "[MP RPMan] Remote player object not found. ID: {0}"
   },
   "RPSlugcatFactory": {
-    "FontAssetNotFound": "[MP RPSlugcatFactory] Font asset named {0} not found!",
+    "FontAssetNotFound": "[MP RPSlugcatFactory] Font asset named {0} not found",
     "ImplementOverlayViaShader": "[MP RPSlugcatFactory] Implementing Overlay via TMP Shader modification",
     "SpecializingTMPComponent": "[MP RPSlugcatFactory] Specializing TMP component: {0}",
     "UnableToLoadMaterial": "[MP RPSlugcatFactory] Unable to load material in bundle: {0}"
