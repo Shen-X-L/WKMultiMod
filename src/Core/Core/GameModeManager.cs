@@ -57,13 +57,14 @@ public class GameModeManager {
 		// 更改难度
 		SettingsManager.settings.g_iron = data.isIron;
 		SettingsManager.settings.g_hard = data.isHard;
-		if (data.seed is int value && WorldLoader.instance != null && value != WorldLoader.instance.seed) {
-			// 存在种子且种子不同时用种子重载地图
-			WorldLoader.ReloadWithSeed(new string[] { value.ToString() });
-		} else {
-			// 手动重载地图
-			CL_GameManager.gMan.RestartScene();
-		}
-	}
+		// 存在种子且种子不同时用种子
+		if (data.seed is int value
+			&& WorldLoader.instance != null
+			&& value != WorldLoader.instance.seed) {
 
+			WorldLoader.SetPresetSeed(value.ToString());
+		}
+		// 手动重载地图
+		SceneManager.LoadScene(m_Gamemode.gamemodeScene);
+	}
 }
