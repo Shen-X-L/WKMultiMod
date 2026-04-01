@@ -3,22 +3,21 @@
     "AllPlayer": "Name: {0} Id: {1}",
     "AlreadyInOnlineMode": "You are already in online mode, \nplease use the leave command to leave and then go online",
     "CreateLobbyFailed": "Fail to create lobby",
+    "FoundLobbyByName": "Found lobby by name: {0}, joining...",
     "HostUsage": "Usage: host <room_name> [max_players]",
+    "InvalidLobbyNameOrId": "Could not find a lobby with matching name and the input is not a valid ID format",
     "JoinFormatError": "ForMat error \nUsage: join <lobby_id>",
     "JoinLobbyFailed": "Fail to join lobby",
     "JoinUsage": "Usage: join <lobby_id>",
     "LobbyIdOutput": "Lobby Id: {0}",
+    "LobbyInfo": "Found lobby Id: {0} Name: {1} Owner: {2} GameMode: {3}",
     "MultipleMatchingIds": "Found multiple matching IDs. Below is the corresponding list:\n{0}",
     "NeedToBeOnline": "You need in online mode, \nplease use the host or join",
-    "PlayerDeath": "{0} died due to {1}",
-    "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
-    "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
-
-    "SearchingLobbyByName": "Searching for lobby by name: {0}...",
-    "FoundLobbyByName": "Found lobby by name: {0}, joining...",
-    "LobbyInfo": "Found lobby Id: {0} Name: {1} Owner: {2} GameMode: {3}",
     "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
-    "InvalidLobbyNameOrId": "Could not find a lobby with matching name and the input is not a valid ID format"
+    "PlayerDeath": "{0} died due to {1}",
+    "SearchingLobbyByName": "Searching for lobby by name: {0}...",
+    "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
+    "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization."
   },
   "LocalPlayer": {
     "DataAcquisitionException": "[MP LP] Local player data acquisition exception.",
@@ -36,6 +35,7 @@
     "Destroy": "[MPCore] MultiplayerCore Destroy",
     "DisconnectedAndCleaned": "[MPCore] All connections have been disconnected, remote players have been cleaned up.",
     "EnteringLobby": "[MPCore] Joining the lobby Id: {0}",
+    "JoinLobbyException": "[MPCore] Join lobby exception: {0}",
     "JoiningLobby": "[MPCore] Joining lobby: {0}...",
     "LoadingWorld": "[MPCore] Loading world, seed: {0}",
     "ManagerInitializationFailed": "[MPCore] Failed to initialize Manager: {0}",
@@ -45,9 +45,7 @@
     "PlayerJoinedLobby": "[MPCore] New player joined the lobby, Id: {0}",
     "PlayerLeftLobby": "[MPCore] Player left the lobby Id: {0}",
     "RequestedInitData": "[MPCore] Requested initialization data from the host.",
-    "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}",
-
-    "JoinLobbyException": "[MPCore] Join lobby exception: {0}"
+    "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}"
   },
   "MPGameModeManager": {
     "GameModeNotFound": "[MP GameModeMan] Game mode named {0} not found"

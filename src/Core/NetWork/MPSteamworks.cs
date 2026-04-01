@@ -5,9 +5,11 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Principal;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Windows;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
@@ -83,6 +85,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	// 获取全部在线玩家
 	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
+
+	// 全部大厅
+	public List<Lobby> LastFetchedLobbies { get; private set; }
 
 	#region[Unity组件生命周期函数]
 	protected override void Awake() {
@@ -559,6 +564,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		// 使用 Unity 的扩展方法来启动 async Task
 		StartCoroutine(RunAsync(JoinRoomAsync(lobby), callback));
 	}
+	public void JoinRoom(Lobby lobby, Action<bool> callback) {
+		// 使用 Unity 的扩展方法来启动 async Task
+		StartCoroutine(RunAsync(JoinRoomAsync(lobby), callback));
+	}
 
 	#endregion
 
@@ -841,4 +850,20 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	#endregion
 
+	#region[大厅检索]
+
+	public async Task FetchLobbies() {
+		try {
+			var query = new Steamworks.Data.LobbyQuery()
+				.FilterDistanceWorldwide()
+				.WithKeyValue("game", "White Knuckle") // 确保是同一款游戏的
+				.WithMaxResults(50);
+			LastFetchedLobbies = (await query.RequestAsync())?.ToList() ?? new List<Lobby>();
+		} catch (Exception ex) {
+			MPMain.LogError(Localization.Get("MPSteamworks", "LobbySearchException", ex.Message));
+			return;
+		}
+	}
+
+	#endregion
 }

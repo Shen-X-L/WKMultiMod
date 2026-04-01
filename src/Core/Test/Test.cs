@@ -1,6 +1,5 @@
 ﻿using BepInEx;
-using JetBrains.Annotations;
-using Steamworks;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +10,7 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.RemotePlayer;
 using WKMPMod.Util;
+using static CL_AchievementManager;
 using static CommandConsole;
 using Object = UnityEngine.Object;
 using Quaternion = UnityEngine.Quaternion;
@@ -307,6 +307,15 @@ public class Test : MonoBehaviour {
 		MPMain.LogWarning($"[MP Debug] Is Hard Mod:{SettingsManager.GetSetting("g_hard")}");
 		MPMain.LogWarning($"[MP Debug] Gamemode:{CL_GameManager.gamemode}");
 		MPMain.LogWarning($"[MP Debug] World Seed:{WorldLoader.instance.seed}");
+	}
+	// 获取全部解锁条件
+	public static void GetGameModeData() {
+		Dictionary<string, GameAchievement> dict = Traverse.Create(CL_AchievementManager.instance)
+			.Field("achievementDictionary")
+			.GetValue<Dictionary<string, GameAchievement>>();
+		foreach (var (key, value) in dict) {
+			MPMain.LogWarning($"[MP Debug] key: {key}, value: {value.flagged}");
+		}
 	}
 }
 public class CheatsTest : MonoBehaviour {

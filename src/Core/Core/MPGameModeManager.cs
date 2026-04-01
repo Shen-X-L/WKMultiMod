@@ -30,6 +30,7 @@ public class MPGameModeManager {
 		}
 	}
 
+	// 获取当前游戏模式数据
 	public static GameModeData GetGameModeData() {
 		var gameModedata = new GameModeData {
 			isIron = SettingsManager.settings.g_iron,
@@ -52,9 +53,10 @@ public class MPGameModeManager {
 		// 更改游戏模式
 		if (!gameModeDict.TryGetValue(data.gameModeName, out var m_Gamemode)) {
 			MPMain.LogError(Localization.Get("MPGameModeManager", "GameModeNotFound", data.gameModeName));
+			return;
 		} else {
-			//CL_GameManager.gMan.SetGamemode(m_Gamemode);
-			CL_GameManager.gamemode = m_Gamemode;
+			CL_GameManager.gMan.SetGamemode(m_Gamemode);
+			//CL_GameManager.gamemode = m_Gamemode;
 		}
 		// 更改难度
 		SettingsManager.settings.g_iron = data.isIron;
@@ -69,5 +71,12 @@ public class MPGameModeManager {
 		}
 		// 手动重载地图
 		SceneManager.LoadScene(m_Gamemode.gamemodeScene);
+	}
+
+	// 尝试获取游戏模式
+	public static bool TryGetGameMode(string name, out M_Gamemode gamemode) {
+		if (gameModeDict.Count == 0)
+			Initialize();
+		return gameModeDict.TryGetValue(name, out gamemode);
 	}
 }

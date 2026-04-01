@@ -77,7 +77,7 @@ public static class Localization {
 				? string.Join(", ", args.Select((a, i) => $"[{i}]: {a}"))
 				: "none";
 
-			MPMain.LogWarning($"[Localization] Key not found: {key} Args: {argsStr}");
+			MPMain.LogWarning($"[MP Localization] Key not found: {key} Args: {argsStr}");
 			return key;
 		}
 
@@ -90,7 +90,7 @@ public static class Localization {
 		try {
 			return string.Format(pattern, args);
 		} catch (FormatException e) {
-			MPMain.LogError($"[Localization] Format error for key '{key}': {e.Message}");
+			MPMain.LogError($"[MP Localization] Format error for key '{key}': {e.Message}");
 			return pattern;
 		}
 	}
@@ -102,21 +102,21 @@ public static class Localization {
 		// 验证参数
 		if (string.IsNullOrEmpty(category)) {
 			// 分类为空
-			MPMain.LogWarning("[Localization] Category is null or empty");
+			MPMain.LogWarning("[MP Localization] Category is null or empty");
 			return key;
 		}
 
 		// 查找分类
 		if (!_table.TryGetValue(category, out var categoryDict)) {
 			// 分类未找到
-			MPMain.LogWarning($"[Localization] Category not found: {category}");
+			MPMain.LogWarning($"[MP Localization] Category not found: {category}");
 			return $"[{category}] {key}";
 		}
 
 		// 查找键
 		if (!categoryDict.TryGetValue(key, out string pattern)) {
 			// 子选项未找到
-			MPMain.LogWarning($"[Localization] Key '{key}' not found in category '{category}'");
+			MPMain.LogWarning($"[MP Localization] Key '{key}' not found in category '{category}'");
 			return $"[{category}] {key}";
 		}
 
@@ -129,7 +129,7 @@ public static class Localization {
 		try {
 			return string.Format(pattern, args);
 		} catch (FormatException e) {
-			MPMain.LogError($"[Localization] Format error for '{category}.{key}': {e.Message}");
+			MPMain.LogError($"[MP Localization] Format error for '{category}.{key}': {e.Message}");
 			return pattern;
 		}
 	}

@@ -82,8 +82,8 @@ def compare_file_structure(input_file1, input_file2):
 # 使用示例
 if __name__ == "__main__":
     # 对json文件排序
-    # sort_json_file("texts_zh.json")
-    # sort_json_file("texts_en.json")
+    sort_json_file("texts_zh.json")
+    sort_json_file("texts_en.json")
     
     # 对比json结构
     compare_file_structure("texts_zh.json","texts_en.json")

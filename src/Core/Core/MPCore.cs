@@ -68,15 +68,15 @@ public class MPCore : MonoSingleton<MPCore> {
 	private RPManager _RPManager;
 	private LocalPlayer _LocalPlayer;
 	private MPAssetManager _MPAssetManager;
-	private UIManager _UIManager;
+	private UI_Manager _UIManager;
 
 	// 世界种子 - 用于同步游戏世界生成
 	public int WorldSeed { get; private set; }
 	// 多人模式状态
-	public static MPStatus MultiPlayerStatus = MPStatus.NotInitialized;
+	public MPStatus MultiPlayerStatus = MPStatus.NotInitialized;
 	// 是否处于大厅中
-	public static bool IsInLobby => MultiPlayerStatus.IsInLobby();
-	public static bool IsInitialized => MultiPlayerStatus.IsInitialized();
+	public bool IsInLobby => MultiPlayerStatus.IsInLobby();
+	public bool IsInitialized => MultiPlayerStatus.IsInitialized();
 
 	// 手部皮肤 -> 玩家模型ID 映射字典
 	public static readonly Dictionary<string, string> HandSkinToModelId = new() {
@@ -147,7 +147,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			_LocalPlayer.Initialize(MPSteamworks.Instance.UserSteamId, MPConfig.RemotePlayerModel);
 
 			// 创建UI管理器
-			_UIManager = UIManager.Instance;
+			_UIManager = UI_Manager.Instance;
 
 			// 初始化资源管理器
 			_MPAssetManager = MPAssetManager.Instance;
@@ -266,7 +266,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (CommandConsole.instance != null) {
 					RegisterCommands();
 					ChangeRPFactoryId();
-					MultiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.Initialized);
+					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 				} else {
 					// Debug
 					MPMain.LogError(Localization.Get("MPCore", "CommandConsoleNullAfterSceneLoad"));
@@ -300,8 +300,8 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 退出联机模式时重置设置
 	/// </summary>
 	public void ResetStateVariables() {
-		MultiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.NotInitialized);
-		MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
+		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
+		SetStatus(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
 		_MPsteamworks.DisconnectAll();
 		_RPManager.ResetAll();
 	}
@@ -409,7 +409,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			_LocalPlayer.DefaulFactoryId = str[0];
 			MPConfig.RemotePlayerModel = str[0];
 		}, false);
-		CommandConsole.AddCommand("getalllobby", GetAllLobby);
+		CommandConsole.AddCommand("getalllobby", GetAllLobby, false);
 		CommandConsole.AddCommand("test", Test.Test.Main, false);
 		CommandConsole.AddCommand("cheatstest", Test.CheatsTest.Main);
 	}
@@ -433,14 +433,14 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPMain.LogInfo(Localization.Get("MPCore", "CreatingLobby", roomName));
 
 		//设置为正在连接
-		MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
+		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 
 		// 使用协程版本(内部已改为异步)
 		_MPsteamworks.CreateRoom(roomName, maxPlayers, (success) => {
 			if (success) {
 				// 这个触发比加入大厅回调触发慢
-				MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.InLobby);
-				MultiPlayerStatus.SetField(MPStatus.INIT_MASK, MPStatus.Initialized);
+				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
+				SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 
 				switch (SceneManager.GetActiveScene().name) {
 					case "Game-Main": {
@@ -453,7 +453,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 
 			} else {
-				MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 				CommandConsole.LogError(Localization.Get("CommandConsole", "CreateLobbyFailed"));
 			}
 		});
@@ -529,14 +529,13 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPMain.LogInfo(Localization.Get("MPCore", "JoiningLobby", lobbyId.ToString()));
 
 		// 设置状态
-		MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
+		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 
 		_MPsteamworks.JoinRoom(lobbyId, (success) => {
 			if (success) {
-				MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.InLobby);
-				MPMain.LogInfo("成功进入大厅");
+				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 			} else {
-				MultiPlayerStatus.SetField(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 				CommandConsole.LogError(Localization.Get("CommandConsole", "JoinLobbyFailed"));
 			}
 		});
@@ -732,6 +731,15 @@ public class MPCore : MonoSingleton<MPCore> {
 			_MPsteamworks.SendToHost(writer);
 			yield return new WaitForSeconds(4.0f);
 		}
+	}
+
+	#endregion
+
+	#region[联机状态设置函数]
+
+	public MPCore SetStatus(MPStatus mask, MPStatus value) {
+		MultiPlayerStatus.SetField(mask, value);
+		return this;
 	}
 
 	#endregion
