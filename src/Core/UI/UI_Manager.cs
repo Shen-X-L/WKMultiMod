@@ -70,7 +70,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 找到主游戏屏幕作为模版
 		GameObject templateScreen = screenContent.transform.Find("Play Menu")?.gameObject;
 		// 克隆并修改名称
-		MPScreen = GameObject.Instantiate(templateScreen, screenContent.transform);
+		MPScreen = Instantiate(templateScreen, screenContent.transform);
 		MPScreen.name = "Multi Play Menu";
 		// 修改层级
 		MPScreen.transform.SetSiblingIndex(0);
@@ -123,6 +123,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		for (var index = screenTabObjects.transform.childCount - 1; index > 0; --index) {
 			Destroy(screenTabObjects.transform.GetChild(index).gameObject);
 		}
+
 		// 克隆并修改标签页内容
 		GameObject MPLobbyPane = GameObject.Instantiate(lobbyPaneTamplate, screenTabObjects.transform);
 		MPLobbyPane.name = "Lobby Pane - Scroll View Tab - Lobby";
@@ -130,8 +131,9 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 隐藏不需要的UI元素
 		var lobbyPaneContent = MPLobbyPane.transform.Find("Viewport/Content")?.gameObject;
 		for (var index = lobbyPaneContent.transform.childCount - 1; index >= 0; --index) {
-			lobbyPaneContent.transform.GetChild(index)?.gameObject.SetActive(false);
+			Destroy(lobbyPaneContent.transform.GetChild(index).gameObject);
 		}
+		MPLobbyPane.AddComponent<UI_LobbyListPane>();
 		#endregion
 
 		#region[创建模式变体]
@@ -173,6 +175,4 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		var uI_MenuComponent = menu.GetComponent<UI_Menu>();
 		menuButtonComponent.Initialize(uI_MenuComponent);
 	}
-
-	
 }

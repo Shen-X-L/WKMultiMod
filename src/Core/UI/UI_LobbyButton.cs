@@ -1,7 +1,9 @@
 ﻿using DG.Tweening;
+using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Collections;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -12,34 +14,46 @@ using WKMPMod.NetWork;
 namespace WKMPMod.UI;
 
 public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler {
-	public Lobby lobby;							// 关联的大厅数据
+	public Lobby lobby;                         // 关联的大厅数据
 	public M_Gamemode gamemode;                 // 关联的游戏模式
-	public bool isCustomGamemodes;				// 是否为自定义游戏模式(影响显示逻辑)
+	public bool isOfficialGamemodes;			// 是否为官方游戏模式(影响显示逻辑)
 
 	#region[原UI_Gamemode_Button字段]
 	public UI_LerpOpen runInProgressDisplay;    // 进行中标识的动画组件
 	private bool isHovering;                    // 是否正在悬停/选中
+	public TMP_Text unlockText;                 // 锁定原因文本(显示在锁定图标旁边，解释为什么不可加入)
 	#endregion
 
 	#region[原UI_CapsuleButton字段]
-	public float showDelayAnimation;			// 显示动画延迟时间
-	private Selectable button;					// 按钮组件引用
-	private CanvasGroup group;					// CanvasGroup组件(用于控制透明度和交互)
-	public UnityEngine.UI.Image unlockIcon;		// 未解锁时显示的锁定图标
+	public float showDelayAnimation;            // 显示动画延迟时间
+	public Selectable button;                  // 按钮组件引用
+	public CanvasGroup group;					// CanvasGroup组件(用于控制透明度和交互)
+	public UnityEngine.UI.Image unlockIcon;     // 未解锁时显示的锁定图标		
 	#endregion
 
 	public TMP_Text lobbyName;                  // 大厅名称文本
 	public UnityEngine.UI.Image hostAvatar;     // 房主头像
 	public TMP_Text hostName;                   // 房主名
-	private void Start() {
-		button = GetComponent<Selectable>();
-		group = GetComponent<CanvasGroup>();
-	}
 
 	/// <summary>
 	/// 初始化按钮 - 设置点击事件、图标、标题和统计文本
 	/// </summary>
-	public void Initialize() {
+	public void Initialize(Lobby lobby) {
+		hostAvatar = transform.Find("Roach Counter")?.gameObject.GetComponent<UnityEngine.UI.Image>();
+		if (hostAvatar == null) {
+			MPMain.LogError("[MP Debug] 蟑螂图标->主机头像未找到");
+		}
+
+		hostName = transform.Find("Roach Counter/Roaches")?.gameObject.GetComponent<TMP_Text>();
+		if (hostName == null) {
+			MPMain.LogError("[MP Debug] 蟑螂数量->主机名称未找到");
+		}
+
+		// 显示统计文本(目前用来显示房主名称,后续可以改成显示其他统计数据)
+		transform.Find("Roach Counter")?.gameObject.SetActive(true);
+
+		// 关联大厅数据
+		this.lobby = lobby;
 		// 移除之前的点击事件监听,避免重复添加
 		var button = GetComponent<Button>();
 		button.onClick.RemoveAllListeners();
@@ -58,24 +72,25 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 		});
 
 		// 获取游戏模式数据
-		isCustomGamemodes = MPGameModeManager.TryGetGameMode(lobby.GetData("gamemode"), out var gamemode);
-		this.gamemode = gamemode;
+		isOfficialGamemodes = MPGameModeManager.TryGetGameMode(lobby.GetData("gamemode"), out var gamemode);
 
 		// 更新锁定图标显示
 		if (unlockIcon != null) {
-			unlockIcon.gameObject.SetActive(isCustomGamemodes);  // 自定义游戏模式显示锁定图标,官方游戏模式不显示
+			unlockIcon.gameObject.SetActive(!isOfficialGamemodes);  // 自定义游戏模式显示锁定图标,官方游戏模式不显示
 		}
 		// 设置按钮交互和透明度
 		if (group != null) {
-			group.interactable = !isCustomGamemodes;      
-			group.alpha = isCustomGamemodes ? 0.5f : 1f; 
+			group.interactable = isOfficialGamemodes;      
+			group.alpha = isOfficialGamemodes ? 1f : 0.5f; 
 		}
 		// 官方游戏模式显示胶囊图标,自定义游戏模式不显示(后续可以考虑添加自定义图标支持)
-		if (!isCustomGamemodes) {
-			// 设置胶囊图标
+		if (isOfficialGamemodes) {
+			this.gamemode = gamemode;
+			// 设置胶囊按钮图标
 			GetComponent<UnityEngine.UI.Image>()?.sprite = gamemode.capsuleArt;
 		}
 
+		unlockText.text = "[MP Debug] this lobby using custom gamemodes";
 		// 设置标题(支持自定义名称)
 		if (!string.IsNullOrEmpty(lobby.GetData("name"))) {
 			lobbyName.text = lobby.GetData("name");
@@ -83,26 +98,62 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 			lobbyName.text = lobby.Id.ToString();
 		}
 
-		// 设置房主头像 - 需要异步加载Steam头像
-		// 应该写成一个独立的函数来加载头像,但为了简化代码直接写在这里了
-		((Action)(async () => {
-			// 获取房主的Steam头像
-			var avatar = await SteamManager.GetAvatar(lobby.Owner.Id);
-			if (this == null || avatar == null) {
-				return;
+		//string ownerIdStr = lobby.GetData("owner");
+
+
+		// 预设状态
+		hostName.text = "Fetching...";
+		hostAvatar.enabled = false; // 先隐藏,等加载完再现. 以后写成默认加载中头像
+
+		// 加载房主信息(头像和名称)
+		_ = TrackAndLoadOwnerInfo();
+	}
+
+	private async Task TrackAndLoadOwnerInfo() {
+		int retryCount = 0;
+		const int maxRetries = 5;
+
+		// 循环检查 ID 是否有效 (针对 lobby.Owner 延迟对齐的情况)
+		while (this != null && (lobby.Owner.Id == 0)) {
+			if (retryCount >= maxRetries) {
+				MPMain.LogWarning($"[MP Debug] 无法获取房主ID, 使用手动设置的owner, 大厅ID: {lobby.Id}");
+				hostName.text = "Unknown Host";
+				break;
 			}
 
-			var texture = SteamManager.ConvertSteamIcon((Steamworks.Data.Image)avatar);
-			if (hostAvatar != null) { // 增加对 UI 组件的空检查
-				hostAvatar.sprite = Sprite.Create(
-					texture,
-					new Rect(0, 0, texture.width, texture.height),
-					new Vector2(0.5f, 0.5f));
-			}
-		}))();
+			//强制刷新大厅数据
+			lobby.Refresh();
 
-		// 设置房主名称
-		hostName.text = lobby.Owner.Name;
+			await Task.Delay(500); // 每次等 0.5 秒
+			retryCount++;
+		}
+
+		if (this == null) return;
+
+		var owner = lobby.Owner;
+		if (lobby.Owner.Id == 0 && ulong.TryParse(lobby.GetData("owner"), out var ownerId)) {
+			owner = new Friend(ownerId);
+
+		}
+			 
+		hostName.text = string.IsNullOrEmpty(owner.Name) ? "Loading Name..." : owner.Name;
+
+		// 异步加载头像 (这会强制触发 Steam 资料同步)
+		var avatarResult = await owner.GetMediumAvatarAsync();
+
+		if (this == null) return;
+
+		// 最终赋值
+		if (avatarResult.HasValue && hostAvatar != null) {
+			var texture = SteamManager.ConvertSteamIcon(avatarResult.Value);
+			hostAvatar.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+			hostAvatar.enabled = true;
+
+			hostName.text = owner.Name;
+			MPMain.LogInfo($"[MP Debug] 成功加载房主: {owner.Name}");
+			return;
+		}
+		MPMain.LogError($"[MP Debug] 无法加载房主头像, 大厅ID: {lobby.Id}, OwnerID: {owner.Id}, OwnerName: {owner.Name}");
 	}
 
 	#region[事件接口实现]
@@ -159,10 +210,24 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 	// 加入中 - 目前没有额外逻辑 后续实现Loading弹窗
 	public void Joining() {
 		MPCore.Instance.SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
+		// 禁止按钮点击
+		GetComponent<Button>().interactable = false;
+		// 禁止同一标签页内按钮点击
+		var pane = GetComponentInParent<UI_LobbyListPane>();
+		if (pane != null) {
+			pane.SetAllButtonsInteractable(false);
+		}
 	}
 	// 加入失败 - 目前没有额外逻辑 后续实现弹窗提示失败
 	public void JoinFailed() {
 		MPCore.Instance.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+		// 恢复按钮点击
+		GetComponent<Button>().interactable = true;
+		// 恢复同一标签页内按钮点击
+		var pane = GetComponentInParent<UI_LobbyListPane>();
+		if (pane != null) {
+			pane.SetAllButtonsInteractable(true);
+		}
 	}
 
 	// 加入成功 - 目前没有额外逻辑 后续实现Loading弹窗关闭

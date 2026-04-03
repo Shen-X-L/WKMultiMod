@@ -62,11 +62,7 @@ public class MPGameModeManager {
 		SettingsManager.settings.g_iron = data.isIron;
 		SettingsManager.settings.g_hard = data.isHard;
 		// 设置种子
-		if (data.seed is int value
-				&& WorldLoader.instance != null
-				&& value != WorldLoader.instance.seed) {
-
-			//WorldLoader.ReloadWithSeed(new string[] { value.ToString() });//会主动重载游戏场景
+		if (data.seed is int value && (WorldLoader.instance?.seed != value)) {
 			WorldLoader.SetPresetSeed(value.ToString());
 		}
 		// 手动重载地图

@@ -500,7 +500,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			_currentLobby.SetData("name", roomName);
 			_currentLobby.SetData("game", "White Knuckle");
 			_currentLobby.SetData("version", Application.version);
-			_currentLobby.SetData("owner", SteamClient.Name);
+			_currentLobby.SetData("owner", UserSteamId.ToString());
 			_currentLobby.SetData("gamemode", CL_GameManager.gamemode.gamemodeName);
 			_currentLobby.SetPublic();
 			_currentLobby.SetJoinable(true);
@@ -667,6 +667,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPEventBusNet.NotifyLobbyHostChanged(lobby, HostSteamId);
 
 			HostSteamId = currentOwnerId;
+
+			// 如果当前玩家是新主机 更改大厅所有者数据
+			if (currentOwnerId == UserSteamId)
+				_currentLobby.SetData("owner", UserSteamId.ToString());
 		}
 	}
 	#endregion
@@ -852,7 +856,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	#region[大厅检索]
 
-	public async Task FetchLobbies() {
+	public async Task RefreshLobbyList() {
 		try {
 			var query = new Steamworks.Data.LobbyQuery()
 				.FilterDistanceWorldwide()
