@@ -17,7 +17,7 @@ public class MPMain : BaseUnityPlugin {
 
 	public const string ModGUID = "shenxl.MultiPlayerMod";
 	public const string ModName = "MultiPlayer Mod";
-	public const string ModVersion = "1.2.5";
+	public const string ModVersion = "1.3.0";
 	//Assembly.GetExecutingAssembly().Location -> BepInEx\plugins\MultiPlayer\WKMultiPlayerMod.dll
 	//Path.GetDirectoryName -> BepInEx\plugins\MultiPlayer
 	public static string path = Path.GetDirectoryName(typeof(MPMain).Assembly.Location) ?? string.Empty;

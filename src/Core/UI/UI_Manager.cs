@@ -5,7 +5,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using WKMPMod.Core;
+using System.Reflection;
 using WKMPMod.Util;
 using static ENT_Player;
 using static UI_TabGroup;
@@ -77,6 +77,10 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 修改大厅列表子对象
 		GameObject lobbyPaneContainer = MPScreen.transform.Find("Play Pane")?.gameObject;
 		lobbyPaneContainer.name = "Lobby Pane";
+
+		// 修复可能的UI_LerpOpen组件问题(如果存在的话)
+		FixLerpComponent(lobbyPaneContainer);
+
 		// 删除不需要的UI元素
 		Destroy(MPScreen.transform.Find("GamemodeScreen")?.gameObject);
 		Destroy(lobbyPaneContainer.transform.Find("Play Scroll View")?.gameObject);
@@ -150,6 +154,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 					tabObject = MPLobbyPane,
 					firstSelect = null,
 					buttonText = newTabButton.transform.Find("Text (TMP)")?.gameObject.GetComponent<TextMeshProUGUI>(),
+					onlyDev = false,
 				},
 				new UI_TabGroup.Tab() {
 					name = "template",
@@ -157,9 +162,11 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 					tabObject = lobbyPaneTamplate,
 					firstSelect = null,
 					buttonText = tabButtonTamplate.transform.Find("Text (TMP)")?.gameObject.GetComponent<TextMeshProUGUI>(),
+					onlyDev = true,
 				}
 			};
 		#endregion
+
 	}
 
 	// 初始化UI关联
@@ -167,12 +174,31 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 移除点击事件
 		var buttonComponent = MPButton.GetComponent<UnityEngine.UI.Button>();
 		buttonComponent.onClick.RemoveAllListeners(); // 移除原有的功能
-													  // 修改关联菜单
+		// 修改关联菜单
 		var menuButtonComponent = MPButton.GetComponent<UI_MenuButton>();
 		menuButtonComponent.screen = MPScreen.GetComponent<UI_MenuScreen>();
 		// 初始化函数
 		GameObject menu = GameObject.Find(MainMenu);
 		var uI_MenuComponent = menu.GetComponent<UI_Menu>();
 		menuButtonComponent.Initialize(uI_MenuComponent);
+	}
+
+
+	private void FixLerpComponent(GameObject target) {
+		var lerp = target.GetComponent<UI_LerpOpen>();
+		if (lerp == null) return;
+
+		// 获取私有字段的 FieldInfo
+		// 游戏源码中的变量名：targetPosition, targetSize, rootPositon, rootScale
+		Type type = typeof(UI_LerpOpen);
+		BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+
+		// 1. 修正目标位置为零（显示时的正常位置）
+		type.GetField("targetPosition", flags)?.SetValue(lerp, Vector3.zero);
+		type.GetField("rootPositon", flags)?.SetValue(lerp, Vector3.zero);
+
+		// 2. 修正目标缩放为 1（正常显示的大小）
+		type.GetField("targetSize", flags)?.SetValue(lerp, Vector3.one);
+		type.GetField("rootScale", flags)?.SetValue(lerp, Vector3.one);
 	}
 }

@@ -24,7 +24,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 	public Transform contentTransform;
 
 	// 用来防止刷新大厅生成的新按钮在刷新过程中被点击导致错误,刷新过程中所有按钮不可交互,刷新完成后恢复交互
-	public bool interactable;
+	public bool interactable = true;
 	// 启用时调用MPSteamworks的RefreshLobbyList方法,刷新大厅列表
 	private void Start() {
 		try {

@@ -1,3 +1,7 @@
+与自定义模式的兼容问题 UI_MenuButton.OpenScreen 无法正常打开UI_MenuScreen
+UI_MenuButton.OpenScreen->UI_MenuScreen.Open->UI_MenuScreen.openEvent.Invoke->UI_LerpOpen.Show
+UI_MenuScreen.CloseScreen->UI_MenuScreen.closeEvent.Invoke->UI_LerpOpen.Hide
+
 按钮组件记得修补TMP字体文件
 UI_LobbyListPane添加一个刷新按钮
 
