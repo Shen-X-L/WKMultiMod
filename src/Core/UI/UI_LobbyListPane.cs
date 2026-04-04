@@ -8,20 +8,21 @@ using UnityEngine;
 using UnityEngine.UI;
 using WKMPMod.Core;
 using WKMPMod.NetWork;
+using WKMPMod.Util;
 
 namespace WKMPMod.UI;
 
 public class UI_LobbyListPane : MonoBehaviour {
 	// 模板对象路径
 	public const string TEMPLATE_PATH = "Canvas - Screens/Screens/Canvas - Screen - Play/Multi Play Menu/Lobby Pane/Tab Objects/Lobby Pane - Scroll View Tab - Tamplate/Viewport/Content/Mode Selection Button - Endless";
-	public GameObject template;
+	public GameObject? template;
 
 	// 大厅ID与对应UI_LobbyButton的字典,用于快速查找和更新UI
-	public Dictionary<ulong, GameObject> LobbyDic = new Dictionary<ulong, GameObject>();
+	public Dictionary<ulong, UI_LobbyButton> LobbyDic = new Dictionary<ulong, UI_LobbyButton>();
 
 	// 内容容器路径
 	public const string CONTENT_PATH = "Viewport/Content";
-	public Transform contentTransform;
+	public Transform? contentTransform;
 
 	// 用来防止刷新大厅生成的新按钮在刷新过程中被点击导致错误,刷新过程中所有按钮不可交互,刷新完成后恢复交互
 	public bool interactable = true;
@@ -30,7 +31,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 		try {
 			SetupTemplate();
 		} catch (Exception ex) {
-			MPMain.LogError($"[MP Debug] {ex.Message}");
+			MPMain.LogError(Localization.Get("UI_LobbyListPane", "ButtonTemplateBuildFailed", ex.Message));
 		}
 		contentTransform = transform.Find(CONTENT_PATH);
 	}
@@ -49,31 +50,53 @@ public class UI_LobbyListPane : MonoBehaviour {
 		HashSet<ulong> activeIds = lobbies.Select(lobby => lobby.Id.Value).ToHashSet();
 
 		// 移除已关闭的大厅对应的UI_LobbyButton
-		foreach (var id in LobbyDic.Keys.Where(id => !activeIds.Contains(id)).ToList()) { 
-			Destroy(LobbyDic[id]);
+		foreach (var id in LobbyDic.Keys.Where(id => !activeIds.Contains(id)).ToList()) {
+			Destroy(LobbyDic[id].gameObject); 
+			LobbyDic.Remove(id);
+		}
+
+		if (template == null) {
+			MPMain.LogError(Localization.Get("UI_LobbyListPane", "LobbyButtonTemplateNull"));
+			return;
 		}
 
 		// 添加新的大厅对应的UI_LobbyButton
 		foreach (var lobby in lobbies.Where(l => !LobbyDic.ContainsKey(l.Id))) {
-			LobbyDic[lobby.Id] = CreateLobbyButton(lobby);
+			var newButton = CreateLobbyButton(lobby);
+			if (newButton != null) {
+				LobbyDic[lobby.Id] = newButton;
+			}
 		}
 	}
 
 	/// <summary>
 	/// 创建大厅按钮并初始化数据
 	/// </summary>
-	public GameObject CreateLobbyButton(Lobby lobby) {
-		GameObject newButton = Instantiate(template, contentTransform);
-		newButton.name = $"LobbyButton_{lobby.Id}";
-		newButton.SetActive(true); // 确保新按钮可见
-		newButton.GetComponent<Button>()?.interactable = interactable; // 设置按钮交互性
-		var lobbyButtonComponent = newButton.GetComponent<UI_LobbyButton>();
-		if (lobbyButtonComponent != null) {
-			lobbyButtonComponent.Initialize(lobby); // 初始化按钮数据
+	public UI_LobbyButton? CreateLobbyButton(Lobby lobby) {
+		if (template == null) return null;
+		GameObject? newButtonObj = Instantiate(template, contentTransform);
+		if (newButtonObj == null) {
+			MPMain.LogError(Localization.Get("UI_LobbyListPane", "LobbyButtonCloneFailed"));
+			return null;
+		};
+		newButtonObj.name = $"LobbyButton_{lobby.Id}";
+		newButtonObj.SetActive(true);
+		// 获取UI_LobbyButton组件并初始化数据
+		Button btnComp = newButtonObj.GetComponent<Button>();
+		UI_LobbyButton lobbyBtn = newButtonObj.GetComponent<UI_LobbyButton>();
+		if (btnComp != null) {
+			btnComp.interactable = interactable;
 		} else {
-			Debug.LogError($"[MP Debug] UI_LobbyButton组件未找到: {newButton.name}");
+			newButtonObj.AddComponent<Button>();
 		}
-		return newButton;
+		if (lobbyBtn != null) {
+			lobbyBtn.Initialize(lobby);
+			return lobbyBtn;
+		} else {
+			MPMain.LogError(Localization.Get("UI_LobbyListPane", "LobbyButtonComponentNotFound",newButtonObj.name));
+			Destroy(newButtonObj);
+			return null;
+		}
 	}
 
 	/// <summary>
@@ -85,10 +108,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 
 		foreach (var buttonObject in LobbyDic.Values) {
 			if (buttonObject != null) {
-				var button = buttonObject.GetComponent<Button>();
-				if (button != null) {
-					button.interactable = interactable;
-				}
+				buttonObject.GetComponent<Button>()?.interactable = interactable;
 			}
 		}
 		// 以后给刷新按钮添加交互控制 
@@ -105,53 +125,48 @@ public class UI_LobbyListPane : MonoBehaviour {
 		}
 
 		template = GameObject.Find(TEMPLATE_PATH)?.gameObject;
-		if (template == null) {
-			throw new Exception("[MP Debug] 模板未找到");
-		}
+		if (template == null) 
+			throw new Exception("Template not found at path: " + TEMPLATE_PATH);
 
 		// 添加UI_LobbyButton组件
 		var lobbyButton = template.AddComponent<UI_LobbyButton>();
 
-		if (!template.TryGetComponent<UI_Gamemode_Button>(out var gamemodeButton)) {
-			throw new Exception("[MP Debug] UI_Gamemode_Button未找到");
-		}
-		if (!template.TryGetComponent<UI_CapsuleButton>(out var capsuleButton)) {
-			throw new Exception("[MP Debug] UI_CapsuleButton未找到");
-		}
+		if (!template.TryGetComponent<UI_Gamemode_Button>(out var gamemodeButton))
+			throw new Exception("UI_Gamemode_Button component missing on template");
+
+		if (!template.TryGetComponent<UI_CapsuleButton>(out var capsuleButton))
+			throw new Exception("UI_CapsuleButton component missing on template");
 
 		// 获取原UI_Gamemode_Button组件的相关字段(如果存在),以便复用其功能
 		lobbyButton.runInProgressDisplay = gamemodeButton.runInProgressDisplay;
 		lobbyButton.unlockText = gamemodeButton.unlockText
-			?? transform.Find("Lock Image/Unlock Requirement")?.gameObject.GetComponent<TMP_Text>();
-		if (lobbyButton.unlockText == null) {
-			throw new Exception("[MP Debug] 未解锁信息未找到");
-		}
+			?? template.transform.Find("Lock Image/Unlock Requirement")?.gameObject.GetComponent<TMP_Text>();
+		if (lobbyButton.unlockText == null) throw new Exception("Unlock text component missing");
 
 		// 获取原UI_CapsuleButton组件的相关字段(如果存在),以便复用其功能
 		lobbyButton.button = template.GetComponent<Selectable>();
 		lobbyButton.group = template.GetComponent<CanvasGroup>();
 		lobbyButton.unlockIcon = capsuleButton.unlockIcon
-			?? transform.Find("Lock Image")?.gameObject.GetComponent<UnityEngine.UI.Image>();
-		if (lobbyButton.unlockIcon == null) {
-			throw new Exception("[MP Debug] 未解锁图标未找到");
-		}
+			?? template.transform.Find("Lock Image")?.gameObject.GetComponent<UnityEngine.UI.Image>();
+		if (lobbyButton.unlockIcon == null) throw new Exception("Lock Image component missing");
+		
 
 		lobbyButton.showDelayAnimation = capsuleButton.showDelayAnimation;
 		// 赋值新的UI_LobbyButton特有的字段
 		lobbyButton.lobbyName = gamemodeButton.title
-			?? transform.Find("Mode Name")?.gameObject.GetComponent<TMP_Text>();
-		if (lobbyButton.lobbyName == null) {
-			throw new Exception("[MP Debug] 模式名称->大厅名未找到");
-		}
+			?? template.transform.Find("Mode Name")?.gameObject.GetComponent<TMP_Text>();
+		if (lobbyButton.lobbyName == null) throw new Exception("Mode Name component missing");
+		
 
 		// 移除不需要的子物体(如果存在),避免显示错误信息
-		Destroy(transform.Find("Medal")?.gameObject);
-		Destroy(transform.Find("High Score Tracker")?.gameObject);
+		Destroy(template.transform.Find("Medal")?.gameObject);
+		Destroy(template.transform.Find("High Score Tracker")?.gameObject);
 		// 移除原有的UI_Gamemode_Button和UI_CapsuleButton组件
 		DestroyImmediate(gamemodeButton);
-		// 暂时不移除 会导致UI_CapsuleContainer数组越界
-		//DestroyImmediate(capsuleButton);
-		capsuleButton.enabled = false;
+		DestroyImmediate(capsuleButton);
+		// 禁用也会导致UI_CapsuleContainer数组越界 不知道为什么
+		//gamemodeButton.enabled = false;
+		//capsuleButton.enabled = false;
 	}
 	#endregion
 }

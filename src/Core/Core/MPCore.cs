@@ -763,11 +763,6 @@ public class MPCore : MonoSingleton<MPCore> {
 				itemsDict[item.prefabName]++;
 			}
 		}
-
-		//foreach (var kvp in itemsDict) {
-		//	MPMain.LogInfo($"[MP Debug] 物品: {kvp.Key} 数量: {kvp.Value}");
-		//}
-
 		return itemsDict;
 	}
 

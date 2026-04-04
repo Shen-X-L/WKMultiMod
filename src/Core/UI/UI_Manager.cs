@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Device;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using System.Reflection;
+using WKMPMod.Core;
 using WKMPMod.Util;
 using static ENT_Player;
 using static UI_TabGroup;
@@ -14,13 +16,45 @@ namespace WKMPMod.UI;
 
 public class UI_Manager : MonoSingleton<UI_Manager> {
 
-	// 主菜单UI按钮容器
-	const string MainMenu = "Canvas - Main Menu/Main Menu";
-	const string MainMenuButtons = "Canvas - Main Menu/Main Menu/Main Menu Buttons";
-	const string CanvasScreenPlay = "Canvas - Screens/Screens/Canvas - Screen - Play";
-	GameObject MPButton;
-	GameObject MPScreen;
-	GameObject MPLobbyPane;
+	// 主菜单UI按钮容器路径
+	const string MAIN_MENU_PATH = "Canvas - Main Menu/Main Menu";
+	const string MAIN_MENU_BUTTONS_PATH = "Canvas - Main Menu/Main Menu/Main Menu Buttons";
+	// Play屏幕UI容器路径
+	const string CANVAS_SCREEN_PLAY_PATH = "Canvas - Screens/Screens/Canvas - Screen - Play";
+	const string PLAY_PANE_PATH = "Play Pane";
+	// 主菜单按钮
+	GameObject? _mpButton;
+	// 多人模式屏幕
+	GameObject? _mpScreen;
+	// Play屏幕
+	GameObject? _lobbyPaneContainer;
+	// 标签页选项总容器
+	GameObject? _screenTabs;
+	// 标签页选项按钮容器
+	GameObject? _screenTabButtons;
+	// 新标签页选项按钮
+	GameObject? _newTabButton;
+	GameObject? _tabButtonTemplate;
+
+	// 标签页内容总容器
+	GameObject? _screenTabObjects;
+	// 新标签页内容容器
+	GameObject? _mpLobbyPane;
+	GameObject? _lobbyPaneTemplate;
+
+	/// <summary>
+	/// UI层级
+	/// _lobbyPaneContainer
+	/// ├-_screenTabs
+	/// │ └─_screenTabButtons
+	/// │   ├-LB
+	/// │   ├-_newTabButton
+	/// │   ├-_tabButtonTemplate
+	/// │   └-RB
+	/// └-_screenTabObjects
+	///   ├-_mpLobbyPane
+	///   └─_lobbyPaneTemplate
+	/// </summary>
 
 	#region[Unity组件生命周期函数]
 
@@ -35,9 +69,19 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	public void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
 		switch (scene.name) {
 			case "Main-Menu": {
-				CreateMenuButton();
-				CreateLobbyScreen();
-				Initialize();
+				try {
+					// 每次进入主菜单，彻底清理旧对象，防止重复创建
+					if (_mpButton != null) Destroy(_mpButton);
+					if (_mpScreen != null) Destroy(_mpScreen);
+
+					// 执行子逻辑
+					CreateMenuButton();
+					CreateLobbyScreen();
+					Initialize();
+				} catch (Exception ex) {
+					// 捕获所有未预期的崩溃，并记录日志
+					MPMain.LogError($"[MP UI] 创建菜单UI是失败: {ex}");
+				}
 				break;
 			}
 			default:
@@ -48,142 +92,187 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// 在主菜单创建多人模式按钮
 	public void CreateMenuButton() {
 		// 找到现有的菜单容器
-		GameObject menuContent = GameObject.Find(MainMenuButtons);
+		GameObject menuContent = GameObject.Find(MAIN_MENU_BUTTONS_PATH);
+		if (menuContent == null) {
+			MPMain.LogError($"[MP UI] 主菜单容器未找到");
+			return;
+		}
 		// 找到一个现有的按钮作为模版
-		GameObject templateButton = menuContent.transform.Find("Cosmetics").gameObject;
+		GameObject? templateButton = menuContent.transform.Find("Cosmetics")?.gameObject;
+		if (templateButton == null) {
+			MPMain.LogError($"[MP UI] 按钮模板 'Cosmetics' 未找到");
+			return;
+		}
 		// 克隆并修改名称
-		MPButton = GameObject.Instantiate(templateButton, menuContent.transform);
-		MPButton.name = "Multi Play";
+		_mpButton = Instantiate(templateButton, menuContent.transform);
+		_mpButton.name = "Multi Play";
 		// 修改层级
-		MPButton.transform.SetSiblingIndex(1);
+		_mpButton.transform.SetSiblingIndex(1);
 		// 修改文字
-		var tmp = MPButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
-		if (tmp != null) tmp.text = "MULTI PLAY";
-
+		_mpButton.GetComponentInChildren<TMPro.TextMeshProUGUI>()?.text = "MULTI PLAY";
 	}
+
 	// 创建多人模式大厅屏幕
 	public void CreateLobbyScreen() {
+		// 准备和克隆UI容器
+		if (!PrepareRootContainers()) return;
 
-		#region[创建大厅搜索菜单]
-		// 找到现有的菜单容器
-		GameObject screenContent = GameObject.Find(CanvasScreenPlay);
-		// 找到主游戏屏幕作为模版
-		GameObject templateScreen = screenContent.transform.Find("Play Menu")?.gameObject;
-		// 克隆并修改名称
-		MPScreen = Instantiate(templateScreen, screenContent.transform);
-		MPScreen.name = "Multi Play Menu";
-		// 修改层级
-		MPScreen.transform.SetSiblingIndex(0);
-		// 修改大厅列表子对象
-		GameObject lobbyPaneContainer = MPScreen.transform.Find("Play Pane")?.gameObject;
-		lobbyPaneContainer.name = "Lobby Pane";
+		// 设置标签页按钮和内容
+		if (!SetupTabButtons()) return;
+		if (!SetupTabContents()) return;
 
-		// 修复可能的UI_LerpOpen组件问题(如果存在的话)
-		FixLerpComponent(lobbyPaneContainer);
+		// 细节处理与事件绑定
+		ConfigureMutators();
+		BindTabEvents();
 
-		// 删除不需要的UI元素
-		Destroy(MPScreen.transform.Find("GamemodeScreen")?.gameObject);
-		Destroy(lobbyPaneContainer.transform.Find("Play Scroll View")?.gameObject);
-		Destroy(lobbyPaneContainer.transform.Find("Tab Selection")?.gameObject);
-		#endregion
+		MPMain.LogInfo("[MP UI] 多人模式大厅屏幕构建完成");
+	}
 
-		#region[创建标签页按钮]
-		// 获取标签页容器
-		GameObject screenTabs = lobbyPaneContainer.transform.Find("Tabs")?.gameObject;
-		// 获取标签页按钮容器
-		GameObject screenTabButtons = screenTabs.transform.Find("Tab Buttons")?.gameObject;
-		// 克隆并修改标签页按钮
-		GameObject tabButtonTamplate = screenTabButtons.transform.Find("ModeButton_Custom")?.gameObject;
-		tabButtonTamplate.name = "ModeButton_Tamplate";
-		tabButtonTamplate.transform.Find("Text (TMP)")
+	// 准备和克隆UI容器, 返回是否成功
+	private bool PrepareRootContainers() {
+		GameObject screenContent = GameObject.Find(CANVAS_SCREEN_PLAY_PATH);
+		if (screenContent == null) return Error(Localization.Get("UI_Manager", "PlayScreenContainerNotFound"));
+
+		GameObject? templateScreen = screenContent.transform.Find("Play Menu")?.gameObject;
+		if (templateScreen == null) return Error(Localization.Get("UI_Manager", "PlayMenuTemplateNotFound"));
+
+		// 克隆大厅屏幕
+		_mpScreen = Instantiate(templateScreen, screenContent.transform);
+		_mpScreen.name = "Multi Play Menu";
+		_mpScreen.transform.SetSiblingIndex(0);
+
+		// 缓存核心容器
+		_lobbyPaneContainer = _mpScreen.transform.Find(PLAY_PANE_PATH)?.gameObject;
+		if (_lobbyPaneContainer == null) return Error(Localization.Get("UI_Manager", "LobbyPaneContainerPathError"));
+		_lobbyPaneContainer.name = "Lobby Pane";
+
+		FixLerpComponent(_lobbyPaneContainer);
+
+		// 清理原版不需要的元素
+		Destroy(_mpScreen.transform.Find("GamemodeScreen")?.gameObject);
+		Destroy(_lobbyPaneContainer.transform.Find("Play Scroll View")?.gameObject);
+		Destroy(_lobbyPaneContainer.transform.Find("Tab Selection")?.gameObject);
+
+		return true;
+	}
+
+	// 设置标签页按钮, 返回是否成功
+	private bool SetupTabButtons() {
+		_screenTabs = _lobbyPaneContainer!.transform.Find("Tabs")?.gameObject;
+		_screenTabButtons = _screenTabs?.transform.Find("Tab Buttons")?.gameObject;
+
+		if (_screenTabButtons == null) return Error("标签页按钮容器未找到");
+
+		_tabButtonTemplate = _screenTabButtons.transform.Find("ModeButton_Custom")?.gameObject;
+		if (_tabButtonTemplate == null) return Error("按钮模板 ModeButton_Custom 未找到");
+
+		// 配置模板
+		_tabButtonTemplate.name = "ModeButton_Template";
+		_tabButtonTemplate.transform.Find("Text (TMP)")
 			?.gameObject.GetComponent<TextMeshProUGUI>()
 			?.text = "TEMPLATE";
-		GameObject newTabButton = GameObject.Instantiate(tabButtonTamplate, screenTabButtons.transform);
-		newTabButton.name = "ModeButton_Lobby";
-		newTabButton.transform.Find("Text (TMP)")
+
+		// 创建新按钮
+		_newTabButton = Instantiate(_tabButtonTemplate, _screenTabButtons.transform);
+		_newTabButton.name = "ModeButton_Lobby";
+		_newTabButton.transform.Find("Text (TMP)")
 			?.gameObject.GetComponent<TextMeshProUGUI>()
 			?.text = "LOBBY";
-		// 修改层级
-		tabButtonTamplate.transform.SetSiblingIndex(1);
-		tabButtonTamplate.SetActive(true);
-		newTabButton.transform.SetSiblingIndex(2);
-		newTabButton.SetActive(true);
-		// 删除不需要的标签页按钮
-		// 跳过0号 1号 2号 -1号 0号是LB图标 1号是标签页按钮 2号是测试模板按钮 -1号是RB图标 其他的都是需要删除的标签页按钮
-		for (var index = screenTabButtons.transform.childCount - 2; index > 2; --index) {
-			Destroy(screenTabButtons.transform.GetChild(index).gameObject);
-		}
-		#endregion
 
-		#region[创建标签页内容]
-		// 获取内容容器
-		GameObject screenTabObjects = lobbyPaneContainer.transform.Find("Tab Objects")?.gameObject;
-		GameObject lobbyPaneTamplate = screenTabObjects.transform.Find("Play Pane - Scroll View Tab - Custom")?.gameObject;
+		_tabButtonTemplate.transform.SetSiblingIndex(1);
+		_newTabButton.transform.SetSiblingIndex(2);
+
+		// 清理其他按钮
+		// 跳过0号 1号 2号 -1号 0号是LB图标 1号是标签页按钮 2号是测试模板按钮 -1号是RB图标
+		for (int i = _screenTabButtons.transform.childCount - 2; i > 2; i--) {
+			Destroy(_screenTabButtons.transform.GetChild(i).gameObject);
+		}
+		return true;
+	}
+
+	// 设置标签页内容, 返回是否成功
+	private bool SetupTabContents() {
+		// 缓存标签页内容容器
+		_screenTabObjects = _lobbyPaneContainer!.transform.Find("Tab Objects")?.gameObject;
+		if (_screenTabObjects == null) return Error("标签页内容容器未找到");
+
+		// 缓存内容模板
+		_lobbyPaneTemplate = _screenTabObjects.transform.Find("Play Pane - Scroll View Tab - Custom")?.gameObject;
+		if (_lobbyPaneTemplate == null) return Error("内容模板未找到");
+
 		// 重命名模板并修改顺序
-		lobbyPaneTamplate.name = "Lobby Pane - Scroll View Tab - Tamplate";
-		lobbyPaneTamplate.transform.SetSiblingIndex(0);
-		// 删除其他标签页内容
-		// 跳过0号模板
-		for (var index = screenTabObjects.transform.childCount - 1; index > 0; --index) {
-			Destroy(screenTabObjects.transform.GetChild(index).gameObject);
+		_lobbyPaneTemplate.name = "Lobby Pane - Scroll View Tab - Template";
+		_lobbyPaneTemplate.transform.SetSiblingIndex(0);
+
+		// 清理其他标签页
+		for (int i = _screenTabObjects.transform.childCount - 1; i > 0; i--) {
+			Destroy(_screenTabObjects.transform.GetChild(i).gameObject);
 		}
 
-		// 克隆并修改标签页内容
-		GameObject MPLobbyPane = GameObject.Instantiate(lobbyPaneTamplate, screenTabObjects.transform);
-		MPLobbyPane.name = "Lobby Pane - Scroll View Tab - Lobby";
-		MPLobbyPane.SetActive(true);
-		// 隐藏不需要的UI元素
-		var lobbyPaneContent = MPLobbyPane.transform.Find("Viewport/Content")?.gameObject;
-		for (var index = lobbyPaneContent.transform.childCount - 1; index >= 0; --index) {
-			Destroy(lobbyPaneContent.transform.GetChild(index).gameObject);
+		// 创建多人大厅面板
+		_mpLobbyPane = Instantiate(_lobbyPaneTemplate, _screenTabObjects.transform);
+		_mpLobbyPane.name = "Lobby Pane - Scroll View Tab - Lobby";
+
+		// 清理面板内部
+		Transform? content = _mpLobbyPane.transform.Find("Viewport/Content");
+		if (content != null) {
+			foreach (Transform child in content) Destroy(child.gameObject);
 		}
-		MPLobbyPane.AddComponent<UI_LobbyListPane>();
-		#endregion
 
-		#region[创建模式变体]
-		GameObject MPScreenMutators = lobbyPaneContainer.transform.Find("Mutators")?.gameObject;
-		MPScreenMutators.SetActive(false);
-		#endregion
+		// 添加大厅列表组件
+		_mpLobbyPane.AddComponent<UI_LobbyListPane>();
+		return true;
+	}
 
-		#region[连接标签页UI事件]
-		var tabGroup = screenTabs.GetComponent<UI_TabGroup>();
-		tabGroup.tabs = new List<UI_TabGroup.Tab>() {
-				new UI_TabGroup.Tab() {
-					name = "lobby",
-					button = newTabButton.GetComponent<UnityEngine.UI.Button>(),
-					tabObject = MPLobbyPane,
-					firstSelect = null,
-					buttonText = newTabButton.transform.Find("Text (TMP)")?.gameObject.GetComponent<TextMeshProUGUI>(),
-					onlyDev = false,
-				},
-				new UI_TabGroup.Tab() {
-					name = "template",
-					button = tabButtonTamplate.GetComponent<UnityEngine.UI.Button>(),
-					tabObject = lobbyPaneTamplate,
-					firstSelect = null,
-					buttonText = tabButtonTamplate.transform.Find("Text (TMP)")?.gameObject.GetComponent<TextMeshProUGUI>(),
-					onlyDev = true,
-				}
-			};
-		#endregion
+	// 配置模式变体标签页, 目前直接隐藏
+	private void ConfigureMutators() {
+		_lobbyPaneContainer?.transform.Find("Mutators")?.gameObject.SetActive(false);
+	}
 
+	// 绑定标签页事件
+	private void BindTabEvents() {
+		if (_screenTabs == null || _newTabButton == null || _mpLobbyPane == null) return;
+
+		var tabGroup = _screenTabs.GetComponent<UI_TabGroup>();
+		if (tabGroup == null) return;
+
+		tabGroup.tabs = new List<UI_TabGroup.Tab> {
+			new UI_TabGroup.Tab {
+				name = "lobby",
+				button = _newTabButton.GetComponent<UnityEngine.UI.Button>(),
+				tabObject = _mpLobbyPane,
+				buttonText = _newTabButton.transform.Find("Text (TMP)")?.GetComponent<TextMeshProUGUI>()
+			},
+			new UI_TabGroup.Tab {
+				name = "template",
+				button = _tabButtonTemplate!.GetComponent<UnityEngine.UI.Button>(),
+				tabObject = _lobbyPaneTemplate!,
+				buttonText = _tabButtonTemplate.transform.Find("Text (TMP)")?.GetComponent<TextMeshProUGUI>(),
+				onlyDev = true
+			}
+		};
 	}
 
 	// 初始化UI关联
 	public void Initialize() {
 		// 移除点击事件
-		var buttonComponent = MPButton.GetComponent<UnityEngine.UI.Button>();
-		buttonComponent.onClick.RemoveAllListeners(); // 移除原有的功能
+		_mpButton?.GetComponent<UnityEngine.UI.Button>()?.onClick.RemoveAllListeners();
 		// 修改关联菜单
-		var menuButtonComponent = MPButton.GetComponent<UI_MenuButton>();
-		menuButtonComponent.screen = MPScreen.GetComponent<UI_MenuScreen>();
+		var menuButtonComponent = _mpButton?.GetComponent<UI_MenuButton>();
+		if (menuButtonComponent == null) { 
+			MPMain.LogError($"[MP UI] 按钮组件 'UI_MenuButton' 未找到，无法绑定菜单事件");
+			return;
+		}
+		menuButtonComponent.screen = _mpScreen?.GetComponent<UI_MenuScreen>();
 		// 初始化函数
-		GameObject menu = GameObject.Find(MainMenu);
+		GameObject menu = GameObject.Find(MAIN_MENU_PATH);
 		var uI_MenuComponent = menu.GetComponent<UI_Menu>();
 		menuButtonComponent.Initialize(uI_MenuComponent);
 	}
 
+	#region[工具函数]
 
+	// 修复UI_LerpOpen组件可能存在的目标位置和缩放问题
 	private void FixLerpComponent(GameObject target) {
 		var lerp = target.GetComponent<UI_LerpOpen>();
 		if (lerp == null) return;
@@ -193,12 +282,23 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		Type type = typeof(UI_LerpOpen);
 		BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
 
-		// 1. 修正目标位置为零（显示时的正常位置）
-		type.GetField("targetPosition", flags)?.SetValue(lerp, Vector3.zero);
-		type.GetField("rootPositon", flags)?.SetValue(lerp, Vector3.zero);
-
-		// 2. 修正目标缩放为 1（正常显示的大小）
-		type.GetField("targetSize", flags)?.SetValue(lerp, Vector3.one);
-		type.GetField("rootScale", flags)?.SetValue(lerp, Vector3.one);
+		// 可能的字段名列表，考虑到大小写错误
+		string[] posFields = { "rootPositon", "rootPosition", "targetPosition" };
+		string[] scaleFields = { "rootScale", "targetSize" };
+		// 修正目标位置
+		foreach (var fieldName in posFields) {
+			type.GetField(fieldName, flags)?.SetValue(lerp, Vector3.zero);
+		}
+		// 修正目标缩放
+		foreach (var fieldName in scaleFields) {
+			type.GetField(fieldName, flags)?.SetValue(lerp, Vector3.one);
+		}
 	}
+
+	// 统一的错误日志函数，返回false方便在条件语句中使用
+	private bool Error(string msg) {
+		MPMain.LogError(msg);
+		return false;
+	}
+	#endregion
 }

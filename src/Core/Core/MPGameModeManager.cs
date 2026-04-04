@@ -23,7 +23,6 @@ public class MPGameModeManager {
 		M_Gamemode[] objects = Resources.FindObjectsOfTypeAll<M_Gamemode>();
 		foreach (M_Gamemode obj in objects) {
 			if (obj != null && !string.IsNullOrEmpty(obj.name)) {
-				//MPMain.LogWarning($"[MP Debug] GameMode: {obj.gamemodeName} ObjectName: {obj.name}");
 				gameModeDict[obj.gamemodeName] = obj;
 				gameModeDict[obj.name] = obj;
 			}

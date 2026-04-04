@@ -148,5 +148,31 @@
     "ImplementOverlayViaShader": "[MP RPSlugcatFactory] Implementing Overlay via TMP Shader modification",
     "SpecializingTMPComponent": "[MP RPSlugcatFactory] Specializing TMP component: {0}",
     "UnableToLoadMaterial": "[MP RPSlugcatFactory] Unable to load material in bundle: {0}"
+  },
+  "UI_LobbyButton": {
+    "RoachCounterNotFound": "[MP UI] Roach Counter object not found. Used for: Host Avatar",
+    "RoachCounterRoachesNotFound": "[MP UI] Roach Counter/Roaches object not found. Used for: Host Name",
+    "CustomGamemodeNotice": "This lobby is using custom game modes",
+    "FailedToGetOwnerId": "[MP UI] Failed to get host ID, using manually set owner. Lobby ID: {0}",
+    "OwnerLoadedSuccess": "[MP UI] Successfully loaded host: {0}",
+    "FailedToLoadOwnerAvatar": "[MP UI] Failed to load host avatar. Lobby ID: {0}, OwnerID: {1}, OwnerName: {2}"
+  },
+  "UI_LobbyListPane": {
+    "ButtonTemplateBuildFailed": "[MP UI] Failed to build button template: {0}",
+    "LobbyButtonInstantiateFailed": "[MP UI] Failed to instantiate lobby button: {0}",
+    "LobbyButtonComponentNotFound": "[MP UI] UI_LobbyButton component not found: {0}",
+    "LobbyButtonTemplateNull": "[MP UI] Lobby button object template is null",
+    "LobbyButtonCloneFailed": "[MP UI] Failed to clone lobby button object",
+    "ButtonComponentNotFound": "[MP UI] Button component not found: {0}"
+  },
+  "UI_Manager": {
+    "PlayScreenContainerNotFound": "[MP UI] Play screen container not found",
+    "PlayMenuTemplateNotFound": "[MP UI] Play Menu template not found",
+    "LobbyPaneContainerPathError": "[MP UI] Lobby Pane container path error",
+    "TabButtonContainerNotFound": "[MP UI] Tab button container not found",
+    "TabButtonTemplateNotFound": "[MP UI] Button template 'ModeButton_Custom' not found",
+    "TabContentContainerNotFound": "[MP UI] Tab content container not found",
+    "ContentTemplateNotFound": "[MP UI] Content template not found",
+    "MenuButtonComponentNotFound": "[MP UI] Button component 'UI_MenuButton' not found, unable to bind menu event"
   }
 }

@@ -10,30 +10,31 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using WKMPMod.Core;
 using WKMPMod.NetWork;
+using WKMPMod.Util;
 
 namespace WKMPMod.UI;
 
 public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler {
 	public Lobby lobby;                         // 关联的大厅数据
-	public M_Gamemode gamemode;                 // 关联的游戏模式
+	public M_Gamemode? gamemode;                 // 关联的游戏模式
 	public bool isOfficialGamemodes;			// 是否为官方游戏模式(影响显示逻辑)
 
 	#region[原UI_Gamemode_Button字段]
-	public UI_LerpOpen runInProgressDisplay;    // 进行中标识的动画组件
+	public UI_LerpOpen? runInProgressDisplay;    // 进行中标识的动画组件
 	private bool isHovering;                    // 是否正在悬停/选中
-	public TMP_Text unlockText;                 // 锁定原因文本(显示在锁定图标旁边，解释为什么不可加入)
+	public TMP_Text? unlockText;                 // 锁定原因文本(显示在锁定图标旁边，解释为什么不可加入)
 	#endregion
 
 	#region[原UI_CapsuleButton字段]
 	public float showDelayAnimation;            // 显示动画延迟时间
-	public Selectable button;                  // 按钮组件引用
-	public CanvasGroup group;					// CanvasGroup组件(用于控制透明度和交互)
-	public UnityEngine.UI.Image unlockIcon;     // 未解锁时显示的锁定图标		
+	public Selectable? button;                  // 按钮组件引用
+	public CanvasGroup? group;					// CanvasGroup组件(用于控制透明度和交互)
+	public UnityEngine.UI.Image? unlockIcon;     // 未解锁时显示的锁定图标		
 	#endregion
 
-	public TMP_Text lobbyName;                  // 大厅名称文本
-	public UnityEngine.UI.Image hostAvatar;     // 房主头像
-	public TMP_Text hostName;                   // 房主名
+	public TMP_Text? lobbyName;                  // 大厅名称文本
+	public UnityEngine.UI.Image? hostAvatar;     // 房主头像
+	public TMP_Text? hostName;                   // 房主名
 
 	/// <summary>
 	/// 初始化按钮 - 设置点击事件、图标、标题和统计文本
@@ -41,12 +42,12 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 	public void Initialize(Lobby lobby) {
 		hostAvatar = transform.Find("Roach Counter")?.gameObject.GetComponent<UnityEngine.UI.Image>();
 		if (hostAvatar == null) {
-			MPMain.LogError("[MP Debug] 蟑螂图标->主机头像未找到");
+			MPMain.LogError(Localization.Get("UI_LobbyButton", "RoachCounterNotFound"));
 		}
 
 		hostName = transform.Find("Roach Counter/Roaches")?.gameObject.GetComponent<TMP_Text>();
 		if (hostName == null) {
-			MPMain.LogError("[MP Debug] 蟑螂数量->主机名称未找到");
+			MPMain.LogError(Localization.Get("UI_LobbyButton", "RoachCounterRoachesNotFound"));
 		}
 
 		// 显示统计文本(目前用来显示房主名称,后续可以改成显示其他统计数据)
@@ -58,7 +59,7 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 		var button = GetComponent<Button>();
 		button.onClick.RemoveAllListeners();
 		// 添加点击事件监听
-		GetComponent<Button>().onClick.AddListener(() => {
+		button.onClick.AddListener(() => {
 			// 设置状态
 			Joining();
 			// 加入大厅
@@ -90,20 +91,17 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 			GetComponent<UnityEngine.UI.Image>()?.sprite = gamemode.capsuleArt;
 		}
 
-		unlockText.text = "[MP Debug] this lobby using custom gamemodes";
+		unlockText?.text = Localization.Get("UI_LobbyButton", "CustomGamemodeNotice");
 		// 设置标题(支持自定义名称)
 		if (!string.IsNullOrEmpty(lobby.GetData("name"))) {
-			lobbyName.text = lobby.GetData("name");
+			lobbyName?.text = lobby.GetData("name");
 		} else {
-			lobbyName.text = lobby.Id.ToString();
+			lobbyName?.text = lobby.Id.ToString();
 		}
 
-		//string ownerIdStr = lobby.GetData("owner");
-
-
 		// 预设状态
-		hostName.text = "Fetching...";
-		hostAvatar.enabled = false; // 先隐藏,等加载完再现. 以后写成默认加载中头像
+		hostName?.text = "Fetching...";
+		hostAvatar?.enabled = false; // 先隐藏,等加载完再现. 以后写成默认加载中头像
 
 		// 加载房主信息(头像和名称)
 		_ = TrackAndLoadOwnerInfo();
@@ -116,8 +114,8 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 		// 循环检查 ID 是否有效 (针对 lobby.Owner 延迟对齐的情况)
 		while (this != null && (lobby.Owner.Id == 0)) {
 			if (retryCount >= maxRetries) {
-				MPMain.LogWarning($"[MP Debug] 无法获取房主ID, 使用手动设置的owner, 大厅ID: {lobby.Id}");
-				hostName.text = "Unknown Host";
+				MPMain.LogWarning(Localization.Get("UI_LobbyButton", "FailedToGetOwnerId",lobby.Id));
+				hostName?.text = "Unknown Host";
 				break;
 			}
 
@@ -136,7 +134,7 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 
 		}
 			 
-		hostName.text = string.IsNullOrEmpty(owner.Name) ? "Loading Name..." : owner.Name;
+		hostName?.text = string.IsNullOrEmpty(owner.Name) ? "Loading Name..." : owner.Name;
 
 		// 异步加载头像 (这会强制触发 Steam 资料同步)
 		var avatarResult = await owner.GetMediumAvatarAsync();
@@ -149,11 +147,10 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 			hostAvatar.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
 			hostAvatar.enabled = true;
 
-			hostName.text = owner.Name;
-			MPMain.LogInfo($"[MP Debug] 成功加载房主: {owner.Name}");
+			hostName?.text = owner.Name;
 			return;
 		}
-		MPMain.LogError($"[MP Debug] 无法加载房主头像, 大厅ID: {lobby.Id}, OwnerID: {owner.Id}, OwnerName: {owner.Name}");
+		MPMain.LogError(Localization.Get("UI_LobbyButton", "FailedToLoadOwnerAvatar", lobby.Id,owner.Id,owner.Name));
 	}
 
 	#region[事件接口实现]

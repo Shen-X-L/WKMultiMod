@@ -11,7 +11,6 @@ public class RemoteEntity : GameEntity {
 	public ulong PlayerId {
 		get => _playerId;
 		set {
-			//MPMain.LogInfo($"[MP Debug] PlayerId changed: {_playerId} → {value}\n{Environment.StackTrace}");
 			_playerId = value;
 		}
 	}
@@ -42,7 +41,6 @@ public class RemoteEntity : GameEntity {
 		// 生成伤害特效
 		if (DamageObject != null) {
 			UnityEngine.Object.Instantiate(DamageObject, base.transform.position, base.transform.rotation, base.transform.parent);
-			//MPMain.LogInfo($"[MP Debug] 生成受击特效 位置:{base.transform.position} 角度:{base.transform.rotation}");
 		}
 
 		// 添加屏幕震动

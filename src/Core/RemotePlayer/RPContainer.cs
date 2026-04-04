@@ -188,7 +188,6 @@ public class RPContainer {
 		var deathParticle = MPAssetManager.GetAssetGameObject(MPAssetManager.DEATH_OBJECT_NAME);
 		if (deathParticle != null) {
 			GameObject.Instantiate(deathParticle, playerPosition, playerRotation);
-			//MPMain.LogInfo($"[MP Debug] 生成死亡特效 位置:{playerPosition} 角度:{playerRotation}");
 		}
 		PlayerObject.SetActive(false);
 		_isDead = true;
