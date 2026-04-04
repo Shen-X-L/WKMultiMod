@@ -173,6 +173,10 @@
     "TabButtonTemplateNotFound": "[MP UI] Button template 'ModeButton_Custom' not found",
     "TabContentContainerNotFound": "[MP UI] Tab content container not found",
     "ContentTemplateNotFound": "[MP UI] Content template not found",
-    "MenuButtonComponentNotFound": "[MP UI] Button component 'UI_MenuButton' not found, unable to bind menu event"
+    "MenuButtonComponentNotFound": "[MP UI] Button component 'UI_MenuButton' not found, unable to bind menu event",
+    "MainMenuContainerNotFound": "[MP UI] Main menu container not found",
+    "ButtonTemplateNotFound": "[MP UI] Button template 'Cosmetics' not found",
+    "CreateMenuUIFailed": "[MP UI] Failed to create menu UI: {0}",
+    "MultiplayerLobbyUIBuildComplete": "[MP UI] Multiplayer lobby search UI build complete"
   }
 }

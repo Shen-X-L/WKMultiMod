@@ -173,6 +173,10 @@
 		"TabButtonTemplateNotFound": "[MP UI] 按钮模板 ModeButton_Custom 未找到",
 		"TabContentContainerNotFound": "[MP UI] 标签页内容容器未找到",
 		"ContentTemplateNotFound": "[MP UI] 内容模板未找到",
-		"MenuButtonComponentNotFound": "[MP UI] 按钮组件 'UI_MenuButton' 未找到，无法绑定菜单事件"
+		"MenuButtonComponentNotFound": "[MP UI] 按钮组件 'UI_MenuButton' 未找到，无法绑定菜单事件",
+		"MainMenuContainerNotFound": "[MP UI] 主菜单容器未找到",
+		"ButtonTemplateNotFound": "[MP UI] 按钮模板 'Cosmetics' 未找到",
+		"CreateMenuUIFailed": "[MP UI] 创建菜单UI失败: {0}",
+		"MultiplayerLobbyUIBuildComplete": "[MP UI] 多人模式大厅搜索UI构建完成"
 	}
 }
