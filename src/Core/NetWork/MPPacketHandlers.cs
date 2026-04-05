@@ -46,7 +46,7 @@ public class MPPacketHandlers {
 		// 加载游戏模式
 		MPGameModeManager.LoadGameMode(gameModeData);
 		// 设置多人模式加载标签为完成
-		MPCore.Instance.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
+		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 	}
 
 	/// <summary>

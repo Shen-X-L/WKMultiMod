@@ -76,7 +76,16 @@ After enabling cheat mode (`cheats`) in-game, use the following commands:
 * `tpto <steamId(suffix match)>` - Teleport between players
   * Example: `tpto 16422 or tpto 22 (target steamId: 561198279116422)`
 
-### Version 0.12
+### Version 1.3.0
+Join lobbies using the main menu UI
+
+New commands:
+
+* `getalllobby` – Get information about all lobbies, including lobby codes and current player counts
+* `join <name>` – Join a lobby by its name. If multiple lobbies share the same name, joining by name will fail; please use the lobby code instead.
+  * Example: join abcde
+
+### Version 0.12(No longer updated)
 
 After enabling cheat mode (`cheats`) in-game, use the following commands:
 
@@ -246,18 +255,20 @@ dotnet build -c Release
 ```
 WhiteKnuckleMod/
 ├── src/Core/                       # Mod core logic
+│   ├─ Asset/
+│   │   └─ MPAssetManager.cs        # Retrieves game prefabs via Resources.FindObjectsOfTypeAll<GameObject>()
 │   ├─ Component/                   # Components that depend on game libraries, cannot be moved to Unity project
 │   │   ├─ LocalPlayer.cs           # Component class, responsible for local player positioning
 │   │   └─ RemoteEntity.cs          # Component class, responsible for dealing damage to other players
 │   ├─ Core/
 │   │   ├─ MPConfig.cs              # Reads configuration file data
 │   │   ├─ MPCore.cs                # Core class, handles main events
+│   │   ├─ MPGameModeManager.cs     # Manages network-transmittable game mode data and loads corresponding game modes
 │   │   └─ MPMain.cs                # Startup class, initializes patches
 │   ├─ Data/
 │   │   ├─ DataReader.cs            # Reads data from ArraySegment<byte>/byte[]
 │   │   ├─ DataWriter.cs            # Writes data to ArraySegment<byte>
 │   │   ├─ MPDataPool.cs            # Manages thread-isolated read/write object pools to avoid frequent memory allocation
-│   │   ├─ MPDataSerializer.cs      # Serializes/deserializes PlayerData
 │   │   ├─ MPEventBusGame.cs        # In-game data bus, handles in-game event publishing and subscription
 │   │   └─ MPEventBusNet.cs         # Network data bus, facilitates communication between MPCore and MPSteamworks
 │   ├─ NetWork/
@@ -279,6 +290,10 @@ WhiteKnuckleMod/
 │   ├─ Test/
 │   │   ├─ Test.cs                  # Non-game-impacting test functions, allows quick modifications
 │   │   └─ TestMonoSingleton.cs     # Test MonoSingleton, allows quick modifications
+│   ├─ UI/
+│   │   ├─ UI_LobbyButton.cs        # Lobby option button component, handles the join lobby button functionality
+│   │   ├─ UI_LobbyListPane.cs      # Lobby list panel component, displays the lobby list UI
+│   │   └─ UI_Manager.cs            # UI Manager, creates and manages UI interfaces
 │   └─ Util/ 
 │       ├─ Localization/       
 │       │   ├─ Localization.cs      # Localization utility class, retrieves localized console text

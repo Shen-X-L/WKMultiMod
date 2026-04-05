@@ -72,7 +72,16 @@ graph RL
 * `tpto <steamId(后缀匹配)>` - 进行玩家间tp
   * 示例 `tpto 16422 或 tpto 22(目标steamId 561198279116422)` 
 
-### 0.12
+### 1.3.0
+
+* 使用主菜单UI进行加入大厅
+
+新增命令:
+* `getalllobby` - 获取所有大厅信息,包括大厅码和当前玩家数
+* `join <名称>` - 通过大厅名称加入大厅,如果有多个同名大厅会无法加入,请使用大厅码加入
+  * 示例: `join abcde`
+
+### 0.12(停止更新)
 
 在游戏中开启作弊模式 (`cheats`) 后, 可使用以下命令:
 
@@ -221,18 +230,20 @@ dotnet build -c Release
 ```
 WhiteKnuckleMod/
 ├──src/Core/        # Mod核心逻辑
+│   ├─Asset/
+│   │   └─MPAssetManager.cs # 负责获取游戏本体预制体,通过Resources.FindObjectsOfTypeAll<GameObject>()寻找特定预制体
 │   ├─Component/            # 所有需要游戏本体库无法移至Unity项目的组件
 │   │   ├─LocalPlayer.cs    # 组件类,负责玩家本地位置
 │   │   └─RemoteEntity.cs   # 组件类,负责对其他玩家的伤害
 │   ├─Core/
-│   │   ├─MPConfig.cs   # 读取配置文件的数据
-│   │   ├─MPCore.cs     # 核心类,负责主要事件处理
-│   │   └─MPMain.cs     # 启动类,用来启动补丁
+│   │   ├─MPConfig.cs           # 读取配置文件的数据
+│   │   ├─MPCore.cs             # 核心类,负责主要事件处理
+│   │   ├─MPGameModeManager.cs  # 负责定义可以网络传送的游戏模式数据和加载对应游戏模式
+│   │   └─MPMain.cs             # 启动类,用来启动补丁
 │   ├─Data/
 │   │   ├─DataReader.cs         # 读取ArraySegment<byte>/byte[]内部数据
 │   │   ├─DataWriter.cs         # 写入ArraySegment<byte>数据
 │   │   ├─MPDataPool.cs         # 管理每个线程独立的读写对象池,避免频繁分配内存
-│   │   ├─MPDataSerializer.cs   # 将PlayerData序列化/反序列化
 │   │   ├─MPEventBusGame.cs     # 游戏内数据总线,负责游戏内事件的发布和订阅
 │   │   └─MPEventBusNet.cs      # 网络数据总线,负责MPCore和MPSteamworks交流
 │   ├─NetWork/
@@ -254,10 +265,14 @@ WhiteKnuckleMod/
 │   ├─Test/
 │   │   ├─Test.cs               # 不影响游戏的测试函数,可以快速修改
 │   │   └─TestMonoSingleton.cs  # 测试用的MonoSingleton,可以快速修改
+│   ├─UI/
+│   │   ├─UI_LobbyButton.cs     # 大厅选项按钮组件,负责加入大厅界面按钮的功能
+│   │   ├─UI_LobbyListPane.cs   # 大厅列表面板组件,负责显示大厅列表界面
+│   │   └─UI_Manager.cs		    # UI管理器,负责创建和管理UI界面
 │   └─Util/ 
 │       ├─Localization/       
 │       │   ├─Localization.cs   # 本地化工具类,获取本地化控制台文本
-│       │   ├─json_sort.py      # 用于将Localization文件夹下的json文件排序
+│       │   ├─json_sort.py      # 用于将Localization文件夹下的json文件排序和对比
 │       │   ├─texts_en.json     # 英文文本
 │       │   └─texts_zh.json     # 中文文本
 │       ├─MonoSingleton.cs      # Unity组件单例基类,提供在Unity中使用的单例模式实现

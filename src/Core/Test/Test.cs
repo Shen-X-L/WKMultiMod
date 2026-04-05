@@ -87,6 +87,8 @@ public class Test : MonoBehaviour {
 	// 输出联机模式状态
 	public static void GetMPStatus() {
 		Debug.Log($"{((int)(MPCore.Instance.MultiPlayerStatus)).ToString()}");
+		Debug.Log($"Is in lobby {MPCore.Instance.IsInLobby}");
+		Debug.Log($"Is initialized {MPCore.Instance.IsInitialized}");
 	}
 	// 输出Mass数据
 	public static void GetMassData() {

@@ -472,7 +472,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// 创建大厅(主机模式)- 异步版本
 	/// </summary>
-	public async Task<bool> CreateRoomAsync(string roomName, int maxPlayers) {
+	public async Task<bool> CreateRoomAsync(int maxPlayers = 8, Dictionary<string,string> lobbyData = null) {
 		// 清理全部连接
 		DisconnectAll();
 		//await Task.Yield();
@@ -483,7 +483,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				return false;
 			}
 
-			// 核心:直接 await 任务
+			// await SteamMatchmaking.CreateLobbyAsync
 			Lobby? lobbyResult = await SteamMatchmaking.CreateLobbyAsync(maxPlayers);
 
 			// 只检查结果并返回,移除所有同步大厅设置和 Socket 创建！
@@ -497,11 +497,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogInfo(Localization.Get("MPSteamworks", "LobbyCreatedSuccess", _currentLobby.Id.ToString()));
 
 			// 设置大厅信息
-			_currentLobby.SetData("name", roomName);
-			_currentLobby.SetData("game", "White Knuckle");
-			_currentLobby.SetData("version", Application.version);
-			_currentLobby.SetData("owner", UserSteamId.ToString());
-			_currentLobby.SetData("gamemode", CL_GameManager.gamemode.gamemodeName);
+			SetLobbyData(GetDefaultLobbyData());
+			SetLobbyData(lobbyData);
 			_currentLobby.SetPublic();
 			_currentLobby.SetJoinable(true);
 			_currentLobby.Owner = new Friend(SteamClient.SteamId);
@@ -519,9 +516,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// CreateRoom 异步启动包装器
 	/// </summary>
-	public void CreateRoom(string roomName, int maxPlayers, Action<bool> callback) {
+	public void CreateRoom(int maxPlayers, Dictionary<string, string> lobbyData, Action<bool> callback) {
 		// 启动异步
-		StartCoroutine(RunAsync(CreateRoomAsync(roomName, maxPlayers), callback));
+		StartCoroutine(RunAsync(CreateRoomAsync(maxPlayers, lobbyData), callback));
 	}
 
 	/// <summary>
@@ -537,7 +534,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			// 检查 RoomEnter 结果
 			if (result != RoomEnter.Success) {
-				throw new Exception($"[MPSW] Failed to join Steam lobby: {result.ToString()}");
+				throw new Exception($"Failed to join Steam lobby: {result.ToString()}");
 			}
 
 			_currentLobby = lobby;
@@ -547,7 +544,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			// 获取Socket
 			CreateListeningSocket();
-
 			return true;
 
 		} catch (Exception ex) {
@@ -561,10 +557,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	public void JoinRoom(ulong lobbyId, Action<bool> callback) {
 		Lobby lobby = new Lobby(lobbyId);
-		// 使用 Unity 的扩展方法来启动 async Task
-		StartCoroutine(RunAsync(JoinRoomAsync(lobby), callback));
-	}
-	public void JoinRoom(Lobby lobby, Action<bool> callback) {
 		// 使用 Unity 的扩展方法来启动 async Task
 		StartCoroutine(RunAsync(JoinRoomAsync(lobby), callback));
 	}
@@ -649,7 +641,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		if (lobby.Id != _currentLobby.Id) {
 			// 更新部分大厅数据
 			MPMain.LogInfo(Localization.Get(
-	"			MPSteamworks", "LobbyIdChanged", _currentLobby.Id.ToString(), lobby.Id.ToString()));
+				"MPSteamworks", "LobbyIdChanged", _currentLobby.Id.ToString(), lobby.Id.ToString()));
 			_currentLobby = lobby;
 			// 以后会在这里触发总线
 			return;
@@ -852,6 +844,44 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 
+	/// <summary>
+	/// 设置大厅默认数据,确保所有玩家都能识别这是同一款游戏的大厅,并且可以进行版本兼容性检查
+	/// </summary>
+	private Dictionary<string, string> GetDefaultLobbyData() {
+		var dict = new Dictionary<string, string>();
+		dict["game"] = "White Knuckle";
+		dict["version"] = Application.version;
+		dict["owner"] = UserSteamId.ToString();
+		return dict;
+	}
+
+	/// <summary>
+	/// 设置大厅数据的公共接口,允许业务层在创建大厅时传入自定义数据
+	/// </summary>
+	public void SetLobbyData(string key, string value) {
+		if (_currentLobby.Id.IsValid) {
+			try {
+				_currentLobby.SetData(key, value);
+			} catch (Exception ex) {
+				MPMain.LogError(Localization.Get("MPSteamworks", "SetLobbyDataException", ex.Message));
+			}
+		}
+	}
+
+	/// <summary>
+	/// 设置大厅数据的公共接口,允许业务层在创建大厅时传入自定义数据
+	/// </summary>
+	public void SetLobbyData(Dictionary<string, string> lobbyData) {
+		if (_currentLobby.Id.IsValid) {
+			try {
+				foreach (var (key, value) in lobbyData) {
+					_currentLobby.SetData(key, value);
+				}
+			} catch (Exception ex) {
+				MPMain.LogError(Localization.Get("MPSteamworks", "SetLobbyDataException", ex.Message));
+			}
+		}
+	}
 	#endregion
 
 	#region[大厅检索]

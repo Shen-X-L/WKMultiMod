@@ -1,0 +1,117 @@
+﻿using Steamworks;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using WKMPMod.Core;
+using WKMPMod.NetWork;
+using WKMPMod.Util;
+
+namespace WKMPMod.UI;
+
+public class UI_LobbyCreateButton : MonoBehaviour {
+
+	public Button? button; // 按钮组件引用
+	public UI_GamemodeScreen_Panel? gamemodePanel; // 游戏模式详情面板引用
+	public List<Button> otherButtons = new List<Button>(); // 同一标签页内的其他按钮列表(用于控制交互状态)
+
+	private void Awake() {
+		// 强制清理并重新绑定
+		Button oldBtn = GetComponent<Button>();
+		if (oldBtn != null) {
+			// 仅仅 RemoveAllListeners 不够，因为那不包含 Inspector 里的持久化事件
+			// 可以通过把按钮的 onClick 设为一个新的 UnityEvent 来强行覆盖
+			oldBtn.onClick = new Button.ButtonClickedEvent();
+			button = oldBtn;
+		} else {
+			button = gameObject.AddComponent<Button>();
+		}
+		button.onClick.AddListener(CreateLobby);
+	}
+
+	private void Start() {
+		// 获取游戏模式详情面板引用
+		gamemodePanel = transform.parent.parent.GetComponent<UI_GamemodeScreen_Panel>();
+		// 自动获取同级容器下的所有按钮（排除自己）
+		if (transform.parent != null) {
+			foreach (var btn in transform.parent.GetComponentsInChildren<Button>()) {
+				if (btn != button) otherButtons.Add(btn);
+			}
+		}
+	}
+
+	// 创建大厅的异步方法
+	public async void CreateLobby() {
+		var name = SteamClient.Name;
+		// Debug
+		MPMain.LogInfo(Localization.Get("MPCore", "CreatingLobby", name));
+
+		// 预设置大厅数据
+		var lobbyData = new Dictionary<string, string>() {
+			{ "name", name + "'s game" },         // 大厅名称
+			{ "gamemode", CL_GameManager.gamemode.gamemodeName }, // 游戏模式
+		};
+
+		// 设置状态为正在创建
+		Creating();
+
+		try {
+			// 直接 await 异步版本
+			bool success = await MPSteamworks.Instance.CreateRoomAsync(8, lobbyData);
+
+			if (this == null || gameObject == null) return;
+
+			if (success) {
+				// 连接成功后的逻辑处理
+				CreateSuccess();
+			} else {
+				// 失败处理
+				CreateFailed();
+			}
+		} catch (Exception ex) {
+			if (this == null) return;
+			// 捕获任何未预料的崩溃
+			CreateFailed();
+			MPMain.LogError(Localization.Get("UI_LobbyCreateButton", "CreateLobbyFailed", ex.Message));
+		}
+	}
+
+	#region[大厅创建事件回调]
+
+	// 创建中 - 目前没有额外逻辑 后续实现Loading弹窗
+	public void Creating() {
+		MPMain.LogWarning("[MP Debug] 创建中");
+		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
+		// 禁止同一标签页内按钮点击
+		button?.interactable = false;
+		foreach (var btn in otherButtons) {
+			btn.interactable = false;
+		}
+	}
+	// 创建失败 - 目前没有额外逻辑 后续实现弹窗提示失败
+	public void CreateFailed() {
+		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+		// 恢复同一标签页内按钮点击
+		button?.interactable = true;
+		foreach (var btn in otherButtons) {
+			btn.interactable = true;
+		}
+	}
+
+	// 创建成功 - 目前没有额外逻辑 后续实现Loading弹窗关闭
+	public void CreateSuccess() {
+		MPMain.LogWarning("[MP Debug] 创建成功");
+		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
+		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
+		// 加载游戏模式
+		if (gamemodePanel == null) {
+			MPMain.LogError(Localization.Get("UI_LobbyCreateButton", "GameModeDetailPanelNull"));
+			return;
+		}
+		gamemodePanel.LoadGamemode();
+	}
+	#endregion
+}

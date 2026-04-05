@@ -4,6 +4,7 @@ using System;
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Asset;
@@ -300,6 +301,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 退出联机模式时重置设置
 	/// </summary>
 	public void ResetStateVariables() {
+		MPMain.LogWarning("[MP Debug] 退出联机模式");
 		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
 		_MPsteamworks.DisconnectAll();
@@ -397,27 +399,31 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void RegisterCommands() {
 		// 将命令注册到 CommandConsole
-		CommandConsole.AddCommand("host", Host);
-		CommandConsole.AddCommand("join", Join);
-		CommandConsole.AddCommand("leave", Leave);
-		CommandConsole.AddCommand("getlobbyid", GetLobbyId);
-		CommandConsole.AddCommand("allconnections", GetAllConnections);
-		CommandConsole.AddCommand("getallplayer", GetAllPlayer);
-		CommandConsole.AddCommand("talk", Talk);
+		CommandConsole.AddCommand("host", Host, false);
+		CommandConsole.AddCommand("join", Join, false);
+		CommandConsole.AddCommand("leave", Leave, false);
+		CommandConsole.AddCommand("getlobbyid", GetLobbyId, false);
+		CommandConsole.AddCommand("allconnections", GetAllConnections, false);
+		CommandConsole.AddCommand("getallplayer", GetAllPlayer, false);
+		CommandConsole.AddCommand("talk", Talk, false);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
-		CommandConsole.AddCommand("changemodel", (str) => { 
+		CommandConsole.AddCommand("changemodel", (str) => {
 			_LocalPlayer.DefaulFactoryId = str[0];
 			MPConfig.RemotePlayerModel = str[0];
 		}, false);
 		CommandConsole.AddCommand("getalllobby", GetAllLobby, false);
 		CommandConsole.AddCommand("test", Test.Test.Main, false);
 		CommandConsole.AddCommand("cheatstest", Test.CheatsTest.Main);
+		CommandConsole.AddCommand("changename", (str) => {
+			_MPsteamworks.SetLobbyData("name", str[0]);
+		}, false);
 	}
 
 	/// <summary>
 	/// 创建大厅
 	/// </summary>
-	public void Host(string[] args) {
+	public async void Host(string[] args) {
+		// 基础状态检查
 		if (IsInLobby) {
 			CommandConsole.LogError(Localization.Get("CommandConsole", "AlreadyInOnlineMode"));
 			return;
@@ -432,60 +438,76 @@ public class MPCore : MonoSingleton<MPCore> {
 		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore", "CreatingLobby", roomName));
 
-		//设置为正在连接
+		// 设置状态为正在连接
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 
-		// 使用协程版本(内部已改为异步)
-		_MPsteamworks.CreateRoom(roomName, maxPlayers, (success) => {
+		// 预设置大厅数据
+		var lobbyData = new Dictionary<string, string>() {
+			{ "name", roomName },         // 大厅名称
+			{ "gamemode", CL_GameManager.gamemode.gamemodeName }, // 游戏模式
+		};
+
+		try {
+			// 直接 await 异步版本
+			bool success = await _MPsteamworks.CreateRoomAsync(maxPlayers, lobbyData);
+
 			if (success) {
-				// 这个触发比加入大厅回调触发慢
+				// 连接成功后的逻辑处理
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 				SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 
 				switch (SceneManager.GetActiveScene().name) {
+					// 主游戏需要相同种子的重载地图
 					case "Game-Main": {
 						WorldLoader.ReloadWithSeed(new string[] { WorldLoader.instance.seed.ToString() });
 						break;
 					}
+					// 其他模式不需要重载地图
 					default: {
 						break;
 					}
 				}
 
+				CommandConsole.Log(Localization.Get("MPSteamworks", "HostSuccess"));
 			} else {
+				// 失败处理
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 				CommandConsole.LogError(Localization.Get("CommandConsole", "CreateLobbyFailed"));
 			}
-		});
+		} catch (Exception ex) {
+			// 捕获任何未预料的崩溃
+			CommandConsole.LogError(Localization.Get("CommandConsole", "CriticalErrorDuringCreate",ex.Message));
+			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+		}
 	}
 
 	/// <summary>
 	/// 加入大厅
 	/// </summary>
 	public async void Join(string[] args) {
+		// 已经在大厅
+		if (IsInLobby) {
+			CommandConsole.LogError(Localization.Get("CommandConsole", "AlreadyInOnlineMode"));
+			return;
+		}
+		// 缺失名称/Id参数
+		if (args.Length < 1) {
+			CommandConsole.LogError(Localization.Get("CommandConsole", "JoinUsage"));
+			return;
+		}
+
+		string input = args[0];
+		Lobby? targetLobby = null;
+
+		CommandConsole.Log(Localization.Get("CommandConsole", "SearchingLobbyByName", input));
+
+		// 创建查询对象 设置过滤条件
+		var query = new LobbyQuery()
+			.FilterDistanceWorldwide()
+			.WithKeyValue("game", "White Knuckle") // 确保是同一款游戏的
+			.WithKeyValue("name", input)           // 匹配名称
+			.WithMaxResults(5);
 		try {
-			// 已经在大厅
-			if (IsInLobby) {
-				CommandConsole.LogError(Localization.Get("CommandConsole", "AlreadyInOnlineMode"));
-				return;
-			}
-			// 缺失名称/Id参数
-			if (args.Length < 1) {
-				CommandConsole.LogError(Localization.Get("CommandConsole", "JoinUsage"));
-				return;
-			}
-
-			string input = args[0];
-			Steamworks.Data.Lobby? targetLobby = null;
-
-			CommandConsole.Log(Localization.Get("CommandConsole", "SearchingLobbyByName", input));
-
-			var query = new Steamworks.Data.LobbyQuery()
-				.FilterDistanceWorldwide()
-				.WithKeyValue("game", "White Knuckle") // 确保是同一款游戏的
-				.WithKeyValue("name", input)           // 匹配名称
-				.WithMaxResults(5);
-
 			// 进行异步查询
 			var searchResults = await query.RequestAsync();
 
@@ -494,30 +516,30 @@ public class MPCore : MonoSingleton<MPCore> {
 				targetLobby = searchResults[0];
 				CommandConsole.Log(Localization.Get("CommandConsole", "FoundLobbyByName", targetLobby.Value.Id));
 				if (targetLobby.HasValue) {
-					ExecuteJoinProcess(targetLobby.Value.Id);
+					await ExecuteJoinProcess(targetLobby.Value.Id);
 					return;
 				}
-			} else if(searchResults != null && searchResults.Length > 1) {
+			} else if (searchResults != null && searchResults.Length > 1) {
 				// 找到多个同名大厅
 				foreach (var lobby in searchResults) {
 					CommandConsole.Log(Localization.Get(
-						"CommandConsole", "LobbyInfo", lobby.Id, lobby.GetData("name"), 
+						"CommandConsole", "LobbyInfo", lobby.Id, lobby.GetData("name"),
 						lobby.GetData("owner"), lobby.GetData("gamemode")));
 				}
 				return;
 			} else {
 				// 通过数字寻找大厅并加入
-				CommandConsole.Log(Localization.Get("CommandConsole", "NoLobbyByNameTryId")); 
+				CommandConsole.Log(Localization.Get("CommandConsole", "NoLobbyByNameTryId"));
 
 				if (ulong.TryParse(input, out ulong lobbyId)) {
-					ExecuteJoinProcess(lobbyId);
+					await ExecuteJoinProcess(lobbyId);
 					return;
 				} else {
 					CommandConsole.LogError(Localization.Get("CommandConsole", "InvalidLobbyNameOrId"));
 					return;
 				}
 			}
-		} catch (Exception e){
+		} catch (Exception e) {
 			MPMain.LogError(Localization.Get("MPCore", "JoinLobbyException", e.Message));
 		}
 	}
@@ -525,20 +547,28 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 连接到特定Id的大厅
 	/// </summary>
-	private void ExecuteJoinProcess(ulong lobbyId) {
+	private async Task ExecuteJoinProcess(ulong lobbyId) {
 		MPMain.LogInfo(Localization.Get("MPCore", "JoiningLobby", lobbyId.ToString()));
 
-		// 设置状态
+		// 设置初始状态
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 
-		_MPsteamworks.JoinRoom(lobbyId, (success) => {
+		try {
+			// 直接 await 异步结果，代码逻辑变为线性
+			bool success = await _MPsteamworks.JoinRoomAsync(new Lobby(lobbyId));
+
+			// 处理结果
 			if (success) {
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 			} else {
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 				CommandConsole.LogError(Localization.Get("CommandConsole", "JoinLobbyFailed"));
 			}
-		});
+		} catch (Exception ex) {
+			// 捕获任何未预料的异常 (网络崩溃、Steam客户端断开等)
+			CommandConsole.LogError(Localization.Get("CommandConsole", "CriticalErrorDuringJoin", ex.Message));
+			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+		}
 	}
 
 	/// <summary>
@@ -737,9 +767,13 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	#region[联机状态设置函数]
 
-	public MPCore SetStatus(MPStatus mask, MPStatus value) {
-		MultiPlayerStatus.SetField(mask, value);
-		return this;
+	//public MPCore SetStatus(MPStatus mask, MPStatus value) {
+	//	MultiPlayerStatus.SetField(mask, value);
+	//	return this;
+	//}
+
+	public static void SetStatus(MPStatus mask, MPStatus value) {
+		Instance.MultiPlayerStatus.SetField(mask, value);
 	}
 
 	#endregion

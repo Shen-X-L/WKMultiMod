@@ -14,7 +14,7 @@ using WKMPMod.Util;
 
 namespace WKMPMod.UI;
 
-public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler {
+public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler {
 	public Lobby lobby;                         // 关联的大厅数据
 	public M_Gamemode? gamemode;                 // 关联的游戏模式
 	public bool isOfficialGamemodes;			// 是否为官方游戏模式(影响显示逻辑)
@@ -42,12 +42,12 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 	public void Initialize(Lobby lobby) {
 		hostAvatar = transform.Find("Roach Counter")?.gameObject.GetComponent<UnityEngine.UI.Image>();
 		if (hostAvatar == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyButton", "RoachCounterNotFound"));
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "RoachCounterNotFound"));
 		}
 
 		hostName = transform.Find("Roach Counter/Roaches")?.gameObject.GetComponent<TMP_Text>();
 		if (hostName == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyButton", "RoachCounterRoachesNotFound"));
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "RoachCounterRoachesNotFound"));
 		}
 
 		// 显示统计文本(目前用来显示房主名称,后续可以改成显示其他统计数据)
@@ -59,17 +59,24 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 		var button = GetComponent<Button>();
 		button.onClick.RemoveAllListeners();
 		// 添加点击事件监听
-		button.onClick.AddListener(() => {
-			// 设置状态
+		button.onClick.AddListener(async () => {
+			// 禁用按钮并显示加入中状态
 			Joining();
-			// 加入大厅
-			MPSteamworks.Instance.JoinRoom(lobby, (success) => {
+			try {
+				// await 连接大厅,等待结果
+				bool success = await MPSteamworks.Instance.JoinRoomAsync(lobby);
 				if (success) {
+					// 加入成功,更新状态
 					JoinSuccess();
 				} else {
+					// 加入失败,恢复按钮交互并显示错误状态
 					JoinFailed();
 				}
-			});
+			} catch (Exception ex) {
+				// 连接过程中发生异常,记录错误并恢复按钮交互
+				MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "JoinLobbyFailed", ex.Message));
+				JoinFailed();
+			}
 		});
 
 		// 获取游戏模式数据
@@ -91,7 +98,7 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 			GetComponent<UnityEngine.UI.Image>()?.sprite = gamemode.capsuleArt;
 		}
 
-		unlockText?.text = Localization.Get("UI_LobbyButton", "CustomGamemodeNotice");
+		unlockText?.text = Localization.Get("UI_LobbyJoinButton", "CustomGamemodeNotice");
 		// 设置标题(支持自定义名称)
 		if (!string.IsNullOrEmpty(lobby.GetData("name"))) {
 			lobbyName?.text = lobby.GetData("name");
@@ -114,7 +121,7 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 		// 循环检查 ID 是否有效 (针对 lobby.Owner 延迟对齐的情况)
 		while (this != null && (lobby.Owner.Id == 0)) {
 			if (retryCount >= maxRetries) {
-				MPMain.LogWarning(Localization.Get("UI_LobbyButton", "FailedToGetOwnerId",lobby.Id));
+				MPMain.LogWarning(Localization.Get("UI_LobbyJoinButton", "FailedToGetOwnerId",lobby.Id));
 				hostName?.text = "Unknown Host";
 				break;
 			}
@@ -150,7 +157,7 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 			hostName?.text = owner.Name;
 			return;
 		}
-		MPMain.LogError(Localization.Get("UI_LobbyButton", "FailedToLoadOwnerAvatar", lobby.Id,owner.Id,owner.Name));
+		MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "FailedToLoadOwnerAvatar", lobby.Id,owner.Id,owner.Name));
 	}
 
 	#region[事件接口实现]
@@ -206,10 +213,9 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 	#region[大厅加入事件回调]
 	// 加入中 - 目前没有额外逻辑 后续实现Loading弹窗
 	public void Joining() {
-		MPCore.Instance.SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
-		// 禁止按钮点击
-		GetComponent<Button>().interactable = false;
+		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 		// 禁止同一标签页内按钮点击
+		button!.interactable = false;
 		var pane = GetComponentInParent<UI_LobbyListPane>();
 		if (pane != null) {
 			pane.SetAllButtonsInteractable(false);
@@ -217,10 +223,9 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 	}
 	// 加入失败 - 目前没有额外逻辑 后续实现弹窗提示失败
 	public void JoinFailed() {
-		MPCore.Instance.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
-		// 恢复按钮点击
-		GetComponent<Button>().interactable = true;
+		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 		// 恢复同一标签页内按钮点击
+		button!.interactable = true;
 		var pane = GetComponentInParent<UI_LobbyListPane>();
 		if (pane != null) {
 			pane.SetAllButtonsInteractable(true);
@@ -229,7 +234,7 @@ public class UI_LobbyButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 
 	// 加入成功 - 目前没有额外逻辑 后续实现Loading弹窗关闭
 	public void JoinSuccess() {
-		MPCore.Instance.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
+		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 	}
 
 	#endregion

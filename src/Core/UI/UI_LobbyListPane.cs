@@ -18,7 +18,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 	public GameObject? template;
 
 	// 大厅ID与对应UI_LobbyButton的字典,用于快速查找和更新UI
-	public Dictionary<ulong, UI_LobbyButton> LobbyDic = new Dictionary<ulong, UI_LobbyButton>();
+	public Dictionary<ulong, UI_LobbyJoinButton> LobbyDic = new Dictionary<ulong, UI_LobbyJoinButton>();
 
 	// 内容容器路径
 	public const string CONTENT_PATH = "Viewport/Content";
@@ -72,7 +72,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 	/// <summary>
 	/// 创建大厅按钮并初始化数据
 	/// </summary>
-	public UI_LobbyButton? CreateLobbyButton(Lobby lobby) {
+	public UI_LobbyJoinButton? CreateLobbyButton(Lobby lobby) {
 		if (template == null) return null;
 		GameObject? newButtonObj = Instantiate(template, contentTransform);
 		if (newButtonObj == null) {
@@ -83,7 +83,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 		newButtonObj.SetActive(true);
 		// 获取UI_LobbyButton组件并初始化数据
 		Button btnComp = newButtonObj.GetComponent<Button>();
-		UI_LobbyButton lobbyBtn = newButtonObj.GetComponent<UI_LobbyButton>();
+		UI_LobbyJoinButton lobbyBtn = newButtonObj.GetComponent<UI_LobbyJoinButton>();
 		if (btnComp != null) {
 			btnComp.interactable = interactable;
 		} else {
@@ -120,7 +120,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 	/// 修改原对象模板,添加UI_LobbyButton组件,并移除原有的UI_Gamemode_Button等组件
 	/// </summary>
 	public void SetupTemplate() {
-		if (template != null && template.GetComponent<UI_LobbyButton>() != null) {
+		if (template != null && template.GetComponent<UI_LobbyJoinButton>() != null) {
 			return;
 		}
 
@@ -129,7 +129,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 			throw new Exception("Template not found at path: " + TEMPLATE_PATH);
 
 		// 添加UI_LobbyButton组件
-		var lobbyButton = template.AddComponent<UI_LobbyButton>();
+		var lobbyButton = template.AddComponent<UI_LobbyJoinButton>();
 
 		if (!template.TryGetComponent<UI_Gamemode_Button>(out var gamemodeButton))
 			throw new Exception("UI_Gamemode_Button component missing on template");

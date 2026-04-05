@@ -22,6 +22,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// Play屏幕UI容器路径
 	const string CANVAS_SCREEN_PLAY_PATH = "Canvas - Screens/Screens/Canvas - Screen - Play";
 	const string PLAY_PANE_PATH = "Play Pane";
+	// 游戏模式信息屏幕UI容器路径
+	const string GAMEMODE_SCREEN_PATH = "Canvas - Screens/Screens/Canvas - Screen - Play/Play Menu/GamemodeScreen";
 	// 主菜单按钮
 	GameObject? _mpButton;
 	// 多人模式屏幕
