@@ -182,12 +182,14 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 		_tabButtonTemplate.transform.SetSiblingIndex(1);
 		_newTabButton.transform.SetSiblingIndex(2);
+		_newTabButton.SetActive(true);
 
 		// 清理其他按钮
 		// 跳过0号 1号 2号 -1号 0号是LB图标 1号是标签页按钮 2号是测试模板按钮 -1号是RB图标
 		for (int i = _screenTabButtons.transform.childCount - 2; i > 2; i--) {
 			Destroy(_screenTabButtons.transform.GetChild(i).gameObject);
 		}
+
 		return true;
 	}
 

@@ -84,6 +84,10 @@ New commands:
 * `getalllobby` – Get information about all lobbies, including lobby codes and current player counts
 * `join <name>` – Join a lobby by its name. If multiple lobbies share the same name, joining by name will fail; please use the lobby code instead.
   * Example: join abcde
+* `changename <name>` – Change the lobby name. Can only be used by the host.
+  * Example: `changename newname`
+* `changemodel <model name>` – Change the remote player model. Currently supports default and slugcat.
+  * `Example: changemodel slugcat`
 
 ### Version 0.12(No longer updated)
 

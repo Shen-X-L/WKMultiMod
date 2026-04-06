@@ -71,8 +71,9 @@ graph RL
 * `getallplayer` - 获取全部玩家及其steamId
 * `tpto <steamId(后缀匹配)>` - 进行玩家间tp
   * 示例 `tpto 16422 或 tpto 22(目标steamId 561198279116422)` 
+* `leave` - 离开当前连接的大厅.
 
-### 1.3.0
+### 1.3.1
 
 * 使用主菜单UI进行加入大厅
 
@@ -80,6 +81,11 @@ graph RL
 * `getalllobby` - 获取所有大厅信息,包括大厅码和当前玩家数
 * `join <名称>` - 通过大厅名称加入大厅,如果有多个同名大厅会无法加入,请使用大厅码加入
   * 示例: `join abcde`
+* `changename <名称>` - 修改大厅名称,只能在创建者使用
+  * 示例: `changename newname`
+* `changemodel <模型名称>` - 修改远程玩家模型,目前支持default和slugcat
+  * 示例: `changemodel slugcat`
+
 
 ### 0.12(停止更新)
 

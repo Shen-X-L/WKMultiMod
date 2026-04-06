@@ -403,7 +403,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.AddCommand("join", Join, false);
 		CommandConsole.AddCommand("leave", Leave, false);
 		CommandConsole.AddCommand("getlobbyid", GetLobbyId, false);
-		CommandConsole.AddCommand("allconnections", GetAllConnections, false);
 		CommandConsole.AddCommand("getallplayer", GetAllPlayer, false);
 		CommandConsole.AddCommand("talk", Talk, false);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
