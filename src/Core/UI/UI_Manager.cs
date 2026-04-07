@@ -9,6 +9,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using WKMPMod.Core;
 using WKMPMod.Util;
+using WKMultiPlayerMod.UI;
+using static App_SavePage;
 using static ENT_Player;
 using static UI_TabGroup;
 
@@ -57,6 +59,14 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	///   ├-_mpLobbyPane
 	///   └─_lobbyPaneTemplate
 	/// </summary>
+	/// 
+
+	// Loading界面路径
+	const string LOADING_SCREEN_PATH = "Canvas - Screens/Screens";
+	// Loading界面模版
+	GameObject? loadingTemplate;
+	// 新Loading界面
+	GameObject? newloading;
 
 	#region[Unity组件生命周期函数]
 
@@ -84,12 +94,21 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 					// 捕获所有未预期的崩溃，并记录日志
 					MPMain.LogError(Localization.Get("UI_Manager", "CreateMenuUIFailed", ex.Message));
 				}
+				try {
+					MPMain.LogWarning("[MP Debug] 创建loading");
+					CreateLoadingScreen();
+				} catch (Exception ex) {
+					// 捕获所有未预期的崩溃，并记录日志
+					MPMain.LogError(Localization.Get("UI_Manager", "CreateMenuUIFailed", ex.Message));
+				}
 				break;
 			}
 			default:
 				break;
 		}
 	}
+
+	#region[主菜单UI]
 
 	// 在主菜单创建多人模式按钮
 	public void CreateMenuButton() {
@@ -113,6 +132,10 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 修改文字
 		_mpButton.GetComponentInChildren<TMPro.TextMeshProUGUI>()?.text = "MULTI PLAY";
 	}
+
+	#endregion
+
+	#region[多人模式菜单]
 
 	// 创建多人模式大厅屏幕
 	public void CreateLobbyScreen() {
@@ -256,6 +279,10 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		};
 	}
 
+	#endregion
+
+	#region[初始化UI关联]
+
 	// 初始化UI关联
 	public void Initialize() {
 		// 移除点击事件
@@ -272,6 +299,27 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		var uI_MenuComponent = menu.GetComponent<UI_Menu>();
 		menuButtonComponent.Initialize(uI_MenuComponent);
 	}
+
+	#endregion
+
+	#region[Loading界面构建]
+
+	public void CreateLoadingScreen() {		
+		loadingTemplate = GameObject.Find("Canvas - Main Menu")?.transform.Find("Loading")?.gameObject;
+		if (loadingTemplate == null) {
+			MPMain.LogError($"[MP Debug] loadingTemplate can not find");
+			return;
+		}
+		var screenTransform = GameObject.Find(LOADING_SCREEN_PATH).transform;
+		newloading = Instantiate(loadingTemplate, screenTransform);
+		newloading.AddComponent<UI_LoadingDisplay>();
+		// 激活新Loading界面
+		newloading.SetActive(true);
+		// 调整层级到最前
+		newloading.transform.SetSiblingIndex(screenTransform.childCount - 1);
+	}
+
+	#endregion
 
 	#region[工具函数]
 

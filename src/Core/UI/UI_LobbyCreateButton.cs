@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
 
@@ -81,7 +82,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 
 	#region[大厅创建事件回调]
 
-	// 创建中 - 目前没有额外逻辑 后续实现Loading弹窗
+	// 创建中 - 目前没有额外逻辑
 	public void Creating() {
 		MPMain.LogWarning("[MP Debug] 创建中");
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
@@ -90,8 +91,10 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 		foreach (var btn in otherButtons) {
 			btn.interactable = false;
 		}
+		// 显示Loading弹窗
+		MPEventBusGame.NotifyShowLoading(10f);
 	}
-	// 创建失败 - 目前没有额外逻辑 后续实现弹窗提示失败
+	// 创建失败 - 目前没有额外逻辑
 	public void CreateFailed() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 		// 恢复同一标签页内按钮点击
@@ -99,13 +102,16 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 		foreach (var btn in otherButtons) {
 			btn.interactable = true;
 		}
+		// 关闭Loading弹窗
+		MPEventBusGame.NotifyHideLoading();
 	}
 
 	// 创建成功 - 目前没有额外逻辑 后续实现Loading弹窗关闭
 	public void CreateSuccess() {
-		MPMain.LogWarning("[MP Debug] 创建成功");
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
+		// 关闭Loading弹窗
+		MPEventBusGame.NotifyHideLoading();
 		// 加载游戏模式
 		if (gamemodePanel == null) {
 			MPMain.LogError(Localization.Get("UI_LobbyCreateButton", "GameModeDetailPanelNull"));

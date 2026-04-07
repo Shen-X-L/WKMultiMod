@@ -9,6 +9,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
 
@@ -211,7 +212,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 	#endregion
 
 	#region[大厅加入事件回调]
-	// 加入中 - 目前没有额外逻辑 后续实现Loading弹窗
+	// 加入中 - 目前没有额外逻辑
 	public void Joining() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 		// 禁止同一标签页内按钮点击
@@ -220,8 +221,11 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 		if (pane != null) {
 			pane.SetAllButtonsInteractable(false);
 		}
+		// 显示Loading弹窗
+		// 显示最长10秒的Loading,实际关闭由JoinSuccess或JoinFailed触发
+		MPEventBusGame.NotifyShowLoading(10f); 
 	}
-	// 加入失败 - 目前没有额外逻辑 后续实现弹窗提示失败
+	// 加入失败 - 目前没有额外逻辑
 	public void JoinFailed() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 		// 恢复同一标签页内按钮点击
@@ -230,11 +234,15 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 		if (pane != null) {
 			pane.SetAllButtonsInteractable(true);
 		}
+		// 关闭Loading弹窗
+		MPEventBusGame.NotifyHideLoading(); 
 	}
 
-	// 加入成功 - 目前没有额外逻辑 后续实现Loading弹窗关闭
+	// 加入成功 - 目前没有额外逻辑
 	public void JoinSuccess() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
+		// 关闭Loading弹窗
+		MPEventBusGame.NotifyHideLoading();
 	}
 
 	#endregion
