@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace WKMPMod.Data;
@@ -31,4 +32,8 @@ public static class MPEventBusGame {
 	// UI事件: 隐藏加载界面
 	public static event Action OnHideLoading;
 	public static void NotifyHideLoading() => OnHideLoading?.Invoke();
+
+	// UI事件: 刷新大厅列表
+	public static event Func<Task> OnRefreshLobbyList;
+	public static void NotifyRefreshLobbyList() => OnRefreshLobbyList?.Invoke();
 }

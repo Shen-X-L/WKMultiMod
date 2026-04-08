@@ -8,6 +8,7 @@ using UnityEngine.Device;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.Util;
 using WKMultiPlayerMod.UI;
 using static App_SavePage;
@@ -32,6 +33,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	GameObject? _mpScreen;
 	// Play屏幕
 	GameObject? _lobbyPaneContainer;
+
 	// 标签页选项总容器
 	GameObject? _screenTabs;
 	// 标签页选项按钮容器
@@ -45,6 +47,9 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// 新标签页内容容器
 	GameObject? _mpLobbyPane;
 	GameObject? _lobbyPaneTemplate;
+
+	// 模式变体容器
+	GameObject? _mutators;
 
 	/// <summary>
 	/// UI层级
@@ -169,8 +174,12 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		_lobbyPaneContainer = _mpScreen.transform.Find(PLAY_PANE_PATH)?.gameObject;
 		if (_lobbyPaneContainer == null) return Error(Localization.Get("UI_Manager", "LobbyPaneContainerPathError"));
 		_lobbyPaneContainer.name = "Lobby Pane";
-
+		// 修复UI_LerpOpen组件可能存在的目标位置和缩放问题,防止界面打开动画异常
 		FixLerpComponent(_lobbyPaneContainer);
+
+		// 缓存模式变体容器
+		_mutators = _lobbyPaneContainer.transform.Find("Mutators")?.gameObject;
+		if (_mutators == null) return Error(Localization.Get("UI_Manager", "MutatorsContainerPathError"));
 
 		// 清理原版不需要的元素
 		Destroy(_mpScreen.transform.Find("GamemodeScreen")?.gameObject);
@@ -251,8 +260,32 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	// 配置模式变体标签页, 目前直接隐藏
-	private void ConfigureMutators() {
-		_lobbyPaneContainer?.transform.Find("Mutators")?.gameObject.SetActive(false);
+	private bool ConfigureMutators() {
+		if (_mutators == null) return Error(Localization.Get("UI_Manager", "MutatorsContainerNotFound"));
+		GameObject refresh = Instantiate(_mutators.transform.Find("Options"), _mutators.transform).gameObject;
+		refresh.name = "Refresh";
+
+		// 修改标签页文字和字体
+		var textComponent = refresh.GetComponent<TextMeshProUGUI>();
+		if (textComponent != null) {
+			textComponent.font = _mutators.transform.Find("Ironman Toggle/Background/Label (1)")?.GetComponent<TextMeshProUGUI>()?.font;
+			textComponent.text = "Refresh";
+			textComponent.fontSize = 24;
+		}
+
+		// 添加点击事件
+		var buttonComponent = refresh.AddComponent<Button>();
+		buttonComponent.onClick.AddListener(() => {
+			// 触发大厅列表刷新事件
+			MPEventBusGame.NotifyRefreshLobbyList();
+		});
+
+		// 调整层级 0号是标题 1号放刷新按钮 其他的隐藏
+		refresh.transform.SetSiblingIndex(1);
+		for (int i = 2; i < _mutators.transform.childCount; i++) {
+			_mutators.transform.GetChild(i).gameObject.SetActive(false);
+		}
+		return true;
 	}
 
 	// 绑定标签页事件

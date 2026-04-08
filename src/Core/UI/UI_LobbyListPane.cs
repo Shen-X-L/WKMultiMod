@@ -7,6 +7,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
 
@@ -26,6 +27,23 @@ public class UI_LobbyListPane : MonoBehaviour {
 
 	// 用来防止刷新大厅生成的新按钮在刷新过程中被点击导致错误,刷新过程中所有按钮不可交互,刷新完成后恢复交互
 	public bool interactable = true;
+
+	// 事件处理器引用,用于在OnDestroy中解绑事件
+	private Func<Task> refreshHandle;
+
+	public void Awake() {
+		refreshHandle = async () => {
+			MPEventBusGame.NotifyShowLoading(10f);
+			await RefreshLobbyList();
+			MPEventBusGame.NotifyHideLoading();
+		};
+		MPEventBusGame.OnRefreshLobbyList += refreshHandle;
+	}
+
+	public void OnDestroy() {
+		MPEventBusGame.OnRefreshLobbyList -= refreshHandle;
+	}
+
 	// 启用时调用MPSteamworks的RefreshLobbyList方法,刷新大厅列表
 	private void Start() {
 		try {
