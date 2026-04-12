@@ -1,5 +1,6 @@
 ﻿using BepInEx;
 using HarmonyLib;
+using Steamworks.Data;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +9,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
 using WKMPMod.Util;
 using static CL_AchievementManager;
@@ -57,6 +59,8 @@ public class Test : MonoBehaviour {
 			"19" => RunCommand(LoadAllGameMode),	// 获取游戏模式
 			"20" => RunCommand(()=> LoadGamemode(args[1..])),	// 加载游戏模式
 			"21" => RunCommand(GetAllGameModeData),	// 获取同步时需要的数据
+			"22" => RunCommand(GetLobbyData),	// 获取大厅数据
+			"23" => RunCommand(() => GetOtherLobbyData(args[1])),	// 获取其他大厅数据
 			_ => RunCommand(() => Debug.Log($"未知命令: {args[0]}"))
 		};
 	}
@@ -86,9 +90,9 @@ public class Test : MonoBehaviour {
 	}
 	// 输出联机模式状态
 	public static void GetMPStatus() {
-		Debug.Log($"{((int)(MPCore.Instance.MultiPlayerStatus)).ToString()}");
-		Debug.Log($"Is in lobby {MPCore.Instance.IsInLobby}");
-		Debug.Log($"Is initialized {MPCore.Instance.IsInitialized}");
+		Debug.Log($"{((int)(MPCore.MultiPlayerStatus)).ToString()}");
+		Debug.Log($"Is in lobby {MPCore.IsInLobby}");
+		Debug.Log($"Is initialized {MPCore.IsInitialized}");
 	}
 	// 输出Mass数据
 	public static void GetMassData() {
@@ -317,6 +321,34 @@ public class Test : MonoBehaviour {
 			.GetValue<Dictionary<string, GameAchievement>>();
 		foreach (var (key, value) in dict) {
 			MPMain.LogWarning($"[MP Debug] key: {key}, value: {value.flagged}");
+		}
+	}
+	// 获取大厅数据
+	public static void GetLobbyData() {
+		if (MPSteamworks.Instance.IsInLobby) {
+			MPMain.LogWarning($"[MP Debug] 当前大厅ID: {MPSteamworks.Instance._currentLobby.Id}");
+			MPMain.LogWarning($"[MP Debug] 大厅成员数量: {MPSteamworks.Instance._currentLobby.MemberCount}");
+			MPMain.LogWarning($"[MP Debug] 房主名称: {MPSteamworks.Instance._currentLobby.Owner.Name}");
+			foreach (var member in MPSteamworks.Instance._currentLobby.Members) {
+				MPMain.LogWarning($"[MP Debug] 成员ID: {member.Id}, 昵称: {member.Name}");
+			}
+		} else {
+			MPMain.LogWarning($"[MP Debug] 当前不在任何大厅中");
+		}
+	}
+
+	public static void GetOtherLobbyData(string lobbyId) { 
+		if(!ulong.TryParse(lobbyId, out ulong parsedLobbyId)) {
+			MPMain.LogError($"[MP Debug] 无效的大厅ID: {lobbyId}");
+			return;
+		}
+		var lobby = new Lobby(parsedLobbyId);
+		MPMain.LogWarning($"[MP Debug] 大厅成员数量: {lobby.MemberCount} 房主名称: {lobby.Owner.Name}");
+		foreach (var member in lobby.Members) {
+			MPMain.LogWarning($"[MP Debug] 成员ID: {member.Id}, 昵称: {member.Name}");
+		}
+		foreach (var (key, value) in lobby.Data) {
+			MPMain.LogWarning($"[MP Debug] Data Key: {key}, Value: {value}");
 		}
 	}
 }

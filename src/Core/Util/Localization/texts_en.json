@@ -19,7 +19,9 @@
     "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
     "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
     "CriticalErrorDuringJoin": "Critical error during join: {0}",
-    "CriticalErrorDuringCreate": "Critical error during create lobby: {0}"
+    "CriticalErrorDuringCreate": "Critical error during create lobby: {0}",
+    "LobbyVisibilitySet": "Lobby visibility set to: {0}",
+    "LobbyVisibilitySetFailed": "Failed to set lobby visibility. Supported options: public, friends, private"
   },
   "LocalPlayer": {
     "DataAcquisitionException": "[MP LP] Local player data acquisition exception.",

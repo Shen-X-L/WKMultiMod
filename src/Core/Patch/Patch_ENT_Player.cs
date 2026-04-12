@@ -12,11 +12,7 @@ public class Patch_ENT_Player {
 	public static void Prefix(ENT_Player __instance, string type) {
 		// 死亡切换发生前通知总线
 		// 避免死亡后重复通知
-
-		// Debug
-		//MPMain.LogInfo($"[Patch] 玩家状态 {__instance.dead}");
-
-		if (MPCore.Instance.IsInLobby&& __instance.dead == false) {
+		if (MPCore.IsInLobby&& __instance.dead == false) {
 			MPEventBusGame.NotifyPlayerDeath(type);
 			MPMain.LogInfo(Localization.Get("Patch", "PlayerDeath", type));
 		}

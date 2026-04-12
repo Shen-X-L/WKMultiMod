@@ -19,7 +19,9 @@
     "TargetIdNotFound": "未找到目标ID.此命令使用后缀匹配.\n例如: 目标ID: 76561198279116422 → tpto 6422.",
     "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化.",
     "CriticalErrorDuringJoin": "加入时发生严重错误: {0}",
-    "CriticalErrorDuringCreate": "创建时发生严重错误: {0}"
+    "CriticalErrorDuringCreate": "创建时发生严重错误: {0}",
+    "LobbyVisibilitySet": "大厅可见级别设置为: {0}",
+    "LobbyVisibilitySetFailed": "大厅可见级别设置失败, 支持的选项有: public, friends, private"
   },
   "LocalPlayer": {
     "DataAcquisitionException": "[MP LP] 本地玩家数据获取异常.",

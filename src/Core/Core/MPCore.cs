@@ -1,7 +1,6 @@
 ﻿using Steamworks;
 using Steamworks.Data;
 using System;
-using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -14,8 +13,6 @@ using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
-using static UnityEngine.UI.GridLayoutGroup;
-using static WKMPMod.Data.MPReaderPool;
 using static WKMPMod.Data.MPWriterPool;
 
 namespace WKMPMod.Core;
@@ -71,13 +68,11 @@ public class MPCore : MonoSingleton<MPCore> {
 	private MPAssetManager _MPAssetManager;
 	private UI_Manager _UIManager;
 
-	// 世界种子 - 用于同步游戏世界生成
-	public int WorldSeed { get; private set; }
 	// 多人模式状态
-	public MPStatus MultiPlayerStatus = MPStatus.NotInitialized;
+	public static MPStatus MultiPlayerStatus = MPStatus.NotInitialized;
 	// 是否处于大厅中
-	public bool IsInLobby => MultiPlayerStatus.IsInLobby();
-	public bool IsInitialized => MultiPlayerStatus.IsInitialized();
+	public static bool IsInLobby => MultiPlayerStatus.IsInLobby();
+	public static bool IsInitialized => MultiPlayerStatus.IsInitialized();
 
 	// 手部皮肤 -> 玩家模型ID 映射字典
 	public static readonly Dictionary<string, string> HandSkinToModelId = new() {
@@ -301,7 +296,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 退出联机模式时重置设置
 	/// </summary>
 	public void ResetStateVariables() {
-		MPMain.LogWarning("[MP Debug] 退出联机模式");
+		//MPMain.LogWarning("[MP Debug] 退出联机模式");
 		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
 		_MPsteamworks.DisconnectAll();
@@ -416,6 +411,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.AddCommand("changename", (str) => {
 			_MPsteamworks.SetLobbyData("name", str[0]);
 		}, false);
+		CommandConsole.AddCommand("lobbytype", SetLobbyVisibility, false);
 	}
 
 	/// <summary>
@@ -691,6 +687,23 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 	}
 
+	/// <summary>
+	/// 设置大厅可见性 参数: public/friends/private
+	/// </summary>
+	public void SetLobbyVisibility(string[] args) {
+		bool success = args[0].ToLower() switch {
+			"public" => _MPsteamworks._currentLobby.SetPublic(),
+			"friends" => _MPsteamworks._currentLobby.SetFriendsOnly(),
+			"private" => _MPsteamworks._currentLobby.SetPrivate(),
+			_ => false
+		};
+
+		if (success) {
+			CommandConsole.Log(Localization.Get("CommandConsole", "LobbyVisibilitySet", args[0]));
+		} else {
+			CommandConsole.LogError(Localization.Get("CommandConsole", "LobbyVisibilitySetFailed"));
+		}
+	}
 	#endregion
 
 	#region[大厅/连接事件触发函数]
@@ -772,7 +785,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	//}
 
 	public static void SetStatus(MPStatus mask, MPStatus value) {
-		Instance.MultiPlayerStatus.SetField(mask, value);
+		MultiPlayerStatus.SetField(mask, value);
 	}
 
 	#endregion

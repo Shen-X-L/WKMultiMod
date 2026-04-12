@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Device;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using WKMPMod.Core;
@@ -100,7 +98,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 					MPMain.LogError(Localization.Get("UI_Manager", "CreateMenuUIFailed", ex.Message));
 				}
 				try {
-					MPMain.LogWarning("[MP Debug] 创建loading");
+					//MPMain.LogWarning("[MP Debug] 创建loading");
 					CreateLoadingScreen();
 				} catch (Exception ex) {
 					// 捕获所有未预期的崩溃，并记录日志
@@ -152,7 +150,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		if (!SetupTabContents()) return;
 
 		// 细节处理与事件绑定
-		ConfigureMutators();
+		SetupMutators();
 		BindTabEvents();
 		MPMain.LogInfo(Localization.Get("UI_Manager", "MultiplayerLobbyUIBuildComplete"));
 	}
@@ -259,32 +257,74 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		return true;
 	}
 
-	// 配置模式变体标签页, 目前直接隐藏
-	private bool ConfigureMutators() {
+	// 配置模式变体标签页
+	private bool SetupMutators() {
 		if (_mutators == null) return Error(Localization.Get("UI_Manager", "MutatorsContainerNotFound"));
+
+		#region[刷新按钮]
+
+		// 克隆一个选项按钮作为刷新按钮
 		GameObject refresh = Instantiate(_mutators.transform.Find("Options"), _mutators.transform).gameObject;
 		refresh.name = "Refresh";
 
+		var refreshFitter = refresh.GetComponent<ContentSizeFitter>() ?? refresh.AddComponent<ContentSizeFitter>();
+		refreshFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+
 		// 修改标签页文字和字体
-		var textComponent = refresh.GetComponent<TextMeshProUGUI>();
-		if (textComponent != null) {
-			textComponent.font = _mutators.transform.Find("Ironman Toggle/Background/Label (1)")?.GetComponent<TextMeshProUGUI>()?.font;
-			textComponent.text = "Refresh";
-			textComponent.fontSize = 24;
-		}
+		var refreshText = refresh.GetComponent<TextMeshProUGUI>() ?? refresh.AddComponent<TextMeshProUGUI>();
+		refreshText.enableWordWrapping = false;
+		refreshText.overflowMode = TextOverflowModes.Overflow;
+		refreshText.font = _mutators.transform.Find("Ironman Toggle/Background/Label (1)")?.GetComponent<TextMeshProUGUI>()?.font;
+		refreshText.text = "Refresh";
+		refreshText.fontSize = 24;
 
 		// 添加点击事件
-		var buttonComponent = refresh.AddComponent<Button>();
-		buttonComponent.onClick.AddListener(() => {
+		var refreshButton = refresh.AddComponent<Button>();
+		refreshButton.onClick.AddListener(() => {
 			// 触发大厅列表刷新事件
 			MPEventBusGame.NotifyRefreshLobbyList();
 		});
 
-		// 调整层级 0号是标题 1号放刷新按钮 其他的隐藏
+		#endregion
+
+		#region[Discord链接]
+
+		// 克隆一个选项按钮作为Discord链接
+		GameObject discord = Instantiate(_mutators.transform.Find("Options"), _mutators.transform).gameObject;
+		discord.name = "Discord";
+
+		var discordFitter = discord.GetComponent<ContentSizeFitter>() ?? discord.AddComponent<ContentSizeFitter>();
+		discordFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+		// 修改文字和字体
+		var discordText = discord.GetComponent<TextMeshProUGUI>() ?? discord.AddComponent<TextMeshProUGUI>();
+		discordText.enableWordWrapping = false;
+		discordText.overflowMode = TextOverflowModes.Overflow;
+		discordText.font = _mutators.transform.Find("Ironman Toggle/Background/Label (1)")?.GetComponent<TextMeshProUGUI>()?.font;
+			discordText.text = "MPMod Discord";
+			discordText.fontSize = 24;
+		
+
+		// 添加点击事件
+		var discordButton = discord.AddComponent<Button>();
+		discordButton.onClick.AddListener(() => {
+			// 打开Discord链接
+			Application.OpenURL("https://discord.gg/DVr4h6Gc9w");
+		});
+
+		#endregion
+
+		// 调整层级 0号是标题 1号放刷新按钮 2号放Discord按钮 其他的隐藏
 		refresh.transform.SetSiblingIndex(1);
-		for (int i = 2; i < _mutators.transform.childCount; i++) {
+		discord.transform.SetSiblingIndex(2);
+		for (int i = 3; i < _mutators.transform.childCount; i++) {
 			_mutators.transform.GetChild(i).gameObject.SetActive(false);
 		}
+
+		if (_mutators.transform is RectTransform containerRect) {
+			LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
+		}
+
 		return true;
 	}
 

@@ -17,25 +17,25 @@ namespace WKMPMod.UI;
 
 public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler {
 	public Lobby lobby;                         // 关联的大厅数据
-	public M_Gamemode? gamemode;                 // 关联的游戏模式
+	public M_Gamemode? gamemode;				// 关联的游戏模式
 	public bool isOfficialGamemodes;			// 是否为官方游戏模式(影响显示逻辑)
 
 	#region[原UI_Gamemode_Button字段]
-	public UI_LerpOpen? runInProgressDisplay;    // 进行中标识的动画组件
+	public UI_LerpOpen? runInProgressDisplay;	// 进行中标识的动画组件
 	private bool isHovering;                    // 是否正在悬停/选中
-	public TMP_Text? unlockText;                 // 锁定原因文本(显示在锁定图标旁边，解释为什么不可加入)
+	public TMP_Text? unlockText;				// 锁定原因文本(显示在锁定图标旁边，解释为什么不可加入)
 	#endregion
 
 	#region[原UI_CapsuleButton字段]
 	public float showDelayAnimation;            // 显示动画延迟时间
 	public Selectable? button;                  // 按钮组件引用
 	public CanvasGroup? group;					// CanvasGroup组件(用于控制透明度和交互)
-	public UnityEngine.UI.Image? unlockIcon;     // 未解锁时显示的锁定图标		
+	public UnityEngine.UI.Image? unlockIcon;	// 未解锁时显示的锁定图标		
 	#endregion
 
-	public TMP_Text? lobbyName;                  // 大厅名称文本
-	public UnityEngine.UI.Image? hostAvatar;     // 房主头像
-	public TMP_Text? hostName;                   // 房主名
+	public TMP_Text? lobbyName;					// 大厅名称文本
+	public UnityEngine.UI.Image? hostAvatar;	// 房主头像
+	public TMP_Text? hostName;					// 房主名
 
 	/// <summary>
 	/// 初始化按钮 - 设置点击事件、图标、标题和统计文本
@@ -115,6 +115,9 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 		_ = TrackAndLoadOwnerInfo();
 	}
 
+	/// <summary>
+	/// 异步加载房主信息，包括头像和名称
+	/// </summary>
 	private async Task TrackAndLoadOwnerInfo() {
 		int retryCount = 0;
 		const int maxRetries = 5;
@@ -159,6 +162,39 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 			return;
 		}
 		MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "FailedToLoadOwnerAvatar", lobby.Id,owner.Id,owner.Name));
+	}
+
+	/// <summary>
+	/// 当大厅数据发生变动时，由父面板调用此方法同步显示
+	/// </summary>
+	public void OnLobbyDataUpdated(Lobby updatedLobby) {
+		// 更新本地大厅引用，确保后续点击加入时用的是最新对象
+		this.lobby = updatedLobby;
+
+		// 重新检测游戏模式
+		isOfficialGamemodes = MPGameModeManager.TryGetGameMode(lobby.GetData("gamemode"), out var gamemode);
+
+		// 更新名称
+		if (!string.IsNullOrEmpty(lobby.GetData("name"))) {
+			lobbyName?.text = lobby.GetData("name");
+		}
+
+		// 更新 UI 状态
+		if (unlockIcon != null) unlockIcon.gameObject.SetActive(!isOfficialGamemodes);
+		if (group != null) {
+			group.interactable = isOfficialGamemodes;
+			group.alpha = isOfficialGamemodes ? 1f : 0.5f;
+		}
+
+		if (isOfficialGamemodes && gamemode != null) {
+			this.gamemode = gamemode;
+			GetComponent<UnityEngine.UI.Image>().sprite = gamemode.capsuleArt;
+		}
+
+		// 重新加载房主信息
+		if (hostName?.text == "Fetching..." || hostName?.text == "Loading Name...") {
+			_ = TrackAndLoadOwnerInfo();
+		}
 	}
 
 	#region[事件接口实现]

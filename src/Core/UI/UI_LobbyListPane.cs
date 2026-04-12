@@ -1,4 +1,5 @@
-﻿using Steamworks.Data;
+﻿using Steamworks;
+using Steamworks.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,11 +38,15 @@ public class UI_LobbyListPane : MonoBehaviour {
 			await RefreshLobbyList();
 			MPEventBusGame.NotifyHideLoading();
 		};
+		// 刷新事件绑定,当接收到刷新事件时调用RefreshLobbyList方法刷新大厅列表
 		MPEventBusGame.OnRefreshLobbyList += refreshHandle;
+		// 大厅数据更新事件绑定,当接收到大厅数据更新事件时调用RefreshLobbyList方法刷新大厅列表,以确保UI显示最新的数据
+		SteamMatchmaking.OnLobbyDataChanged += OnSteamLobbyDataUpdate;
 	}
 
 	public void OnDestroy() {
 		MPEventBusGame.OnRefreshLobbyList -= refreshHandle;
+		SteamMatchmaking.OnLobbyDataChanged -= OnSteamLobbyDataUpdate;
 	}
 
 	// 启用时调用MPSteamworks的RefreshLobbyList方法,刷新大厅列表
@@ -83,6 +88,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 			var newButton = CreateLobbyButton(lobby);
 			if (newButton != null) {
 				LobbyDic[lobby.Id] = newButton;
+				lobby.Refresh();
 			}
 		}
 	}
@@ -131,6 +137,18 @@ public class UI_LobbyListPane : MonoBehaviour {
 		}
 		// 以后给刷新按钮添加交互控制 
 		// refreshButton.interactable = interactable;
+	}
+
+	/// <summary>
+	/// 全局 Steam 回调：当任何一个大厅的数据同步到本地时触发
+	/// </summary>
+	private void OnSteamLobbyDataUpdate(Lobby lobby) {
+		// 利用 Dictionary 快速定位对应的按钮
+		if (LobbyDic.TryGetValue(lobby.Id.Value, out var button)) {
+			if (button != null) {
+				button.OnLobbyDataUpdated(lobby);
+			}
+		}
 	}
 
 	#region[初始化克隆对象]

@@ -32,7 +32,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private TickTimer _debugTick = new TickTimer(5f);
 
 	// 大厅Id
-	private Lobby _currentLobby;
+	public Lobby _currentLobby;
 	// 获取当前大厅ID
 	public ulong CurrentLobbyId {
 		get { return _currentLobby.Id.Value; }
@@ -472,7 +472,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// 创建大厅(主机模式)- 异步版本
 	/// </summary>
-	public async Task<bool> CreateRoomAsync(int maxPlayers = 8, Dictionary<string,string> lobbyData = null) {
+	public async Task<bool> CreateRoomAsync(int maxPlayers = 8, Dictionary<string, string> lobbyData = null) {
 		// 清理全部连接
 		DisconnectAll();
 		//await Task.Yield();
@@ -888,11 +888,32 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	public async Task RefreshLobbyList() {
 		try {
+			var lobbyIds = new HashSet<ulong>();
+			var combinedLobbies = new List<Lobby>();
+			// 扫描好友大厅
+			foreach (var friend in SteamFriends.GetFriends()) {
+				if (friend.IsPlayingThisGame
+					&& friend.GameInfo?.Lobby is Lobby lobby) {
+
+					if (lobbyIds.Add(lobby.Id)) combinedLobbies.Add(lobby);// 添加不重复Lobby
+				}
+			}
+
+			// 搜索公开大厅
 			var query = new Steamworks.Data.LobbyQuery()
 				.FilterDistanceWorldwide()
 				.WithKeyValue("game", "White Knuckle") // 确保是同一款游戏的
 				.WithMaxResults(50);
-			LastFetchedLobbies = (await query.RequestAsync())?.ToList() ?? new List<Lobby>();
+			var publicLobbies = await query.RequestAsync();
+
+			// 合并结果
+			if (publicLobbies != null) {
+				foreach (var lobby in publicLobbies) {
+					if (lobbyIds.Add(lobby.Id)) combinedLobbies.Add(lobby);
+				}
+			}
+
+			LastFetchedLobbies = combinedLobbies;
 		} catch (Exception ex) {
 			MPMain.LogError(Localization.Get("MPSteamworks", "LobbySearchException", ex.Message));
 			return;
