@@ -28,7 +28,7 @@ public class MPPacketHandlers {
 	private static void HandleWorldInitRequest(ulong senderId, DataReader reader) {
 		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.WorldInitData);
 		// 获取游戏模式数据 (是否铁指,是否困难,模式名称,模式对象名称,可能的种子)
-		writer.Put(MPGameModeManager.GetGameModeData());
+		writer.Put(MPGameModeManager.CaptureCurrentData());
 		// 发生到客户端
 		MPSteamworks.Instance.SendToPeer(senderId, writer);
 		// Debug

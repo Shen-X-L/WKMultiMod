@@ -3,6 +3,7 @@ using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -98,8 +99,10 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	void Update() {
+		// 如果在大厅且已初始化且有连接,允许发送数据
 		LocalPlayer.Instance.ShouldSendData = IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
 
+		// 定期检查玩家数量和连接状态,修复异常状态
 		CheckAndRepairPlayers();
 	}
 
@@ -255,6 +258,17 @@ public class MPCore : MonoSingleton<MPCore> {
 					// Debug
 					MPMain.LogError(Localization.Get("MPCore", "CommandConsoleNullAfterSceneLoad"));
 				}
+				// 如果是主游戏场景且是房主,抓取当前模式数据并广播给其他人
+				if (_MPsteamworks.IsHost) {
+					// 设置当前游戏模式数据
+					MPGameModeManager.CaptureCurrentData();
+					// 以后会在这里广播模式数据
+
+					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
+				}
+				if (IsInLobby && !IsInitialized) {
+					StartCoroutine(InitHandshakeRoutine());
+				}
 				break;
 			}
 			case "Playground": {
@@ -299,6 +313,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		//MPMain.LogWarning("[MP Debug] 退出联机模式");
 		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
+		MPGameModeManager.ClearCurrentData();
 		_MPsteamworks.DisconnectAll();
 		_RPManager.ResetAll();
 	}
@@ -375,7 +390,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		switch (SceneManager.GetActiveScene().name) {
 			case "Game-Main": {
 				// 断开网络连接
-				StartCoroutine(OnDeathSequence());
+				// StartCoroutine(OnDeathSequence());
 				break;
 			}
 			default: {
@@ -449,7 +464,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			if (success) {
 				// 连接成功后的逻辑处理
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
-				SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
+				//SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 
 				switch (SceneManager.GetActiveScene().name) {
 					// 主游戏需要相同种子的重载地图
@@ -765,13 +780,13 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 客户端发送WorldInitRequest: 协程请求初始化数据
 	/// </summary>
 	public IEnumerator InitHandshakeRoutine() {
-		yield return new WaitForSeconds(1.0f);
+		yield return new WaitForSeconds(0.5f);
 		// 在大厅并且未加载
 		while (IsInLobby && !IsInitialized) {
 			MPMain.LogInfo(Localization.Get("MPCore", "RequestedInitData"));
 			var writer = GetWriter(_MPsteamworks.UserSteamId, _MPsteamworks.HostSteamId, PacketType.WorldInitRequest);
 			_MPsteamworks.SendToHost(writer);
-			yield return new WaitForSeconds(4.0f);
+			yield return new WaitForSeconds(3.0f);
 		}
 	}
 

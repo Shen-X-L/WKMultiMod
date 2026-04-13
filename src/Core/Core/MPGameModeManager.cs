@@ -40,21 +40,20 @@ public class MPGameModeManager {
 	/// <summary>
 	/// 获取当前游戏模式数据
 	/// </summary>
-	public static GameModeData GetGameModeData() {
-		var gameModedata = new GameModeData {
+	public static GameModeData CaptureCurrentData() {
+		CurrentData = new GameModeData {
 			isIron = SettingsManager.settings.g_iron,
 			isHard = SettingsManager.settings.g_hard,
 			gameModeName = CL_GameManager.gamemode.name,
 			gameModeObjectName = CL_GameManager.gamemode.ToString(),
+			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
-		if (WorldLoader.instance != null) {
-			gameModedata.seed = WorldLoader.instance.seed;
-		} else {
-			gameModedata.seed = null;
-		}
-		return gameModedata;
+		return CurrentData.Value;
 	}
 
+	/// <summary>
+	/// 通过GameModeData加载游戏模式, 包括游戏模式、难度和种子
+	/// </summary>
 	public static void LoadGameMode(GameModeData data) {
 		// 字典内没有数据时重初始化字典
 		if (gameModeDict.Count == 0) Initialize();
@@ -70,15 +69,28 @@ public class MPGameModeManager {
 		// 更改难度
 		SettingsManager.settings.g_iron = data.isIron;
 		SettingsManager.settings.g_hard = data.isHard;
-		// 设置种子
-		if (data.seed is int value && (WorldLoader.instance?.seed != value)) {
+		// 一直设置种子, 相同种子而跳过设置种子会导致种子重随机
+		if (data.seed is int value) {
 			WorldLoader.SetPresetSeed(value.ToString());
 		}
 		// 手动重载地图
 		SceneManager.LoadScene(m_Gamemode.gamemodeScene);
 	}
 
-	// 尝试获取游戏模式
+	/// <summary>
+	/// 重加载游戏模式
+	/// </summary>
+	public static void RestartGameMode() {
+		if (CurrentData.HasValue) {
+			LoadGameMode(CurrentData.Value);
+		} else {
+			MPMain.LogWarning(Localization.Get("MPGameModeManager", "NoCurrentGameModeData"));
+		}
+	}
+
+	/// <summary>
+	/// 尝试获取游戏模式
+	/// </summary>
 	public static bool TryGetGameMode(string name, out M_Gamemode gamemode) {
 		if (gameModeDict.Count == 0)
 			Initialize();

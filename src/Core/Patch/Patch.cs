@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using WKMPMod.Core;
+using WKMPMod.NetWork;
 using Object = UnityEngine.Object;
 
 namespace WKMPMod.Patch;
@@ -43,6 +44,22 @@ public class Patch_SettingsManager_RefreshSettings {
 			SettingsManager.settings.g_iron = MPGameModeManager.CurrentData.Value.isIron;
 			SettingsManager.settings.g_hard = MPGameModeManager.CurrentData.Value.isHard;
 		}
+	}
+}
+
+// 补丁类: 在联机模式下重开时重置游戏状态控制器的状态
+[HarmonyPatch(typeof(UT_GameStateController), "RestartScene")]
+public class Patch_UT_GameStateController_RestartScene {
+	public static bool Prefix() {
+		if (MPCore.IsInLobby) {
+			if (MPGameModeManager.CurrentData.HasValue) {
+				MPGameModeManager.RestartGameMode();
+				return false;
+			}
+			// 没有游戏模式数据,重置联机状态以防止潜在问题
+			MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized); 
+		}
+		return true; // 非联机模式,执行原始的重开逻辑
 	}
 }
 

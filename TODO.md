@@ -1,3 +1,5 @@
+Restart以后做成 HOOK 拦截 + 启动同步协程 + Loading界面
+
 按钮组件记得修补TMP字体文件
 
 TMP组件变为UI显示

@@ -109,7 +109,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 	// 创建成功 - 目前没有额外逻辑 后续实现Loading弹窗关闭
 	public void CreateSuccess() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
-		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
+		//MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 		// 关闭Loading弹窗
 		MPEventBusGame.NotifyHideLoading();
 		// 加载游戏模式

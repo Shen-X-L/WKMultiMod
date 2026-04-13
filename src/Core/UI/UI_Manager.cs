@@ -8,10 +8,6 @@ using UnityEngine.UI;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
-using WKMultiPlayerMod.UI;
-using static App_SavePage;
-using static ENT_Player;
-using static UI_TabGroup;
 
 namespace WKMPMod.UI;
 

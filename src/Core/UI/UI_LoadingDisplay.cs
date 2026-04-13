@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections;
 using UnityEngine;
 using WKMPMod.Data;
 
-namespace WKMultiPlayerMod.UI;
+namespace WKMPMod.UI;
 
 public class UI_LoadingDisplay : MonoBehaviour {
 	private Coroutine? _hideCoroutine;      // 当前的隐藏协程
