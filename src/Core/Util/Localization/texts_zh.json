@@ -14,12 +14,11 @@
     "MultipleMatchingIds": "找到多个匹配的ID.以下是对应的列表:\n{0}",
     "NeedToBeOnline": "您需要在在线模式下使用此命令, \n请先使用 host 或 join 命令",
     "NoLobbyByNameTryId": "未找到匹配名称的大厅，尝试使用 ID 连接...",
-    "PlayerDeath": "{0} 被 {1} 杀死",
+
     "SearchingLobbyByName": "正在按名称搜索大厅: {0}...",
     "TargetIdNotFound": "未找到目标ID.此命令使用后缀匹配.\n例如: 目标ID: 76561198279116422 → tpto 6422.",
     "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化.",
-    "CriticalErrorDuringJoin": "加入时发生严重错误: {0}",
-    "CriticalErrorDuringCreate": "创建时发生严重错误: {0}",
+
     "LobbyVisibilitySet": "大厅可见级别设置为: {0}",
     "LobbyVisibilitySetFailed": "大厅可见级别设置失败, 支持的选项有: public, friends, private"
   },
@@ -49,7 +48,9 @@
     "PlayerJoinedLobby": "[MPCore] 玩家加入大厅 Id: {0}",
     "PlayerLeftLobby": "[MPCore] 玩家离开大厅 Id: {0}",
     "RequestedInitData": "[MPCore] 已向主机请求初始化数据",
-    "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}"
+    "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}",
+    "CriticalErrorDuringJoin": "[MPCore] 加入时发生严重错误: {0}",
+    "CriticalErrorDuringCreate": "[MPCore] 创建时发生严重错误: {0}"
   },
   "MPGameModeManager": {
     "GameModeNotFound": "[MP GameModeMan] 未找到名为 {0} 的对应游戏模式"
@@ -187,5 +188,24 @@
     "TabButtonContainerNotFound": "[MP UI] 标签页按钮容器未找到",
     "TabButtonTemplateNotFound": "[MP UI] 按钮模板 ModeButton_Custom 未找到",
     "TabContentContainerNotFound": "[MP UI] 标签页内容容器未找到"
+  },
+  "DisplayMessage": {
+    "JoinedMessages": [
+      "{0} 因为Δ异常卷入了这个世界"
+    ],
+    "LeaveMessages": [
+      "{0} 因为Δ异常脱离了这个世界"
+    ],
+    "EnteredMessages": [
+      "加入 {0} - {1}/{2}\nid: {3}"
+    ],
+    "InviteReceivedMessages": [
+      "{0} 已被邀请到设施"
+    ],
+    "PlayerDeath": [
+      "{0} 被 {1} 杀死",
+      "{0} 被 {1} 带走了",
+      "{0} 死于 {1}"
+    ]
   }
 }

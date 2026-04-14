@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,14 +9,46 @@ using WKMPMod.Core;
 namespace WKMPMod.Util;
 
 public static class Localization {
+	// 用于随机化文本的包装结构,支持单字符串或字符串数组
+	public struct LocalizedValue {
+		private readonly object _data;
+
+		public LocalizedValue(object data) => _data = data;
+
+		public string[] AsArray => _data as string[];
+		public string AsString => _data as string;
+		public bool IsArray => _data is string[];
+
+		// 获取指定索引的方法,越界时返回最后一个元素
+		public string GetValue(int index = 0) {
+			if (_data is string[] arr) {
+				return arr[Math.Clamp(index, 0, arr.Length - 1)];
+			}
+			return _data?.ToString() ?? string.Empty;
+		}
+		public string GetValue(System.Random rand) {
+			if (_data is string[] arr) {
+				// 数组：随机取一项
+				return arr[rand.Next(arr.Length)];
+			}
+			// 单行文本：直接返回
+			return _data?.ToString() ?? string.Empty;
+		}
+	}
+
 	// 主表:按类别存储字典
-	private static Dictionary<string, Dictionary<string, string>> _table =
-		new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+	private static Dictionary<string, Dictionary<string, LocalizedValue>> _table;
 
 	// 扁平化缓存,用于快速查找
-	private static Dictionary<string, string> _flatCache = null;
+	private static Dictionary<string, LocalizedValue> _flatCache;
 
+	// 本地化文件前缀
 	private const string FILE_PREFIX = "texts";
+
+	// 静态随机实例,用于随机文本选择,避免频繁创建 Random 对象
+	private static readonly System.Random _staticRandom = new System.Random();
+
+	#region[初始化字典]
 
 	/// <summary>
 	/// 加载本地化文件
@@ -45,10 +78,26 @@ public static class Localization {
 		try {
 			string jsonContent = File.ReadAllText(filePath);
 
-			_table = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(jsonContent);
+			var rawTable = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, object>>>(jsonContent);
+
+			_table = new Dictionary<string, Dictionary<string, LocalizedValue>>();
+
+			// 转换原始表到支持 LocalizedValue 的结构
+			foreach (var category in rawTable) {
+				_table[category.Key] = new Dictionary<string, LocalizedValue>();
+				foreach (var kvp in category.Value) {
+					if (kvp.Value is JArray jarr) {
+						// 如果值是数组,转换为 LocalizedValue 包装的字符串数组
+						_table[category.Key][kvp.Key] = new LocalizedValue(jarr.Select(x => x.ToString()).ToArray());
+					} else {
+						// 否则直接转换为字符串
+						_table[category.Key][kvp.Key] = new LocalizedValue(kvp.Value?.ToString());
+					}
+				}
+			}
 
 			// 重置扁平化缓存
-			_flatCache = null;
+			BuildFlatCache();
 
 			int totalEntries = 0;
 			foreach (var category in _table) {
@@ -63,76 +112,136 @@ public static class Localization {
 	}
 
 	/// <summary>
-	/// 获取本地化文本(分类.键名格式)
+	/// 构建扁平化缓存 (内部使用)
 	/// </summary>
-	public static string Get(string key, params object[] args) {
-		// 确保扁平化缓存已构建
-		if (_flatCache == null) {
-			BuildFlatCache();
-		}
+	private static void BuildFlatCache() {
+		_flatCache = new Dictionary<string, LocalizedValue>(StringComparer.OrdinalIgnoreCase);
 
-		// 查找键,未找到
-		if (!_flatCache.TryGetValue(key, out string pattern)) {
-			string argsStr = args.Length > 0
-				? string.Join(", ", args.Select((a, i) => $"[{i}]: {a}"))
-				: "none";
-
-			MPMain.LogWarning($"[MP Localization] Key not found: {key} Args: {argsStr}");
-			return key;
-		}
-
-		// 无参数直接返回
-		if (args == null || args.Length == 0) {
-			return pattern;
-		}
-
-		// 格式化字符串
-		try {
-			return string.Format(pattern, args);
-		} catch (FormatException e) {
-			MPMain.LogError($"[MP Localization] Format error for key '{key}': {e.Message}");
-			return pattern;
+		foreach (var category in _table) {
+			foreach (var kvp in category.Value) {
+				// 扁平化格式为 类名.文本名
+				string flatKey = $"{category.Key}.{kvp.Key}";
+				_flatCache[flatKey] = kvp.Value;
+			}
 		}
 	}
 
+	#endregion
+
+	#region["分类","键名" 获取多语言文本]
+
 	/// <summary>
-	/// 获取本地化文本(分类,键名分开)
+	/// 获取本地化文本组(分类,键名分开)
 	/// </summary>
-	public static string Get(string category, string key, params object[] args) {
+	public static bool TryGetValue(string category, string key,out LocalizedValue value) {
 		// 验证参数
 		if (string.IsNullOrEmpty(category)) {
 			// 分类为空
 			MPMain.LogWarning("[MP Localization] Category is null or empty");
-			return key;
+			value = new LocalizedValue($"[{category}.{key}]");
+			return false;
 		}
 
 		// 查找分类
 		if (!_table.TryGetValue(category, out var categoryDict)) {
 			// 分类未找到
 			MPMain.LogWarning($"[MP Localization] Category not found: {category}");
-			return $"[{category}] {key}";
+			value = new LocalizedValue($"[{category}.{key}]");
+			return false;
 		}
 
 		// 查找键
-		if (!categoryDict.TryGetValue(key, out string pattern)) {
+		if (!categoryDict.TryGetValue(key, out LocalizedValue pattern)) {
 			// 子选项未找到
 			MPMain.LogWarning($"[MP Localization] Key '{key}' not found in category '{category}'");
-			return $"[{category}] {key}";
+			value = new LocalizedValue($"[{category}.{key}]");
+			return false;
 		}
+		value = pattern;
+		return true;
+	}
 
-		// 无参数直接返回
-		if (args == null || args.Length == 0) {
-			return pattern;
-		}
+	/// <summary>
+	/// 获取本地化文本(必须是单行文本)
+	/// </summary>
+	public static string Get(string category, string key, params object[] args) {
+		if (!TryGetValue(category, key, out var val)) return val.AsString;
+		return SafeFormat(val.AsString, args);
+	}
 
-		// 格式化字符串
+	/// <summary>
+	/// 获取本地化文本(随机获取列表中的一项)
+	/// </summary>
+	public static string GetRandom(string category, string key, params object[] args) {
+		if (!TryGetValue(category, key, out var val)) return val.AsString;
+		return SafeFormat(val.GetValue(_staticRandom), args);
+	}
+
+	/// <summary>
+	/// 获取本地化文本(获取列表中特定的一项)
+	/// </summary>
+	public static string GetByIndex(string category, string key, int index, params object[] args) {
+		if (!TryGetValue(category, key, out var val)) return val.AsString;
+		return SafeFormat(val.GetValue(index), args);
+	}
+
+	/// <summary>
+	/// 避免代码重复
+	/// </summary>
+	private static string SafeFormat(string pattern, object[] args) {
+		if (args == null || args.Length == 0) return pattern;
 		try {
 			return string.Format(pattern, args);
-		} catch (FormatException e) {
-			MPMain.LogError($"[MP Localization] Format error for '{category}.{key}': {e.Message}");
+		} catch (Exception e) {
+			MPMain.LogError($"[Localization] Format error: {e.Message}");
 			return pattern;
 		}
 	}
+
+	#endregion
+
+	#region["分类.键名" 获取多语言文本]
+
+	/// <summary>
+	/// 获取本地化文本(分类.键名格式)
+	/// </summary>
+	public static bool TryGetValueByPath(string key, out LocalizedValue value) {
+		// 查找键,未找到
+		if (!_flatCache.TryGetValue(key, out LocalizedValue pattern)) {
+			value = new LocalizedValue($"[{key}]");
+			return false;
+		}
+		value = pattern;
+		return true;
+	}
+
+	/// <summary>
+	/// 获取本地化文本(必须是单行文本)
+	/// </summary>
+	public static string GetByPath(string key, params object[] args) {
+		if (!TryGetValueByPath(key, out var val)) return val.AsString;
+		return SafeFormat(val.AsString, args);
+	}
+
+	/// <summary>
+	/// 获取本地化文本(随机获取列表中的一项)
+	/// </summary>
+	public static string GetRandomByPath(string key, params object[] args) {
+		if (!TryGetValueByPath(key, out var val)) return val.AsString;
+		return SafeFormat(val.GetValue(_staticRandom), args);
+	}
+
+	/// <summary>
+	/// 获取本地化文本(获取列表中特定的一项)
+	/// </summary>
+	public static string GetByIndexByPath(string key, int index, params object[] args) {
+		if (!TryGetValueByPath(key, out var val)) return val.AsString;
+		return SafeFormat(val.GetValue(index), args);
+	}
+
+	#endregion
+
+	#region[Debug检查]
 
 	/// <summary>
 	/// 检查键是否存在
@@ -171,21 +280,9 @@ public static class Localization {
 		return new List<string>();
 	}
 
-	/// <summary>
-	/// 构建扁平化缓存 (内部使用)
-	/// </summary>
-	private static void BuildFlatCache() {
-		_flatCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+	#endregion
 
-		foreach (var category in _table) {
-			foreach (var kvp in category.Value) {
-				// 扁平化格式为 类名.文本名
-				string flatKey = $"{category.Key}.{kvp.Key}";
-				_flatCache[flatKey] = kvp.Value;
-			}
-		}
-	}
-
+	#region[获取系统语言]
 	public static string GetGameLanguage() {
 		// 根据系统语言返回 "zh", "en" 等
 		switch (Application.systemLanguage) {
@@ -210,4 +307,5 @@ public static class Localization {
 				return "en";
 		}
 	}
+	#endregion
 }

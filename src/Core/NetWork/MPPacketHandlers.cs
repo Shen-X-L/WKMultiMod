@@ -9,6 +9,7 @@ using WKMPMod.Data;
 using WKMPMod.RemotePlayer;
 using WKMPMod.Util;
 using static WKMPMod.Data.MPWriterPool;
+using static WKMPMod.UI.UI_Manager;
 using static WKMPMod.Util.DictionaryExtensions;
 using Random = UnityEngine.Random;
 
@@ -141,7 +142,7 @@ public class MPPacketHandlers {
 		// 生成死亡消息
 		string type = reader.GetString();
 		string playerName = new Friend(senderId).Name;
-		CommandConsole.Log(Localization.Get("CommandConsole", "PlayerDeath", playerName, type));
+		MPCore.SystemMessage(Localization.GetByPath("DisplayMessage.PlayerDeath", playerName, type), UIDisplayType.AscentHeader);
 
 		// 获取玩家对象
 		var playerObject = RPManager.Instance.GetPlayerObject(senderId);

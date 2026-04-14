@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Util;
@@ -6,7 +7,7 @@ using WKMPMod.Util;
 namespace WKMPMod.Core;
 
 public class MPGameModeManager {
-	public struct GameModeData {
+	public record struct GameModeData {
 		public bool isIron;
 		public bool isHard;
 		public string gameModeName;			// 可能重名
@@ -49,6 +50,12 @@ public class MPGameModeManager {
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
 		return CurrentData.Value;
+	}
+
+	public static void LoadGameModeIfChanged(GameModeData data) { 
+		if (CurrentData.HasValue && CurrentData.Value == data)
+			return;
+		LoadGameMode(data);
 	}
 
 	/// <summary>

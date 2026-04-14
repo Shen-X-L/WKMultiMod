@@ -3,7 +3,6 @@ using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -15,6 +14,7 @@ using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using static WKMPMod.Data.MPWriterPool;
+using static WKMPMod.UI.UI_Manager;
 
 namespace WKMPMod.Core;
 
@@ -169,17 +169,20 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 初始化网络事件订阅
 	/// </summary>
 	private void SubscribeToEvents() {
-		//// 订阅网络数据接收事件
-		//MPEventBusNet.OnReceiveData += ProcessReceiveData;
-
 		// 订阅大厅事件
 		MPEventBusNet.OnLobbyEntered += HandleLobbyEntered;
 		MPEventBusNet.OnLobbyMemberJoined += HandleLobbyMemberJoined;
-		MPEventBusNet.OnLobbyMemberLeft += HandleLobbyMemberLeft;
+		MPEventBusNet.OnLobbyMemberLeave += HandleLobbyMemberLeft;
 
 		// 订阅玩家连接事件
 		MPEventBusNet.OnPlayerConnected += HandlePlayerConnected;
 		MPEventBusNet.OnPlayerDisconnected += HandlePlayerDisconnected;
+
+		// 订阅接收邀请事件
+		MPEventBusNet.OnGameLobbyJoinRequested += Join;
+
+		// 订阅接受邀请事件
+		MPEventBusNet.OnLobbyInvite += HandleLobbyInvite;
 
 		// 订阅游戏事件
 		MPEventBusGame.OnPlayerMove += SeedLocalPlayerData;
@@ -192,17 +195,20 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 取消所有网络事件订阅
 	/// </summary>
 	private void UnsubscribeFromEvents() {
-		//// 退订网络数据接收事件
-		//MPEventBusNet.OnReceiveData -= ProcessReceiveData;
-
 		// 退订大厅事件
 		MPEventBusNet.OnLobbyEntered -= HandleLobbyEntered;
 		MPEventBusNet.OnLobbyMemberJoined -= HandleLobbyMemberJoined;
-		MPEventBusNet.OnLobbyMemberLeft -= HandleLobbyMemberLeft;
+		MPEventBusNet.OnLobbyMemberLeave -= HandleLobbyMemberLeft;
 
 		// 退订玩家连接事件
 		MPEventBusNet.OnPlayerConnected -= HandlePlayerConnected;
 		MPEventBusNet.OnPlayerDisconnected -= HandlePlayerDisconnected;
+
+		// 退订接收邀请事件
+		MPEventBusNet.OnGameLobbyJoinRequested -= Join;
+
+		// 退订接受邀请事件
+		MPEventBusNet.OnLobbyInvite -= HandleLobbyInvite;
 
 		// 退订游戏事件
 		MPEventBusGame.OnPlayerMove -= SeedLocalPlayerData;
@@ -422,11 +428,12 @@ public class MPCore : MonoSingleton<MPCore> {
 		}, false);
 		CommandConsole.AddCommand("getalllobby", GetAllLobby, false);
 		CommandConsole.AddCommand("test", Test.Test.Main, false);
+		CommandConsole.AddCommand("invite", OpenSteamInviteUI);
+		CommandConsole.AddCommand("lobbytype", SetLobbyVisibility, false);
 		CommandConsole.AddCommand("cheatstest", Test.CheatsTest.Main);
 		CommandConsole.AddCommand("changename", (str) => {
 			_MPsteamworks.SetLobbyData("name", str[0]);
 		}, false);
-		CommandConsole.AddCommand("lobbytype", SetLobbyVisibility, false);
 	}
 
 	/// <summary>
@@ -477,7 +484,8 @@ public class MPCore : MonoSingleton<MPCore> {
 						break;
 					}
 				}
-
+				string lobby_id = _MPsteamworks.LobbyId.ToString();
+				CopyToClipboard(lobby_id);
 				CommandConsole.Log(Localization.Get("MPSteamworks", "HostSuccess"));
 			} else {
 				// 失败处理
@@ -486,8 +494,8 @@ public class MPCore : MonoSingleton<MPCore> {
 			}
 		} catch (Exception ex) {
 			// 捕获任何未预料的崩溃
-			CommandConsole.LogError(Localization.Get("CommandConsole", "CriticalErrorDuringCreate",ex.Message));
 			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+			MPMain.LogError(Localization.Get("CommandConsole", "CriticalErrorDuringCreate",ex.Message));
 		}
 	}
 
@@ -555,6 +563,29 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
+	/// 通用的加入大厅流程函数,处理连接逻辑和错误管理
+	/// </summary>
+	public async void Join(Lobby lobby, SteamId steamId) {
+		// 设置初始状态
+		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
+		try {
+			bool success = await _MPsteamworks.JoinRoomAsync(lobby);
+
+			// 处理结果
+			if (success) {
+				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
+			} else {
+				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+				MPMain.LogError(Localization.GetByPath("MPCore.JoinLobbyFailed"));
+			}
+		} catch (Exception ex) {
+			// 捕获任何未预料的异常 (网络崩溃、Steam客户端断开等)
+			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+			MPMain.LogError(Localization.GetByPath("MPCore.CriticalErrorDuringJoin", ex.Message));
+		}
+	}
+
+	/// <summary>
 	/// 连接到特定Id的大厅
 	/// </summary>
 	private async Task ExecuteJoinProcess(ulong lobbyId) {
@@ -576,8 +607,8 @@ public class MPCore : MonoSingleton<MPCore> {
 			}
 		} catch (Exception ex) {
 			// 捕获任何未预料的异常 (网络崩溃、Steam客户端断开等)
-			CommandConsole.LogError(Localization.Get("CommandConsole", "CriticalErrorDuringJoin", ex.Message));
 			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+			MPMain.LogError(Localization.Get("CommandConsole", "CriticalErrorDuringJoin", ex.Message));
 		}
 	}
 
@@ -598,8 +629,10 @@ public class MPCore : MonoSingleton<MPCore> {
 			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeOnline"));
 			return;
 		}
+		string lobby_id = _MPsteamworks.LobbyId.ToString();
+		CopyToClipboard(lobby_id);
 		CommandConsole.Log(Localization.Get(
-			"CommandConsole", "LobbyIdOutput", _MPsteamworks.LobbyId.ToString()));
+			"CommandConsole", "LobbyIdOutput", lobby_id));
 	}
 
 	/// <summary>
@@ -687,6 +720,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		StartLobbySearchAsync();
 	}
 
+	/// <summary>
+	/// 通过指令获取全部大厅信息,包含Id/名称/房主/游戏模式等
+	/// </summary>
 	private async void StartLobbySearchAsync() {
 		var query = new Steamworks.Data.LobbyQuery()
 			.FilterDistanceWorldwide()
@@ -719,6 +755,18 @@ public class MPCore : MonoSingleton<MPCore> {
 			CommandConsole.LogError(Localization.Get("CommandConsole", "LobbyVisibilitySetFailed"));
 		}
 	}
+
+	/// <summary>
+	/// 通过指令邀请好友,会打开Steam邀请界面
+	/// </summary>
+	public void OpenSteamInviteUI(string[] args) {
+		if (!IsInLobby) {
+			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeOnline"));
+			return;
+		}
+		ulong lobby_id = _MPsteamworks.LobbyId;
+		SteamFriends.OpenGameInviteOverlay(lobby_id);
+	}
 	#endregion
 
 	#region[大厅/连接事件触发函数]
@@ -733,24 +781,43 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		// 启动协程发送请求初始化数据
 		StartCoroutine(InitHandshakeRoutine());
+
+		// 显示加入大厅信息
+		StartCoroutine(ShowLobbyData());
+
+		// 显示加入大厅信息
+		IEnumerator ShowLobbyData() {
+			while (IsInLobby && !IsInitialized) {
+				yield return null;
+			}
+			if (WorldLoader.initialized) {
+				while (!WorldLoader.isLoaded) {
+					yield return null;
+				}
+			}
+			yield return new WaitForSecondsRealtime(0.5f);
+			var message = Localization.GetRandomByPath("DisplayMessage.EnteredMessages", 
+				lobby.GetData("name"), lobby.MemberCount, lobby.MaxMembers, lobby.Id.Value);
+			SystemMessage(message, UIDisplayType.AscentHeader);
+		}
 	}
 
 	/// <summary>
-	/// 处理大厅成员加入 连接新成员
+	/// 处理大厅成员加入
 	/// </summary> 
-	private void HandleLobbyMemberJoined(SteamId steamId) {
-		if (steamId == _MPsteamworks.UserSteamId) return;
-		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "PlayerJoinedLobby", steamId.ToString()));
+	private void HandleLobbyMemberJoined(Friend friend) {
+		if (friend.Id == _MPsteamworks.UserSteamId) return;
+		var message = Localization.GetRandomByPath("DisplayMessage.JoinedMessages", friend.Name);
+		SystemMessage(message, UIDisplayType.AscentHeader);
 	}
 
 	/// <summary>
 	/// 处理离开大厅事件
 	/// </summary>
-	/// <param name="steamId"></param>
-	private void HandleLobbyMemberLeft(SteamId steamId) {
-		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "PlayerLeftLobby", steamId.ToString()));
+	/// <param name="friend"></param>
+	private void HandleLobbyMemberLeft(Friend friend) {
+		var message = Localization.GetRandomByPath("DisplayMessage.LeaveMessages", friend.Name);
+		SystemMessage(message, UIDisplayType.AscentHeader);
 	}
 
 	/// <summary>
@@ -770,6 +837,11 @@ public class MPCore : MonoSingleton<MPCore> {
 		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore", "PlayerDisconnected", steamId.ToString()));
 		_RPManager.PlayerRemove(steamId);
+	}
+
+	private void HandleLobbyInvite(Friend friend, Lobby lobby) { 
+		var message = Localization.GetRandomByPath("DisplayMessage.InviteReceivedMessages", friend.Name, lobby.GetData("name"));
+		SystemMessage(message, UIDisplayType.AscentHeader);
 	}
 
 	#endregion
@@ -827,5 +899,19 @@ public class MPCore : MonoSingleton<MPCore> {
 		return itemsDict;
 	}
 
+	/// <summary>
+	/// 在主要UI显示系统消息,并在控制台输出
+	/// </summary>
+	public static void SystemMessage(string message, UIDisplayType displayType) {
+		UI_Manager.Instance.DisplayMessage(message, displayType);
+		CommandConsole.Log($"[SYSTEM] {message}");
+	}
+
+	/// <summary>
+	/// 将内容复制到系统剪贴板
+	/// </summary>
+	private static void CopyToClipboard(string text) {
+		GUIUtility.systemCopyBuffer = text;
+	}
 	#endregion
 }

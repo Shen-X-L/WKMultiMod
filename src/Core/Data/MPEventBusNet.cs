@@ -46,19 +46,28 @@ public static class MPEventBusNet {
 	// 接收事件: 进入大厅
 	public static event Action<Lobby> OnLobbyEntered;
 	// 接收事件: 玩家加入大厅
-	public static event Action<SteamId> OnLobbyMemberJoined;
+	public static event Action<Friend> OnLobbyMemberJoined;
 	// 接收事件: 玩家离开大厅
-	public static event Action<SteamId> OnLobbyMemberLeft;
+	public static event Action<Friend> OnLobbyMemberLeave;
 	// 接收事件: 大厅成员数据或大厅所有权发生变更
-	public static event Action<Lobby, SteamId> OnLobbyHostChanged;
+	public static event Action<Lobby, Friend> OnLobbyHostChanged;
 
 	public static void NotifyLobbyEntered(Lobby lobby)
 		=> OnLobbyEntered?.Invoke(lobby);
-	public static void NotifyLobbyMemberJoined(SteamId steamId)
+	public static void NotifyLobbyMemberJoined(Friend steamId)
 		=> OnLobbyMemberJoined?.Invoke(steamId);
-	public static void NotifyLobbyMemberLeft(SteamId steamId)
-		=> OnLobbyMemberLeft?.Invoke(steamId);
-	public static void NotifyLobbyHostChanged(Lobby lobby, SteamId hostId)
+	public static void NotifyLobbyMemberLeave(Friend steamId)
+		=> OnLobbyMemberLeave?.Invoke(steamId);
+	public static void NotifyLobbyHostChanged(Lobby lobby, Friend hostId)
 		=> OnLobbyHostChanged?.Invoke(lobby, hostId);
 
+	// 邀请事件
+	// 接收世界: 接收大厅邀请
+	public static event Action<Friend, Lobby> OnLobbyInvite;
+	public static void NotifyLobbyInvite(Friend friend, Lobby lobby)
+		=> OnLobbyInvite?.Invoke(friend, lobby);
+	// 接收事件: 接受游戏邀请
+	public static event Action<Lobby, SteamId> OnGameLobbyJoinRequested;
+	public static void NotifyGameLobbyJoinRequested(Lobby lobby, SteamId steamId)
+		=> OnGameLobbyJoinRequested?.Invoke(lobby, steamId);
 }

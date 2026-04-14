@@ -14,12 +14,11 @@
     "MultipleMatchingIds": "Found multiple matching IDs. Below is the corresponding list:\n{0}",
     "NeedToBeOnline": "You need in online mode, \nplease use the host or join",
     "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
-    "PlayerDeath": "{0} died due to {1}",
+
     "SearchingLobbyByName": "Searching for lobby by name: {0}...",
     "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
     "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
-    "CriticalErrorDuringJoin": "Critical error during join: {0}",
-    "CriticalErrorDuringCreate": "Critical error during create lobby: {0}",
+
     "LobbyVisibilitySet": "Lobby visibility set to: {0}",
     "LobbyVisibilitySetFailed": "Failed to set lobby visibility. Supported options: public, friends, private"
   },
@@ -49,7 +48,10 @@
     "PlayerJoinedLobby": "[MPCore] New player joined the lobby, Id: {0}",
     "PlayerLeftLobby": "[MPCore] Player left the lobby Id: {0}",
     "RequestedInitData": "[MPCore] Requested initialization data from the host.",
-    "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}"
+    "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}",
+    "JoinLobbyFailed": "[MPCore] Fail to join lobby: {0}",
+    "CriticalErrorDuringJoin": "[MPCore] Critical error during join: {0}",
+    "CriticalErrorDuringCreate": "[MPCore] Critical error during create lobby: {0}"
   },
   "MPGameModeManager": {
     "GameModeNotFound": "[MP GameModeMan] Game mode named {0} not found"
@@ -187,5 +189,26 @@
     "TabButtonContainerNotFound": "[MP UI] Tab button container not found",
     "TabButtonTemplateNotFound": "[MP UI] Button template 'ModeButton_Custom' not found",
     "TabContentContainerNotFound": "[MP UI] Tab content container not found"
+  },
+  "DisplayMessage": {
+    "JoinedMessages": [
+      "{0} has been hired at the facility",
+      "{0} has emerged from the mass",
+      "{0} has been summoned by Rho"
+    ],
+    "LeaveMessages": [
+      "{0} has been fired from the facility",
+      "{0} has been mysteriously eaten by substructure",
+      "{0} has disappointed Rho"
+    ],
+    "EnteredMessages": [
+      "Hired into {0} - {1}/{2}\nid: {3}"
+    ],
+    "InviteReceivedMessages": [
+      "{0} has been invited to the facility"
+    ],
+    "PlayerDeath": [
+      "{0} died due to {1}"
+    ]
   }
 }

@@ -11,6 +11,7 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
+using WKMPMod.UI;
 using WKMPMod.Util;
 using static CL_AchievementManager;
 using static CommandConsole;
@@ -27,7 +28,7 @@ public class Test : MonoBehaviour {
 	public static float y = 0;
 	public static float z = 0;
 	public static ulong id = 0;
-	public static Dictionary<string,M_Gamemode> gamemodeMap = new Dictionary<string, M_Gamemode>();
+	public static Dictionary<string, M_Gamemode> gamemodeMap = new Dictionary<string, M_Gamemode>();
 	public static void Main(string[] args) {
 
 		if (args.Length == 0) {
@@ -49,18 +50,19 @@ public class Test : MonoBehaviour {
 			"9" => RunCommand(CreateTestPrefab),    // 创建测试预制体
 			"10" => RunCommand(GetHandCosmetic),    // 获取手部皮肤信息
 			"11" => RunCommand(CreateDontDestroyGameObject),    // 创建测试对象并设置DontDestroyOnLoad
-			"12" => RunCommand(TestSingleton),  // 测试单例模式
+			"12" => RunCommand(DisplayMessageTest),  // 测试UI消息显示
 			"13" => RunCommand(SimulationPlayerUpdata),  // 模拟玩家数据更新事件
 			"14" => RunCommand(() => GetAssetGameObject(args[1..])),  // 获取预制体测试,参数:预制体名称(string),数据库名称(string,可选)
 			"15" => RunCommand(() => GetAllAssetGameObject(args[1])),  // 获取全部预制体测试,参数:预制体名称(string)
 			"16" => RunCommand(() => GetParticleEffectPrefab(args[1])),  // 获取粒子特效预制体测试,参数:预制体名称(string)
-			"17" => RunCommand(()=> MPCore.Instance.ResetStateVariables()),  // 重置状态变量测试
-			"18" => RunCommand(SearchAllLobby),	// 大厅搜索测试
-			"19" => RunCommand(LoadAllGameMode),	// 获取游戏模式
-			"20" => RunCommand(()=> LoadGamemode(args[1..])),	// 加载游戏模式
-			"21" => RunCommand(GetAllGameModeData),	// 获取同步时需要的数据
-			"22" => RunCommand(GetLobbyData),	// 获取大厅数据
-			"23" => RunCommand(() => GetOtherLobbyData(args[1])),	// 获取其他大厅数据
+			"17" => RunCommand(() => MPCore.Instance.ResetStateVariables()),  // 重置状态变量测试
+			"18" => RunCommand(SearchAllLobby), // 大厅搜索测试
+			"19" => RunCommand(LoadAllGameMode),    // 获取游戏模式
+			"20" => RunCommand(() => LoadGamemode(args[1..])),  // 加载游戏模式
+			"21" => RunCommand(GetAllGameModeData), // 获取同步时需要的数据
+			"22" => RunCommand(GetLobbyData),   // 获取大厅数据
+			"23" => RunCommand(() => GetOtherLobbyData(args[1])),   // 获取其他大厅数据
+
 			_ => RunCommand(() => Debug.Log($"未知命令: {args[0]}"))
 		};
 	}
@@ -180,10 +182,6 @@ public class Test : MonoBehaviour {
 		GameObject singleton1 = new GameObject("Test Game Object1");
 		DontDestroyOnLoad(singleton1);
 		GameObject singleton2 = new GameObject("Test Game Object2");
-	}
-	// 输出单例测试
-	public static void TestSingleton() {
-		MPMain.LogWarning(TestMonoSingleton.Instance.TestString);
 	}
 	// 模拟玩家数据更新事件
 	public static void SimulationPlayerUpdata() {
@@ -337,8 +335,9 @@ public class Test : MonoBehaviour {
 		}
 	}
 
-	public static void GetOtherLobbyData(string lobbyId) { 
-		if(!ulong.TryParse(lobbyId, out ulong parsedLobbyId)) {
+	// 获取其他大厅数据
+	public static void GetOtherLobbyData(string lobbyId) {
+		if (!ulong.TryParse(lobbyId, out ulong parsedLobbyId)) {
 			MPMain.LogError($"[MP Debug] 无效的大厅ID: {lobbyId}");
 			return;
 		}
@@ -350,6 +349,12 @@ public class Test : MonoBehaviour {
 		foreach (var (key, value) in lobby.Data) {
 			MPMain.LogWarning($"[MP Debug] Data Key: {key}, Value: {value}");
 		}
+	}
+	public static void DisplayMessageTest() {
+		UI_Manager.Instance.DisplayMessage("AAAAA",UI_Manager.UIDisplayType.AscentHeader);
+		UI_Manager.Instance.DisplayMessage("BBBBB", UI_Manager.UIDisplayType.TipHeader);
+		UI_Manager.Instance.DisplayMessage("CCCCC", UI_Manager.UIDisplayType.Header);
+		UI_Manager.Instance.DisplayMessage("DDDDD", UI_Manager.UIDisplayType.HighscoreHeader);
 	}
 }
 public class CheatsTest : MonoBehaviour {

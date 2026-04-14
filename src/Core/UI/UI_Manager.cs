@@ -7,11 +7,21 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.NetWork;
 using WKMPMod.Util;
 
 namespace WKMPMod.UI;
 
 public class UI_Manager : MonoSingleton<UI_Manager> {
+
+
+	public enum UIDisplayType {
+		None,
+		AscentHeader,// 最顶部
+		TipHeader,//1/3处
+		Header,//2/5处
+		HighscoreHeader//3/5处
+	}
 
 	// 主菜单UI按钮容器路径
 	const string MAIN_MENU_PATH = "Canvas - Main Menu/Main Menu";
@@ -420,5 +430,28 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		MPMain.LogError(msg);
 		return false;
 	}
+	#endregion
+
+	#region[主游戏屏幕显示]
+
+	public void DisplayMessage(string message, UIDisplayType type) {
+		switch (type) {
+			case UIDisplayType.AscentHeader:
+				CL_GameManager.gMan.uiMan.ascentHeader.ShowText(message);
+				break;
+			case UIDisplayType.TipHeader:
+				CL_GameManager.gMan.uiMan.tipHeader.ShowText(message);
+				break;
+			case UIDisplayType.Header:
+				CL_GameManager.gMan.uiMan.header.ShowText(message);
+				break;
+			case UIDisplayType.HighscoreHeader:
+				CL_GameManager.gMan.uiMan.highscoreHeader.ShowText(message);
+				break;
+			default:
+				break;
+		}
+	}
+
 	#endregion
 }

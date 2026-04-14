@@ -13,6 +13,7 @@ using UnityEngine.Windows;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
+using static WKMPMod.UI.UI_Manager;
 
 namespace WKMPMod.NetWork;
 
@@ -33,19 +34,38 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	// 大厅Id
 	public Lobby _currentLobby;
-	// 获取当前大厅ID
-	public ulong CurrentLobbyId {
-		get { return _currentLobby.Id.Value; }
+
+	// 获取大厅相关信息
+	public ulong LobbyId {
+		get => _currentLobby.Id.Value;
 	}
+	public string LobbyName {
+		get { return _currentLobby.GetData("name"); }
+	}
+	public int LobbySize {
+		get { return _currentLobby.MaxMembers; }
+	}
+
+	// 获取全部在线玩家
+	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
+
 	// 检查是否在大厅中
 	public bool IsInLobby {
 		get { return _currentLobby.Id.IsValid; }
 	}
 
 	// 本机Id
-	public ulong UserSteamId { get; private set; }
+	public ulong UserSteamId { get => SteamClient.SteamId; }
 	// 之前的主机Id
 	public ulong HostSteamId { get; private set; }
+
+	// 检查是否是大厅所有者
+	public bool IsHost {
+		get {
+			if (_currentLobby.Id == 0) return false;
+			return _currentLobby.Owner.Id == UserSteamId;
+		}
+	}
 
 	// 监听socket
 	internal SocketManager _socketManager;
@@ -62,19 +82,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	// 数据池
 	private static readonly ArrayPool<byte> _messagePool = ArrayPool<byte>.Shared;
 
-	// 检查是否是大厅所有者
-	public bool IsHost {
-		get {
-			if (_currentLobby.Id == 0) return false;
-			return _currentLobby.Owner.Id == SteamClient.SteamId;
-		}
-	}
-
-	// 获取大厅ID
-	public ulong LobbyId {
-		get => _currentLobby.Id.Value;
-	}
-
 	// 判断玩家是否在大厅
 	public bool IsMemberInLobby(SteamId targetId) {
 		foreach (var member in _currentLobby.Members) {
@@ -83,11 +90,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		return false;
 	}
 
-	// 获取全部在线玩家
-	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
-
 	// 全部大厅
-	public List<Lobby> LastFetchedLobbies { get; private set; }
+	private List<Lobby> _lastFetchedLobbies = new List<Lobby>();
+	public List<Lobby> LastFetchedLobbies  { get => _lastFetchedLobbies; private set => _lastFetchedLobbies = value; }
 
 	#region[Unity组件生命周期函数]
 	protected override void Awake() {
@@ -100,7 +105,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				return;
 			}
 
-			UserSteamId = SteamClient.SteamId;
 			MPMain.LogInfo(Localization.Get("MPSteamworks", "SteamworksInitSuccess", SteamClient.Name, SteamClient.SteamId.ToString()));
 		} catch (Exception ex) {
 			MPMain.LogError(Localization.Get("MPSteamworks", "SteamworksInitException", ex.Message));
@@ -115,16 +119,21 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		// 该用户已经加入或正在加入大厅
 		SteamMatchmaking.OnLobbyMemberJoined += HandleLobbyMemberJoined;
 		// 该用户已离开或即将离开大厅
-		SteamMatchmaking.OnLobbyMemberLeave += HandleLobbyMemberLeft;
+		SteamMatchmaking.OnLobbyMemberLeave += HandleLobbyMemberLeave;
 		// 该用户在未离开大厅的情况下断线
 		SteamMatchmaking.OnLobbyMemberDisconnected += HandleLobbyMemberDisconnected;
 		// 当大厅成员数据或大厅所有权发生变更
 		SteamMatchmaking.OnLobbyMemberDataChanged += HandleLobbyMemberDataChanged;
+		// 该用户收到Steam好友的大厅邀请
+		SteamMatchmaking.OnLobbyInvite += HandleLobbyInvite;
+		// 该用户接受Steam好友的大厅邀请
+		SteamFriends.OnGameLobbyJoinRequested += HandleGameLobbyJoinRequested;
+
 
 		// 初始化中继网络(必须调用)
 		SteamNetworkingUtils.InitRelayNetworkAccess();
-
 	}
+
 
 	void Update() {
 		Steamworks.SteamClient.RunCallbacks();
@@ -145,11 +154,15 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		// 该用户已经加入或正在加入大厅
 		SteamMatchmaking.OnLobbyMemberJoined -= HandleLobbyMemberJoined;
 		// 该用户已离开或即将离开大厅
-		SteamMatchmaking.OnLobbyMemberLeave -= HandleLobbyMemberLeft;
+		SteamMatchmaking.OnLobbyMemberLeave -= HandleLobbyMemberLeave;
 		// 该用户在未离开大厅的情况下断线
 		SteamMatchmaking.OnLobbyMemberDisconnected -= HandleLobbyMemberDisconnected;
 		// 当大厅成员数据或大厅所有权发生变更
 		SteamMatchmaking.OnLobbyMemberDataChanged -= HandleLobbyMemberDataChanged;
+		// 该用户收到Steam好友的大厅邀请
+		SteamMatchmaking.OnLobbyInvite -= HandleLobbyInvite;
+		// 该用户接受Steam好友的大厅邀请
+		SteamFriends.OnGameLobbyJoinRequested -= HandleGameLobbyJoinRequested;
 
 		DisconnectAll();
 
@@ -538,7 +551,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			}
 
 			_currentLobby = lobby;
-			string roomName = _currentLobby.GetData("name")
+			string roomName = LobbyName
 				?? Localization.Get("MPSteamworks", "NullLobbyName");
 			MPMain.LogInfo(Localization.Get("MPSteamworks", "JoinLobbySuccess", roomName));
 
@@ -563,7 +576,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	#endregion
 
-	#region[SteamMatchmaking事件处理函数]
+	#region[Steam事件处理函数]
 	/// <summary>
 	/// 接收数据: 进入到大厅->LobbyEntered总线
 	/// </summary>
@@ -593,7 +606,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogInfo(Localization.Get("MPSteamworks", "PlayerJoinedRoom", friend.Name));
 
 			// 发布事件到总线
-			MPEventBusNet.NotifyLobbyMemberJoined(friend.Id);
+			MPEventBusNet.NotifyLobbyMemberJoined(friend);
 
 			// 连接到新玩家
 			if (friend.Id != SteamClient.SteamId) {
@@ -605,13 +618,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// 接收数据: 大厅有成员离开->LobbyMemberLeft总线
 	/// </summary>
-	private void HandleLobbyMemberLeft(Lobby lobby, Friend friend) {
+	private void HandleLobbyMemberLeave(Lobby lobby, Friend friend) {
 		if (lobby.Id == _currentLobby.Id) {
 			_currentLobby = lobby;
 			MPMain.LogInfo(Localization.Get("MPSteamworks", "PlayerLeftRoom", friend.Name));
 
 			// 发布事件到总线
-			MPEventBusNet.NotifyLobbyMemberLeft(friend.Id);
+			MPEventBusNet.NotifyLobbyMemberLeave(friend);
 
 			// 只在这里处理连接清理
 			OnPlayerDisconnected(friend.Id);
@@ -656,7 +669,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogInfo(Localization.Get("MPSteamworks", "HostChanged", HostSteamId.ToString(), currentOwnerId.ToString()));
 
 			// 触发主机变更总线
-			MPEventBusNet.NotifyLobbyHostChanged(lobby, HostSteamId);
+			MPEventBusNet.NotifyLobbyHostChanged(lobby, new Friend(HostSteamId));
 
 			HostSteamId = currentOwnerId;
 
@@ -665,6 +678,21 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				_currentLobby.SetData("owner", UserSteamId.ToString());
 		}
 	}
+
+	/// <summary>
+	/// 接受数据: 收到Steam好友的大厅邀请 -> LobbyInvite总线
+	/// </summary>
+	private void HandleLobbyInvite(Friend friend, Lobby lobby) {
+		MPEventBusNet.NotifyLobbyInvite(friend, lobby);
+	}
+
+	/// <summary>
+	/// 接收数据: 玩家接受Steam好友的大厅邀请 -> GameLobbyJoinRequested总线
+	/// </summary>
+	private void HandleGameLobbyJoinRequested(Lobby lobby, SteamId steamId) {
+		MPEventBusNet.NotifyGameLobbyJoinRequested(lobby, steamId);
+	}
+
 	#endregion
 
 	#region[重连机制]
