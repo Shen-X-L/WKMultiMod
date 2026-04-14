@@ -351,10 +351,10 @@ public class Test : MonoBehaviour {
 		}
 	}
 	public static void DisplayMessageTest() {
-		UI_Manager.Instance.DisplayMessage("AAAAA",UI_Manager.UIDisplayType.AscentHeader);
-		UI_Manager.Instance.DisplayMessage("BBBBB", UI_Manager.UIDisplayType.TipHeader);
-		UI_Manager.Instance.DisplayMessage("CCCCC", UI_Manager.UIDisplayType.Header);
-		UI_Manager.Instance.DisplayMessage("DDDDD", UI_Manager.UIDisplayType.HighscoreHeader);
+		UI_Manager.Instance.DisplayMessage("[randomchar s=0.2 c=0.1]AAAAAAAAAAAA[/randomchar]", UI_Manager.UIDisplayType.AscentHeader);
+		UI_Manager.Instance.DisplayMessage("[randomchar s=0.2 c=0.1]BBBBBBBBBBBB[/randomchar]", UI_Manager.UIDisplayType.TipHeader);
+		UI_Manager.Instance.DisplayMessage("[randomchar s=0.2 c=0.1]CCCCCCCCCCCC[/randomchar]", UI_Manager.UIDisplayType.Header);
+		UI_Manager.Instance.DisplayMessage("[randomchar s=0.2 c=0.1]DDDDDDDDDDDD[/randomchar]", UI_Manager.UIDisplayType.HighscoreHeader);
 	}
 }
 public class CheatsTest : MonoBehaviour {
