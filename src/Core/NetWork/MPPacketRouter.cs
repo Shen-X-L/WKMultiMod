@@ -40,7 +40,7 @@ public class MPPacketRouter {
 
 			if (handlerId >= 0 && handlerId < FastHandlers.Length) {
 				if (FastHandlers[handlerId] != null) {
-					Localization.Get("MPPacketRouter", "PacketHandlerOverridden", 
+					Localization.Get("MPPacketRouter.PacketHandlerOverridden", 
 						packetType, FastHandlers[handlerId].Method.Name, action.Method.Name);
 				}
 
@@ -48,9 +48,9 @@ public class MPPacketRouter {
 				FastHandlers[handlerId] = (Action<ulong, DataReader>)action;
 				count++;
 
-				//MPMain.LogInfo(Localization.Get("MPPacketRouter", "ShowAllRouteTable", packetType, action.Method.Name));
+				//MPMain.LogInfo(Localization.GetByPath("MPPacketRouter.ShowAllRouteTable", packetType, action.Method.Name));
 			} else {
-				Localization.Get("MPPacketRouter", "PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
+				Localization.Get("MPPacketRouter.PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
 			}
 
 		}
@@ -95,7 +95,7 @@ public class MPPacketRouter {
 			throw new InvalidOperationException($"Unsupported parameter signature for {method.Name}. Expected (ulong, DataReader).");
 		} catch (Exception e) {
 			MPMain.LogError(Localization.Get(
-				"MPPacketRouter", "FailedToBind", method.Name, e.Message));
+				"MPPacketRouter.FailedToBind", method.Name, e.Message));
 			return null;
 		}
 	}
@@ -143,7 +143,7 @@ public class MPPacketRouter {
 		}
 
 		if (packetType < 0 || packetType >= FastHandlers.Length || FastHandlers[packetType] == null) {
-			MPMain.LogError(Localization.Get("MPPacketRouter", "NoServiceFound", packetType));
+			MPMain.LogError(Localization.Get("MPPacketRouter.NoServiceFound", packetType));
 			return;
 		}
 
@@ -152,7 +152,7 @@ public class MPPacketRouter {
 		try {
 			FastHandlers[packetType](senderId, reader);
 		} catch (Exception e) {
-			MPMain.LogError(Localization.Get("MPPacketRouter", "HandlerException", packetType, e.Message));
+			MPMain.LogError(Localization.Get("MPPacketRouter.HandlerException", packetType, e.Message));
 		}
 	}
 	#endregion

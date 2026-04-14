@@ -68,7 +68,7 @@ public class MPGameModeManager {
 		CurrentData = data;
 		// 更改游戏模式
 		if (!gameModeDict.TryGetValue(data.gameModeName, out var m_Gamemode)) {
-			MPMain.LogError(Localization.Get("MPGameModeManager", "GameModeNotFound", data.gameModeName));
+			MPMain.LogError(Localization.Get("MPGameModeManager.GameModeNotFound", data.gameModeName));
 			return;
 		}
 		// 设置游戏模式
@@ -91,7 +91,7 @@ public class MPGameModeManager {
 		if (CurrentData.HasValue) {
 			LoadGameMode(CurrentData.Value);
 		} else {
-			MPMain.LogWarning(Localization.Get("MPGameModeManager", "NoCurrentGameModeData"));
+			MPMain.LogWarning(Localization.Get("MPGameModeManager.NoCurrentGameModeData"));
 		}
 	}
 

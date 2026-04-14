@@ -41,13 +41,13 @@ public class SlugcatFactory : BaseRemoteFactory {
 	private void FixTMPComponent(GameObject prefab,AssetBundle bundle) {
 		// 特化处理 TextMeshPro
 		foreach (var tmpText in prefab.GetComponentsInChildren<TMP_Text>(true)) {
-			MPMain.LogInfo(Localization.Get("RPSlugcatFactory", "SpecializingTMPComponent", tmpText.name));
+			MPMain.LogInfo(Localization.Get("RPSlugcatFactory.SpecializingTMPComponent", tmpText.name));
 
 			// 游戏内原生字体
 			TMP_FontAsset gameFont = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
 							 .FirstOrDefault(f => f.name == GAME_TMP_FONT_ASSET);
 			if (gameFont == null) {
-				MPMain.LogError(Localization.Get("RPSlugcatFactory", "FontAssetNotFound", GAME_TMP_FONT_ASSET));
+				MPMain.LogError(Localization.Get("RPSlugcatFactory.FontAssetNotFound", GAME_TMP_FONT_ASSET));
 				continue;
 			}
 			// 赋值组件字体
@@ -61,9 +61,9 @@ public class SlugcatFactory : BaseRemoteFactory {
 				// Overlay Shader 赋给实例副本
 				instanceMat.shader = bundleMat.shader;
 
-				MPMain.LogInfo(Localization.Get("RPSlugcatFactory", "ImplementOverlayViaShader"));
+				MPMain.LogInfo(Localization.Get("RPSlugcatFactory.ImplementOverlayViaShader"));
 			} else {
-				MPMain.LogError(Localization.Get("RPSlugcatFactory", "UnableToLoadMaterial",TMP_DISTANCE_FIELD_OVERLAY_MAT));
+				MPMain.LogError(Localization.Get("RPSlugcatFactory.UnableToLoadMaterial",TMP_DISTANCE_FIELD_OVERLAY_MAT));
 			}
 		}
 	}

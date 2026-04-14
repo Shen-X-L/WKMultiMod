@@ -72,12 +72,12 @@ public class RPContainer {
 			});
 			// Debug
 			MPMain.LogInfo(Localization.Get(
-				"RPContainer", "MappingSucceeded", PlayerId.ToString()));
+				"RPContainer.MappingSucceeded", PlayerId.ToString()));
 			return true;
 		} catch (Exception ex) {
 			// Debug
 			MPMain.LogError(Localization.Get(
-				"RPContainer", "MappingFailed", PlayerId.ToString(), ex.Message));
+				"RPContainer.MappingFailed", PlayerId.ToString(), ex.Message));
 
 			if (PlayerObject != null) Object.Destroy(PlayerObject);
 
@@ -171,7 +171,7 @@ public class RPContainer {
 	public void HandleNameTag(string text) {
 		if (string.IsNullOrEmpty(text)) { return; }
 		if (_remoteTag == null) {
-			MPMain.LogError(Localization.Get("RPContainer", "NameTagComponentMissing"));
+			MPMain.LogError(Localization.Get("RPContainer.NameTagComponentMissing"));
 			return;
 		}
 		_remoteTag.Message = text;

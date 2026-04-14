@@ -17,17 +17,17 @@ public class Patch_SteamManager {
 	[HarmonyPostfix]
 	[HarmonyPatch("Awake")]
 	public static void Postfix(SteamManager __instance) {
-		MPMain.LogInfo(Localization.Get("Patch", "PreparingToInjectCore"));
+		MPMain.LogInfo(Localization.Get("Patch.PreparingToInjectCore"));
 
 		if (_hasCoreInjected) {
-			MPMain.LogWarning(Localization.Get("Patch", "CoreAlreadyInjected"));
+			MPMain.LogWarning(Localization.Get("Patch.CoreAlreadyInjected"));
 			return;
 		}
 
 		// 简化的检查:只看是否已经存在任何MultiPlayerCore实例
 		var existingCore = Object.FindObjectOfType<MPCore>();
 		if (existingCore != null) {
-			MPMain.LogWarning(Localization.Get("Patch", "CoreInstanceExists",existingCore.name));
+			MPMain.LogWarning(Localization.Get("Patch.CoreInstanceExists",existingCore.name));
 			_hasCoreInjected = true;
 			return;
 		}
@@ -36,11 +36,11 @@ public class Patch_SteamManager {
 		try {
 			_ = MPCore.Instance;
 
-			MPMain.LogInfo(Localization.Get("Patch", "CoreInjectionSuccess"));
+			MPMain.LogInfo(Localization.Get("Patch.CoreInjectionSuccess"));
 			_hasCoreInjected = true;
 
 		} catch (System.Exception e) {
-			MPMain.LogError(Localization.Get("Patch", "CoreInjectionFailed",e.Message));
+			MPMain.LogError(Localization.Get("Patch.CoreInjectionFailed",e.Message));
 		}
 	}
 }

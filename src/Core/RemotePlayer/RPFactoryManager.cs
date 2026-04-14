@@ -35,7 +35,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 	/// <param name="bundlePath">AssetBundle完整路径</param>
 	public void RegisterFactory(string factoryId, BaseRemoteFactory factory, string prefabName, string bundlePath) {
 		if (_factories.ContainsKey(factoryId)) {
-			MPMain.LogWarning(Localization.Get("RPFactoryManager", "FactoryAlreadyRegistered", factoryId));
+			MPMain.LogWarning(Localization.Get("RPFactoryManager.FactoryAlreadyRegistered", factoryId));
 			return;
 		}
 
@@ -47,7 +47,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 			BundlePath = bundlePath
 		});
 
-		MPMain.LogInfo(Localization.Get("RPFactoryManager", "FactoryRegistered", factoryId));
+		MPMain.LogInfo(Localization.Get("RPFactoryManager.FactoryRegistered", factoryId));
 	}
 
 	#endregion
@@ -60,13 +60,13 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 			return registration.Factory.Create(registration.BundlePath);
 		}
 
-		MPMain.LogError(Localization.Get("RPFactoryManager", "FactoryNotFound", factoryId));
+		MPMain.LogError(Localization.Get("RPFactoryManager.FactoryNotFound", factoryId));
 		// 生成默认模型
 		if (_factories.TryGetValue("default", out var defaultRegistration)) {
 			return registration.Factory.Create(defaultRegistration.BundlePath);
 		}
 
-		MPMain.LogError(Localization.Get("RPFactoryManager", "FactoryNotFound", "default"));
+		MPMain.LogError(Localization.Get("RPFactoryManager.FactoryNotFound", "default"));
 		return null;
 	}
 
@@ -79,7 +79,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 		// 没有ObjectIdentity组件 无法找到工厂ID,直接清理
 		var identity = instance.GetComponent<ObjectIdentity>();
 		if (identity == null || string.IsNullOrEmpty(identity.FactoryKey)) {
-			MPMain.LogError(Localization.Get("RPFactoryManager", "CannotDetermineFactory"));
+			MPMain.LogError(Localization.Get("RPFactoryManager.CannotDetermineFactory"));
 			Object.Destroy(instance);
 			return;
 		}
@@ -88,11 +88,11 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 			try {
 				registration.Factory.Cleanup(instance);
 			} catch (Exception ex) {
-				MPMain.LogError(Localization.Get("RPFactoryManager", "FactoryCleanupException", identity.name, ex));
+				MPMain.LogError(Localization.Get("RPFactoryManager.FactoryCleanupException", identity.name, ex));
 				Object.Destroy(instance);
 			}
 		} else {
-			MPMain.LogError(Localization.Get("RPFactoryManager", "FactoryNotFoundCleanup", identity.name));
+			MPMain.LogError(Localization.Get("RPFactoryManager.FactoryNotFoundCleanup", identity.name));
 			Object.Destroy(instance);
 		}
 	}
@@ -128,7 +128,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 	/// </summary>
 	public void ListAllFactory() {
 		foreach (var (factoryId, factory) in _factories) {
-			MPMain.LogWarning(Localization.Get("RPFactoryManager", "DebugFactoryInfo",
+			MPMain.LogWarning(Localization.Get("RPFactoryManager.DebugFactoryInfo",
 				factoryId, factory.Factory.PrefabName, factory.BundlePath));
 		}
 	}

@@ -43,12 +43,12 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 	public void Initialize(Lobby lobby) {
 		hostAvatar = transform.Find("Roach Counter")?.gameObject.GetComponent<UnityEngine.UI.Image>();
 		if (hostAvatar == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "RoachCounterNotFound"));
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterNotFound"));
 		}
 
 		hostName = transform.Find("Roach Counter/Roaches")?.gameObject.GetComponent<TMP_Text>();
 		if (hostName == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "RoachCounterRoachesNotFound"));
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterRoachesNotFound"));
 		}
 
 		// 显示统计文本(目前用来显示房主名称,后续可以改成显示其他统计数据)
@@ -75,7 +75,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 				}
 			} catch (Exception ex) {
 				// 连接过程中发生异常,记录错误并恢复按钮交互
-				MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "JoinLobbyFailed", ex.Message));
+				MPMain.LogError(Localization.Get("UI_LobbyJoinButton.JoinLobbyFailed", ex.Message));
 				JoinFailed();
 			}
 		});
@@ -99,7 +99,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 			GetComponent<UnityEngine.UI.Image>()?.sprite = gamemode.capsuleArt;
 		}
 
-		unlockText?.text = Localization.Get("UI_LobbyJoinButton", "CustomGamemodeNotice");
+		unlockText?.text = Localization.Get("UI_LobbyJoinButton.CustomGamemodeNotice");
 		// 设置标题(支持自定义名称)
 		if (!string.IsNullOrEmpty(lobby.GetData("name"))) {
 			lobbyName?.text = lobby.GetData("name");
@@ -125,7 +125,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 		// 循环检查 ID 是否有效 (针对 lobby.Owner 延迟对齐的情况)
 		while (this != null && (lobby.Owner.Id == 0)) {
 			if (retryCount >= maxRetries) {
-				MPMain.LogWarning(Localization.Get("UI_LobbyJoinButton", "FailedToGetOwnerId",lobby.Id));
+				MPMain.LogWarning(Localization.Get("UI_LobbyJoinButton.FailedToGetOwnerId",lobby.Id));
 				hostName?.text = "Unknown Host";
 				break;
 			}
@@ -161,7 +161,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 			hostName?.text = owner.Name;
 			return;
 		}
-		MPMain.LogError(Localization.Get("UI_LobbyJoinButton", "FailedToLoadOwnerAvatar", lobby.Id,owner.Id,owner.Name));
+		MPMain.LogError(Localization.Get("UI_LobbyJoinButton.FailedToLoadOwnerAvatar", lobby.Id,owner.Id,owner.Name));
 	}
 
 	/// <summary>

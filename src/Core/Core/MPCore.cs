@@ -87,7 +87,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	protected override void Awake() {
 		base.Awake();
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "Awake"));
+		MPMain.LogInfo(Localization.Get("MPCore.Awake"));
 	}
 
 	void Start() {
@@ -120,7 +120,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		ResetStateVariables();
 
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "Destroy"));
+		MPMain.LogInfo(Localization.Get("MPCore.Destroy"));
 
 		base.OnDestroy();
 	}
@@ -159,9 +159,9 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 订阅网络事件
 			SubscribeToEvents();
 			// Debug
-			MPMain.LogInfo(Localization.Get("MPCore", "AllManagersInitialized"));
+			MPMain.LogInfo(Localization.Get("MPCore.AllManagersInitialized"));
 		} catch (Exception e) {
-			MPMain.LogError(Localization.Get("MPCore", "ManagerInitializationFailed", e.Message));
+			MPMain.LogError(Localization.Get("MPCore.ManagerInitializationFailed", e.Message));
 		}
 	}
 
@@ -235,7 +235,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 有连接但没有创建对象
 		foreach (var (steamId, connection) in _MPsteamworks._allConnections) {
 			if (!_RPManager.Players.ContainsKey(steamId)) {
-				MPMain.LogWarning(Localization.Get("MPCore", "PlayerDataMissing", steamId));
+				MPMain.LogWarning(Localization.Get("MPCore.PlayerDataMissing", steamId));
 				// 发送请求玩家创建包
 				var writer = GetWriter(_MPsteamworks.UserSteamId, steamId, PacketType.PlayerCreateRequest);
 				_MPsteamworks.SendToPeer(steamId, writer);
@@ -252,7 +252,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "SceneLoadingCompleted", scene.name));
+		MPMain.LogInfo(Localization.Get("MPCore.SceneLoadingCompleted", scene.name));
 
 		switch (scene.name) {
 			case "Game-Main": {
@@ -262,7 +262,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					ChangeRPFactoryId();
 				} else {
 					// Debug
-					MPMain.LogError(Localization.Get("MPCore", "CommandConsoleNullAfterSceneLoad"));
+					MPMain.LogError(Localization.Get("MPCore.CommandConsoleNullAfterSceneLoad"));
 				}
 				// 如果是主游戏场景且是房主,抓取当前模式数据并广播给其他人
 				if (_MPsteamworks.IsHost) {
@@ -285,7 +285,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 				} else {
 					// Debug
-					MPMain.LogError(Localization.Get("MPCore", "CommandConsoleNullAfterSceneLoad"));
+					MPMain.LogError(Localization.Get("MPCore.CommandConsoleNullAfterSceneLoad"));
 				}
 				break;
 			}
@@ -442,18 +442,18 @@ public class MPCore : MonoSingleton<MPCore> {
 	public async void Host(string[] args) {
 		// 基础状态检查
 		if (IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "AlreadyInOnlineMode"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.AlreadyInOnlineMode"));
 			return;
 		}
 		if (args.Length < 1) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "HostUsage"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.HostUsage"));
 			return;
 		}
 
 		string roomName = args[0];
 		int maxPlayers = args.Length >= 2 ? int.Parse(args[1]) : 6;
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "CreatingLobby", roomName));
+		MPMain.LogInfo(Localization.Get("MPCore.CreatingLobby", roomName));
 
 		// 设置状态为正在连接
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
@@ -486,16 +486,16 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 				string lobby_id = _MPsteamworks.LobbyId.ToString();
 				CopyToClipboard(lobby_id);
-				CommandConsole.Log(Localization.Get("MPSteamworks", "HostSuccess"));
+				CommandConsole.Log(Localization.Get("MPSteamworks.HostSuccess"));
 			} else {
 				// 失败处理
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
-				CommandConsole.LogError(Localization.Get("CommandConsole", "CreateLobbyFailed"));
+				CommandConsole.LogError(Localization.Get("CommandConsole.CreateLobbyFailed"));
 			}
 		} catch (Exception ex) {
 			// 捕获任何未预料的崩溃
 			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
-			MPMain.LogError(Localization.Get("CommandConsole", "CriticalErrorDuringCreate",ex.Message));
+			MPMain.LogError(Localization.Get("CommandConsole.CriticalErrorDuringCreate",ex.Message));
 		}
 	}
 
@@ -505,19 +505,19 @@ public class MPCore : MonoSingleton<MPCore> {
 	public async void Join(string[] args) {
 		// 已经在大厅
 		if (IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "AlreadyInOnlineMode"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.AlreadyInOnlineMode"));
 			return;
 		}
 		// 缺失名称/Id参数
 		if (args.Length < 1) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "JoinUsage"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.JoinUsage"));
 			return;
 		}
 
 		string input = args[0];
 		Lobby? targetLobby = null;
 
-		CommandConsole.Log(Localization.Get("CommandConsole", "SearchingLobbyByName", input));
+		CommandConsole.Log(Localization.Get("CommandConsole.SearchingLobbyByName", input));
 
 		// 创建查询对象 设置过滤条件
 		var query = new LobbyQuery()
@@ -532,7 +532,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			if (searchResults != null && searchResults.Length == 1) {
 				// 找到唯一名称大厅
 				targetLobby = searchResults[0];
-				CommandConsole.Log(Localization.Get("CommandConsole", "FoundLobbyByName", targetLobby.Value.Id));
+				CommandConsole.Log(Localization.Get("CommandConsole.FoundLobbyByName", targetLobby.Value.Id));
 				if (targetLobby.HasValue) {
 					await ExecuteJoinProcess(targetLobby.Value.Id);
 					return;
@@ -541,24 +541,24 @@ public class MPCore : MonoSingleton<MPCore> {
 				// 找到多个同名大厅
 				foreach (var lobby in searchResults) {
 					CommandConsole.Log(Localization.Get(
-						"CommandConsole", "LobbyInfo", lobby.Id, lobby.GetData("name"),
+						"CommandConsole.LobbyInfo", lobby.Id, lobby.GetData("name"),
 						lobby.GetData("owner"), lobby.GetData("gamemode")));
 				}
 				return;
 			} else {
 				// 通过数字寻找大厅并加入
-				CommandConsole.Log(Localization.Get("CommandConsole", "NoLobbyByNameTryId"));
+				CommandConsole.Log(Localization.Get("CommandConsole.NoLobbyByNameTryId"));
 
 				if (ulong.TryParse(input, out ulong lobbyId)) {
 					await ExecuteJoinProcess(lobbyId);
 					return;
 				} else {
-					CommandConsole.LogError(Localization.Get("CommandConsole", "InvalidLobbyNameOrId"));
+					CommandConsole.LogError(Localization.Get("CommandConsole.InvalidLobbyNameOrId"));
 					return;
 				}
 			}
 		} catch (Exception e) {
-			MPMain.LogError(Localization.Get("MPCore", "JoinLobbyException", e.Message));
+			MPMain.LogError(Localization.Get("MPCore.JoinLobbyException", e.Message));
 		}
 	}
 
@@ -576,12 +576,12 @@ public class MPCore : MonoSingleton<MPCore> {
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 			} else {
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
-				MPMain.LogError(Localization.GetByPath("MPCore.JoinLobbyFailed"));
+				MPMain.LogError(Localization.Get("MPCore.JoinLobbyFailed"));
 			}
 		} catch (Exception ex) {
 			// 捕获任何未预料的异常 (网络崩溃、Steam客户端断开等)
 			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
-			MPMain.LogError(Localization.GetByPath("MPCore.CriticalErrorDuringJoin", ex.Message));
+			MPMain.LogError(Localization.Get("MPCore.CriticalErrorDuringJoin", ex.Message));
 		}
 	}
 
@@ -589,7 +589,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 连接到特定Id的大厅
 	/// </summary>
 	private async Task ExecuteJoinProcess(ulong lobbyId) {
-		MPMain.LogInfo(Localization.Get("MPCore", "JoiningLobby", lobbyId.ToString()));
+		MPMain.LogInfo(Localization.Get("MPCore.JoiningLobby", lobbyId.ToString()));
 
 		// 设置初始状态
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
@@ -603,12 +603,12 @@ public class MPCore : MonoSingleton<MPCore> {
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 			} else {
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
-				CommandConsole.LogError(Localization.Get("CommandConsole", "JoinLobbyFailed"));
+				CommandConsole.LogError(Localization.Get("CommandConsole.JoinLobbyFailed"));
 			}
 		} catch (Exception ex) {
 			// 捕获任何未预料的异常 (网络崩溃、Steam客户端断开等)
 			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
-			MPMain.LogError(Localization.Get("CommandConsole", "CriticalErrorDuringJoin", ex.Message));
+			MPMain.LogError(Localization.Get("CommandConsole.CriticalErrorDuringJoin", ex.Message));
 		}
 	}
 
@@ -618,7 +618,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	public void Leave(string[] args) {
 		ResetStateVariables();
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "DisconnectedAndCleaned"));
+		MPMain.LogInfo(Localization.Get("MPCore.DisconnectedAndCleaned"));
 	}
 
 	/// <summary>
@@ -626,13 +626,13 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void GetLobbyId(string[] args) {
 		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeOnline"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
 			return;
 		}
 		string lobby_id = _MPsteamworks.LobbyId.ToString();
 		CopyToClipboard(lobby_id);
 		CommandConsole.Log(Localization.Get(
-			"CommandConsole", "LobbyIdOutput", lobby_id));
+			"CommandConsole.LobbyIdOutput", lobby_id));
 	}
 
 	/// <summary>
@@ -640,7 +640,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void Talk(string[] args) {
 		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeOnline"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
 			return;
 		}
 		// 将参数数组组合成一个字符串
@@ -658,25 +658,25 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void TpToPlayer(string[] args) {
 		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeOnline"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
 			return;
 		}
 		if (!IsInitialized) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "WorldNotInitialized"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.WorldNotInitialized"));
 			return;
 		}
 		if (ulong.TryParse(args[0], out ulong playerId)) {
 			var ids = DictionaryExtensions.FindByKeySuffix(_RPManager.Players, playerId);
 			// 未找到对应id
 			if (ids.Count == 0) {
-				CommandConsole.LogError(Localization.Get("CommandConsole", "TargetIdNotFound"));
+				CommandConsole.LogError(Localization.Get("CommandConsole.TargetIdNotFound"));
 				return;
 			}
 			// 找到多个对应id
 			if (ids.Count > 1) {
 				string idStr = string.Join("\n", ids);
 				CommandConsole.LogError(Localization.Get(
-					"CommandConsole", "MultipleMatchingIds", idStr));
+					"CommandConsole.MultipleMatchingIds", idStr));
 				return;
 			}
 			// 找到对应id,发出传送请求
@@ -690,16 +690,16 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void GetAllConnections(string[] args) {
 		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeOnline"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
 			return;
 		}
 		foreach (var (steamid, connection) in _MPsteamworks._outgoingConnections) {
 			MPMain.LogInfo(Localization.Get(
-				"MPCore", "OutgoingConnectionLog", steamid.ToString(), connection.ToString()));
+				"MPCore.OutgoingConnectionLog", steamid.ToString(), connection.ToString()));
 		}
 		foreach (var (steamid, connection) in _MPsteamworks._allConnections) {
 			MPMain.LogInfo(Localization.Get(
-				"MPCore", "AllConnectionLog", steamid.ToString(), connection.ToString()));
+				"MPCore.AllConnectionLog", steamid.ToString(), connection.ToString()));
 		}
 	}
 
@@ -709,7 +709,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	public void GetAllPlayer(string[] args) {
 		foreach (var friend in _MPsteamworks.Members) {
 			CommandConsole.Log(Localization.Get(
-				"CommandConsole", "AllPlayer", friend.Name, friend.Id));
+				"CommandConsole.AllPlayer", friend.Name, friend.Id));
 		}
 	}
 
@@ -731,8 +731,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		var lobbies = await query.RequestAsync();
 		if (lobbies != null) {
 			foreach (var lobby in lobbies) {
-				CommandConsole.Log(Localization.Get(
-					"CommandConsole", "LobbyInfo", lobby.Id, lobby.GetData("name"),
+				CommandConsole.Log(Localization.Get("CommandConsole.LobbyInfo", lobby.Id, lobby.GetData("name"),
 					lobby.GetData("owner"), lobby.GetData("gamemode")));
 			}
 		}
@@ -750,9 +749,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		};
 
 		if (success) {
-			CommandConsole.Log(Localization.Get("CommandConsole", "LobbyVisibilitySet", args[0]));
+			CommandConsole.Log(Localization.Get("CommandConsole.LobbyVisibilitySet", args[0]));
 		} else {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "LobbyVisibilitySetFailed"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.LobbyVisibilitySetFailed"));
 		}
 	}
 
@@ -761,7 +760,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void OpenSteamInviteUI(string[] args) {
 		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeOnline"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
 			return;
 		}
 		ulong lobby_id = _MPsteamworks.LobbyId;
@@ -777,7 +776,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <param name="lobby"></param>
 	private void HandleLobbyEntered(Lobby lobby) {
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "EnteringLobby", lobby.Id.ToString()));
+		MPMain.LogInfo(Localization.Get("MPCore.EnteringLobby", lobby.Id.ToString()));
 
 		// 启动协程发送请求初始化数据
 		StartCoroutine(InitHandshakeRoutine());
@@ -796,7 +795,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 			}
 			yield return new WaitForSecondsRealtime(0.5f);
-			var message = Localization.GetRandomByPath("DisplayMessage.EnteredMessages", 
+			var message = Localization.GetRandom("DisplayMessage.EnteredMessages", 
 				lobby.GetData("name"), lobby.MemberCount, lobby.MaxMembers, lobby.Id.Value);
 			SystemMessage(message, UIDisplayType.AscentHeader);
 		}
@@ -807,7 +806,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary> 
 	private void HandleLobbyMemberJoined(Friend friend) {
 		if (friend.Id == _MPsteamworks.UserSteamId) return;
-		var message = Localization.GetRandomByPath("DisplayMessage.JoinedMessages", friend.Name);
+		var message = Localization.GetRandom("DisplayMessage.JoinedMessages", friend.Name);
 		SystemMessage(message, UIDisplayType.AscentHeader);
 	}
 
@@ -816,7 +815,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	/// <param name="friend"></param>
 	private void HandleLobbyMemberLeft(Friend friend) {
-		var message = Localization.GetRandomByPath("DisplayMessage.LeaveMessages", friend.Name);
+		var message = Localization.GetRandom("DisplayMessage.LeaveMessages", friend.Name);
 		SystemMessage(message, UIDisplayType.AscentHeader);
 	}
 
@@ -835,12 +834,12 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandlePlayerDisconnected(SteamId steamId) {
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore", "PlayerDisconnected", steamId.ToString()));
+		MPMain.LogInfo(Localization.Get("MPCore.PlayerDisconnected", steamId.ToString()));
 		_RPManager.PlayerRemove(steamId);
 	}
 
 	private void HandleLobbyInvite(Friend friend, Lobby lobby) { 
-		var message = Localization.GetRandomByPath("DisplayMessage.InviteReceivedMessages", friend.Name, lobby.GetData("name"));
+		var message = Localization.GetRandom("DisplayMessage.InviteReceivedMessages", friend.Name, lobby.GetData("name"));
 		SystemMessage(message, UIDisplayType.AscentHeader);
 	}
 
@@ -855,7 +854,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		yield return new WaitForSeconds(0.5f);
 		// 在大厅并且未加载
 		while (IsInLobby && !IsInitialized) {
-			MPMain.LogInfo(Localization.Get("MPCore", "RequestedInitData"));
+			MPMain.LogInfo(Localization.Get("MPCore.RequestedInitData"));
 			var writer = GetWriter(_MPsteamworks.UserSteamId, _MPsteamworks.HostSteamId, PacketType.WorldInitRequest);
 			_MPsteamworks.SendToHost(writer);
 			yield return new WaitForSeconds(3.0f);
@@ -887,7 +886,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		var itemsDict = new Dictionary<string, byte>();
 
 		if (inventory == null)
-			MPMain.LogWarning(Localization.Get("MPCore", "InventoryDoesNotExist"));
+			MPMain.LogWarning(Localization.Get("MPCore.InventoryDoesNotExist"));
 		else {
 			// 获取库存中的物品列表
 			var items = inventory.GetItems();

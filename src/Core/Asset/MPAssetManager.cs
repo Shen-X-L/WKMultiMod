@@ -32,7 +32,7 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 
 			if (obj.GetComponentInChildren<ParticleSystem>() == null) continue;// 本身及其子对象没有特效组件
 
-			MPMain.LogInfo(Localization.Get("MPAssetManager", "LoadAsset",obj.name, actualValue));
+			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset",obj.name, actualValue));
 			assetDictionary[actualValue] = obj;
 		}
 		IsInitialized = true;

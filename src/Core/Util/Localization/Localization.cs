@@ -133,7 +133,7 @@ public static class Localization {
 	/// <summary>
 	/// 获取本地化文本组(分类,键名分开)
 	/// </summary>
-	public static bool TryGetValue(string category, string key,out LocalizedValue value) {
+	public static bool TryGetValueSplit(string category, string key,out LocalizedValue value) {
 		// 验证参数
 		if (string.IsNullOrEmpty(category)) {
 			// 分类为空
@@ -164,24 +164,24 @@ public static class Localization {
 	/// <summary>
 	/// 获取本地化文本(必须是单行文本)
 	/// </summary>
-	public static string Get(string category, string key, params object[] args) {
-		if (!TryGetValue(category, key, out var val)) return val.AsString;
+	public static string GetSplit(string category, string key, params object[] args) {
+		if (!TryGetValueSplit(category, key, out var val)) return val.AsString;
 		return SafeFormat(val.AsString, args);
 	}
 
 	/// <summary>
 	/// 获取本地化文本(随机获取列表中的一项)
 	/// </summary>
-	public static string GetRandom(string category, string key, params object[] args) {
-		if (!TryGetValue(category, key, out var val)) return val.AsString;
+	public static string GetRandomSplit(string category, string key, params object[] args) {
+		if (!TryGetValueSplit(category, key, out var val)) return val.AsString;
 		return SafeFormat(val.GetValue(_staticRandom), args);
 	}
 
 	/// <summary>
 	/// 获取本地化文本(获取列表中特定的一项)
 	/// </summary>
-	public static string GetByIndex(string category, string key, int index, params object[] args) {
-		if (!TryGetValue(category, key, out var val)) return val.AsString;
+	public static string GetByIndexSplit(string category, string key, int index, params object[] args) {
+		if (!TryGetValueSplit(category, key, out var val)) return val.AsString;
 		return SafeFormat(val.GetValue(index), args);
 	}
 
@@ -205,7 +205,7 @@ public static class Localization {
 	/// <summary>
 	/// 获取本地化文本(分类.键名格式)
 	/// </summary>
-	public static bool TryGetValueByPath(string key, out LocalizedValue value) {
+	public static bool TryGetValue(string key, out LocalizedValue value) {
 		// 查找键,未找到
 		if (!_flatCache.TryGetValue(key, out LocalizedValue pattern)) {
 			value = new LocalizedValue($"[{key}]");
@@ -218,24 +218,24 @@ public static class Localization {
 	/// <summary>
 	/// 获取本地化文本(必须是单行文本)
 	/// </summary>
-	public static string GetByPath(string key, params object[] args) {
-		if (!TryGetValueByPath(key, out var val)) return val.AsString;
+	public static string Get(string key, params object[] args) {
+		if (!TryGetValue(key, out var val)) return val.AsString;
 		return SafeFormat(val.AsString, args);
 	}
 
 	/// <summary>
 	/// 获取本地化文本(随机获取列表中的一项)
 	/// </summary>
-	public static string GetRandomByPath(string key, params object[] args) {
-		if (!TryGetValueByPath(key, out var val)) return val.AsString;
+	public static string GetRandom(string key, params object[] args) {
+		if (!TryGetValue(key, out var val)) return val.AsString;
 		return SafeFormat(val.GetValue(_staticRandom), args);
 	}
 
 	/// <summary>
 	/// 获取本地化文本(获取列表中特定的一项)
 	/// </summary>
-	public static string GetByIndexByPath(string key, int index, params object[] args) {
-		if (!TryGetValueByPath(key, out var val)) return val.AsString;
+	public static string GetByIndex(string key, int index, params object[] args) {
+		if (!TryGetValue(key, out var val)) return val.AsString;
 		return SafeFormat(val.GetValue(index), args);
 	}
 

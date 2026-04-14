@@ -54,7 +54,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 		try {
 			SetupTemplate();
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("UI_LobbyListPane", "ButtonTemplateBuildFailed", ex.Message));
+			MPMain.LogError(Localization.Get("UI_LobbyListPane.ButtonTemplateBuildFailed", ex.Message));
 		}
 		contentTransform = transform.Find(CONTENT_PATH);
 	}
@@ -79,7 +79,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 		}
 
 		if (template == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyListPane", "LobbyButtonTemplateNull"));
+			MPMain.LogError(Localization.Get("UI_LobbyListPane.LobbyButtonTemplateNull"));
 			return;
 		}
 
@@ -100,7 +100,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 		if (template == null) return null;
 		GameObject? newButtonObj = Instantiate(template, contentTransform);
 		if (newButtonObj == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyListPane", "LobbyButtonCloneFailed"));
+			MPMain.LogError(Localization.Get("UI_LobbyListPane.LobbyButtonCloneFailed"));
 			return null;
 		};
 		newButtonObj.name = $"LobbyButton_{lobby.Id}";
@@ -117,7 +117,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 			lobbyBtn.Initialize(lobby);
 			return lobbyBtn;
 		} else {
-			MPMain.LogError(Localization.Get("UI_LobbyListPane", "LobbyButtonComponentNotFound",newButtonObj.name));
+			MPMain.LogError(Localization.Get("UI_LobbyListPane.LobbyButtonComponentNotFound",newButtonObj.name));
 			Destroy(newButtonObj);
 			return null;
 		}

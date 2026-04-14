@@ -128,14 +128,14 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		if (_cachedPlayer == null) {
 			_cachedPlayer = ENT_Player.GetPlayer();
 			if (_cachedPlayer == null) {
-				MPMain.LogError(Localization.Get("LocalPlayer", "DataAcquisitionException"));
+				MPMain.LogError(Localization.Get("LocalPlayer.DataAcquisitionException"));
 				return false;
 			}
 			_cachedHands = _cachedPlayer.hands;
 		}
 
 		if (_cachedHands == null || _cachedHands.Length < 2) {
-			MPMain.LogError(Localization.Get("LocalPlayer", "HandDataAcquisitionException"));
+			MPMain.LogError(Localization.Get("LocalPlayer.HandDataAcquisitionException"));
 			return false;
 		}
 

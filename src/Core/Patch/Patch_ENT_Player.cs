@@ -14,7 +14,7 @@ public class Patch_ENT_Player {
 		// 避免死亡后重复通知
 		if (MPCore.IsInLobby&& __instance.dead == false) {
 			MPEventBusGame.NotifyPlayerDeath(type);
-			MPMain.LogInfo(Localization.Get("Patch", "PlayerDeath", type));
+			MPMain.LogInfo(Localization.Get("Patch.PlayerDeath", type));
 		}
 	}
 }

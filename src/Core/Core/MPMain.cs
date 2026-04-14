@@ -74,7 +74,7 @@ public class MPMain : BaseUnityPlugin {
 	}
 
 	private void OnDestroy() {
-		LogInfo(Localization.Get("MPMain", "Destroy"));
+		LogInfo(Localization.Get("MPMain.Destroy"));
 	}
 
 	public static void LogInfo(string log) {

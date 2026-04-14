@@ -33,7 +33,7 @@ public class MPPacketHandlers {
 		// 发生到客户端
 		MPSteamworks.Instance.SendToPeer(senderId, writer);
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPMessageHandlers", "SentInitData"));
+		MPMain.LogInfo(Localization.Get("MPMessageHandlers.SentInitData"));
 	}
 
 	/// <summary>
@@ -142,7 +142,7 @@ public class MPPacketHandlers {
 		// 生成死亡消息
 		string type = reader.GetString();
 		string playerName = new Friend(senderId).Name;
-		MPCore.SystemMessage(Localization.GetByPath("DisplayMessage.PlayerDeath", playerName, type), UIDisplayType.AscentHeader);
+		MPCore.SystemMessage(Localization.Get("DisplayMessage.PlayerDeath", playerName, type), UIDisplayType.AscentHeader);
 
 		// 获取玩家对象
 		var playerObject = RPManager.Instance.GetPlayerObject(senderId);
@@ -162,7 +162,7 @@ public class MPPacketHandlers {
 
 			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
 			if (itemPrefab == null) {
-				MPMain.LogInfo(Localization.Get("MPMessageHandlers", "PrefabDoesNotExist", itemId));
+				MPMain.LogInfo(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
 				continue;
 			}
 
@@ -270,7 +270,7 @@ public class MPPacketHandlers {
 
 			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
 			if (itemPrefab == null) {
-				MPMain.LogInfo(Localization.Get("MPMessageHandlers","PrefabDoesNotExist",itemId));
+				MPMain.LogInfo(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
 				continue;
 			}
 
@@ -287,7 +287,7 @@ public class MPPacketHandlers {
 					// 隐藏镜像物品对象,因为它已经被添加到库存中,不需要在场景中显示
 					itemObject.gameObject.SetActive(value: false);
 				} else {
-					MPMain.LogInfo(Localization.Get("MPMessageHandlers", "PrefabIsNotItem", pickupObj.name));
+					MPMain.LogInfo(Localization.Get("MPMessageHandlers.PrefabIsNotItem", pickupObj.name));
 					GameObject.Destroy(pickupObj);
 					continue;
 				}

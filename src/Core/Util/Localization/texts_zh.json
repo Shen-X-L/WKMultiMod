@@ -11,16 +11,39 @@
     "JoinUsage": "用法: join <大厅ID>",
     "LobbyIdOutput": "大厅ID: {0}",
     "LobbyInfo": "发现大厅 Id: {0} 名称: {1} 房主: {2} 游戏模式: {3}",
+    "LobbyVisibilitySet": "大厅可见级别设置为: {0}",
+    "LobbyVisibilitySetFailed": "大厅可见级别设置失败, 支持的选项有: public, friends, private",
     "MultipleMatchingIds": "找到多个匹配的ID.以下是对应的列表:\n{0}",
     "NeedToBeOnline": "您需要在在线模式下使用此命令, \n请先使用 host 或 join 命令",
     "NoLobbyByNameTryId": "未找到匹配名称的大厅，尝试使用 ID 连接...",
-
     "SearchingLobbyByName": "正在按名称搜索大厅: {0}...",
     "TargetIdNotFound": "未找到目标ID.此命令使用后缀匹配.\n例如: 目标ID: 76561198279116422 → tpto 6422.",
-    "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化.",
-
-    "LobbyVisibilitySet": "大厅可见级别设置为: {0}",
-    "LobbyVisibilitySetFailed": "大厅可见级别设置失败, 支持的选项有: public, friends, private"
+    "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化."
+  },
+  "DisplayMessage": {
+    "EnteredMessages": [
+      "加入 {0} - {1}/{2}\nid: {3}"
+    ],
+    "InviteReceivedMessages": [
+      "{0} 已被邀请到设施"
+    ],
+    "JoinedMessages": [
+      "{0} 因为Δ异常卷入了这个世界",
+      "{0} 以被本设施雇佣",
+      "{0} 从mass中逃脱出来",
+      "{0} 被ρ召唤"
+    ],
+    "LeaveMessages": [
+      "{0} 因为Δ异常脱离了这个世界",
+      "{0} 以被本设施解雇",
+			"{0} 被mass重新吞噬了",
+			"{0} 让ρ失望"
+    ],
+    "PlayerDeath": [
+      "{0} 被 {1} 杀死",
+      "{0} 被 {1} 带走了",
+      "{0} 死于 {1}"
+    ]
   },
   "LocalPlayer": {
     "DataAcquisitionException": "[MP LP] 本地玩家数据获取异常.",
@@ -35,6 +58,8 @@
     "Awake": "[MPCore] MultiplayerCore Awake",
     "CommandConsoleNullAfterSceneLoad": "[MPCore] 场景加载后 CommandConsole 实例仍为 null, 无法注册命令.",
     "CreatingLobby": "[MPCore] 正在创建大厅: {0}...",
+    "CriticalErrorDuringCreate": "[MPCore] 创建时发生严重错误: {0}",
+    "CriticalErrorDuringJoin": "[MPCore] 加入时发生严重错误: {0}",
     "Destroy": "[MPCore] MultiplayerCore 已被销毁",
     "DisconnectedAndCleaned": "[MPCore] 所有连接已断开, 远程玩家已清理.",
     "EnteringLobby": "[MPCore] 正在加入大厅 Id: {0}",
@@ -49,8 +74,7 @@
     "PlayerLeftLobby": "[MPCore] 玩家离开大厅 Id: {0}",
     "RequestedInitData": "[MPCore] 已向主机请求初始化数据",
     "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}",
-    "CriticalErrorDuringJoin": "[MPCore] 加入时发生严重错误: {0}",
-    "CriticalErrorDuringCreate": "[MPCore] 创建时发生严重错误: {0}"
+    "JoinLobbyFailed": "[MPCore] 加入大厅失败"
   },
   "MPGameModeManager": {
     "GameModeNotFound": "[MP GameModeMan] 未找到名为 {0} 的对应游戏模式"
@@ -154,18 +178,18 @@
     "SpecializingTMPComponent": "[MP RPSlugcatFactory] 正在特化处理 TMP 组件: {0}",
     "UnableToLoadMaterial": "[MP RPSlugcatFactory] 无法加载包内材质: {0}"
   },
+  "UI_LobbyCreateButton": {
+    "CreateLobbyFailed": "[MP UI] 创建大厅失败: {0}",
+    "GameModeDetailPanelNull": "[MP UI] 游戏模式详情面板为空 无法加载游戏模式"
+  },
   "UI_LobbyJoinButton": {
     "CustomGamemodeNotice": "此大厅使用自定义游戏模式",
     "FailedToGetOwnerId": "[MP UI] 无法获取房主ID, 使用手动设置的owner, 大厅ID: {0}",
     "FailedToLoadOwnerAvatar": "[MP UI] 无法加载房主头像, 大厅ID: {0}, OwnerID: {1}, OwnerName: {2}",
+    "JoinLobbyFailed": "[MP UI] 加入大厅失败: {0}",
     "OwnerLoadedSuccess": "[MP UI] 成功加载房主: {0}",
     "RoachCounterNotFound": "[MP UI] Roach Counter对象未找到 用途:主机头像",
-    "RoachCounterRoachesNotFound": "[MP UI] Roach Counter/Roaches对象未找到 用途:主机名称",
-    "JoinLobbyFailed": "[MP UI] 加入大厅失败: {0}"
-  },
-  "UI_LobbyCreateButton": {
-    "CreateLobbyFailed": "[MP UI] 创建大厅失败: {0}",
-    "GameModeDetailPanelNull": "[MP UI] 游戏模式详情面板为空 无法加载游戏模式"
+    "RoachCounterRoachesNotFound": "[MP UI] Roach Counter/Roaches对象未找到 用途:主机名称"
   },
   "UI_LobbyListPane": {
     "ButtonComponentNotFound": "[MP UI] Button组件未找到: {0}",
@@ -188,24 +212,5 @@
     "TabButtonContainerNotFound": "[MP UI] 标签页按钮容器未找到",
     "TabButtonTemplateNotFound": "[MP UI] 按钮模板 ModeButton_Custom 未找到",
     "TabContentContainerNotFound": "[MP UI] 标签页内容容器未找到"
-  },
-  "DisplayMessage": {
-    "JoinedMessages": [
-      "{0} 因为Δ异常卷入了这个世界"
-    ],
-    "LeaveMessages": [
-      "{0} 因为Δ异常脱离了这个世界"
-    ],
-    "EnteredMessages": [
-      "加入 {0} - {1}/{2}\nid: {3}"
-    ],
-    "InviteReceivedMessages": [
-      "{0} 已被邀请到设施"
-    ],
-    "PlayerDeath": [
-      "{0} 被 {1} 杀死",
-      "{0} 被 {1} 带走了",
-      "{0} 死于 {1}"
-    ]
   }
 }
