@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Util;
+using static CL_AssetManager;
 
 namespace WKMPMod.Core;
 
@@ -22,11 +24,20 @@ public class MPGameModeManager {
 	/// 获取全部游戏模式
 	/// </summary>
 	public static void Initialize() {
-		M_Gamemode[] objects = Resources.FindObjectsOfTypeAll<M_Gamemode>();
-		foreach (M_Gamemode obj in objects) {
-			if (obj != null && !string.IsNullOrEmpty(obj.name)) {
-				gameModeDict[obj.gamemodeName] = obj;
-				gameModeDict[obj.name] = obj;
+
+		MPMain.LogWarning($"[MP Debug] 全部游戏模式");
+		FieldInfo field = typeof(CL_AssetManager).GetField(
+			"activeDatabases", BindingFlags.NonPublic | BindingFlags.Static);
+		if (field == null) {
+			MPMain.LogError("[MP Debug] 字段未找到");
+			return;
+		}
+		var dict = (Dictionary<string, WKDatabaseHolder>)field.GetValue(null);
+
+		foreach (var (key, value) in dict) {
+			foreach (var gamemode in value.database.gamemodeAssets) {
+				gameModeDict[gamemode.name] = gamemode;
+				gameModeDict[gamemode.gamemodeName] = gamemode;
 			}
 		}
 	}

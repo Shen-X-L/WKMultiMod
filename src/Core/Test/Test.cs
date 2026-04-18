@@ -2,7 +2,9 @@
 using HarmonyLib;
 using Steamworks.Data;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
@@ -14,8 +16,10 @@ using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using static CL_AchievementManager;
+using static CL_AssetManager;
 using static CommandConsole;
 using static FXManager;
+using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
 using Quaternion = UnityEngine.Quaternion;
 using Random = UnityEngine.Random;
@@ -30,6 +34,7 @@ public class Test : MonoBehaviour {
 	public static float z = 0;
 	public static ulong id = 0;
 	public static Dictionary<string, M_Gamemode> gamemodeMap = new Dictionary<string, M_Gamemode>();
+	public static Stopwatch sw = new Stopwatch();
 	public static void Main(string[] args) {
 
 		if (args.Length == 0) {
@@ -39,9 +44,9 @@ public class Test : MonoBehaviour {
 
 		// 使用 switch 表达式使代码更简洁
 		_ = args[0] switch {
-			"0" => RunCommand(GetGraphicsAPI),		// 获取图形API信息
-			"1" => RunCommand(GetMPStatus),			// 获取联机状态
-			"2" => RunCommand(GetMassData),			// 获取Mass数据
+			"0" => RunCommand(GetGraphicsAPI),      // 获取图形API信息
+			"1" => RunCommand(GetMPStatus),         // 获取联机状态
+			"2" => RunCommand(GetMassData),         // 获取Mass数据
 			"3" => RunCommand(GetSystemLanguage),   // 获取系统语言
 			"4" => RunCommand(() => CreateRemotePlayer(args[1..])), // 创建远程玩家,参数:玩家ID(ulong),预制体工厂ID(string)
 			"5" => RunCommand(() => RemoveRemotePlayer(args[1..])), // 移除远程玩家,参数:玩家ID(ulong)
@@ -50,21 +55,21 @@ public class Test : MonoBehaviour {
 			"8" => RunCommand(GetPath),             // 获取程序路径信息
 			"9" => RunCommand(CreateTestPrefab),    // 创建测试预制体
 			"10" => RunCommand(GetHandCosmetic),    // 获取手部皮肤信息
-			"11" => RunCommand(CreateDontDestroyGameObject),	// 创建测试对象并设置DontDestroyOnLoad
-			"12" => RunCommand(DisplayMessageTest),				// 测试UI消息显示
-			"13" => RunCommand(SimulationPlayerUpdata),			// 模拟玩家数据更新事件
-			"14" => RunCommand(() => GetAssetGameObject(args[1..])),		// 获取预制体测试,参数:预制体名称(string),数据库名称(string,可选)
-			"15" => RunCommand(() => GetAllAssetGameObject(args[1])),		// 获取全部预制体测试,参数:预制体名称(string)
-			"16" => RunCommand(() => GetParticleEffectPrefab(args[1])),			// 获取粒子特效预制体测试,参数:预制体名称(string)
-			"17" => RunCommand(() => MPCore.Instance.ResetStateVariables()),	// 重置状态变量测试
+			"11" => RunCommand(CreateDontDestroyGameObject),    // 创建测试对象并设置DontDestroyOnLoad
+			"12" => RunCommand(DisplayMessageTest),             // 测试UI消息显示
+			"13" => RunCommand(SimulationPlayerUpdata),         // 模拟玩家数据更新事件
+			"14" => RunCommand(() => GetAssetGameObject(args[1..])),        // 获取预制体测试,参数:预制体名称(string),数据库名称(string,可选)
+			"15" => RunCommand(() => GetAllAssetGameObject(args[1])),       // 获取全部预制体测试,参数:预制体名称(string)
+			"16" => RunCommand(() => GetParticleEffectPrefab(args[1])),         // 获取粒子特效预制体测试,参数:预制体名称(string)
+			"17" => RunCommand(() => MPCore.Instance.ResetStateVariables()),    // 重置状态变量测试
 			"18" => RunCommand(SearchAllLobby),                     // 大厅搜索测试
-			"19" => RunCommand(LoadAllGameMode),                    // 获取游戏模式
+			"19" => RunCommand(GetAllDatabase),                     // 获取游戏数据库
 			"20" => RunCommand(() => LoadGamemode(args[1..])),      // 加载游戏模式
 			"21" => RunCommand(GetAllGameModeData),                 // 获取同步时需要的数据
 			"22" => RunCommand(GetLobbyData),                       // 获取大厅数据
 			"23" => RunCommand(() => GetOtherLobbyData(args[1])),   // 获取其他大厅数据
 			"24" => RunCommand(GetAllFX),                           // 获取全特效
-			"25" => RunCommand(() => PlayParticle(args[1], new Vector3(1, 1, 1), 5)),	// 生成特效
+			"25" => RunCommand(() => PlayParticle(args[1], new Vector3(1, 1, 1), 5)),   // 生成特效
 			_ => RunCommand(() => Debug.Log($"未知命令: {args[0]}"))
 		};
 	}
@@ -170,10 +175,6 @@ public class Test : MonoBehaviour {
 		RPFactoryManager.Instance.ListAllFactory();
 	}
 
-	public static void GetAllPlayerList() {
-
-
-	}
 	// 获取手部皮肤信息
 	public static void GetHandCosmetic() {
 		MPMain.LogWarning($"左手皮肤id {CL_CosmeticManager.GetCosmeticInHand(0).cosmeticData.id}");
@@ -272,19 +273,63 @@ public class Test : MonoBehaviour {
 			MPMain.LogError($"[MP Debug] 搜索失败: {ex.Message}");
 		}
 	}
-	// 获取游戏模式
-	public static void LoadAllGameMode() {
-		// Resources.FindObjectsOfTypeAll 会找到所有已加载的对象
-		// 包括场景中的、Resources 中的、以及项目中的
-		M_Gamemode[] objects = Resources.FindObjectsOfTypeAll<M_Gamemode>();
-		// 过滤掉未保存的临时对象(可选)
-		foreach (M_Gamemode obj in objects) {
-			if (obj != null && !string.IsNullOrEmpty(obj.name)) {
-				MPMain.LogWarning($"[MP Debug] GameMode: {obj.gamemodeName} ObjectName: {obj.name}");
-				gamemodeMap[obj.gamemodeName] = obj;
-				gamemodeMap[obj.name] = obj;
+	// 获取游戏数据库
+	public static void GetAllDatabase() {
+		// 储存游戏模式的字典
+		Dictionary<string, (string id, string databaseName, string databaseId, M_Gamemode gamemode)> dic1 =
+	new Dictionary<string, (string id, string databaseName, string databaseId, M_Gamemode gamemode)>();
+
+		Dictionary<string, M_Gamemode> dic2 = new Dictionary<string, M_Gamemode>();
+
+		sw.Start();
+
+		FieldInfo field = typeof(CL_AssetManager).GetField(
+			"activeDatabases", BindingFlags.NonPublic | BindingFlags.Static);
+		if (field == null) {
+			MPMain.LogError("[MP Debug] 字段没找到");
+			return;
+		}
+		var dict = (Dictionary<string, WKDatabaseHolder>)field.GetValue(null);
+
+
+		foreach (var (key, value) in dict) {
+			foreach (var gamemode in value.database.gamemodeAssets) {
+				dic1[gamemode.name] = (key, value.database.name, value.id, gamemode);
 			}
 		}
+
+		sw.Stop();
+
+		long method1Time = sw.ElapsedTicks;
+
+		sw.Reset();
+		sw.Start();
+
+		M_Gamemode[] objects =Resources.FindObjectsOfTypeAll<M_Gamemode>();
+
+		foreach (var obj in objects) {
+			if (obj != null) {
+				dic2[obj.name] = obj;
+			}
+		}
+		sw.Stop();
+
+		long method2Time = sw.ElapsedTicks;
+
+		foreach (var (key,value) in dic1) {
+			MPMain.LogWarning($"[MP Debug] name:{key} HolderId:{value.id} " +
+				$"databaseName:{value.databaseName} databaseId:{value.databaseId} " +
+				$"gamemodeName{value.gamemode.gamemodeName}");
+		}
+
+		foreach (var (key, value) in dic2) {
+			MPMain.LogWarning($"[MP Debug] name:{key} gamemodeName:{value.gamemodeName}");
+		}
+
+		MPMain.LogWarning($"[MP Debug] 方法1耗时: {method1Time} ticks");
+
+		MPMain.LogWarning($"[MP Debug] 方法2耗时: {method2Time} ticks");
+
 	}
 	// 加载游戏模式
 	public static void LoadGamemode(string[] args) {
@@ -361,10 +406,8 @@ public class Test : MonoBehaviour {
 
 	public static void GetAllFX() {
 		FieldInfo field = typeof(FXManager).GetField(
-			"particleDict",
-			BindingFlags.NonPublic |
-			BindingFlags.Instance);
-		var dict =(Dictionary<string, ParticleAsset>) field.GetValue(FXManager.fxMan);
+			"particleDict", BindingFlags.NonPublic | BindingFlags.Instance);
+		var dict = (Dictionary<string, ParticleAsset>)field.GetValue(FXManager.fxMan);
 		foreach (var key in dict) {
 			MPMain.LogWarning($"[MP Debug] {key}");
 		}

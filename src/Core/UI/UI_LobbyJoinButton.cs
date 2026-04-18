@@ -35,32 +35,18 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 
 	public TMP_Text? lobbyName;					// 大厅名称文本
 	public UnityEngine.UI.Image? hostAvatar;	// 房主头像
-	public TMP_Text? hostName;					// 房主名
+	public TMP_Text? hostName;                  // 房主名
+	public Button? btnComp;                      // 按钮引用
+	public UnityEngine.UI.Image? lobbyImage;	// 大厅图标
 
 	/// <summary>
 	/// 初始化按钮 - 设置点击事件、图标、标题和统计文本
 	/// </summary>
 	public void Initialize(Lobby lobby) {
-		hostAvatar = transform.Find("Roach Counter")?.gameObject.GetComponent<UnityEngine.UI.Image>();
-		if (hostAvatar == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterNotFound"));
-		}
-
-		hostName = transform.Find("Roach Counter/Roaches")?.gameObject.GetComponent<TMP_Text>();
-		if (hostName == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterRoachesNotFound"));
-		}
-
-		// 显示统计文本(目前用来显示房主名称,后续可以改成显示其他统计数据)
-		transform.Find("Roach Counter")?.gameObject.SetActive(true);
-
 		// 关联大厅数据
 		this.lobby = lobby;
-		// 移除之前的点击事件监听,避免重复添加
-		var button = GetComponent<Button>();
-		button.onClick.RemoveAllListeners();
 		// 添加点击事件监听
-		button.onClick.AddListener(async () => {
+		btnComp!.onClick.AddListener(async () => {
 			// 禁用按钮并显示加入中状态
 			Joining();
 			try {
@@ -99,17 +85,9 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 			GetComponent<UnityEngine.UI.Image>()?.sprite = gamemode.capsuleArt;
 		}
 
-		unlockText?.text = Localization.Get("UI_LobbyJoinButton.CustomGamemodeNotice");
 		// 设置标题(支持自定义名称)
-		if (!string.IsNullOrEmpty(lobby.GetData("name"))) {
-			lobbyName?.text = lobby.GetData("name");
-		} else {
-			lobbyName?.text = lobby.Id.ToString();
-		}
-
-		// 预设状态
-		hostName?.text = "Fetching...";
-		hostAvatar?.enabled = false; // 先隐藏,等加载完再现. 以后写成默认加载中头像
+		string nameData = lobby.GetData("name");
+		lobbyName?.text = !string.IsNullOrEmpty(nameData) ? nameData : lobby.Id.ToString();
 
 		// 加载房主信息(头像和名称)
 		_ = TrackAndLoadOwnerInfo();

@@ -185,9 +185,9 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		if (_mutators == null) return Error(Localization.Get("UI_Manager.MutatorsContainerPathError"));
 
 		// 清理原版不需要的元素
-		Destroy(_mpScreen.transform.Find("GamemodeScreen"));
-		Destroy(_lobbyPaneContainer.transform.Find("Play Scroll View"));
-		Destroy(_lobbyPaneContainer.transform.Find("Tab Selection"));
+		Destroy(_mpScreen.transform.Find("GamemodeScreen").gameObject);
+		Destroy(_lobbyPaneContainer.transform.Find("Play Scroll View").gameObject);
+		Destroy(_lobbyPaneContainer.transform.Find("Tab Selection").gameObject);
 
 		return true;
 	}

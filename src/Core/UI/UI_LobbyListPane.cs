@@ -199,7 +199,28 @@ public class UI_LobbyListPane : MonoBehaviour {
 		lobbyButton.lobbyName = gamemodeButton.title
 			?? template.transform.Find("Mode Name")?.gameObject.GetComponent<TMP_Text>();
 		if (lobbyButton.lobbyName == null) throw new Exception("Mode Name component missing");
+		lobbyButton.hostAvatar = template.transform.Find("Roach Counter")?.GetComponent<UnityEngine.UI.Image>();
+		if (lobbyButton.hostAvatar == null) 
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterNotFound"));
 		
+		lobbyButton.hostName = template.transform.Find("Roach Counter/Roaches")?.GetComponent<TMP_Text>();
+		if (lobbyButton.hostName == null) 
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterRoachesNotFound"));
+		lobbyButton.btnComp = template.GetComponent<Button>() ?? template.AddComponent<Button>();
+		lobbyButton.lobbyImage = GetComponent<UnityEngine.UI.Image>();
+		if (lobbyButton.lobbyImage == null)
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterNotFound"));
+
+		// 初始化一些基础状态
+		lobbyButton.btnComp.onClick.RemoveAllListeners();
+		template.transform.Find("Roach Counter")?.gameObject.SetActive(true);
+		if (lobbyButton.hostAvatar != null) lobbyButton.hostAvatar.enabled = false;
+		if (lobbyButton.hostName != null) lobbyButton.hostName.text = "Fetching...";
+
+		// 预设不需要根据大厅变化的文字
+		if (lobbyButton.unlockText != null) {
+			lobbyButton.unlockText.text = Localization.Get("UI_LobbyJoinButton.CustomGamemodeNotice");
+		}
 
 		// 移除不需要的子物体(如果存在),避免显示错误信息
 		Destroy(template.transform.Find("Medal")?.gameObject);
@@ -207,9 +228,6 @@ public class UI_LobbyListPane : MonoBehaviour {
 		// 移除原有的UI_Gamemode_Button和UI_CapsuleButton组件
 		DestroyImmediate(gamemodeButton);
 		DestroyImmediate(capsuleButton);
-		// 禁用也会导致UI_CapsuleContainer数组越界 不知道为什么
-		//gamemodeButton.enabled = false;
-		//capsuleButton.enabled = false;
 	}
 	#endregion
 }

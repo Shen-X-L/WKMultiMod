@@ -1,6 +1,4 @@
-替换RemoteEntity的特效
-
-deathflood根据地图改为mass
+deathfloor根据地图改为mass
 玩家ID TMP组件变为UI显示
 不知道为什么会卡顿 怀疑是UI_LobbyListPane创建按钮开销过大?
 

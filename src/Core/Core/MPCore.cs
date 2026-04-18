@@ -153,6 +153,9 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 必须在游戏资源加载完成后初始化
 			//_MPAssetManager.Initialize();
 
+			// 初始化游戏模式管理器
+			MPGameModeManager.Initialize();
+
 			// 初始化网络数据包路由器
 			MPPacketRouter.Initialize();
 
@@ -387,7 +390,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
 
 		switch (type){
-			case "deathflood": {
+			case "deathfloor": {
 				type = "mass";
 				break;
 			}
@@ -427,15 +430,15 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.AddCommand("host", Host, false);
 		CommandConsole.AddCommand("join", Join, false);
 		CommandConsole.AddCommand("leave", Leave, false);
-		CommandConsole.AddCommand("getlobbyid", GetLobbyId, false);
-		CommandConsole.AddCommand("getallplayer", GetAllPlayer, false);
+		CommandConsole.AddCommand("lobbyid", LobbyId, false);
+		CommandConsole.AddCommand("allplayer", AllPlayerData, false);
 		CommandConsole.AddCommand("talk", Talk, false);
 		CommandConsole.AddCommand("tpto", TpToPlayer);
 		CommandConsole.AddCommand("changemodel", (str) => {
 			_LocalPlayer.DefaulFactoryId = str[0];
 			MPConfig.RemotePlayerModel = str[0];
 		}, false);
-		CommandConsole.AddCommand("getalllobby", GetAllLobby, false);
+		CommandConsole.AddCommand("lobbylist", GetAllLobby, false);
 		CommandConsole.AddCommand("test", Test.Test.Main, false);
 		CommandConsole.AddCommand("invite", OpenSteamInviteUI, false);
 		CommandConsole.AddCommand("lobbytype", SetLobbyVisibility, false);
@@ -634,7 +637,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 获取大厅ID
 	/// </summary>
-	public void GetLobbyId(string[] args) {
+	public void LobbyId(string[] args) {
 		if (!IsInLobby) {
 			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
 			return;
@@ -716,7 +719,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 获取全部玩家
 	/// </summary>
-	public void GetAllPlayer(string[] args) {
+	public void AllPlayerData(string[] args) {
 		foreach (var friend in _MPsteamworks.Members) {
 			CommandConsole.Log(Localization.Get(
 				"CommandConsole.AllPlayer", friend.Name, friend.Id));
