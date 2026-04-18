@@ -26,7 +26,6 @@ graph RL
     subgraph 玩家交互
         2b[可以抢夺物品]
         2c[添加新物品]
-        2e[死亡后可复活]
     end
 
     %% 模块 3:同步数据
@@ -86,6 +85,12 @@ graph RL
 * `changemodel <模型名称>` - 修改远程玩家模型,目前支持default和slugcat
   * 示例: `changemodel slugcat`
 
+### 1.3.4
+
+新增命令:
+* `lobbytype [public/private/friends]` - 修改大厅可见类型,public为公开,private为私密(只能通过大厅码加入),friends为好友可见(只能被好友看到并加入)
+  * 示例: `lobbytype friends`
+* `invite` - 邀请好友加入大厅
 
 ### 0.12(停止更新)
 

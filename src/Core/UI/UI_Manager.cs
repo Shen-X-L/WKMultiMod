@@ -104,12 +104,12 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 					MPMain.LogError(Localization.Get("UI_Manager.CreateMenuUIFailed", ex.Message));
 				}
 				try {
-					//MPMain.LogWarning("[MP Debug] 创建loading");
 					CreateLoadingScreen();
 				} catch (Exception ex) {
 					// 捕获所有未预期的崩溃，并记录日志
 					MPMain.LogError(Localization.Get("UI_Manager.CreateMenuUIFailed", ex.Message));
 				}
+				MPMain.LogInfo(Localization.Get("UI_Manager.MultiplayerLobbyUIBuildComplete"));
 				break;
 			}
 			default:
@@ -158,7 +158,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 细节处理与事件绑定
 		SetupMutators();
 		BindTabEvents();
-		MPMain.LogInfo(Localization.Get("UI_Manager.MultiplayerLobbyUIBuildComplete"));
 	}
 
 	// 准备和克隆UI容器, 返回是否成功
@@ -186,9 +185,9 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		if (_mutators == null) return Error(Localization.Get("UI_Manager.MutatorsContainerPathError"));
 
 		// 清理原版不需要的元素
-		Destroy(_mpScreen.transform.Find("GamemodeScreen")?.gameObject);
-		Destroy(_lobbyPaneContainer.transform.Find("Play Scroll View")?.gameObject);
-		Destroy(_lobbyPaneContainer.transform.Find("Tab Selection")?.gameObject);
+		Destroy(_mpScreen.transform.Find("GamemodeScreen"));
+		Destroy(_lobbyPaneContainer.transform.Find("Play Scroll View"));
+		Destroy(_lobbyPaneContainer.transform.Find("Tab Selection"));
 
 		return true;
 	}
@@ -223,7 +222,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 清理其他按钮
 		// 跳过0号 1号 2号 -1号 0号是LB图标 1号是标签页按钮 2号是测试模板按钮 -1号是RB图标
 		for (int i = _screenTabButtons.transform.childCount - 2; i > 2; i--) {
-			Destroy(_screenTabButtons.transform.GetChild(i).gameObject);
+			_screenTabButtons.transform.GetChild(i).gameObject.SetActive(false);
 		}
 
 		return true;
@@ -245,7 +244,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 		// 清理其他标签页
 		for (int i = _screenTabObjects.transform.childCount - 1; i > 0; i--) {
-			Destroy(_screenTabObjects.transform.GetChild(i).gameObject);
+			_screenTabObjects.transform.GetChild(i).gameObject.SetActive(false);
 		}
 
 		// 创建多人大厅面板
@@ -266,6 +265,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// 配置模式变体标签页
 	private bool SetupMutators() {
 		if (_mutators == null) return Error(Localization.Get("UI_Manager.MutatorsContainerNotFound"));
+		// 强制启动变体标签页
+		_mutators.SetActive(true);
 
 		#region[刷新按钮]
 
@@ -307,9 +308,9 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		discordText.enableWordWrapping = false;
 		discordText.overflowMode = TextOverflowModes.Overflow;
 		discordText.font = _mutators.transform.Find("Ironman Toggle/Background/Label (1)")?.GetComponent<TextMeshProUGUI>()?.font;
-			discordText.text = "MPMod Discord";
-			discordText.fontSize = 24;
-		
+		discordText.text = "MPMod Discord";
+		discordText.fontSize = 24;
+
 
 		// 添加点击事件
 		var discordButton = discord.AddComponent<Button>();
@@ -330,6 +331,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		if (_mutators.transform is RectTransform containerRect) {
 			LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
 		}
+
+
 
 		return true;
 	}
@@ -383,7 +386,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	#region[Loading界面构建]
 
-	public void CreateLoadingScreen() {		
+	public void CreateLoadingScreen() {
 		loadingTemplate = GameObject.Find("Canvas - Main Menu")?.transform.Find("Loading")?.gameObject;
 		if (loadingTemplate == null) {
 			MPMain.LogError($"[MP Debug] loadingTemplate can not find");

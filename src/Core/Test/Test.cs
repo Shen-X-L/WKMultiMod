@@ -15,6 +15,7 @@ using WKMPMod.UI;
 using WKMPMod.Util;
 using static CL_AchievementManager;
 using static CommandConsole;
+using static FXManager;
 using Object = UnityEngine.Object;
 using Quaternion = UnityEngine.Quaternion;
 using Random = UnityEngine.Random;
@@ -38,9 +39,9 @@ public class Test : MonoBehaviour {
 
 		// 使用 switch 表达式使代码更简洁
 		_ = args[0] switch {
-			"0" => RunCommand(GetGraphicsAPI),  // 获取图形API信息
-			"1" => RunCommand(GetMPStatus),     // 获取联机状态
-			"2" => RunCommand(GetMassData),     // 获取Mass数据
+			"0" => RunCommand(GetGraphicsAPI),		// 获取图形API信息
+			"1" => RunCommand(GetMPStatus),			// 获取联机状态
+			"2" => RunCommand(GetMassData),			// 获取Mass数据
 			"3" => RunCommand(GetSystemLanguage),   // 获取系统语言
 			"4" => RunCommand(() => CreateRemotePlayer(args[1..])), // 创建远程玩家,参数:玩家ID(ulong),预制体工厂ID(string)
 			"5" => RunCommand(() => RemoveRemotePlayer(args[1..])), // 移除远程玩家,参数:玩家ID(ulong)
@@ -49,20 +50,21 @@ public class Test : MonoBehaviour {
 			"8" => RunCommand(GetPath),             // 获取程序路径信息
 			"9" => RunCommand(CreateTestPrefab),    // 创建测试预制体
 			"10" => RunCommand(GetHandCosmetic),    // 获取手部皮肤信息
-			"11" => RunCommand(CreateDontDestroyGameObject),    // 创建测试对象并设置DontDestroyOnLoad
-			"12" => RunCommand(DisplayMessageTest),  // 测试UI消息显示
-			"13" => RunCommand(SimulationPlayerUpdata),  // 模拟玩家数据更新事件
-			"14" => RunCommand(() => GetAssetGameObject(args[1..])),  // 获取预制体测试,参数:预制体名称(string),数据库名称(string,可选)
-			"15" => RunCommand(() => GetAllAssetGameObject(args[1])),  // 获取全部预制体测试,参数:预制体名称(string)
-			"16" => RunCommand(() => GetParticleEffectPrefab(args[1])),  // 获取粒子特效预制体测试,参数:预制体名称(string)
-			"17" => RunCommand(() => MPCore.Instance.ResetStateVariables()),  // 重置状态变量测试
-			"18" => RunCommand(SearchAllLobby), // 大厅搜索测试
-			"19" => RunCommand(LoadAllGameMode),    // 获取游戏模式
-			"20" => RunCommand(() => LoadGamemode(args[1..])),  // 加载游戏模式
-			"21" => RunCommand(GetAllGameModeData), // 获取同步时需要的数据
-			"22" => RunCommand(GetLobbyData),   // 获取大厅数据
+			"11" => RunCommand(CreateDontDestroyGameObject),	// 创建测试对象并设置DontDestroyOnLoad
+			"12" => RunCommand(DisplayMessageTest),				// 测试UI消息显示
+			"13" => RunCommand(SimulationPlayerUpdata),			// 模拟玩家数据更新事件
+			"14" => RunCommand(() => GetAssetGameObject(args[1..])),		// 获取预制体测试,参数:预制体名称(string),数据库名称(string,可选)
+			"15" => RunCommand(() => GetAllAssetGameObject(args[1])),		// 获取全部预制体测试,参数:预制体名称(string)
+			"16" => RunCommand(() => GetParticleEffectPrefab(args[1])),			// 获取粒子特效预制体测试,参数:预制体名称(string)
+			"17" => RunCommand(() => MPCore.Instance.ResetStateVariables()),	// 重置状态变量测试
+			"18" => RunCommand(SearchAllLobby),                     // 大厅搜索测试
+			"19" => RunCommand(LoadAllGameMode),                    // 获取游戏模式
+			"20" => RunCommand(() => LoadGamemode(args[1..])),      // 加载游戏模式
+			"21" => RunCommand(GetAllGameModeData),                 // 获取同步时需要的数据
+			"22" => RunCommand(GetLobbyData),                       // 获取大厅数据
 			"23" => RunCommand(() => GetOtherLobbyData(args[1])),   // 获取其他大厅数据
-
+			"24" => RunCommand(GetAllFX),                           // 获取全特效
+			"25" => RunCommand(() => PlayParticle(args[1], new Vector3(1, 1, 1), 5)),	// 生成特效
 			_ => RunCommand(() => Debug.Log($"未知命令: {args[0]}"))
 		};
 	}
@@ -160,7 +162,7 @@ public class Test : MonoBehaviour {
 		var bundle = AssetBundle.LoadFromFile(Path.Combine(MPMain.path, "playerprefab"));
 		BaseRemoteFactory.ListAllAssetsInBundle(bundle);
 		var rawPrefab = bundle.LoadAsset<GameObject>("cl_player");
-		Object.Instantiate(rawPrefab);
+		Instantiate(rawPrefab);
 	}
 
 	// 列出所有预制体工厂信息
@@ -209,7 +211,7 @@ public class Test : MonoBehaviour {
 		// Resources.FindObjectsOfTypeAll会找到所有已加载的资源
 		GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
 		foreach (GameObject obj in allObjects) {
-			// 关键判断：预制体不在场景中(scene.name == null）
+			// 关键判断：预制体不在场景中(scene.name == null)
 			if (obj.scene.name == null && obj.name == prefabName) {
 				Debug.Log($"[MP Debug]找到预制体: {prefabName}, 类型: {(obj.hideFlags == HideFlags.None ? "普通预制体" : "内部资源")}");
 				return;
@@ -356,6 +358,18 @@ public class Test : MonoBehaviour {
 		UI_Manager.Instance.DisplayMessage("[randomchar s=0.2 c=0.1]CCCCCCCCCCCC[/randomchar]", UI_Manager.UIDisplayType.Header);
 		UI_Manager.Instance.DisplayMessage("[randomchar s=0.2 c=0.1]DDDDDDDDDDDD[/randomchar]", UI_Manager.UIDisplayType.HighscoreHeader);
 	}
+
+	public static void GetAllFX() {
+		FieldInfo field = typeof(FXManager).GetField(
+			"particleDict",
+			BindingFlags.NonPublic |
+			BindingFlags.Instance);
+		var dict =(Dictionary<string, ParticleAsset>) field.GetValue(FXManager.fxMan);
+		foreach (var key in dict) {
+			MPMain.LogWarning($"[MP Debug] {key}");
+		}
+	}
+
 }
 public class CheatsTest : MonoBehaviour {
 	public static void Main(string[] args) {
@@ -458,7 +472,7 @@ public class CheatsTest : MonoBehaviour {
 						inventory.AddItemToInventoryCenter(itemObject.itemData);
 
 						// 隐藏镜像物品对象,因为它已经被添加到库存中,不需要在场景中显示
-						itemObject.gameObject.SetActive(value: false);
+						itemObject.gameObject.SetActive(false);
 					} else {
 						MPMain.LogInfo($"[MP Debug] 生成物: {item.name} 不可放入库存");
 					}
@@ -480,7 +494,7 @@ public class CheatsTest : MonoBehaviour {
 			item_Object.itemData.bagRotation = Quaternion.LookRotation(item_Object.itemData.upDirection); // 设置物品数据中的旋转
 			inventory.AddItemToInventoryCenter(item_Object.itemData);
 			// 隐藏镜像物品对象,因为它已经被添加到库存中,不需要在场景中显示
-			item_Object.gameObject.SetActive(value: false);
+			item_Object.gameObject.SetActive(false);
 		}
 		// 不能用预制体生成,必须要实际对象
 		AddItemInInventoryQuaternionTest("Item_Rebar");

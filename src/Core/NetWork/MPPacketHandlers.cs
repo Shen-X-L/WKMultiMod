@@ -86,38 +86,41 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDamage)]
 	private static void HandlePlayerDamage(ulong senderId, DataReader reader) {
-		float amount = reader.GetFloat();
+		float baseDamage = reader.GetFloat();
 		string type = reader.GetString();
-		var baseDamage = amount * MPConfig.AllPassive;
+		var baseAmount = baseDamage * MPConfig.AllPassive;
+		float amount;
 		switch (type) {
 			case "Hammer":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.HammerPassive, type);
+				amount = baseAmount * MPConfig.HammerPassive;
 				break;
 			case "rebar":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarPassive, type);
+				amount = baseAmount * MPConfig.RebarPassive;
 				break;
 			case "returnrebar":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ReturnRebarPassive, type);
+				amount = baseAmount * MPConfig.ReturnRebarPassive;
 				break;
 			case "rebarexplosion":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.RebarExplosionPassive, type);
+				amount = baseAmount * MPConfig.RebarExplosionPassive;
 				break;
 			case "explosion":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.ExplosionPassive, type);
+				amount = baseAmount * MPConfig.ExplosionPassive;
 				break;
 			case "piton":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.PitonPassive, type);
+				amount = baseAmount * MPConfig.PitonPassive;
 				break;
 			case "flare":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.FlarePassive, type);
+				amount = baseAmount * MPConfig.FlarePassive;
 				break;
 			case "ice":
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.IcePassive, type);
+				amount = baseAmount * MPConfig.IcePassive;
 				break;
 			default:
-				ENT_Player.GetPlayer().Damage(baseDamage * MPConfig.OtherPassive, type);
+				amount = baseAmount * MPConfig.OtherPassive;
 				break;
 		}
+		ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type));
+
 	}
 
 	/// <summary>
@@ -142,14 +145,14 @@ public class MPPacketHandlers {
 		// 生成死亡消息
 		string type = reader.GetString();
 		string playerName = new Friend(senderId).Name;
-		MPCore.SystemMessage(Localization.Get("DisplayMessage.PlayerDeath", playerName, type), UIDisplayType.AscentHeader);
+		MPCore.SystemMessage(Localization.GetRandom("DisplayMessage.PlayerDeath", playerName, type), UIDisplayType.HighscoreHeader);
 
 		// 获取玩家对象
 		var playerObject = RPManager.Instance.GetPlayerObject(senderId);
 		if (playerObject == null) {
 			return;
 		}
-			
+
 		// 生成死亡后掉落物品
 		Dictionary<string, byte> remoteItems = reader.GetStringByteDict();
 		var playerPosition = playerObject.transform.position;
@@ -162,7 +165,7 @@ public class MPPacketHandlers {
 
 			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
 			if (itemPrefab == null) {
-				MPMain.LogInfo(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
+				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
 				continue;
 			}
 
@@ -270,7 +273,7 @@ public class MPPacketHandlers {
 
 			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
 			if (itemPrefab == null) {
-				MPMain.LogInfo(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
+				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
 				continue;
 			}
 
@@ -285,9 +288,9 @@ public class MPPacketHandlers {
 					// 将物品放入背包
 					inventory.AddItemToInventoryCenter(itemObject.itemData);
 					// 隐藏镜像物品对象,因为它已经被添加到库存中,不需要在场景中显示
-					itemObject.gameObject.SetActive(value: false);
+					itemObject.gameObject.SetActive(false);
 				} else {
-					MPMain.LogInfo(Localization.Get("MPMessageHandlers.PrefabIsNotItem", pickupObj.name));
+					MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabIsNotItem", pickupObj.name));
 					GameObject.Destroy(pickupObj);
 					continue;
 				}

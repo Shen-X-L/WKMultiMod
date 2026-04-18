@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using WKMPMod.Core;
 using WKMPMod.UI;
 using Object = UnityEngine.Object;
 
@@ -20,7 +21,7 @@ public class Patch_UI_GamemodeScreen {
 		if (panel.gameObject.GetComponentInChildren<UI_LobbyCreateButton>() != null) return;
 
 		// 找 开始游戏 按钮作为我们的模板
-		Transform? startButton = panel.transform.Find("Tab Selection Hor/Play");
+		Transform? startButton = panel.transform.Find("Pages/Gamemode_Info_Screen/Tab Selection Hor/Play");
 
 		if (startButton != null) {
 			// 克隆 开始游戏 按钮作为我们的模板

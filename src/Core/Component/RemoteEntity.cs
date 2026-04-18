@@ -37,45 +37,62 @@ public class RemoteEntity : GameEntity {
 		}
 	}
 	// 对方受到伤害时调用
-	public override bool Damage(float amount, string type) {
+	public override bool Damage(Damageable.DamageInfo info) {
+		MPMain.LogWarning(
+			$"[MP Debug] " +
+			$"伤害量:{info.amount} " +
+			$"伤害类型:{info.type} " +
+			$"伤害位置:{info.position} " +
+			$"冲击力:{info.force}");
+
+		// sourceObject 可能为空，最好判空
+		if (info.sourceObject != null) MPMain.LogWarning($"伤害来源:{info.sourceObject.name}");
+		
+
+		// tags 也可能为空
+		if (info.tags != null) 
+			foreach (var tag in info.tags) MPMain.LogWarning($"伤害标签:{tag}");
+
 		// 生成伤害特效
 		if (DamageObject != null) {
-			UnityEngine.Object.Instantiate(DamageObject, base.transform.position, base.transform.rotation, base.transform.parent);
+			Instantiate(DamageObject, base.transform.position, base.transform.rotation, base.transform.parent);
 		}
 
 		// 添加屏幕震动
 		CL_CameraControl.Shake(0.01f);
 		// 发布到事件总线
-		var baseDamage = amount * AllActive;
-		switch (type) {
+		var baseDamage = info.amount * AllActive;
+		float amount;
+		switch (info.type) {
 			case "Hammer":
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * HammerActive, type);
+				amount = baseDamage * HammerActive;
 				break;
 			case "rebar":
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * RebarActive, type);
+				amount = baseDamage * RebarActive;
 				break;
 			case "returnrebar":
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * ReturnRebarActive, type);
+				amount = baseDamage * ReturnRebarActive;
 				break;
 			case "rebarexplosion":
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * RebarExplosionActive, type);
+				amount = baseDamage * RebarExplosionActive;
 				break;
 			case "explosion":
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * ExplosionActive, type);
+				amount = baseDamage * ExplosionActive;
 				break;
 			case "piton":
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * PitonActive, type);
+				amount = baseDamage * PitonActive;
 				break;
 			case "flare":
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * FlareActive, type);
+				amount = baseDamage * FlareActive;
 				break;
 			case "ice":
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * IceActive, type);
+				amount = baseDamage * IceActive;
 				break;
 			default:
-				MPEventBusGame.NotifyPlayerDamage(PlayerId, baseDamage * OtherActive, type);
+				amount = baseDamage * OtherActive;
 				break;
 		}
+		MPEventBusGame.NotifyPlayerDamage(PlayerId, amount, info.type);
 		// 会不会死由对方决定
 		return false;
 	}

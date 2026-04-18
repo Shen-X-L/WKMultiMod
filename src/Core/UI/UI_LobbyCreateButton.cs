@@ -34,9 +34,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 	}
 
 	private void Start() {
-		// 获取游戏模式详情面板引用
-		gamemodePanel = transform.parent.parent.GetComponent<UI_GamemodeScreen_Panel>();
-		// 自动获取同级容器下的所有按钮（排除自己）
+		// 自动获取同级容器下的所有按钮(排除自己)
 		if (transform.parent != null) {
 			foreach (var btn in transform.parent.GetComponentsInChildren<Button>()) {
 				if (btn != button) otherButtons.Add(btn);

@@ -1,6 +1,8 @@
-﻿using Steamworks;
+﻿using JetBrains.Annotations;
+using Steamworks;
 using Steamworks.Data;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -83,14 +85,21 @@ public class UI_LobbyListPane : MonoBehaviour {
 			return;
 		}
 
+		StartCoroutine(CreateLobby());
+
 		// 添加新的大厅对应的UI_LobbyButton
-		foreach (var lobby in lobbies.Where(l => !LobbyDic.ContainsKey(l.Id))) {
-			var newButton = CreateLobbyButton(lobby);
-			if (newButton != null) {
-				LobbyDic[lobby.Id] = newButton;
-				lobby.Refresh();
+		IEnumerator CreateLobby() {
+			foreach (var lobby in lobbies.Where(l => !LobbyDic.ContainsKey(l.Id))) {
+				var newButton = CreateLobbyButton(lobby);
+				if (newButton != null) {
+					LobbyDic[lobby.Id] = newButton;
+					lobby.Refresh();
+				}
+				yield return null;
 			}
+			yield break;
 		}
+
 	}
 
 	/// <summary>
@@ -106,13 +115,11 @@ public class UI_LobbyListPane : MonoBehaviour {
 		newButtonObj.name = $"LobbyButton_{lobby.Id}";
 		newButtonObj.SetActive(true);
 		// 获取UI_LobbyButton组件并初始化数据
-		Button btnComp = newButtonObj.GetComponent<Button>();
+		Button btnComp = newButtonObj.GetComponent<Button>() ?? newButtonObj.AddComponent<Button>();
 		UI_LobbyJoinButton lobbyBtn = newButtonObj.GetComponent<UI_LobbyJoinButton>();
-		if (btnComp != null) {
-			btnComp.interactable = interactable;
-		} else {
-			newButtonObj.AddComponent<Button>();
-		}
+		// 设置是否可点击
+		btnComp.interactable = interactable;
+
 		if (lobbyBtn != null) {
 			lobbyBtn.Initialize(lobby);
 			return lobbyBtn;

@@ -11,7 +11,7 @@ namespace WKMPMod.Patch;
 
 // 补丁类: 强制解锁所有进度
 [HarmonyPatch(typeof(CL_ProgressionManager), "HasProgressionUnlock")]
-public class Patch_Progression_ForceUnlock {
+public class Patch_CL_ProgressionManager_HasProgressionUnlock {
 	//bool 类型: 控制是否执行原方法 true=执行 false=跳过
 	public static bool Prefix(ref bool __result) {
 		if (MPCore.IsInLobby) {
@@ -64,4 +64,19 @@ public class Patch_UT_GameStateController_RestartScene {
 }
 
 
+// 补丁类: 在联机模式下默认是固定种子,不上传成绩
+[HarmonyPatch(typeof(WorldLoader), "Initialize")]
+public class Patch_WorldLoader_Initialize {
+	public static void Postfix() {
+		if (MPCore.IsInLobby) 
+			WorldLoader.customSeed = true;
+	}
+}
+
+[HarmonyPatch(typeof(WorldLoader), "GenerateLevels")]
+public class Patch_WorldLoader_GenerateLevels {
+	public static void Prefix() {
+
+	}
+}
 

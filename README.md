@@ -6,7 +6,7 @@
 
 This is a Unity MOD for the game  *White Knuckle* , implementing basic networked player mapping (currently only maps grabbable player capsules).
 
- **Important Disclaimer** :
+**Important Disclaimer** :
 
 * **I am not a Unity/C# developer by profession.**
 * **Some code in this project is AI-generated.**
@@ -66,43 +66,61 @@ Download the required `.zip` file from the [Releases](https://github.com/Shen-X-
 After enabling cheat mode (`cheats`) in-game, use the following commands:
 
 * `host <lobby_name> [max_players]` - Create a lobby.
-  * Example: `host abcde`
+   * Example: `host abcde`
+
 * `getlobbyid` - Get the lobby room code.
 * `join <room_code>` - Join a lobby using the room code.
-  * Example: `join 109775241951624817`
+   * Example: `join 109775241951624817`
+
 * `talk <text>` - Speak via the overhead label.
-  * Example: `talk help me`
+   * Example: `talk help me`
+
 * `getallplayer` - Get all player name and steamId
 * `tpto <steamId(suffix match)>` - Teleport between players
-  * Example: `tpto 16422 or tpto 22 (target steamId: 561198279116422)`
+   * Example: `tpto 16422 or tpto 22 (target steamId: 561198279116422)`
 
 ### Version 1.3.0
+
 Join lobbies using the main menu UI
 
 New commands:
 
 * `getalllobby` – Get information about all lobbies, including lobby codes and current player counts
 * `join <name>` – Join a lobby by its name. If multiple lobbies share the same name, joining by name will fail; please use the lobby code instead.
-  * Example: join abcde
+   * Example: `join abcde`
+
 * `changename <name>` – Change the lobby name. Can only be used by the host.
-  * Example: `changename newname`
+   * Example: `changename newname`
+
 * `changemodel <model name>` – Change the remote player model. Currently supports default and slugcat.
-  * `Example: changemodel slugcat`
+   * Example: `changemodel slugcat`
+
+### Version 1.3.4
+
+New commands:
+
+* `lobbytype [public/private/friends]` – Change lobby visibility. public = anyone can join, private = only joinable via lobby code, friends = only visible and joinable by friends.
+  * Example: `lobbytype friends`
+
+* `invite` – Invite a friend to join the lobby.
 
 ### Version 0.12(No longer updated)
 
 After enabling cheat mode (`cheats`) in-game, use the following commands:
 
 * `host <port> [max_players]` - Host a server.
-  * Example: `host 22222`
+   * Example: `host 22222`
+
 * `join <ip_address> <port>` - Join an existing host server.
-  * Example: `join 127.0.0.1 22222` or `join [::1] 22222`
+   * Example: `join 127.0.0.1 22222` or `join [::1] 22222`
+
 * `leave` - Leave the current host server.
 
 ### Configuration Options
 
-In `BepInEx/plugins/shenxl.MultiPlayerMod.cfg` 
-```
+In `BepInEx/plugins/shenxl.MultiPlayerMod.cfg`
+
+```ini
 [Network]
 
 ## Sets how many times per second data is sent to other players.
@@ -234,6 +252,7 @@ OtherActive = 1
 ## Multiplier for other damage received by the player.
 # Setting type: Single
 OtherPassive = 1
+
 ```
 
 ## Development Guide
@@ -242,7 +261,7 @@ OtherPassive = 1
 
 **bash**
 
-```
+```sh
 # 1. Clone this repository locally
 git clone https://github.com/Shen-X-L/WKMultiMod.git
 
@@ -250,13 +269,14 @@ git clone https://github.com/Shen-X-L/WKMultiMod.git
 # Method A: Open and build WhiteKnuckleMod.sln in Visual Studio
 # Method B: Use the command line
 dotnet build -c Release
+
 ```
 
 ### Project Structure
 
 **text**
 
-```
+```ini
 WhiteKnuckleMod/
 ├── src/Core/                       # Mod core logic
 │   ├─ Asset/
@@ -331,8 +351,8 @@ WhiteKnuckleMod/
 ├── WhiteKnuckleMod.sln             # Visual Studio solution file
 ├── WhiteKnuckleMod.csproj          # Project configuration file
 └── README.md                       # This document
-```
 
+```
 
 ### Environment Setup
 
@@ -353,12 +373,11 @@ Compiling this project requires referencing some DLL files from the game itself 
 
 The project file (`WhiteKnuckleMod.csproj`) is configured with key references and build targets, ensuring `TargetFramework` is set to `netstandard2.1` and allowing unsafe code.
 
-
 ## Contributing
 
 Welcome to submit Issues for bug reports or suggestions! Pull Requests are also welcome.
 
- **Reminder** : The code quality in this project is inconsistent, and some is AI-generated. Please keep this in mind when contributing.
+**Reminder** : The code quality in this project is inconsistent, and some is AI-generated. Please keep this in mind when contributing.
 
 ### Contribution Process
 

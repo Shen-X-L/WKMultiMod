@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/lib/">
+    <File Path="lib/copy_lib.py" />
     <File Path="lib/README.md" />
   </Folder>
   <Folder Name="/lib/BepInEx/">

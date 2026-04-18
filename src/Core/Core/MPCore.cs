@@ -385,6 +385,15 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandlePlayerDeath(string type) {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
+
+		switch (type){
+			case "deathflood": {
+				type = "mass";
+				break;
+			}
+			default:
+				break;
+		}
 		// 死因
 		writer.Put(type);
 
@@ -428,11 +437,11 @@ public class MPCore : MonoSingleton<MPCore> {
 		}, false);
 		CommandConsole.AddCommand("getalllobby", GetAllLobby, false);
 		CommandConsole.AddCommand("test", Test.Test.Main, false);
-		CommandConsole.AddCommand("invite", OpenSteamInviteUI);
+		CommandConsole.AddCommand("invite", OpenSteamInviteUI, false);
 		CommandConsole.AddCommand("lobbytype", SetLobbyVisibility, false);
 		CommandConsole.AddCommand("cheatstest", Test.CheatsTest.Main);
 		CommandConsole.AddCommand("changename", (str) => {
-			_MPsteamworks.SetLobbyData("name", str[0]);
+			_MPsteamworks.SetLobbyData("name", string.Join(" ", str));
 		}, false);
 	}
 
@@ -568,6 +577,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	public async void Join(Lobby lobby, SteamId steamId) {
 		// 设置初始状态
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
+		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		try {
 			bool success = await _MPsteamworks.JoinRoomAsync(lobby);
 

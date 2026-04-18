@@ -247,9 +247,6 @@ public static class Localization {
 	/// 检查键是否存在
 	/// </summary>
 	public static bool HasKey(string key) {
-		if (_flatCache == null) {
-			BuildFlatCache();
-		}
 		return _flatCache.ContainsKey(key);
 	}
 
