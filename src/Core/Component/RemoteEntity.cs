@@ -38,20 +38,19 @@ public class RemoteEntity : GameEntity {
 	}
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
-		MPMain.LogWarning(
-			$"[MP Debug] " +
-			$"伤害量:{info.amount} " +
-			$"伤害类型:{info.type} " +
-			$"伤害位置:{info.position} " +
-			$"冲击力:{info.force}");
+		//MPMain.LogWarning(
+		//	$"[MP Debug] " +
+		//	$"伤害量:{info.amount} " +
+		//	$"伤害类型:{info.type} " +
+		//	$"伤害位置:{info.position} " +
+		//	$"冲击力:{info.force}");
 
-		// sourceObject 可能为空，最好判空
-		if (info.sourceObject != null) MPMain.LogWarning($"伤害来源:{info.sourceObject.name}");
+		//// sourceObject 可能为空, 最好判空
+		//if (info.sourceObject != null) MPMain.LogWarning($"伤害来源:{info.sourceObject.name}");
 		
-
-		// tags 也可能为空
-		if (info.tags != null) 
-			foreach (var tag in info.tags) MPMain.LogWarning($"伤害标签:{tag}");
+		//// tags 也可能为空
+		//if (info.tags != null) 
+		//	foreach (var tag in info.tags) MPMain.LogWarning($"伤害标签:{tag}");
 
 		// 生成伤害特效
 		if (DamageObject != null) {

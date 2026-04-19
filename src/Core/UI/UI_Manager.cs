@@ -91,7 +91,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		switch (scene.name) {
 			case "Main-Menu": {
 				try {
-					// 每次进入主菜单，彻底清理旧对象，防止重复创建
+					// 每次进入主菜单, 彻底清理旧对象, 防止重复创建
 					if (_mpButton != null) Destroy(_mpButton);
 					if (_mpScreen != null) Destroy(_mpScreen);
 
@@ -100,13 +100,13 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 					CreateLobbyScreen();
 					Initialize();
 				} catch (Exception ex) {
-					// 捕获所有未预期的崩溃，并记录日志
+					// 捕获所有未预期的崩溃, 并记录日志
 					MPMain.LogError(Localization.Get("UI_Manager.CreateMenuUIFailed", ex.Message));
 				}
 				try {
 					CreateLoadingScreen();
 				} catch (Exception ex) {
-					// 捕获所有未预期的崩溃，并记录日志
+					// 捕获所有未预期的崩溃, 并记录日志
 					MPMain.LogError(Localization.Get("UI_Manager.CreateMenuUIFailed", ex.Message));
 				}
 				MPMain.LogInfo(Localization.Get("UI_Manager.MultiplayerLobbyUIBuildComplete"));
@@ -415,7 +415,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		Type type = typeof(UI_LerpOpen);
 		BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
 
-		// 可能的字段名列表，考虑到大小写错误
+		// 可能的字段名列表, 考虑到大小写错误
 		string[] posFields = { "rootPositon", "rootPosition", "targetPosition" };
 		string[] scaleFields = { "rootScale", "targetSize" };
 		// 修正目标位置
@@ -428,7 +428,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		}
 	}
 
-	// 统一的错误日志函数，返回false方便在条件语句中使用
+	// 统一的错误日志函数, 返回false方便在条件语句中使用
 	private bool Error(string msg) {
 		MPMain.LogError(msg);
 		return false;

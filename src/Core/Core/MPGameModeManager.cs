@@ -43,7 +43,7 @@ public class MPGameModeManager {
 	}
 
 	/// <summary>
-	/// 当玩家退出大厅或返回主菜单时调用，清除同步数据
+	/// 当玩家退出大厅或返回主菜单时调用, 清除同步数据
 	/// </summary>
 	public static void ClearCurrentData() {
 		CurrentData = null;

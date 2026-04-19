@@ -36,15 +36,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	public Lobby _currentLobby;
 
 	// 获取大厅相关信息
-	public ulong LobbyId {
-		get => _currentLobby.Id.Value;
-	}
-	public string LobbyName {
-		get { return _currentLobby.GetData("name"); }
-	}
-	public int LobbySize {
-		get { return _currentLobby.MaxMembers; }
-	}
+	public ulong LobbyId { get => _currentLobby.Id.Value; }
+	public string LobbyName { get { return _currentLobby.GetData("name"); } }
+	public int LobbySize { get { return _currentLobby.MaxMembers; } }
 
 	// 获取全部在线玩家
 	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
@@ -54,10 +48,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		get { return _currentLobby.Id.IsValid; }
 	}
 
-	// 本机Id
-	public ulong UserSteamId { get => SteamClient.SteamId; }
-	// 之前的主机Id
-	public ulong HostSteamId { get; private set; }
+	public ulong UserSteamId { get => SteamClient.SteamId; }    // 本机Id													
+	public ulong HostSteamId { get; private set; }  // 之前的主机Id
 
 	// 检查是否是大厅所有者
 	public bool IsHost {
@@ -67,15 +59,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 
-	// 监听socket
-	internal SocketManager _socketManager;
-	// 出站连接池
+	internal SocketManager _socketManager;  // 监听socket
+											// 出站连接池
 	internal Dictionary<SteamId, SteamConnectionManager> _outgoingConnections = new Dictionary<SteamId, SteamConnectionManager>();
 	// 已经建立成功的连接池
 	internal Dictionary<SteamId, Connection> _allConnections = new Dictionary<SteamId, Connection>();
 
-	// 是否有链接
-	public bool HasConnections { get; private set; }
+	public bool HasConnections { get; private set; }    // 是否有链接
 
 	// 消息队列
 	private ConcurrentQueue<NetworkMessage> _messageQueue = new ConcurrentQueue<NetworkMessage>();
@@ -91,8 +81,12 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	// 全部大厅
-	private List<Lobby> _lastFetchedLobbies = new List<Lobby>();
-	public List<Lobby> LastFetchedLobbies  { get => _lastFetchedLobbies; private set => _lastFetchedLobbies = value; }
+	public List<Lobby> LastFetchedLobbies { get; private set; } = new List<Lobby>();	// 上次查询大厅列表
+	private TickTimer _autoRefreshTimer = new TickTimer(30f);// 计时器
+	private float _lastRealFetchTime = -999f;           // 上次真正发起网络请求的时间	
+	private const float CACHE_PROTECTION_TIME = 5f;		// 5秒刷新冷却
+	private Task<List<Lobby>> _currentRefreshTask;       // 当前正在执行的刷新任务
+	private readonly object _taskLock = new object();    // 锁
 
 	#region[Unity组件生命周期函数]
 	protected override void Awake() {
@@ -129,22 +123,30 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		// 该用户接受Steam好友的大厅邀请
 		SteamFriends.OnGameLobbyJoinRequested += HandleGameLobbyJoinRequested;
 
-
 		// 初始化中继网络(必须调用)
 		SteamNetworkingUtils.InitRelayNetworkAccess();
 	}
 
 
 	void Update() {
+		// Steamwork每帧调用,事件激活来源
 		Steamworks.SteamClient.RunCallbacks();
 
+		// 读取数据
 		_socketManager?.Receive(32);
 
+		// 读取数据
 		foreach (var connectionManager in _outgoingConnections.Values) {
 			connectionManager.Receive(32);
 		}
 
+		// 处理消息队列
 		ProcessMessageQueue();
+
+		// 刷新检查
+		if (_autoRefreshTimer.TryTick()) {
+			_ = RefreshLobbyListAsync();
+		}
 	}
 
 	protected override void OnDestroy() {
@@ -880,6 +882,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		dict["game"] = "White Knuckle";
 		dict["version"] = Application.version;
 		dict["owner"] = UserSteamId.ToString();
+		dict["visibility"] = "public";
 		return dict;
 	}
 
@@ -914,7 +917,37 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	#region[大厅检索]
 
-	public async Task RefreshLobbyList() {
+	/// <summary>
+	/// 刷新大厅列表
+	/// 1. 5秒内重复调用直接返回缓存
+	/// 2. 超过5秒则发起/等待异步任务
+	/// 3. 成功触发刷新后, 重置30秒自动计时
+	/// </summary>
+	public Task<List<Lobby>> RefreshLobbyListAsync() {
+		// 5秒缓存保护
+		if (Time.time - _lastRealFetchTime < CACHE_PROTECTION_TIME) {
+			MPMain.LogInfo("[MP Debug] 处于5秒冷却期内, 直接返回缓存结果");
+			return Task.FromResult(LastFetchedLobbies);
+		}
+
+		lock (_taskLock) {
+			// 重置30秒计时器（无论是手动还是自动触发, 都重新开始倒计时）
+			_autoRefreshTimer.Reset();
+
+			// 如果已经有一个任务在运行, 直接返回该任务
+			if (_currentRefreshTask != null && !_currentRefreshTask.IsCompleted) {
+				return _currentRefreshTask;
+			}
+
+			// 更新真实请求时间, 并开始新任务
+			_lastRealFetchTime = Time.time;
+			_currentRefreshTask = RefreshLobbyList();
+			return _currentRefreshTask;
+		}
+	}
+
+	// 刷新大厅
+	public async Task<List<Lobby>> RefreshLobbyList() {
 		try {
 			var lobbyIds = new HashSet<ulong>();
 			var combinedLobbies = new List<Lobby>();
@@ -942,9 +975,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			}
 
 			LastFetchedLobbies = combinedLobbies;
+			return combinedLobbies;
 		} catch (Exception ex) {
 			MPMain.LogError(Localization.Get("MPSteamworks.LobbySearchException", ex.Message));
-			return;
+			return LastFetchedLobbies;
 		}
 	}
 

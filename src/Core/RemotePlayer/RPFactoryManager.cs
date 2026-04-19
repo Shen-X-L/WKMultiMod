@@ -11,10 +11,8 @@ using Object = UnityEngine.Object;
 namespace WKMPMod.RemotePlayer;
 
 public class RPFactoryManager: Singleton<RPFactoryManager> {
-	private readonly object _lock = new object();
-
 	// 静态字典 在FactoryManager实例化之前就可以注册
-	private Dictionary<string, FactoryRegistration> _factories = new Dictionary<string, FactoryRegistration>();
+	public static Dictionary<string, FactoryRegistration> factories = new Dictionary<string, FactoryRegistration>();
 
 	#region[生命周期函数]
 
@@ -34,7 +32,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 	/// <param name="prefabName">预制体名称</param>
 	/// <param name="bundlePath">AssetBundle完整路径</param>
 	public void RegisterFactory(string factoryId, BaseRemoteFactory factory, string prefabName, string bundlePath) {
-		if (_factories.ContainsKey(factoryId)) {
+		if (factories.ContainsKey(factoryId)) {
 			MPMain.LogWarning(Localization.Get("RPFactoryManager.FactoryAlreadyRegistered", factoryId));
 			return;
 		}
@@ -42,7 +40,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 		factory.PrefabName = prefabName;
 		factory.FactoryId = factoryId;
 
-		_factories.Add(factoryId, new FactoryRegistration {
+		factories.Add(factoryId, new FactoryRegistration {
 			Factory = factory,
 			BundlePath = bundlePath
 		});
@@ -56,13 +54,13 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 	/// 创建对象
 	/// </summary>
 	public GameObject Create(string factoryId) {
-		if (_factories.TryGetValue(factoryId, out var registration)) {
+		if (factories.TryGetValue(factoryId, out var registration)) {
 			return registration.Factory.Create(registration.BundlePath);
 		}
 
 		MPMain.LogError(Localization.Get("RPFactoryManager.FactoryNotFound", factoryId));
 		// 生成默认模型
-		if (_factories.TryGetValue("default", out var defaultRegistration)) {
+		if (factories.TryGetValue("default", out var defaultRegistration)) {
 			return registration.Factory.Create(defaultRegistration.BundlePath);
 		}
 
@@ -84,7 +82,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 			return;
 		}
 
-		if (_factories.TryGetValue(identity.FactoryKey, out var registration)) {
+		if (factories.TryGetValue(identity.FactoryKey, out var registration)) {
 			try {
 				registration.Factory.Cleanup(instance);
 			} catch (Exception ex) {
@@ -116,7 +114,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 	}
 
 
-	private class FactoryRegistration {
+	public class FactoryRegistration {
 		public BaseRemoteFactory Factory { get; set; }
 		public string BundlePath { get; set; }
 	}
@@ -127,7 +125,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 	/// 仅供调试使用,列出所有注册的工厂信息
 	/// </summary>
 	public void ListAllFactory() {
-		foreach (var (factoryId, factory) in _factories) {
+		foreach (var (factoryId, factory) in factories) {
 			MPMain.LogWarning(Localization.Get("RPFactoryManager.DebugFactoryInfo",
 				factoryId, factory.Factory.PrefabName, factory.BundlePath));
 		}

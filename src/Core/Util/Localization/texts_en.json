@@ -14,11 +14,28 @@
     "LobbyVisibilitySet": "Lobby visibility set to: {0}",
     "LobbyVisibilitySetFailed": "Failed to set lobby visibility. Supported options: public, friends, private",
     "MultipleMatchingIds": "Found multiple matching IDs. Below is the corresponding list:\n{0}",
+    "NeedIsHost": "You need to be the host to use this command.",
     "NeedToBeOnline": "You need in online mode, \nplease use the host or join",
     "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
     "SearchingLobbyByName": "Searching for lobby by name: {0}...",
     "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
     "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization."
+  },
+  "CommandHelp": {
+    "AllPlayer": "Get info on all players in the current lobby.",
+    "ChangeModel": "[Model name]: Model switching doesn’t take effect in-game, and the developer doesn’t know how to model — it won’t look good anyway, so just make do.",
+    "CheatsTest": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, and affects game balance.",
+    "Host": "[Lobby Name (Visibility=public|friends|private) (Max Player=8)]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;). Visibility controls whether the lobby can be found by others.",
+    "Invite": "Open the Steam overlay to invite your friends.",
+    "Join": "[Lobby Name|Lobby id]:The name or ID of the lobby to join. It will first try to match by name; if no match is found, it will fall back to matching by ID.",
+    "Leave": "Leave the current lobby.",
+    "LobbyId": "Get the current lobby ID and copy it to the clipboard.",
+    "LobbyList": "Get all available lobbies.",
+    "LobbyYype": "[Visibility=public|friends|private]:Visibility controls whether the lobby can be found by others.",
+    "SetLobbyName": "[Lobby Name]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
+    "Talk": "[Text]: Send a message to other players.",
+    "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
+    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422)."
   },
   "DisplayMessage": {
     "EnteredMessages": [

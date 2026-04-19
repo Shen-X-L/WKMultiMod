@@ -10,7 +10,7 @@ using Object = UnityEngine.Object;
 namespace WKMPMod.Patch;
 
 // 补丁类: 强制解锁所有进度
-[HarmonyPatch(typeof(CL_ProgressionManager), "HasProgressionUnlock")]
+[HarmonyPatch(typeof(CL_ProgressionManager), nameof(CL_ProgressionManager.HasProgressionUnlock))]
 public class Patch_CL_ProgressionManager_HasProgressionUnlock {
 	//bool 类型: 控制是否执行原方法 true=执行 false=跳过
 	public static bool Prefix(ref bool __result) {
@@ -36,7 +36,7 @@ public class Patch_M_Level_Awake {
 }
 
 // 补丁类: 在联机模式下强制应用当前游戏模式的铁人和困难设置
-[HarmonyPatch(typeof(SettingsManager), "RefreshSettings")]
+[HarmonyPatch(typeof(SettingsManager), nameof(SettingsManager.RefreshSettings))]
 public class Patch_SettingsManager_RefreshSettings {
 	public static void Postfix() {
 		// 仅在联机模式下执行特定设置调整
@@ -48,7 +48,7 @@ public class Patch_SettingsManager_RefreshSettings {
 }
 
 // 补丁类: 在联机模式下重开时重置游戏状态控制器的状态
-[HarmonyPatch(typeof(UT_GameStateController), "RestartScene")]
+[HarmonyPatch(typeof(UT_GameStateController), nameof(UT_GameStateController.RestartScene))]
 public class Patch_UT_GameStateController_RestartScene {
 	public static bool Prefix() {
 		if (MPCore.IsInLobby) {
@@ -65,7 +65,7 @@ public class Patch_UT_GameStateController_RestartScene {
 
 
 // 补丁类: 在联机模式下默认是固定种子,不上传成绩
-[HarmonyPatch(typeof(WorldLoader), "Initialize")]
+[HarmonyPatch(typeof(WorldLoader), nameof(WorldLoader.Initialize))]
 public class Patch_WorldLoader_Initialize {
 	public static void Postfix() {
 		if (MPCore.IsInLobby) 
@@ -73,6 +73,15 @@ public class Patch_WorldLoader_Initialize {
 	}
 }
 
+// 补丁类: 负责初始化游戏模式管理器
+[HarmonyPatch(typeof(CL_AssetManager), nameof(CL_AssetManager.Initialize))]
+public class Patch_CL_AssetManager_Initialize {
+	public static void Postfix() {
+		MPGameModeManager.Initialize();
+	}
+}
+
+// 通过仿照代码来获取地图生成逻辑
 [HarmonyPatch(typeof(WorldLoader), "GenerateLevels")]
 public class Patch_WorldLoader_GenerateLevels {
 	public static void Prefix() {
@@ -80,3 +89,18 @@ public class Patch_WorldLoader_GenerateLevels {
 	}
 }
 
+
+// 补丁类: 修复字符串逻辑
+[HarmonyPatch(typeof(CommandConsole), "CommandValueAsString")]
+public class Patch_CommandConsole_CommandValueAsString {
+	static bool Prefix(Func<object> functor, ref string __result) {
+		object obj = functor();
+
+		if (obj is string str) {
+			__result = $"Value: {str}";
+			return false; // 跳过原方法的执行
+		}
+
+		return true; // 其他类型 继续执行原方法
+	}
+}

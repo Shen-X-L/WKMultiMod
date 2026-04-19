@@ -43,7 +43,7 @@ def sort_json_file(input_file, output_file=None):
     
     print(f"已保存到: {output}")
 
-# 仅对比结构(只关心类型和键，不关心值)
+# 仅对比结构(只关心类型和键, 不关心值)
 def compare_structure(obj1, obj2):
     """对比 JSON 结构"""
     diff = DeepDiff(
@@ -55,7 +55,7 @@ def compare_structure(obj1, obj2):
         exclude_paths=[] if not isinstance(obj1, dict) else []
     )
     
-    # 过滤掉值变化的差异，只保留类型变化的差异
+    # 过滤掉值变化的差异, 只保留类型变化的差异
     result = {}
     if 'type_changes' in diff:
         result['type_changes'] = diff['type_changes']

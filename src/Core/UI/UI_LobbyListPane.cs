@@ -69,9 +69,8 @@ public class UI_LobbyListPane : MonoBehaviour {
 	/// 刷新大厅列表并创建对应的UI_LobbyButton
 	/// </summary>
 	public async Task RefreshLobbyList() {
-		await MPSteamworks.Instance.RefreshLobbyList();
 		// 获取最新的大厅列表
-		List<Lobby> lobbies = MPSteamworks.Instance.LastFetchedLobbies;
+		List<Lobby> lobbies = await MPSteamworks.Instance.RefreshLobbyListAsync();
 		HashSet<ulong> activeIds = lobbies.Select(lobby => lobby.Id.Value).ToHashSet();
 
 		// 移除已关闭的大厅对应的UI_LobbyButton

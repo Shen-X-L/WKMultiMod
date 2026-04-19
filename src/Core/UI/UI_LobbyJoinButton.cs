@@ -23,7 +23,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 	#region[原UI_Gamemode_Button字段]
 	public UI_LerpOpen? runInProgressDisplay;	// 进行中标识的动画组件
 	private bool isHovering;                    // 是否正在悬停/选中
-	public TMP_Text? unlockText;				// 锁定原因文本(显示在锁定图标旁边，解释为什么不可加入)
+	public TMP_Text? unlockText;				// 锁定原因文本(显示在锁定图标旁边, 解释为什么不可加入)
 	#endregion
 
 	#region[原UI_CapsuleButton字段]
@@ -94,7 +94,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 	}
 
 	/// <summary>
-	/// 异步加载房主信息，包括头像和名称
+	/// 异步加载房主信息, 包括头像和名称
 	/// </summary>
 	private async Task TrackAndLoadOwnerInfo() {
 		int retryCount = 0;
@@ -143,10 +143,10 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 	}
 
 	/// <summary>
-	/// 当大厅数据发生变动时，由父面板调用此方法同步显示
+	/// 当大厅数据发生变动时, 由父面板调用此方法同步显示
 	/// </summary>
 	public void OnLobbyDataUpdated(Lobby updatedLobby) {
-		// 更新本地大厅引用，确保后续点击加入时用的是最新对象
+		// 更新本地大厅引用, 确保后续点击加入时用的是最新对象
 		this.lobby = updatedLobby;
 
 		// 重新检测游戏模式
@@ -263,7 +263,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 
 	#region[动画相关]
 	/// <summary>
-	/// 显示按钮动画 - 通常在容器启用时调用，实现按钮逐个出现的效果
+	/// 显示按钮动画 - 通常在容器启用时调用, 实现按钮逐个出现的效果
 	/// </summary>
 	public void Show() {
 		if (button != null && button.gameObject.activeInHierarchy) {

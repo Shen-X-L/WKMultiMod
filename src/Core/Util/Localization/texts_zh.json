@@ -5,7 +5,7 @@
     "CreateLobbyFailed": "创建大厅失败",
     "FoundLobbyByName": "通过名称找到了大厅: {0} 正在加入",
     "HostUsage": "用法: host <房间名称> [最大玩家数]",
-    "InvalidLobbyNameOrId": "无法找到匹配名称的大厅，且输入不是有效的 ID 格式",
+    "InvalidLobbyNameOrId": "无法找到匹配名称的大厅, 且输入不是有效的 ID 格式",
     "JoinFormatError": "格式错误\n用法: join <大厅ID>",
     "JoinLobbyFailed": "加入大厅失败",
     "JoinUsage": "用法: join <大厅ID>",
@@ -14,11 +14,28 @@
     "LobbyVisibilitySet": "大厅可见级别设置为: {0}",
     "LobbyVisibilitySetFailed": "大厅可见级别设置失败, 支持的选项有: public, friends, private",
     "MultipleMatchingIds": "找到多个匹配的ID.以下是对应的列表:\n{0}",
+    "NeedIsHost": "需要你是房主才能使用该命令",
     "NeedToBeOnline": "您需要在在线模式下使用此命令, \n请先使用 host 或 join 命令",
-    "NoLobbyByNameTryId": "未找到匹配名称的大厅，尝试使用 ID 连接...",
+    "NoLobbyByNameTryId": "未找到匹配名称的大厅, 尝试使用 ID 连接...",
     "SearchingLobbyByName": "正在按名称搜索大厅: {0}...",
     "TargetIdNotFound": "未找到目标ID.此命令使用后缀匹配.\n例如: 目标ID: 76561198279116422 → tpto 6422.",
     "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化."
+  },
+  "CommandHelp": {
+    "AllPlayer": "Get info on all players in the current lobby.",
+    "ChangeModel": "[Model name]: Model switching doesn’t take effect in-game, and the developer doesn’t know how to model — it won’t look good anyway, so just make do.",
+    "CheatsTest": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, and affects game balance.",
+    "Host": "[Lobby Name (Visibility=public|friends|private) (Max Player=8)]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;). Visibility controls whether the lobby can be found by others.",
+    "Invite": "Open the Steam overlay to invite your friends.",
+    "Join": "[Lobby Name|Lobby id]:The name or ID of the lobby to join. It will first try to match by name; if no match is found, it will fall back to matching by ID.",
+    "Leave": "Leave the current lobby.",
+    "LobbyId": "Get the current lobby ID and copy it to the clipboard.",
+    "LobbyList": "Get all available lobbies.",
+    "LobbyYype": "[Visibility=public|friends|private]:Visibility controls whether the lobby can be found by others.",
+    "SetLobbyName": "[Lobby Name]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
+    "Talk": "[Text]: Send a message to other players.",
+    "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
+    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422)."
   },
   "DisplayMessage": {
     "EnteredMessages": [
@@ -64,6 +81,7 @@
     "DisconnectedAndCleaned": "[MPCore] 所有连接已断开, 远程玩家已清理.",
     "EnteringLobby": "[MPCore] 正在加入大厅 Id: {0}",
     "JoinLobbyException": "[MPCore] 加入大厅异常: {0}",
+    "JoinLobbyFailed": "[MPCore] 加入大厅失败",
     "JoiningLobby": "[MPCore] 正在加入大厅: {0}...",
     "LoadingWorld": "[MPCore] 加载世界, 种子号: {0}",
     "ManagerInitializationFailed": "[MPCore] 管理器初始化失败: {0}",
@@ -73,8 +91,7 @@
     "PlayerJoinedLobby": "[MPCore] 玩家加入大厅 Id: {0}",
     "PlayerLeftLobby": "[MPCore] 玩家离开大厅 Id: {0}",
     "RequestedInitData": "[MPCore] 已向主机请求初始化数据",
-    "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}",
-    "JoinLobbyFailed": "[MPCore] 加入大厅失败"
+    "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}"
   },
   "MPGameModeManager": {
     "GameModeNotFound": "[MP GameModeMan] 未找到名为 {0} 的对应游戏模式"
@@ -205,7 +222,7 @@
     "CreateMenuUIFailed": "[MP UI] 创建菜单UI失败: {0}",
     "LobbyPaneContainerPathError": "[MP UI] Lobby Pane容器路径错误",
     "MainMenuContainerNotFound": "[MP UI] 主菜单容器未找到",
-    "MenuButtonComponentNotFound": "[MP UI] 按钮组件 'UI_MenuButton' 未找到，无法绑定菜单事件",
+    "MenuButtonComponentNotFound": "[MP UI] 按钮组件 'UI_MenuButton' 未找到, 无法绑定菜单事件",
     "MultiplayerLobbyUIBuildComplete": "[MP UI] 多人模式大厅搜索UI构建完成",
     "PlayMenuTemplateNotFound": "[MP UI] Play Menu模板未找到",
     "PlayScreenContainerNotFound": "[MP UI] Play屏幕容器未找到",

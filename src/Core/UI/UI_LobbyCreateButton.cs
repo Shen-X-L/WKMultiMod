@@ -23,7 +23,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 		// 强制清理并重新绑定
 		Button oldBtn = GetComponent<Button>();
 		if (oldBtn != null) {
-			// 仅仅 RemoveAllListeners 不够，因为那不包含 Inspector 里的持久化事件
+			// 仅仅 RemoveAllListeners 不够, 因为那不包含 Inspector 里的持久化事件
 			// 可以通过把按钮的 onClick 设为一个新的 UnityEvent 来强行覆盖
 			oldBtn.onClick = new Button.ButtonClickedEvent();
 			button = oldBtn;

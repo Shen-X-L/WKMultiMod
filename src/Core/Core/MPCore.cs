@@ -3,6 +3,7 @@ using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -152,9 +153,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			_MPAssetManager = MPAssetManager.Instance;
 			// 必须在游戏资源加载完成后初始化
 			//_MPAssetManager.Initialize();
-
-			// 初始化游戏模式管理器
-			MPGameModeManager.Initialize();
 
 			// 初始化网络数据包路由器
 			MPPacketRouter.Initialize();
@@ -389,7 +387,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	private void HandlePlayerDeath(string type) {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
 
-		switch (type){
+		switch (type) {
 			case "deathfloor": {
 				type = "mass";
 				break;
@@ -427,25 +425,141 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void RegisterCommands() {
 		// 将命令注册到 CommandConsole
-		CommandConsole.AddCommand("host", Host, false);
-		CommandConsole.AddCommand("join", Join, false);
-		CommandConsole.AddCommand("leave", Leave, false);
-		CommandConsole.AddCommand("lobbyid", LobbyId, false);
-		CommandConsole.AddCommand("allplayer", AllPlayerData, false);
-		CommandConsole.AddCommand("talk", Talk, false);
-		CommandConsole.AddCommand("tpto", TpToPlayer);
-		CommandConsole.AddCommand("changemodel", (str) => {
+		CommandConsole.BuildCommand("host", Host)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.Host"))
+			// 参数补全
+			.AutocompleteCustom(autocomplete => {
+				// activeArg 表示当前正在输入的参数位置
+				switch (autocomplete.activeArg) {
+					case 1: // 第二参数：Visibility
+						autocomplete.FromArray(new[] { "public", "friends", "private" });
+						break;
+					case 2: // 第三参数：Max Player
+						autocomplete.FromArray(new[] { "2", "4", "8", "16" });
+						break;
+				}
+			})
+			// 参数校验
+			.AutocompleteValidator(validator => {
+				if (validator.activeArg == 1) {
+					string vis = validator.ArgumentAt(1).ToLower();
+					if (vis != "public" && vis != "friends" && vis != "private") {
+						validator.Reject(); // 不匹配则高亮红色
+					}
+				}
+				if (validator.activeArg == 2) {
+					if (!int.TryParse(validator.ArgumentAt(2), out _)) {
+						validator.Reject();
+					}
+				}
+			});
+
+		CommandConsole.BuildCommand("join", Join)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.Join"))
+			.AutocompleteCustom(autocomplete => {
+				// activeArg 表示当前正在输入的参数位置
+				_ = _MPsteamworks.RefreshLobbyListAsync();
+				switch (autocomplete.activeArg) {
+					case 0:
+						autocomplete.FromArrayWithDesc(
+							_MPsteamworks.LastFetchedLobbies
+								.Select(lobby => (
+									name: lobby.GetData("name") ?? "Unnamed Lobby",
+									desc: lobby.Id.ToString()))
+								.ToList());
+						break;
+				}
+			});
+
+		CommandConsole.BuildCommand("leave", Leave)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.Leave"))
+			// 显示默认值
+			.OverValue(() => _MPsteamworks.IsInLobby ? "In Lobby" : "Not In Lobby")
+			// 不在大厅则变红
+			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
+
+		CommandConsole.BuildCommand("lobbyid", LobbyId)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.LobbyId"))
+			.OverValue(() => _MPsteamworks.IsInLobby ? _MPsteamworks.LobbyId : "Not In Lobby")
+			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
+
+		CommandConsole.BuildCommand("allplayer", AllPlayerData)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.AllPlayer"))
+			.OverValue(() => _MPsteamworks.IsInLobby
+				? $"Player: {_MPsteamworks.Members.Count()}/{_MPsteamworks.LobbySize}"
+				: "Not In Lobby")
+			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
+
+		CommandConsole.BuildCommand("talk", Talk)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.Talk"));
+
+		CommandConsole.BuildCommand("tpto", TpToPlayer)
+			.Description(Localization.Get("CommandHelp.TpTo"))
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0) {
+					autocomplete.FromArrayWithDesc(
+						_RPManager.Players.Values
+							.Select(container => (
+								id: container.PlayerId.ToString(),
+								name: container.PlayerName)).ToList());
+				}
+			});
+
+		CommandConsole.BuildCommand("changemodel", (str) => {
 			_LocalPlayer.DefaulFactoryId = str[0];
 			MPConfig.RemotePlayerModel = str[0];
-		}, false);
-		CommandConsole.AddCommand("lobbylist", GetAllLobby, false);
-		CommandConsole.AddCommand("test", Test.Test.Main, false);
-		CommandConsole.AddCommand("invite", OpenSteamInviteUI, false);
-		CommandConsole.AddCommand("lobbytype", SetLobbyVisibility, false);
-		CommandConsole.AddCommand("cheatstest", Test.CheatsTest.Main);
-		CommandConsole.AddCommand("changename", (str) => {
+		})
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.ChangeModel"))
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0) {
+					autocomplete.FromArray(RPFactoryManager.factories.Keys.ToList());
+				}
+			});
+
+		CommandConsole.BuildCommand("lobbylist", GetAllLobby)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.LobbyList"));
+
+		CommandConsole.BuildCommand("test", Test.Test.Main)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.Test"));
+
+		CommandConsole.BuildCommand("invite", OpenSteamInviteUI)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.Invite"))
+			.OverValue(() => _MPsteamworks.IsInLobby ? _MPsteamworks.LobbyId : "Not In Lobby");
+
+		CommandConsole.BuildCommand("lobbytype", SetLobbyVisibility)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.LobbyYype"))
+			.OverValue(() => _MPsteamworks.IsInLobby 
+				? _MPsteamworks._currentLobby.GetData("visibility") : "Not In Lobby")
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0) 
+					autocomplete.FromArray(new[] { "public", "friends", "private" });
+			})
+			.AutocompleteValidator(validator => {
+				if (validator.activeArg == 1) {
+					string vis = validator.ArgumentAt(1).ToLower();
+					if (vis != "public" && vis != "friends" && vis != "private") 
+						validator.Reject(); // 不匹配则高亮红色
+				}
+			});
+		
+		CommandConsole.BuildCommand("cheatstest", Test.CheatsTest.Main)
+			.Description(Localization.Get("CommandHelp.CheatsTest"));
+
+		CommandConsole.BuildCommand("setlobbyname", (str) => {
 			_MPsteamworks.SetLobbyData("name", string.Join(" ", str));
-		}, false);
+		}).NotCheat()
+			.Description(Localization.Get("CommandHelp.SetLobbyName"));
 	}
 
 	/// <summary>
@@ -462,17 +576,21 @@ public class MPCore : MonoSingleton<MPCore> {
 			return;
 		}
 
-		string roomName = args[0];
-		int maxPlayers = args.Length >= 2 ? int.Parse(args[1]) : 6;
+		string lobbyName = args.Length > 1 ? args[0] : "New Lobby";
+		string visibility = args.Length >= 2 ? args[1] : "public";
+		int maxPlayers = 8;
+		if (args.Length > 2 && int.TryParse(args[2], out int parsedMax)) {
+			maxPlayers = parsedMax;
+		}
 		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore.CreatingLobby", roomName));
+		MPMain.LogInfo(Localization.Get("MPCore.CreatingLobby", lobbyName));
 
 		// 设置状态为正在连接
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 
 		// 预设置大厅数据
 		var lobbyData = new Dictionary<string, string>() {
-			{ "name", roomName },         // 大厅名称
+			{ "name", lobbyName },         // 大厅名称
 			{ "gamemode", CL_GameManager.gamemode.gamemodeName }, // 游戏模式
 		};
 
@@ -484,6 +602,9 @@ public class MPCore : MonoSingleton<MPCore> {
 				// 连接成功后的逻辑处理
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 				//SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
+
+				// 设置大厅可见性
+				SetLobbyVisibility(new string[] { visibility });
 
 				switch (SceneManager.GetActiveScene().name) {
 					// 主游戏需要相同种子的重载地图
@@ -507,7 +628,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		} catch (Exception ex) {
 			// 捕获任何未预料的崩溃
 			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
-			MPMain.LogError(Localization.Get("CommandConsole.CriticalErrorDuringCreate",ex.Message));
+			MPMain.LogError(Localization.Get("CommandConsole.CriticalErrorDuringCreate", ex.Message));
 		}
 	}
 
@@ -608,7 +729,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 
 		try {
-			// 直接 await 异步结果，代码逻辑变为线性
+			// 直接 await 异步结果, 代码逻辑变为线性
 			bool success = await _MPsteamworks.JoinRoomAsync(new Lobby(lobbyId));
 
 			// 处理结果
@@ -727,26 +848,13 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 获取全部本mod开启的大厅
-	/// </summary>
-	public void GetAllLobby(string[] args) {
-		StartLobbySearchAsync();
-	}
-
-	/// <summary>
 	/// 通过指令获取全部大厅信息,包含Id/名称/房主/游戏模式等
 	/// </summary>
-	private async void StartLobbySearchAsync() {
-		var query = new Steamworks.Data.LobbyQuery()
-			.FilterDistanceWorldwide()
-			.WithKeyValue("game", "White Knuckle")
-			.WithMaxResults(20);
-		var lobbies = await query.RequestAsync();
-		if (lobbies != null) {
-			foreach (var lobby in lobbies) {
-				CommandConsole.Log(Localization.Get("CommandConsole.LobbyInfo", lobby.Id, lobby.GetData("name"),
-					lobby.GetData("owner"), lobby.GetData("gamemode")));
-			}
+	public async void GetAllLobby(string[] args) {
+		await _MPsteamworks.RefreshLobbyListAsync();
+		foreach (var lobby in _MPsteamworks.LastFetchedLobbies) {
+			CommandConsole.Log(Localization.Get("CommandConsole.LobbyInfo", lobby.Id, lobby.GetData("name"),
+				lobby.GetData("owner"), lobby.GetData("gamemode")));
 		}
 	}
 
@@ -754,18 +862,26 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 设置大厅可见性 参数: public/friends/private
 	/// </summary>
 	public void SetLobbyVisibility(string[] args) {
+
+		if (!_MPsteamworks.IsHost) {
+			CommandConsole.Log(Localization.Get("CommandConsole.NeedIsHost"));
+			return;
+		}
+
 		bool success = args[0].ToLower() switch {
 			"public" => _MPsteamworks._currentLobby.SetPublic(),
 			"friends" => _MPsteamworks._currentLobby.SetFriendsOnly(),
 			"private" => _MPsteamworks._currentLobby.SetPrivate(),
 			_ => false
-		};
-
+		}; 
 		if (success) {
+			_MPsteamworks._currentLobby.SetData("visibility", args[0].ToLower());
 			CommandConsole.Log(Localization.Get("CommandConsole.LobbyVisibilitySet", args[0]));
 		} else {
 			CommandConsole.LogError(Localization.Get("CommandConsole.LobbyVisibilitySetFailed"));
 		}
+
+
 	}
 
 	/// <summary>
@@ -808,7 +924,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 			}
 			yield return new WaitForSecondsRealtime(0.5f);
-			var message = Localization.GetRandom("DisplayMessage.EnteredMessages", 
+			var message = Localization.GetRandom("DisplayMessage.EnteredMessages",
 				lobby.GetData("name"), lobby.MemberCount, lobby.MaxMembers, lobby.Id.Value);
 			SystemMessage(message, UIDisplayType.AscentHeader);
 		}
@@ -851,7 +967,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		_RPManager.PlayerRemove(steamId);
 	}
 
-	private void HandleLobbyInvite(Friend friend, Lobby lobby) { 
+	private void HandleLobbyInvite(Friend friend, Lobby lobby) {
 		var message = Localization.GetRandom("DisplayMessage.InviteReceivedMessages", friend.Name, lobby.GetData("name"));
 		SystemMessage(message, UIDisplayType.AscentHeader);
 	}
