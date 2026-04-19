@@ -3,6 +3,7 @@ using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -252,14 +253,10 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 场景加载完成时调用
 	/// </summary>
 	private void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
-		// Debug
-		MPMain.LogInfo(Localization.Get("MPCore.SceneLoadingCompleted", scene.name));
-
 		switch (scene.name) {
 			case "Game-Main": {
 				// 注册命令和初始化世界数据
 				if (CommandConsole.instance != null) {
-					RegisterCommands();
 					ChangeRPFactoryId();
 				} else {
 					// Debug
@@ -281,7 +278,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			case "Playground": {
 				// 注册命令和初始化世界数据
 				if (CommandConsole.instance != null) {
-					RegisterCommands();
 					ChangeRPFactoryId();
 					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 				} else {
@@ -427,7 +423,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 命令注册
 	/// </summary>
-	private void RegisterCommands() {
+	public void RegisterCommands() {
 		// 将命令注册到 CommandConsole
 		CommandConsole.BuildCommand("host", Host)
 			.NotCheat()

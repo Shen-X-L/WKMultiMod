@@ -5,9 +5,9 @@ using WKMPMod.Data;
 namespace WKMPMod.UI;
 
 public class UI_LoadingDisplay : MonoBehaviour {
-	private Coroutine? _hideCoroutine;      // 当前的隐藏协程
-	private float _hideTime = -1f;         // 隐藏时间(-1表示永久显示)
-	private float _remainingTime = 0f;     // 剩余显示时间
+	private Coroutine? _hideCoroutine;		// 当前的隐藏协程
+	private float _hideTime = -1f;			// 隐藏时间(-1表示永久显示)
+	private float _remainingTime = 0f;		// 剩余显示时间
 
 	#region[Unity生命周期函数]
 

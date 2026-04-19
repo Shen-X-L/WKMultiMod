@@ -1,20 +1,14 @@
 ﻿using HarmonyLib;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using TMPro;
 using UnityEngine;
 using WKMPMod.Core;
-using WKMPMod.UI;
-using static System.Collections.Specialized.BitVector32;
-using static UI_TabGroup;
-using static UnityEngine.GUI;
 using Object = UnityEngine.Object;
 
-namespace WKMPMod.Patch;
+namespace WKMPMod.UI;
 
+// 游戏模式菜单初始化时添加Multi play按钮
 [HarmonyPatch(typeof(UI_GamemodeScreen), nameof(UI_GamemodeScreen.Initialize))]
-public class Patch_UI_GamemodeScreen {
+public class Patch_UI_GamemodeScreen_Initialize {
 	static void Postfix(UI_GamemodeScreen __instance, M_Gamemode mode) {
 		// 获取刚刚显示出来的面板实例
 		string panelId = mode.gamemodePanel.id;
@@ -48,5 +42,21 @@ public class Patch_UI_GamemodeScreen {
 			panel.noSaveObjects.Add(lobbyBtnObj);
 			panel.hasSaveObjects.Add(lobbyBtnObj);
 		}
+	}
+}
+
+// 修复Facility Button初始化导致Facility界面返回绑定引用错误的问题
+[HarmonyPatch(typeof(UI_MenuButton), nameof(UI_MenuButton.Initialize))]
+public class Patch_UI_MenuButton_Initialize {
+	static bool Prefix(UI_MenuButton __instance, UI_Menu menu) {
+		//MPMain.LogWarning($"[MP Debug] Button:{__instance.gameObject.name} menu:{menu.gameObject.name}");
+		// 检查这个按钮是否属于我们克隆出来的菜单
+		if (UI_Manager.IsCloningMultiplayerMenu) {
+			if (__instance.gameObject.name == "Facility Button") {
+				//MPMain.LogWarning("检测到克隆期间的 Facility Button, 拦截初始化");
+				return false;
+			}
+		}
+		return true; // 其他按钮正常执行
 	}
 }

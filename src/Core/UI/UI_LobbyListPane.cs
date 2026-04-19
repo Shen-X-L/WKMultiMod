@@ -4,6 +4,7 @@ using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using TMPro;
@@ -69,6 +70,8 @@ public class UI_LobbyListPane : MonoBehaviour {
 	/// 刷新大厅列表并创建对应的UI_LobbyButton
 	/// </summary>
 	public async Task RefreshLobbyList() {
+		Stopwatch sw = Stopwatch.StartNew();
+
 		// 获取最新的大厅列表
 		List<Lobby> lobbies = await MPSteamworks.Instance.RefreshLobbyListAsync();
 		HashSet<ulong> activeIds = lobbies.Select(lobby => lobby.Id.Value).ToHashSet();
@@ -99,6 +102,8 @@ public class UI_LobbyListPane : MonoBehaviour {
 			yield break;
 		}
 
+		sw.Stop();
+		MPMain.LogWarning($"[MP Debug] UI_LobbyListPane.RefreshLobbyList耗时{sw.Elapsed.TotalMilliseconds}");
 	}
 
 	/// <summary>

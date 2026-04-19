@@ -81,26 +81,3 @@ public class Patch_CL_AssetManager_Initialize {
 	}
 }
 
-// 通过仿照代码来获取地图生成逻辑
-[HarmonyPatch(typeof(WorldLoader), "GenerateLevels")]
-public class Patch_WorldLoader_GenerateLevels {
-	public static void Prefix() {
-
-	}
-}
-
-
-// 补丁类: 修复字符串逻辑
-[HarmonyPatch(typeof(CommandConsole), "CommandValueAsString")]
-public class Patch_CommandConsole_CommandValueAsString {
-	static bool Prefix(Func<object> functor, ref string __result) {
-		object obj = functor();
-
-		if (obj is string str) {
-			__result = $"Value: {str}";
-			return false; // 跳过原方法的执行
-		}
-
-		return true; // 其他类型 继续执行原方法
-	}
-}

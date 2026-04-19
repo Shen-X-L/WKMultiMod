@@ -25,7 +25,7 @@ public class MPGameModeManager {
 	/// </summary>
 	public static void Initialize() {
 
-		MPMain.LogWarning($"[MP Debug] 全部游戏模式");
+		//MPMain.LogWarning($"[MP Debug] 全部游戏模式");
 		FieldInfo field = typeof(CL_AssetManager).GetField(
 			"activeDatabases", BindingFlags.NonPublic | BindingFlags.Static);
 		if (field == null) {

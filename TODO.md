@@ -1,3 +1,6 @@
+修复Facility按钮软锁定
+修复性能问题
+
 玩家ID TMP组件变为UI显示
 
 Restart以后做成 HOOK 拦截 + 启动同步协程 + Loading界面
@@ -11,3 +14,4 @@ Patch_UI_GamemodeScreen.Postfix 改成根据反射onClick激活的函数来确�
 他人想法:
 游乐场模式击杀统计排行榜
 自定义加载的场景死后不断连
+

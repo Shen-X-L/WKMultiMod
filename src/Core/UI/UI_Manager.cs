@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
@@ -13,7 +14,20 @@ using WKMPMod.Util;
 namespace WKMPMod.UI;
 
 public class UI_Manager : MonoSingleton<UI_Manager> {
-
+	/// <summary>
+	/// UI层级
+	/// _lobbyPaneContainer
+	/// ├-_screenTabs
+	/// │ └─_screenTabButtons
+	/// │   ├-LB
+	/// │   ├-_newTabButton
+	/// │   ├-_tabButtonTemplate
+	/// │   └-RB
+	/// └-_screenTabObjects
+	///   ├-_mpLobbyPane
+	///   └─_lobbyPaneTemplate
+	/// </summary>
+	/// 
 
 	public enum UIDisplayType {
 		None,
@@ -24,13 +38,26 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	// 主菜单UI按钮容器路径
-	const string MAIN_MENU_PATH = "Canvas - Main Menu/Main Menu";
-	const string MAIN_MENU_BUTTONS_PATH = "Canvas - Main Menu/Main Menu/Main Menu Buttons";
+	const string MAIN_MENU_PATH = "Main Menu";
+	const string MAIN_MENU_BUTTONS_PATH = "Main Menu/Main Menu Buttons";
 	// Play屏幕UI容器路径
-	const string CANVAS_SCREEN_PLAY_PATH = "Canvas - Screens/Screens/Canvas - Screen - Play";
+	const string CANVAS_SCREEN_PLAY_PATH = "Screens/Canvas - Screen - Play";
 	const string PLAY_PANE_PATH = "Play Pane";
 	// 游戏模式信息屏幕UI容器路径
-	const string GAMEMODE_SCREEN_PATH = "Canvas - Screens/Screens/Canvas - Screen - Play/Play Menu/GamemodeScreen";
+	const string GAMEMODE_SCREEN_PATH = "Screens/Canvas - Screen - Play/Play Menu/GamemodeScreen";
+
+	// Loading界面路径
+	const string LOADING_SCREEN_PATH = "Screens";
+
+	// 修复Facility Button初始化导致Facility界面返回绑定引用错误的问题
+	// 是否正在克隆 屏幕
+	public static bool IsCloningMultiplayerMenu = false;
+
+	// 主菜单引用
+	Transform? _mainMenu;
+	// 主屏幕引用
+	Transform? _screens;
+
 	// 主菜单按钮
 	GameObject? _mpButton;
 	// 多人模式屏幕
@@ -55,23 +82,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// 模式变体容器
 	GameObject? _mutators;
 
-	/// <summary>
-	/// UI层级
-	/// _lobbyPaneContainer
-	/// ├-_screenTabs
-	/// │ └─_screenTabButtons
-	/// │   ├-LB
-	/// │   ├-_newTabButton
-	/// │   ├-_tabButtonTemplate
-	/// │   └-RB
-	/// └-_screenTabObjects
-	///   ├-_mpLobbyPane
-	///   └─_lobbyPaneTemplate
-	/// </summary>
-	/// 
-
-	// Loading界面路径
-	const string LOADING_SCREEN_PATH = "Canvas - Screens/Screens";
 	// Loading界面模版
 	GameObject? loadingTemplate;
 	// 新Loading界面
@@ -88,6 +98,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	// 场景切换时重注册UI
 	public void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
+		Stopwatch sw = Stopwatch.StartNew();
+
 		switch (scene.name) {
 			case "Main-Menu": {
 				try {
@@ -95,15 +107,23 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 					if (_mpButton != null) Destroy(_mpButton);
 					if (_mpScreen != null) Destroy(_mpScreen);
 
-					// 执行子逻辑
+					// 获取根节点引用
+					if (!CacheRoots()) return;
+					
+					// 初始化主菜单按钮
 					CreateMenuButton();
+
+					// 初始化联机屏幕
 					CreateLobbyScreen();
+
+					// 连接按钮与屏幕
 					Initialize();
 				} catch (Exception ex) {
 					// 捕获所有未预期的崩溃, 并记录日志
 					MPMain.LogError(Localization.Get("UI_Manager.CreateMenuUIFailed", ex.Message));
 				}
 				try {
+					// 初始化等待按钮
 					CreateLoadingScreen();
 				} catch (Exception ex) {
 					// 捕获所有未预期的崩溃, 并记录日志
@@ -115,14 +135,29 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 			default:
 				break;
 		}
+
+		sw.Stop();
+		MPMain.LogWarning($"[MP Debug] UI_Manager.OnSceneLoaded耗时{sw.Elapsed.TotalMilliseconds}");
 	}
+
+	#region[初始引用获取]
+	public bool CacheRoots() {
+		if (_screens != null) return true;
+
+		_screens = GameObject.Find("Canvas - Screens")?.transform;
+		_mainMenu = GameObject.Find("Canvas - Main Menu")?.transform;
+
+		return _screens != null && _mainMenu != null;
+	}
+
+	#endregion
 
 	#region[主菜单UI]
 
 	// 在主菜单创建多人模式按钮
 	public void CreateMenuButton() {
 		// 找到现有的菜单容器
-		GameObject menuContent = GameObject.Find(MAIN_MENU_BUTTONS_PATH);
+		GameObject menuContent = _mainMenu!.Find(MAIN_MENU_BUTTONS_PATH).gameObject;
 		if (menuContent == null) {
 			MPMain.LogError(Localization.Get("UI_Manager.MainMenuContainerNotFound"));
 			return;
@@ -139,7 +174,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 修改层级
 		_mpButton.transform.SetSiblingIndex(1);
 		// 修改文字
-		_mpButton.GetComponentInChildren<TMPro.TextMeshProUGUI>()?.text = "MULTI PLAY";
+		_mpButton.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>()?.text = "MULTI PLAY";
 	}
 
 	#endregion
@@ -154,7 +189,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 设置标签页按钮和内容
 		if (!SetupTabButtons()) return;
 		if (!SetupTabContents()) return;
-
 		// 细节处理与事件绑定
 		SetupMutators();
 		BindTabEvents();
@@ -162,14 +196,16 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	// 准备和克隆UI容器, 返回是否成功
 	private bool PrepareRootContainers() {
-		GameObject screenContent = GameObject.Find(CANVAS_SCREEN_PLAY_PATH);
+		GameObject screenContent = _screens!.Find(CANVAS_SCREEN_PLAY_PATH).gameObject;
 		if (screenContent == null) return Error(Localization.Get("UI_Manager.PlayScreenContainerNotFound"));
 
 		GameObject? templateScreen = screenContent.transform.Find("Play Menu")?.gameObject;
 		if (templateScreen == null) return Error(Localization.Get("UI_Manager.PlayMenuTemplateNotFound"));
 
 		// 克隆大厅屏幕
+		IsCloningMultiplayerMenu = true; // 开启拦截标记
 		_mpScreen = Instantiate(templateScreen, screenContent.transform);
+		IsCloningMultiplayerMenu = false; // 关闭拦截标记
 		_mpScreen.name = "Multi Play Menu";
 		_mpScreen.transform.SetSiblingIndex(0);
 
@@ -177,17 +213,19 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		_lobbyPaneContainer = _mpScreen.transform.Find(PLAY_PANE_PATH)?.gameObject;
 		if (_lobbyPaneContainer == null) return Error(Localization.Get("UI_Manager.LobbyPaneContainerPathError"));
 		_lobbyPaneContainer.name = "Lobby Pane";
+
+		// 清理不需要的元素
+		Destroy(_mpScreen.transform.Find("GamemodeScreen").gameObject);
+		Destroy(_lobbyPaneContainer.transform.Find("Facility Button").gameObject);
+		Destroy(_lobbyPaneContainer.transform.Find("Play Scroll View").gameObject);
+		Destroy(_lobbyPaneContainer.transform.Find("Tab Selection").gameObject);
+
 		// 修复UI_LerpOpen组件可能存在的目标位置和缩放问题,防止界面打开动画异常
 		FixLerpComponent(_lobbyPaneContainer);
 
 		// 缓存模式变体容器
 		_mutators = _lobbyPaneContainer.transform.Find("Mutators")?.gameObject;
 		if (_mutators == null) return Error(Localization.Get("UI_Manager.MutatorsContainerPathError"));
-
-		// 清理原版不需要的元素
-		Destroy(_mpScreen.transform.Find("GamemodeScreen").gameObject);
-		Destroy(_lobbyPaneContainer.transform.Find("Play Scroll View").gameObject);
-		Destroy(_lobbyPaneContainer.transform.Find("Tab Selection").gameObject);
 
 		return true;
 	}
@@ -222,7 +260,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 清理其他按钮
 		// 跳过0号 1号 2号 -1号 0号是LB图标 1号是标签页按钮 2号是测试模板按钮 -1号是RB图标
 		for (int i = _screenTabButtons.transform.childCount - 2; i > 2; i--) {
-			_screenTabButtons.transform.GetChild(i).gameObject.SetActive(false);
+			//_screenTabButtons.transform.GetChild(i).gameObject.SetActive(false);
+			Destroy(_screenTabButtons.transform.GetChild(i).gameObject);
 		}
 
 		return true;
@@ -244,7 +283,9 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 		// 清理其他标签页
 		for (int i = _screenTabObjects.transform.childCount - 1; i > 0; i--) {
+			// 不能销毁,父类动画组件会持有 空组件对象
 			_screenTabObjects.transform.GetChild(i).gameObject.SetActive(false);
+			//Destroy(_screenTabObjects.transform.GetChild(i).gameObject);
 		}
 
 		// 创建多人大厅面板
@@ -254,7 +295,10 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 清理面板内部
 		Transform? content = _mpLobbyPane.transform.Find("Viewport/Content");
 		if (content != null) {
-			foreach (Transform child in content) Destroy(child.gameObject);
+			foreach (Transform child in content) {
+				//child.gameObject.SetActive(false);
+				Destroy(child.gameObject);
+			}
 		}
 
 		// 添加大厅列表组件
@@ -311,7 +355,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		discordText.text = "MPMod Discord";
 		discordText.fontSize = 24;
 
-
 		// 添加点击事件
 		var discordButton = discord.AddComponent<Button>();
 		discordButton.onClick.AddListener(() => {
@@ -325,14 +368,13 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		refresh.transform.SetSiblingIndex(1);
 		discord.transform.SetSiblingIndex(2);
 		for (int i = 3; i < _mutators.transform.childCount; i++) {
-			_mutators.transform.GetChild(i).gameObject.SetActive(false);
+			//_mutators.transform.GetChild(i).gameObject.SetActive(false);
+			Destroy(_mutators.transform.GetChild(i).gameObject);
 		}
 
 		if (_mutators.transform is RectTransform containerRect) {
 			LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
 		}
-
-
 
 		return true;
 	}
@@ -349,13 +391,13 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 				name = "lobby",
 				button = _newTabButton.GetComponent<UnityEngine.UI.Button>(),
 				tabObject = _mpLobbyPane,
-				buttonText = _newTabButton.transform.Find("Text (TMP)")?.GetComponent<TextMeshProUGUI>()
+				buttonText = _newTabButton.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>()
 			},
 			new UI_TabGroup.Tab {
 				name = "template",
 				button = _tabButtonTemplate!.GetComponent<UnityEngine.UI.Button>(),
 				tabObject = _lobbyPaneTemplate!,
-				buttonText = _tabButtonTemplate.transform.Find("Text (TMP)")?.GetComponent<TextMeshProUGUI>(),
+				buttonText = _tabButtonTemplate.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>(),
 				onlyDev = true
 			}
 		};
@@ -377,7 +419,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		}
 		menuButtonComponent.screen = _mpScreen?.GetComponent<UI_MenuScreen>();
 		// 初始化函数
-		GameObject menu = GameObject.Find(MAIN_MENU_PATH);
+		GameObject menu = _mainMenu!.Find(MAIN_MENU_PATH).gameObject;
 		var uI_MenuComponent = menu.GetComponent<UI_Menu>();
 		menuButtonComponent.Initialize(uI_MenuComponent);
 	}
@@ -387,12 +429,12 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	#region[Loading界面构建]
 
 	public void CreateLoadingScreen() {
-		loadingTemplate = GameObject.Find("Canvas - Main Menu")?.transform.Find("Loading")?.gameObject;
+		loadingTemplate = _mainMenu!.Find("Loading")?.gameObject;
 		if (loadingTemplate == null) {
 			MPMain.LogError($"[MP Debug] loadingTemplate can not find");
 			return;
 		}
-		var screenTransform = GameObject.Find(LOADING_SCREEN_PATH).transform;
+		var screenTransform = _screens!.Find(LOADING_SCREEN_PATH);
 		newloading = Instantiate(loadingTemplate, screenTransform);
 		newloading.AddComponent<UI_LoadingDisplay>();
 		// 激活新Loading界面
