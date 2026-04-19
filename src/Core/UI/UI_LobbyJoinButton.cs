@@ -3,6 +3,7 @@ using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Collections;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -90,56 +91,50 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 		lobbyName?.text = !string.IsNullOrEmpty(nameData) ? nameData : lobby.Id.ToString();
 
 		// 加载房主信息(头像和名称)
-		_ = TrackAndLoadOwnerInfo();
+		StartCoroutine(TrackAndLoadOwnerInfoCoroutine());
 	}
 
 	/// <summary>
 	/// 异步加载房主信息, 包括头像和名称
 	/// </summary>
-	private async Task TrackAndLoadOwnerInfo() {
-		int retryCount = 0;
-		const int maxRetries = 5;
+	private IEnumerator TrackAndLoadOwnerInfoCoroutine() {
+		Stopwatch sw = Stopwatch.StartNew();
+		sw.Restart();
 
-		// 循环检查 ID 是否有效 (针对 lobby.Owner 延迟对齐的情况)
-		while (this != null && (lobby.Owner.Id == 0)) {
-			if (retryCount >= maxRetries) {
-				MPMain.LogWarning(Localization.Get("UI_LobbyJoinButton.FailedToGetOwnerId",lobby.Id));
-				hostName?.text = "Unknown Host";
-				break;
-			}
+		if (this == null) yield break;
 
-			//强制刷新大厅数据
-			lobby.Refresh();
-
-			await Task.Delay(500); // 每次等 0.5 秒
-			retryCount++;
-		}
-
-		if (this == null) return;
-
+		// 获取 Owner 数据
 		var owner = lobby.Owner;
-		if (lobby.Owner.Id == 0 && ulong.TryParse(lobby.GetData("owner"), out var ownerId)) {
+		if (owner.Id == 0 && ulong.TryParse(lobby.GetData("owner"), out var ownerId)) {
 			owner = new Friend(ownerId);
-
 		}
-			 
-		hostName?.text = string.IsNullOrEmpty(owner.Name) ? "Loading Name..." : owner.Name;
 
-		// 异步加载头像 (这会强制触发 Steam 资料同步)
-		var avatarResult = await owner.GetMediumAvatarAsync();
+		hostName.text = string.IsNullOrEmpty(owner.Name) ? "Loading Name..." : owner.Name;
 
-		if (this == null) return;
+		// 异步加载头像
+		// 由于 GetMediumAvatarAsync 返回 Task，我们可以在协程里等待 Task 完成
+		var avatarTask = owner.GetMediumAvatarAsync();
 
-		// 最终赋值
+		// 轮询直到 Task 完成，不阻塞主线程
+		while (!avatarTask.IsCompleted) {
+			yield return null;
+		}
+
+		// 空对象 退出协程
+		if (this == null) yield break;
+
+		var avatarResult = avatarTask.Result;
+
+		// 赋值头像
 		if (avatarResult.HasValue && hostAvatar != null) {
 			var texture = SteamManager.ConvertSteamIcon(avatarResult.Value);
 			hostAvatar.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
 			hostAvatar.enabled = true;
-
-			hostName?.text = owner.Name;
-			return;
+			hostName.text = owner.Name;
 		}
-		MPMain.LogError(Localization.Get("UI_LobbyJoinButton.FailedToLoadOwnerAvatar", lobby.Id,owner.Id,owner.Name));
+
+		sw.Stop();
+		MPMain.LogWarning($"[MP Debug] UI_LobbyJoinButton.TrackAndLoadOwnerInfoCoroutine: {sw.Elapsed.TotalMilliseconds}ms");
 	}
 
 	/// <summary>
@@ -171,7 +166,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 
 		// 重新加载房主信息
 		if (hostName?.text == "Fetching..." || hostName?.text == "Loading Name...") {
-			_ = TrackAndLoadOwnerInfo();
+			StartCoroutine(TrackAndLoadOwnerInfoCoroutine());
 		}
 	}
 

@@ -63,14 +63,14 @@ public class UI_LobbyListPane : MonoBehaviour {
 	}
 
 	private void OnEnable() {
-		_ = RefreshLobbyList();
+		//_ = RefreshLobbyList();
 	}
 
 	/// <summary>
 	/// 刷新大厅列表并创建对应的UI_LobbyButton
 	/// </summary>
 	public async Task RefreshLobbyList() {
-		Stopwatch sw = Stopwatch.StartNew();
+
 
 		// 获取最新的大厅列表
 		List<Lobby> lobbies = await MPSteamworks.Instance.RefreshLobbyListAsync();
@@ -87,23 +87,28 @@ public class UI_LobbyListPane : MonoBehaviour {
 			return;
 		}
 
-		StartCoroutine(CreateLobby());
-
-		// 添加新的大厅对应的UI_LobbyButton
-		IEnumerator CreateLobby() {
-			foreach (var lobby in lobbies.Where(l => !LobbyDic.ContainsKey(l.Id))) {
-				var newButton = CreateLobbyButton(lobby);
-				if (newButton != null) {
-					LobbyDic[lobby.Id] = newButton;
-					lobby.Refresh();
-				}
-				yield return null;
+		foreach (var lobby in lobbies.Where(l => !LobbyDic.ContainsKey(l.Id))) {
+			var newButton = CreateLobbyButton(lobby);
+			if (newButton != null) {
+				LobbyDic[lobby.Id] = newButton;
+				lobby.Refresh();
 			}
-			yield break;
 		}
 
-		sw.Stop();
-		MPMain.LogWarning($"[MP Debug] UI_LobbyListPane.RefreshLobbyList耗时{sw.Elapsed.TotalMilliseconds}");
+		//StartCoroutine(CreateLobby());
+
+		// 添加新的大厅对应的UI_LobbyButton
+		//IEnumerator CreateLobby() {
+		//	foreach (var lobby in lobbies.Where(l => !LobbyDic.ContainsKey(l.Id))) {
+		//		var newButton = CreateLobbyButton(lobby);
+		//		if (newButton != null) {
+		//			LobbyDic[lobby.Id] = newButton;
+		//			lobby.Refresh();
+		//		}
+		//	}
+		//	yield break;
+		//}
+
 	}
 
 	/// <summary>
@@ -132,6 +137,8 @@ public class UI_LobbyListPane : MonoBehaviour {
 			Destroy(newButtonObj);
 			return null;
 		}
+
+
 	}
 
 	/// <summary>

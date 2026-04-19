@@ -64,6 +64,9 @@
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/WKMultiPlayerMod.Shared.csproj" />
   </Folder>
+  <Folder Name="/src/Test/">
+    <Project Path="../WKTestMod/WKTestMod/WKTestMod.csproj" />
+  </Folder>
   <Folder Name="/temp/">
     <File Path="temp/笔记.md" />
     <Project Path="temp/DailyKnuckle/DailyKnuckle.csproj">

@@ -98,8 +98,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	// 场景切换时重注册UI
 	public void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
-		Stopwatch sw = Stopwatch.StartNew();
-
 		switch (scene.name) {
 			case "Main-Menu": {
 				try {
@@ -135,9 +133,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 			default:
 				break;
 		}
-
-		sw.Stop();
-		MPMain.LogWarning($"[MP Debug] UI_Manager.OnSceneLoaded耗时{sw.Elapsed.TotalMilliseconds}");
 	}
 
 	#region[初始引用获取]
@@ -333,6 +328,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		var refreshButton = refresh.AddComponent<Button>();
 		refreshButton.onClick.AddListener(() => {
 			// 触发大厅列表刷新事件
+			/// <see cref="UI_LobbyListPane.Awake">
 			MPEventBusGame.NotifyRefreshLobbyList();
 		});
 
@@ -410,7 +406,13 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// 初始化UI关联
 	public void Initialize() {
 		// 移除点击事件
-		_mpButton?.GetComponent<UnityEngine.UI.Button>()?.onClick.RemoveAllListeners();
+		_mpButton?.GetComponent<Button>()?.onClick.RemoveAllListeners();
+		// 添加点击事件
+		_mpButton?.GetComponent<Button>()?.onClick.AddListener(() => {
+			// 触发大厅列表刷新事件
+			/// <see cref="UI_LobbyListPane.Awake">
+			MPEventBusGame.NotifyRefreshLobbyList();
+		});
 		// 修改关联菜单
 		var menuButtonComponent = _mpButton?.GetComponent<UI_MenuButton>();
 		if (menuButtonComponent == null) {
@@ -422,6 +424,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		GameObject menu = _mainMenu!.Find(MAIN_MENU_PATH).gameObject;
 		var uI_MenuComponent = menu.GetComponent<UI_Menu>();
 		menuButtonComponent.Initialize(uI_MenuComponent);
+
 	}
 
 	#endregion

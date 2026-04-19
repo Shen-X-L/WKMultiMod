@@ -1,5 +1,4 @@
-修复Facility按钮软锁定
-修复性能问题
+
 
 玩家ID TMP组件变为UI显示
 
@@ -10,6 +9,8 @@ Restart以后做成 HOOK 拦截 + 启动同步协程 + Loading界面
 修改光亮
 换个UI
 Patch_UI_GamemodeScreen.Postfix 改成根据反射onClick激活的函数来确定应该在哪个页面克隆按钮
+
+UI_LobbyListPane.RefreshLobbyList换成对象池
 
 他人想法:
 游乐场模式击杀统计排行榜

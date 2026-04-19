@@ -527,10 +527,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.LobbyList"));
 
-		CommandConsole.BuildCommand("test", Test.Test.Main)
-			.NotCheat()
-			.Description(Localization.Get("CommandHelp.Test"));
-
 		CommandConsole.BuildCommand("invite", OpenSteamInviteUI)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Invite"))
@@ -552,9 +548,6 @@ public class MPCore : MonoSingleton<MPCore> {
 						validator.Reject(); // 不匹配则高亮红色
 				}
 			});
-		
-		CommandConsole.BuildCommand("cheatstest", Test.CheatsTest.Main)
-			.Description(Localization.Get("CommandHelp.CheatsTest"));
 
 		CommandConsole.BuildCommand("setlobbyname", (str) => {
 			_MPsteamworks.SetLobbyData("name", string.Join(" ", str));
