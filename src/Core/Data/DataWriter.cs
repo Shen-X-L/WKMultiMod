@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -9,6 +10,8 @@ using static WKMPMod.Core.MPGameModeManager;
 namespace WKMPMod.Data;
 
 public class DataWriter : IDisposable {
+
+
 	private byte[] _buffer;
 	private int _position;
 	private readonly ArrayPool<byte> _pool;
@@ -219,9 +222,11 @@ public class DataWriter : IDisposable {
 		_position += 4;
 
 		// 直接编码
+		// 将value直接写入_buffer中
 		int actualBytes = Encoding.UTF8.GetBytes(value, 0, value.Length, _buffer, _position);
 
 		// 回头填入真实的字节长度
+		// 获取之前的切片并编辑
 		BinaryPrimitives.WriteInt32LittleEndian(_buffer.AsSpan(lengthPos), actualBytes);
 
 		_position += actualBytes;
@@ -245,15 +250,14 @@ public class DataWriter : IDisposable {
 		Put(dict.Count);
 
 		// 遍历写入键值对
-		foreach (var kvp in dict) {
-			Put(kvp.Key);
-			Put(kvp.Value);
-		}
+		foreach (var kvp in dict) 
+			Put(kvp.Key).Put(kvp.Value);
+		
 		return this;
 	}
 
 	/// <summary>
-	/// 写入<see cref="PlayerData"> 玩家数据
+	/// 写入<see cref="PlayerData"/> 玩家数据
 	/// </summary>
 	public DataWriter Put(PlayerData data) {
 		// 基础信息(id,时间戳)
@@ -277,7 +281,7 @@ public class DataWriter : IDisposable {
 	}
 
 	/// <summary>
-	/// 写入<see cref="GameModeData"> 游戏模式数据
+	/// 写入<see cref="GameModeData"/> 游戏模式数据
 	/// </summary>
 	public DataWriter Put(GameModeData data) {
 		Put(data.isIron);
@@ -285,6 +289,38 @@ public class DataWriter : IDisposable {
 		Put(data.gameModeName);
 		Put(data.gameModeObjectName);
 		Put(data.seed);
+		return this;
+	}
+
+	/// <summary>
+	/// 写入 IReadOnlyList&lt;string&gt; 用于tags等List<string>
+	/// </summary>
+	public DataWriter Put(IReadOnlyList<string> strings) {
+		if (strings == null) {
+			Put(0);
+			return this;
+		}
+		Put(strings.Count);
+		foreach (var x in strings)
+			Put(x);
+		return this;
+	}
+
+	#endregion
+
+	#region[写入泛型类型]
+
+	public DataWriter Put<T>(IReadOnlyList<T> list) where T : IBinarySerializabl {
+		if (list == null || list.Count == 0) {
+			Put(0);
+			return this;
+		}
+		Put(list.Count);
+
+		foreach (var x in list) {
+			x.Serialize(this); // 调已有基础序列化
+		}
+
 		return this;
 	}
 

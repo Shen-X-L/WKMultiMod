@@ -21,7 +21,7 @@ public class Patch_UI_GamemodeScreen {
 		if (!__instance.activePanels.TryGetValue(panelId, out var panel)) return;
 
 		// 检查是否已经注入过按钮, 防止重复
-		if (panel.gameObject.GetComponentInChildren<UI_LobbyCreateButton>() != null) return;
+		if (panel.gameObject.GetComponentInChildren<UI_LobbyCreateButton>(true) != null) return;
 
 		// 找 开始游戏 按钮作为我们的模板
 		Transform? startButton = panel.transform.Find("Pages/Gamemode_Info_Screen/Tab Selection Hor/Play");

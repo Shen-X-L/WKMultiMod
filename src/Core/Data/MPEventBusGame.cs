@@ -12,9 +12,9 @@ public static class MPEventBusGame {
 	public static void NotifyPlayerMove(PlayerData playerData) => OnPlayerMove?.Invoke(playerData);
 
 	// 游戏组件事件: 收到攻击
-	public static event Action<ulong, float, string> OnPlayerDamage;
-	public static void NotifyPlayerDamage(ulong steamId, float amount, string type)
-		=> OnPlayerDamage?.Invoke(steamId, amount, type);
+	public static event Action<ulong, Damageable.DamageInfo> OnPlayerDamage;
+	public static void NotifyPlayerDamage(ulong steamId, Damageable.DamageInfo info)
+		=> OnPlayerDamage?.Invoke(steamId, info);
 
 	// 游戏组件事件: 受到冲击力
 	public static event Action<ulong, Vector3, string> OnPlayerAddForce;

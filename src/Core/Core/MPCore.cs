@@ -360,12 +360,16 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 发送伤害其他玩家数据
+	/// 发送伤害其他玩家数据<br/>
+	/// <see cref="MPPacketHandlers.HandlePlayerDamage"/>
 	/// </summary>
-	private void HandlePlayerDamage(ulong steamId, float amount, string type) {
+	private void HandlePlayerDamage(ulong steamId, Damageable.DamageInfo info) {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, steamId, PacketType.PlayerDamage);
-		writer.Put(amount);
-		writer.Put(type);
+		writer.Put(info.amount);
+		writer.Put(info.type);
+
+		// 下一个版本使用
+		//writer.Put(info.tags);
 		_MPsteamworks.SendToPeer(steamId, writer);
 	}
 

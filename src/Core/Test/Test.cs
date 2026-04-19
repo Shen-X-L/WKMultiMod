@@ -491,10 +491,10 @@ public class CheatsTest : MonoBehaviour {
 			// 获取库存中的物品列表
 			var items = inventory.GetItems();
 			foreach (var item in items) {
-				MPMain.LogInfo($"物品名称: {item.itemName}, 标签: {item.itemTag}, 预制体名称: {item.prefabName}");
+				MPMain.LogInfo($"[MP Debug] 物品名称: {item.itemName}, 标签: {item.itemTag}, 预制体名称: {item.prefabName}");
 			}
 		} else {
-			MPMain.LogWarning("库存不存在");
+			MPMain.LogWarning("[MP Debug] 库存不存在");
 		}
 	}
 	// 创建物品并放入库存测试

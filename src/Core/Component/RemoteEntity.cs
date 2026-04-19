@@ -91,7 +91,9 @@ public class RemoteEntity : GameEntity {
 				amount = baseDamage * OtherActive;
 				break;
 		}
-		MPEventBusGame.NotifyPlayerDamage(PlayerId, amount, info.type);
+
+		MPEventBusGame.NotifyPlayerDamage(PlayerId, 
+			Damageable.DamageInfo.CreateDamageInfo(amount, info.type,info.tags));
 		// 会不会死由对方决定
 		return false;
 	}

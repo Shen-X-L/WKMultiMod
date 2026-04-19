@@ -179,7 +179,7 @@ public class DataReader {
 	}
 
 	/// <summary>
-	/// 获取<see cref="PlayerData"> 玩家数据
+	/// 获取<see cref="PlayerData"/> 玩家数据
 	/// </summary>
 	public PlayerData GetPlayerData() {
 		var data = new PlayerData();
@@ -215,7 +215,7 @@ public class DataReader {
 	}
 
 	/// <summary>
-	/// 获取<see cref="GameModeData"> 游戏模式数据
+	/// 获取<see cref="GameModeData"/>  游戏模式数据
 	/// </summary>
 	public GameModeData GetGameModeData() { 
 		var data = new GameModeData();
@@ -227,5 +227,16 @@ public class DataReader {
 		return data;
 	}
 
+	/// <summary>
+	/// 获取 List&lt;string&gt; 用于tags等List<string>
+	/// </summary>
+	public List<string> GetStringList() { 
+		var data = new List<string>();
+		var i = GetInt();
+		for (int j = 0; j < i; j++) {
+			data.Add(GetString());
+		}
+		return data;
+	}
 	#endregion
 }

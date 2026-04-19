@@ -16,8 +16,8 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 	public const string DEATH_OBJECT_NAME = "Gib_Medium";   // 死亡特效预制体名
 	public const string _ = "Gib_Sturge_Large";             // 备用死亡特效预制体名
 
-	public HashSet<string> loadSet = 
-		[DAMAGE_OBJECT_NAME,	// 受伤特效预制体名
+	public HashSet<string> loadSet =[
+		DAMAGE_OBJECT_NAME,	// 受伤特效预制体名
 		DEATH_OBJECT_NAME	// 死亡特效预制体名
 		];
 	public bool IsInitialized { get; private set; } = false;

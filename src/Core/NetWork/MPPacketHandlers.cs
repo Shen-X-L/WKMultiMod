@@ -75,7 +75,9 @@ public class MPPacketHandlers {
 		RPManager.Instance.ProcessPlayerTag(senderId, msg);
 	}
 
-
+	/// <summary>
+	/// 主机/客户端接收WorldStateSync: 世界状态同步
+	/// </summary>
 	[MPPacketHandler(PacketType.WorldStateSync)]
 	private static void HandleWorldStateSync(ulong senderId, DataReader reader) {
 
@@ -88,6 +90,8 @@ public class MPPacketHandlers {
 	private static void HandlePlayerDamage(ulong senderId, DataReader reader) {
 		float baseDamage = reader.GetFloat();
 		string type = reader.GetString();
+
+		//List<string> tags = reader.GetStringList();
 		var baseAmount = baseDamage * MPConfig.AllPassive;
 		float amount;
 		switch (type) {
@@ -120,7 +124,7 @@ public class MPPacketHandlers {
 				break;
 		}
 		ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type));
-
+		//ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type,tags));
 	}
 
 	/// <summary>
