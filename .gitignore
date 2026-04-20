@@ -372,7 +372,8 @@ lib/*
 # 但保留 libs/README.md 文件
 !libs/README.md
 !lib/README.md
-
+!libs/copy_lib.py
+!lib/copy_lib.py
 
 # 排除整个 temp/ 文件夹 
 # 我用来存放他人代码和工具的位置
