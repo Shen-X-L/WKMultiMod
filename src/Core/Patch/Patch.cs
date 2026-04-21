@@ -10,6 +10,7 @@ using Object = UnityEngine.Object;
 namespace WKMPMod.Patch;
 
 // 补丁类: 强制解锁所有进度
+// HarmonyPatch(类型名,函数名(nameof()或字符串),重载参数(Type[]{}))
 [HarmonyPatch(typeof(CL_ProgressionManager), nameof(CL_ProgressionManager.HasProgressionUnlock))]
 public class Patch_CL_ProgressionManager_HasProgressionUnlock {
 	//bool 类型: 控制是否执行原方法 true=执行 false=跳过

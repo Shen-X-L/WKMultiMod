@@ -78,6 +78,7 @@
     <Project Path="temp/MoreCommand/MoreCommand.csproj">
       <Build Project="false" />
     </Project>
+    <Project Path="temp/Shotgun/Shotgun.csproj" Id="e2288e0a-77eb-4f2e-b0f2-17bf662eaed7" />
     <Project Path="temp/SteamWorks/SteamWorks.csproj">
       <Build Project="false" />
     </Project>
