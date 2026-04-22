@@ -8,6 +8,7 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.RemotePlayer;
 using WKMPMod.Util;
+using WKMPMod.World;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
 using static WKMPMod.Util.DictionaryExtensions;
@@ -81,6 +82,14 @@ public class MPPacketHandlers {
 	[MPPacketHandler(PacketType.WorldStateSync)]
 	private static void HandleWorldStateSync(ulong senderId, DataReader reader) {
 
+	}
+
+	/// <summary>
+	/// 主机/客户端接收PitonStateSync: 同步实时放置的piton状态.
+	/// </summary>
+	[MPPacketHandler(PacketType.PitonStateSync)]
+	private static void HandlePitonStateSync(ulong senderId, DataReader reader) {
+		PitonSyncManager.HandlePitonState(senderId, reader);
 	}
 
 	/// <summary>
