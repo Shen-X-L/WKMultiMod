@@ -19,6 +19,7 @@ public enum PacketType {
 	PlayerDeath = 9,        // 客机->主机->客机: 玩家死亡, 发送广播
 	PlayerCreateRequest = 10, // 客机->主机->客机: 请求创建玩家相应信息(内容:模型工厂名)
 	PlayerCreateResponse = 11, // 主机->客机: 响应创建玩家请求的相关信息(内容:模型工厂名)
+	PitonStateSync = 12,    // 客机->客机: 同步已放置Piton的创建/敲入/失效状态
 
 
 	// 临时措施
