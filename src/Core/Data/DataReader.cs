@@ -129,7 +129,41 @@ public class DataReader {
 			return null;
 		return GetFloat();            // 读取实际值
 	}
-	
+
+	#endregion
+
+	#region[读取Unity类型]
+
+	/// <summary>
+	/// 读取 Vector3
+	/// </summary>
+	public Vector3 GetVector3() {
+		// 获取当前位置的 Span 视图
+		var span = _data.Span.Slice(_position);
+
+		float x = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span));
+		float y = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span.Slice(4)));
+		float z = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span.Slice(8)));
+
+		_position += 12;
+		return new Vector3(x, y, z);
+	}
+
+	/// <summary>
+	/// 读取 Quaternion
+	/// </summary>
+	public Quaternion GetQuaternion() {
+		var span = _data.Span.Slice(_position);
+
+		float x = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span));
+		float y = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span.Slice(4)));
+		float z = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span.Slice(8)));
+		float w = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span.Slice(12)));
+
+		_position += 16;
+		return new Quaternion(x, y, z, w);
+	}
+
 	#endregion
 
 	#region[读取复合类型]
@@ -188,25 +222,16 @@ public class DataReader {
 		data.TimestampTicks = GetLong();
 
 		// 位置信息
-		data.PosX = GetFloat();
-		data.PosY = GetFloat();
-		data.PosZ = GetFloat();
+		data.Position = GetVector3();
 
 		// 角度信息
-		data.RotX = GetFloat();
-		data.RotY = GetFloat();
-		data.RotZ = GetFloat();
-		data.RotW = GetFloat();
+		data.Rotation = GetQuaternion();
 
 		// 左手数据
-		data.LeftHand.PosX = GetFloat();
-		data.LeftHand.PosY = GetFloat();
-		data.LeftHand.PosZ = GetFloat();
+		data.LeftHand.Position = GetVector3();
 
 		// 右手数据
-		data.RightHand.PosX = GetFloat();
-		data.RightHand.PosY = GetFloat();
-		data.RightHand.PosZ = GetFloat();
+		data.RightHand.Position = GetVector3();
 
 		// 状态标志
 		data.IsTeleport = GetBool();

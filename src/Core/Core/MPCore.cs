@@ -432,10 +432,10 @@ public class MPCore : MonoSingleton<MPCore> {
 			.AutocompleteCustom(autocomplete => {
 				// activeArg 表示当前正在输入的参数位置
 				switch (autocomplete.activeArg) {
-					case 1: // 第二参数：Visibility
+					case 1: // 第二参数: Visibility
 						autocomplete.FromArray(new[] { "public", "friends", "private" });
 						break;
-					case 2: // 第三参数：Max Player
+					case 2: // 第三参数: Max Player
 						autocomplete.FromArray(new[] { "2", "4", "8", "16" });
 						break;
 				}

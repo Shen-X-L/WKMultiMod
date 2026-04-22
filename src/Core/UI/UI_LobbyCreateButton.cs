@@ -82,7 +82,6 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 
 	// 创建中 - 目前没有额外逻辑
 	public void Creating() {
-		MPMain.LogWarning("[MP Debug] 创建中");
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.JoiningLobby);
 		// 禁止同一标签页内按钮点击
 		button?.interactable = false;

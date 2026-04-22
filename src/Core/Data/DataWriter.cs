@@ -171,7 +171,7 @@ public class DataWriter : IDisposable {
 
 	#endregion
 
-	#region[写入复合类型函数]
+	#region[写入复合类型]
 
 	// 写入全量数组
 	public DataWriter Put(byte[] value) {
@@ -235,6 +235,43 @@ public class DataWriter : IDisposable {
 
 	#endregion
 
+	#region[写入Unity类型]
+
+	/// <summary>
+	/// 写入 UnityEngine.Vector3
+	/// </summary>
+	public DataWriter Put(Vector3 value) {
+		// 一次性扩充 12 字节
+		EnsureCapacity(12);
+
+		var span = _buffer.AsSpan(_position);
+		BinaryPrimitives.WriteInt32LittleEndian(span, BitConverter.SingleToInt32Bits(value.x));
+		BinaryPrimitives.WriteInt32LittleEndian(span.Slice(4), BitConverter.SingleToInt32Bits(value.y));
+		BinaryPrimitives.WriteInt32LittleEndian(span.Slice(8), BitConverter.SingleToInt32Bits(value.z));
+
+		_position += 12;
+		return this;
+	}
+
+	/// <summary>
+	/// 写入 UnityEngine.Quaternion
+	/// </summary>
+	public DataWriter Put(Quaternion value) {
+		// 一次性扩充 16 字节
+		EnsureCapacity(16);
+
+		var span = _buffer.AsSpan(_position);
+		BinaryPrimitives.WriteInt32LittleEndian(span, BitConverter.SingleToInt32Bits(value.x));
+		BinaryPrimitives.WriteInt32LittleEndian(span.Slice(4), BitConverter.SingleToInt32Bits(value.y));
+		BinaryPrimitives.WriteInt32LittleEndian(span.Slice(8), BitConverter.SingleToInt32Bits(value.z));
+		BinaryPrimitives.WriteInt32LittleEndian(span.Slice(12), BitConverter.SingleToInt32Bits(value.w));
+
+		_position += 16;
+		return this;
+	}
+
+	#endregion
+
 	#region[写入自定义类型]
 
 	/// <summary>
@@ -264,16 +301,16 @@ public class DataWriter : IDisposable {
 		Put(data.playId).Put(data.TimestampTicks);   // long
 
 		// 位置信息
-		Put(data.PosX).Put(data.PosY).Put(data.PosZ);
+		Put(data.Position);
 
 		// 角度信息
-		Put(data.RotX).Put(data.RotY).Put(data.RotZ).Put(data.RotW);
+		Put(data.Rotation);
 
 		// 左手位置数据
-		Put(data.LeftHand.PosX).Put(data.LeftHand.PosY).Put(data.LeftHand.PosZ);
+		Put(data.LeftHand.Position);
 
 		// 右手数据
-		Put(data.RightHand.PosX).Put(data.RightHand.PosY).Put(data.RightHand.PosZ);
+		Put(data.RightHand.Position);
 
 		// 状态标志
 		Put(data.IsTeleport);

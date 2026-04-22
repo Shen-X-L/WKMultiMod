@@ -158,7 +158,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 全局 Steam 回调：当任何一个大厅的数据同步到本地时触发
+	/// 全局 Steam 回调: 当任何一个大厅的数据同步到本地时触发
 	/// </summary>
 	private void OnSteamLobbyDataUpdate(Lobby lobby) {
 		// 利用 Dictionary 快速定位对应的按钮

@@ -122,6 +122,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		SteamMatchmaking.OnLobbyInvite += HandleLobbyInvite;
 		// 该用户接受Steam好友的大厅邀请
 		SteamFriends.OnGameLobbyJoinRequested += HandleGameLobbyJoinRequested;
+		//// 大厅创建后(无论是否成功)的消息
+		SteamMatchmaking.OnLobbyCreated += HandleLobbyCreated;
 
 		// 初始化中继网络(必须调用)
 		SteamNetworkingUtils.InitRelayNetworkAccess();
@@ -165,6 +167,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		SteamMatchmaking.OnLobbyInvite -= HandleLobbyInvite;
 		// 该用户接受Steam好友的大厅邀请
 		SteamFriends.OnGameLobbyJoinRequested -= HandleGameLobbyJoinRequested;
+		//// 大厅创建后(无论是否成功)的消息
+		SteamMatchmaking.OnLobbyCreated -= HandleLobbyCreated;
 
 		DisconnectAll();
 
@@ -490,7 +494,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	public async Task<bool> CreateRoomAsync(int maxPlayers = 8, Dictionary<string, string> lobbyData = null) {
 		// 清理全部连接
 		DisconnectAll();
-		//await Task.Yield();
 
 		try {
 			if (!SteamClient.IsValid) {
@@ -693,6 +696,42 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	private void HandleGameLobbyJoinRequested(Lobby lobby, SteamId steamId) {
 		MPEventBusNet.NotifyGameLobbyJoinRequested(lobby, steamId);
+	}
+
+	/// <summary>
+	/// 接收数据: 大厅创建回调
+	/// </summary>
+	public void HandleLobbyCreated(Result result, Lobby lobby) {
+		// 针对特定错误给玩家提示
+		// 针对常见的大厅创建错误进行分类处理
+		switch (result) {
+			case Result.LimitedUserAccount:
+				MPMain.LogWarning("[MP Debug] 账号受限 无法使用社交功能");
+				break;
+			case Result.NoConnection:
+				MPMain.LogWarning("[MP Debug] 没有连接到 Steam 网络");
+				break;
+			case Result.Timeout:
+				MPMain.LogWarning("[MP Debug] 请求超时,Steam 服务器响应过慢");
+				break;
+			case Result.InvalidParam:
+				MPMain.LogWarning("[MP Debug] 参数错误,maxPlayers 设置超限");
+				break;
+			case Result.RateLimitExceeded:
+				MPMain.LogWarning("[MP Debug] 操作过于频繁,被 Steam 暂时限制频率");
+				break;
+			case Result.LimitExceeded:
+				MPMain.LogWarning("[MP Debug] 达到上限,可能该账号已经开了太多的房间");
+				break;
+			case Result.AccessDenied:
+				MPMain.LogWarning("[MP Debug] 权限不足,可能是被封禁或当前区域/环境受限");
+				break;
+
+			// 默认处理其他不常见错误
+			default:
+				MPMain.LogWarning($"[MP Debug] 大厅创建失败,Steam错误码: {result} ({(int)result})");
+				break;
+		}
 	}
 
 	#endregion
@@ -931,7 +970,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 
 		lock (_taskLock) {
-			// 重置30秒计时器（无论是手动还是自动触发, 都重新开始倒计时）
+			// 重置30秒计时器(无论是手动还是自动触发, 都重新开始倒计时)
 			_autoRefreshTimer.Reset();
 
 			// 如果已经有一个任务在运行, 直接返回该任务

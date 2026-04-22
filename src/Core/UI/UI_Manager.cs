@@ -456,7 +456,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		if (lerp == null) return;
 
 		// 获取私有字段的 FieldInfo
-		// 游戏源码中的变量名：targetPosition, targetSize, rootPositon, rootScale
+		// 游戏源码中的变量名: targetPosition, targetSize, rootPositon, rootScale
 		Type type = typeof(UI_LerpOpen);
 		BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
 

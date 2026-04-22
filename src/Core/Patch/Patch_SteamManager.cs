@@ -12,10 +12,8 @@ public class Patch_SteamManager {
 	[HarmonyPostfix]
 	[HarmonyPatch("Awake")]
 	public static void Postfix(SteamManager __instance) {
-		MPMain.LogInfo(Localization.Get("Patch.PreparingToInjectCore"));
 
 		if (_hasCoreInjected) {
-			MPMain.LogWarning(Localization.Get("Patch.CoreAlreadyInjected"));
 			return;
 		}
 
@@ -31,7 +29,6 @@ public class Patch_SteamManager {
 		try {
 			_ = MPCore.Instance;
 
-			MPMain.LogInfo(Localization.Get("Patch.CoreInjectionSuccess"));
 			_hasCoreInjected = true;
 
 		} catch (System.Exception e) {

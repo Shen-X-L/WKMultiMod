@@ -28,10 +28,10 @@ public static class Localization {
 		}
 		public string GetValue(System.Random rand) {
 			if (_data is string[] arr) {
-				// 数组：随机取一项
+				// 数组: 随机取一项
 				return arr[rand.Next(arr.Length)];
 			}
-			// 单行文本：直接返回
+			// 单行文本: 直接返回
 			return _data?.ToString() ?? string.Empty;
 		}
 	}
