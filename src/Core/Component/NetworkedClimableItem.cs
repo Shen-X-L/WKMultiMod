@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace WKMPMod.Component;
 
-public class NetworkedPiton : MonoBehaviour {
+public class NetworkedClimableItem : MonoBehaviour {
     public string NetworkId { get; set; } = string.Empty;
     public string PrefabKey { get; set; } = string.Empty;
     public ulong OwnerId { get; set; }

@@ -42,7 +42,7 @@ public static class ClimbableItemSyncManager {
 
 	// 已同步的Piton对象表，key为NetworkId
 	// Synced piton lookup, keyed by NetworkId
-	private static readonly Dictionary<string, NetworkedPiton> _pitons = new();
+	private static readonly Dictionary<string, NetworkedClimableItem> _pitons = new();
 
 	// 预制体查找表，用于远程创建时根据名称找到对应Prefab
 	// Prefab lookup used to resolve prefabs by name when creating remote objects
@@ -286,7 +286,7 @@ public static class ClimbableItemSyncManager {
 	///
 	/// Applies synced state to a NetworkedPiton object
 	/// </summary>
-	private static void ApplyState(NetworkedPiton identity, Vector3 position, Quaternion rotation,
+	private static void ApplyState(NetworkedClimableItem identity, Vector3 position, Quaternion rotation,
 								   float secureAmount, bool secure, bool active) {
 		var transform = identity.transform;
 		transform.position = position;
@@ -392,8 +392,8 @@ public static class ClimbableItemSyncManager {
 	///
 	/// Finds the matching NetworkedPiton identity component from a handhold
 	/// </summary>
-	private static NetworkedPiton FindIdentity(CL_Handhold handhold) {
-		return handhold.GetComponent<NetworkedPiton>() ?? handhold.GetComponentInParent<NetworkedPiton>();
+	private static NetworkedClimableItem FindIdentity(CL_Handhold handhold) {
+		return handhold.GetComponent<NetworkedClimableItem>() ?? handhold.GetComponentInParent<NetworkedClimableItem>();
 	}
 
 	/// <summary>
@@ -557,10 +557,10 @@ public static class ClimbableItemSyncManager {
 	///
 	/// Gets or creates the NetworkedPiton component
 	/// </summary>
-	private static NetworkedPiton GetOrCreateIdentity(GameObject obj) {
-		var identity = obj.GetComponent<NetworkedPiton>();
+	private static NetworkedClimableItem GetOrCreateIdentity(GameObject obj) {
+		var identity = obj.GetComponent<NetworkedClimableItem>();
 		if (identity == null) {
-			identity = obj.AddComponent<NetworkedPiton>();
+			identity = obj.AddComponent<NetworkedClimableItem>();
 		}
 		return identity;
 	}
@@ -572,7 +572,7 @@ public static class ClimbableItemSyncManager {
 	/// Broadcasts a piton sync message
 	/// The message includes NetworkId, PrefabKey, transform, secure state and active state
 	/// </summary>
-	private static void Broadcast(NetworkedPiton identity, PitonSyncAction action, bool force) {
+	private static void Broadcast(NetworkedClimableItem identity, PitonSyncAction action, bool force) {
 		if (identity == null || string.IsNullOrEmpty(identity.NetworkId)) return;
 
 		var handhold = GetTrackedHandhold(identity.gameObject);
@@ -599,7 +599,7 @@ public static class ClimbableItemSyncManager {
 	///
 	/// Checks whether the state changed enough to require syncing
 	/// </summary>
-	private static bool HasMeaningfulStateChange(NetworkedPiton identity, CL_Handhold handhold) {
+	private static bool HasMeaningfulStateChange(NetworkedClimableItem identity, CL_Handhold handhold) {
 		if (identity.LastActive != identity.gameObject.activeSelf) return true;
 		if ((identity.LastPosition - identity.transform.position).sqrMagnitude > PositionEpsilonSqr) return true;
 		if (Quaternion.Angle(identity.LastRotation, identity.transform.rotation) > RotationEpsilon) return true;
@@ -613,7 +613,7 @@ public static class ClimbableItemSyncManager {
 	///
 	/// Records the current state as the last synced state
 	/// </summary>
-	private static void RecordState(NetworkedPiton identity, CL_Handhold handhold) {
+	private static void RecordState(NetworkedClimableItem identity, CL_Handhold handhold) {
 		identity.LastSentTime = Time.time;
 		identity.LastPosition = identity.transform.position;
 		identity.LastRotation = identity.transform.rotation;
