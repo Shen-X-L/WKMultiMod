@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using WKMPMod.Component;
+using WKMPMod.Core;
 
 namespace WKMPMod.Data;
 
@@ -11,8 +11,13 @@ public static class MPEventBusGame {
 	public static event Action<PlayerData> OnPlayerMove;
 	public static void NotifyPlayerMove(PlayerData playerData) => OnPlayerMove?.Invoke(playerData);
 
-	// 游戏组件事件: 收到攻击
+	/// <summary>
+	/// 游戏组件事件: 收到攻击 订阅者<see cref="MPCore.HandlePlayerDamage">
+	/// </summary>
 	public static event Action<ulong, Damageable.DamageInfo> OnPlayerDamage;
+	/// <summary>
+	/// 调用者 <see cref="RemoteEntity.Damage">
+	/// </summary>
 	public static void NotifyPlayerDamage(ulong steamId, Damageable.DamageInfo info)
 		=> OnPlayerDamage?.Invoke(steamId, info);
 

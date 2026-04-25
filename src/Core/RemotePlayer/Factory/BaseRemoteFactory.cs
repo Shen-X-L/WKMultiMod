@@ -29,12 +29,12 @@ public abstract class BaseRemoteFactory {
 
 	// 加载并处理预制体
 	public GameObject LoadAndPrepare(string path) {
-		// 1. 在 try 外部声明引用,以便 finally 块能访问到它
+		// 在 try 外部声明引用,以便 finally 块能访问到它
 		AssetBundle bundle = null;
 		GameObject raw = null;
 
 		try {
-			// 2. 在 try 内部申请资源
+			// 在 try 内部申请资源
 			bundle = AssetBundle.LoadFromFile(path);
 
 			if (bundle == null) {
@@ -48,7 +48,7 @@ public abstract class BaseRemoteFactory {
 				return null;
 			}
 
-			// 3. 执行各种修复和处理
+			// 执行各种修复和处理
 			ProcessPrefabMarkers(raw);
 			FixShaders(raw);
 			AddFactoryId(raw);

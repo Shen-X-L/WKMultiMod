@@ -112,10 +112,10 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 		hostName.text = string.IsNullOrEmpty(owner.Name) ? "Loading Name..." : owner.Name;
 
 		// 异步加载头像
-		// 由于 GetMediumAvatarAsync 返回 Task，我们可以在协程里等待 Task 完成
+		// 由于 GetMediumAvatarAsync 返回 Task, 我们可以在协程里等待 Task 完成
 		var avatarTask = owner.GetMediumAvatarAsync();
 
-		// 轮询直到 Task 完成，不阻塞主线程
+		// 轮询直到 Task 完成, 不阻塞主线程
 		while (!avatarTask.IsCompleted) {
 			yield return null;
 		}

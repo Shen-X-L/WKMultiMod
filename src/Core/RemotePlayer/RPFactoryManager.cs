@@ -31,7 +31,7 @@ public class RPFactoryManager: Singleton<RPFactoryManager> {
 	/// <param name="factory">工厂类实例</param>
 	/// <param name="prefabName">预制体名称</param>
 	/// <param name="bundlePath">AssetBundle完整路径</param>
-	public void RegisterFactory(string factoryId, BaseRemoteFactory factory, string prefabName, string bundlePath) {
+	public static void RegisterFactory(string factoryId, BaseRemoteFactory factory, string prefabName, string bundlePath) {
 		if (factories.ContainsKey(factoryId)) {
 			MPMain.LogWarning(Localization.Get("RPFactoryManager.FactoryAlreadyRegistered", factoryId));
 			return;

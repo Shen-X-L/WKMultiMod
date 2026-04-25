@@ -21,14 +21,6 @@ public class SlugcatFactory : BaseRemoteFactory {
 	}
 
 	public override void Cleanup(GameObject instance) {
-		if (instance != null) {
-			// 找到名字标签组件
-			//var tmpText = instance.GetComponentInChildren<TMPro.TMP_Text>();
-
-			//if (tmpText != null && tmpText.fontMaterial != null) {
-			//	Object.Destroy(tmpText.fontMaterial);
-			//}
-		}
 		base.Cleanup(instance);
 	}
 

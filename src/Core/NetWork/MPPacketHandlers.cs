@@ -93,14 +93,15 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
-	/// 主机/客户端接收PlayerDamage: 受到伤害
+	/// 主机/客户端接收PlayerDamage: 受到伤害<br/>
+	/// 接受路由函数: <see cref="MPCore.HandlePlayerDamage"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDamage)]
 	private static void HandlePlayerDamage(ulong senderId, DataReader reader) {
 		float baseDamage = reader.GetFloat();
 		string type = reader.GetString();
+		List<string> tags = reader.GetStringList();
 
-		//List<string> tags = reader.GetStringList();
 		var baseAmount = baseDamage * MPConfig.AllPassive;
 		float amount;
 		switch (type) {
@@ -132,8 +133,7 @@ public class MPPacketHandlers {
 				amount = baseAmount * MPConfig.OtherPassive;
 				break;
 		}
-		ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type));
-		//ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type,tags));
+		ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type,tags));
 	}
 
 	/// <summary>

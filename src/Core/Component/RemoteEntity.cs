@@ -38,19 +38,8 @@ public class RemoteEntity : GameEntity {
 	}
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
-		//MPMain.LogWarning(
-		//	$"[MP Debug] " +
-		//	$"伤害量:{info.amount} " +
-		//	$"伤害类型:{info.type} " +
-		//	$"伤害位置:{info.position} " +
-		//	$"冲击力:{info.force}");
-
-		//// sourceObject 可能为空, 最好判空
-		//if (info.sourceObject != null) MPMain.LogWarning($"伤害来源:{info.sourceObject.name}");
-		
-		//// tags 也可能为空
-		//if (info.tags != null) 
-		//	foreach (var tag in info.tags) MPMain.LogWarning($"伤害标签:{tag}");
+		// 关闭pvp
+		if (!MPCore.IsAllowPVP) return false;
 
 		// 生成伤害特效
 		if (DamageObject != null) {
@@ -103,6 +92,8 @@ public class RemoteEntity : GameEntity {
 	}
 	// 添加力(基础实现)
 	public override void AddForce(Vector3 v, string source = "") {
+		// 关闭pvp
+		if (!MPCore.IsAllowPVP) return;
 		// 发送冲击力通知事件
 		MPEventBusGame.NotifyPlayerAddForce(PlayerId, v / 10, source);
 	}

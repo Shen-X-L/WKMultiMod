@@ -1,7 +1,8 @@
-﻿
+﻿using WKMPMod.Core;
 using Steamworks;
 using Steamworks.Data;
 using System;
+using System.Collections.Generic;
 
 namespace WKMPMod.Data;
 
@@ -52,6 +53,10 @@ public static class MPEventBusNet {
 	public static event Action<Friend> OnLobbyMemberLeave;
 	// 接收事件: 大厅成员数据或大厅所有权发生变更
 	public static event Action<Lobby, Friend> OnLobbyHostChanged;
+	/// <summary>
+	/// 接收事件：大厅数据(规则)变动 订阅者<see cref="MPCore.HandleLobbyDataChanged"/>
+	/// </summary>
+	public static event Action<Dictionary<string, string>> OnLobbyDataChanged;
 
 	public static void NotifyLobbyEntered(Lobby lobby)
 		=> OnLobbyEntered?.Invoke(lobby);
@@ -61,6 +66,8 @@ public static class MPEventBusNet {
 		=> OnLobbyMemberLeave?.Invoke(steamId);
 	public static void NotifyLobbyHostChanged(Lobby lobby, Friend hostId)
 		=> OnLobbyHostChanged?.Invoke(lobby, hostId);
+	public static void NotifyLobbyDataChanged(Dictionary<string, string> delta)
+		=> OnLobbyDataChanged?.Invoke(delta);
 
 	// 邀请事件
 	// 接收世界: 接收大厅邀请

@@ -16,7 +16,7 @@ public class MPConfig {
 
 	// 远程玩家模型 (默认值为 "default", 可以设置为 "slugcat" 来使用蛞蝓猫模型)
 	private static ConfigEntry<string> _remotePlayerModel;
-	public static string RemotePlayerModel { 
+	public static string RemotePlayerModel {
 		get { return _remotePlayerModel.Value; }
 		set { _remotePlayerModel.Value = value; }
 	}
@@ -82,6 +82,23 @@ public class MPConfig {
 	public static float OtherActive { get { return _otherActive.Value; } }
 	public static float OtherPassive { get { return _otherPassive.Value; } }
 	#endregion
+
+	#region[房间规则控制]
+
+	private static ConfigEntry<bool> _allowCheats;
+	private static ConfigEntry<bool> _allowPVP;
+
+	public static bool AllowCheats {
+		get { return _allowCheats.Value; }
+		set { _allowCheats.Value = value; }
+	}
+	public static bool AllowPVP {
+		get { return _allowPVP.Value; }
+		set { _allowPVP.Value = value; }
+	}
+
+	#endregion
+
 	public static void Initialize(ConfigFile config) {
 
 		_dataSendFrequency = config.Bind<int>(
@@ -240,6 +257,21 @@ Passive配置项控制玩家受到的伤害倍率
 			"RemotePlayerPvP", "OtherPassive", 1.0f,
 			"Multiplier for other damage received by the player.\n" +
 			"玩家受到其他伤害类型的伤害倍率");
+		#endregion
+
+		#region[房间规则控制]
+
+		_allowCheats = config.Bind<bool>(
+			"LobbyRule", "cheats", false, 
+			"Controls whether cheats are allowed by default in lobby you host.\n" +
+			"控制由你开启的房间是否默认可以使用cheats"
+			);
+		_allowPVP = config.Bind<bool>(
+			"LobbyRule", "PVP", false,
+			"Controls whether PvP is enabled by default in lobby you host.\n" +
+			"控制由你开启的房间是否默认可以PVP"
+			);
+
 		#endregion
 	}
 }

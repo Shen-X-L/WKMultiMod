@@ -58,7 +58,6 @@ public static class MPStatusExtension {
 }
 #endregion
 public class MPCore : MonoSingleton<MPCore> {
-
 	// Debug日志输出间隔
 	private TickTimer _debugTick = new TickTimer(5f);
 	// 玩家数量同步间隔
@@ -73,6 +72,11 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	// 多人模式状态
 	public static MPStatus MultiPlayerStatus = MPStatus.NotInitialized;
+
+	// 多人模式大厅规则
+	public static bool IsAllowPVP { get; private set; }
+	public static bool IsAllowCheats { get; private set; }
+
 	// 是否处于大厅中
 	public static bool IsInLobby => MultiPlayerStatus.IsInLobby();
 	public static bool IsInitialized => MultiPlayerStatus.IsInitialized();
@@ -175,6 +179,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusNet.OnLobbyEntered += HandleLobbyEntered;
 		MPEventBusNet.OnLobbyMemberJoined += HandleLobbyMemberJoined;
 		MPEventBusNet.OnLobbyMemberLeave += HandleLobbyMemberLeft;
+		MPEventBusNet.OnLobbyDataChanged += HandleLobbyDataChanged;
 
 		// 订阅玩家连接事件
 		MPEventBusNet.OnPlayerConnected += HandlePlayerConnected;
@@ -201,6 +206,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusNet.OnLobbyEntered -= HandleLobbyEntered;
 		MPEventBusNet.OnLobbyMemberJoined -= HandleLobbyMemberJoined;
 		MPEventBusNet.OnLobbyMemberLeave -= HandleLobbyMemberLeft;
+		MPEventBusNet.OnLobbyDataChanged -= HandleLobbyDataChanged; 
 
 		// 退订玩家连接事件
 		MPEventBusNet.OnPlayerConnected -= HandlePlayerConnected;
@@ -266,7 +272,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (_MPsteamworks.IsHost) {
 					// 设置当前游戏模式数据
 					MPGameModeManager.CaptureCurrentData();
-					// 以后会在这里广播模式数据
+					// 以后会在这里广播模式数据,用于房主切换游戏模式
 
 					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 				}
@@ -338,7 +344,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	#endregion
 
 	#region[游戏数据收集处理]
-
 	/// <summary>
 	/// 发送本地玩家数据
 	/// </summary>
@@ -357,15 +362,14 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	/// <summary>
 	/// 发送伤害其他玩家数据<br/>
-	/// <see cref="MPPacketHandlers.HandlePlayerDamage"/>
+	/// 接受路由函数: <see cref="MPPacketHandlers.HandlePlayerDamage"/>
 	/// </summary>
 	private void HandlePlayerDamage(ulong steamId, Damageable.DamageInfo info) {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, steamId, PacketType.PlayerDamage);
 		writer.Put(info.amount);
 		writer.Put(info.type);
+		writer.Put(info.tags);
 
-		// 下一个版本使用
-		//writer.Put(info.tags);
 		_MPsteamworks.SendToPeer(steamId, writer);
 	}
 
@@ -535,24 +539,68 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("lobbytype", SetLobbyVisibility)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.LobbyYype"))
-			.OverValue(() => _MPsteamworks.IsInLobby 
-				? _MPsteamworks._currentLobby.GetData("visibility") : "Not In Lobby")
+			.OverValue(() => _MPsteamworks.IsInLobby
+				? (_MPsteamworks.LobbyData?.GetValueOrDefault("visibility") ?? "unknown value")
+				: "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
-				if (autocomplete.activeArg == 0) 
+				if (autocomplete.activeArg == 0)
 					autocomplete.FromArray(new[] { "public", "friends", "private" });
 			})
 			.AutocompleteValidator(validator => {
 				if (validator.activeArg == 1) {
 					string vis = validator.ArgumentAt(1).ToLower();
-					if (vis != "public" && vis != "friends" && vis != "private") 
+					if (vis != "public" && vis != "friends" && vis != "private")
 						validator.Reject(); // 不匹配则高亮红色
 				}
 			});
 
 		CommandConsole.BuildCommand("setlobbyname", (str) => {
-			_MPsteamworks.SetLobbyData("name", string.Join(" ", str));
+			if (_MPsteamworks.IsHost)
+				_MPsteamworks.SetLobbyData("name", string.Join(" ", str));
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.SetLobbyName"));
+
+		CommandConsole.BuildCommand("allowcheats", (str) => {
+			if (_MPsteamworks.IsHost && bool.TryParse(str[0], out bool result))
+				_MPsteamworks.SetLobbyData("allowCheats", result.ToString());
+		}).NotCheat()
+			.Description(Localization.Get("CommandHelp.AllowCheats"))
+			.OverValue(() => _MPsteamworks.IsInLobby
+				? (_MPsteamworks.LobbyData?.GetValueOrDefault("allowCheats") ?? "unknown value")
+				: "Not In Lobby")
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0 && _MPsteamworks.IsHost)
+					autocomplete.FromArray(new[] { "True", "False" });
+				if (autocomplete.activeArg == 0 && !_MPsteamworks.IsHost)
+					autocomplete.FromArray(new[] { "You Are Not Host" });
+			}).AutocompleteValidator(validator => {
+				if (validator.activeArg == 1) {
+					string vis = validator.ArgumentAt(1).ToLower();
+					if (vis != "True" && vis != "False")
+						validator.Reject(); // 不匹配则高亮红色
+				}
+			});
+
+		CommandConsole.BuildCommand("allowpvp", (str) => {
+			if (_MPsteamworks.IsHost && bool.TryParse(str[0], out bool result))
+				_MPsteamworks.SetLobbyData("allowPVP", result.ToString());
+		}).NotCheat()
+			.Description(Localization.Get("CommandHelp.AllowPVP"))
+			.OverValue(() => _MPsteamworks.IsInLobby
+				? (_MPsteamworks.LobbyData?.GetValueOrDefault("allowPVP") ?? "unknown value")
+				: "Not In Lobby")
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0 && _MPsteamworks.IsHost)
+					autocomplete.FromArray(new[] { "True", "False" });
+				if (autocomplete.activeArg == 0 && !_MPsteamworks.IsHost)
+					autocomplete.FromArray(new[] { "You Are Not Host" });
+			}).AutocompleteValidator(validator => {
+				if (validator.activeArg == 1) {
+					string vis = validator.ArgumentAt(1).ToLower();
+					if (vis != "True" && vis != "False")
+						validator.Reject(); // 不匹配则高亮红色
+				}
+			});
 	}
 
 	/// <summary>
@@ -866,7 +914,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			"friends" => _MPsteamworks._currentLobby.SetFriendsOnly(),
 			"private" => _MPsteamworks._currentLobby.SetPrivate(),
 			_ => false
-		}; 
+		};
 		if (success) {
 			_MPsteamworks._currentLobby.SetData("visibility", args[0].ToLower());
 			CommandConsole.Log(Localization.Get("CommandConsole.LobbyVisibilitySet", args[0]));
@@ -960,9 +1008,28 @@ public class MPCore : MonoSingleton<MPCore> {
 		_RPManager.PlayerRemove(steamId);
 	}
 
+	/// <summary>
+	/// 处理事件总线 大厅邀请OnLobbyInvite
+	/// </summary>
 	private void HandleLobbyInvite(Friend friend, Lobby lobby) {
 		var message = Localization.GetRandom("DisplayMessage.InviteReceivedMessages", friend.Name, lobby.GetData("name"));
 		SystemMessage(message, UIDisplayType.AscentHeader);
+	}
+
+	/// <summary>
+	/// 处理事件总线 大厅数据(规则)改变OnLobbyDataChange<br/>
+	/// 调用者: <see cref="MPSteamworks.HandleLobbyEntered"/><br/>
+	/// 调用者: <see cref="MPSteamworks.HandleLobbyDataChanged"/><br/>
+	/// </summary>
+	private void HandleLobbyDataChanged(Dictionary<string, string> delta) {
+		if (delta == null) return;
+		IsAllowCheats = TryGetBool(delta, "allowCheats");
+		// 明确要求关闭作弊
+		if (!IsAllowCheats) {
+			CommandConsole.cheatsEnabled = false;
+			ENT_Player.GetPlayer().noclip = false;
+		}
+		IsAllowPVP = TryGetBool(delta, "allowPVP");
 	}
 
 	#endregion
@@ -985,17 +1052,14 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	#endregion
 
-	#region[联机状态设置函数]
-
-	//public MPCore SetStatus(MPStatus mask, MPStatus value) {
-	//	MultiPlayerStatus.SetField(mask, value);
-	//	return this;
-	//}
-
+	#region[联机状态函数]
 	public static void SetStatus(MPStatus mask, MPStatus value) {
 		MultiPlayerStatus.SetField(mask, value);
 	}
 
+	public static bool CanSync() {
+		return MPCore.IsInLobby && MPCore.IsInitialized && MPSteamworks.Instance.HasConnections;
+	}
 	#endregion
 
 	#region[工具函数]
@@ -1034,5 +1098,15 @@ public class MPCore : MonoSingleton<MPCore> {
 	private static void CopyToClipboard(string text) {
 		GUIUtility.systemCopyBuffer = text;
 	}
+
+
+	public static bool TryGetBool(Dictionary<string, string> dictionary,string key, bool defaultValue = false) {
+		if (dictionary.TryGetValue(key, out var value) && bool.TryParse(value, out var result)) {
+			return result;
+		} else {
+			return defaultValue;
+		}
+	}
+
 	#endregion
 }
