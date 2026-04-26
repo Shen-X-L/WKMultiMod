@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using WKMPMod.Core;
 using WKMPMod.NetWork;
+using WKMPMod.Util;
 
 namespace WKMPMod.Patch;
 
@@ -34,7 +35,8 @@ public class Patch_CommandConsole {
 	public static bool Prefix() {
 		// 在大厅且不允许作弊
 		if (MPCore.IsInLobby && !MPCore.IsAllowCheats) {
-			CommandConsole.LogError("[MP Debug] Cheats are not allowed in the current lobby. Please ask the host to use allowcheats true.");
+			// 当前大厅不允许作弊
+			CommandConsole.LogError(Localization.Get("CommandConsole.CheatsNotAllowed"));
 			return false;
 		} 
 		else return true;

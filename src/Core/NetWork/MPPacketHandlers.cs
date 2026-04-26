@@ -98,41 +98,9 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDamage)]
 	private static void HandlePlayerDamage(ulong senderId, DataReader reader) {
-		float baseDamage = reader.GetFloat();
+		float amount = reader.GetFloat();
 		string type = reader.GetString();
 		List<string> tags = reader.GetStringList();
-
-		var baseAmount = baseDamage * MPConfig.AllPassive;
-		float amount;
-		switch (type) {
-			case "Hammer":
-				amount = baseAmount * MPConfig.HammerPassive;
-				break;
-			case "rebar":
-				amount = baseAmount * MPConfig.RebarPassive;
-				break;
-			case "returnrebar":
-				amount = baseAmount * MPConfig.ReturnRebarPassive;
-				break;
-			case "rebarexplosion":
-				amount = baseAmount * MPConfig.RebarExplosionPassive;
-				break;
-			case "explosion":
-				amount = baseAmount * MPConfig.ExplosionPassive;
-				break;
-			case "piton":
-				amount = baseAmount * MPConfig.PitonPassive;
-				break;
-			case "flare":
-				amount = baseAmount * MPConfig.FlarePassive;
-				break;
-			case "ice":
-				amount = baseAmount * MPConfig.IcePassive;
-				break;
-			default:
-				amount = baseAmount * MPConfig.OtherPassive;
-				break;
-		}
 		ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type,tags));
 	}
 

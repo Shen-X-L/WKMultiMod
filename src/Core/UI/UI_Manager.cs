@@ -434,7 +434,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	public void CreateLoadingScreen() {
 		loadingTemplate = _mainMenu!.Find("Loading")?.gameObject;
 		if (loadingTemplate == null) {
-			MPMain.LogError($"[MP Debug] loadingTemplate can not find");
+			MPMain.LogError(Localization.Get("UI_Manager.LoadingTemplateNotFound"));
 			return;
 		}
 		var screenTransform = _screens!.Find(LOADING_SCREEN_PATH);

@@ -24,12 +24,10 @@ public class MPGameModeManager {
 	/// 获取全部游戏模式
 	/// </summary>
 	public static void Initialize() {
-
-		//MPMain.LogWarning($"[MP Debug] 全部游戏模式");
 		FieldInfo field = typeof(CL_AssetManager).GetField(
 			"activeDatabases", BindingFlags.NonPublic | BindingFlags.Static);
 		if (field == null) {
-			MPMain.LogError("[MP Debug] 字段未找到");
+			MPMain.LogError(Localization.Get("MPGameModeManager.FieldNotFound"));
 			return;
 		}
 		var dict = (Dictionary<string, WKDatabaseHolder>)field.GetValue(null);

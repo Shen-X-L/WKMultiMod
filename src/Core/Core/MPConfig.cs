@@ -2,10 +2,18 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
+using WKMPMod.Component;
 
 namespace WKMPMod.Core;
 
 public class MPConfig {
+	// 配置版本号
+	private const string CURRENT_CONFIG_VERSION = "1.0";
+
+	// 配置版本号 (在大更新时对其配置用)
+	private static ConfigEntry<string> _configVersion;
+
 	// 数据发送频率 (每秒发送次数)
 	private static ConfigEntry<int> _dataSendFrequency;
 	public static int DataSendFrequency { get { return _dataSendFrequency.Value; } }
@@ -24,63 +32,47 @@ public class MPConfig {
 	#region[PVP相关]
 	// All (所有伤害)
 	private static ConfigEntry<float> _allActive;
-	private static ConfigEntry<float> _allPassive;
 	public static float AllActive { get { return _allActive.Value; } }
-	public static float AllPassive { get { return _allPassive.Value; } }
 
 	// Hammer (锤子)
 	private static ConfigEntry<float> _hammerActive;
-	private static ConfigEntry<float> _hammerPassive;
 	public static float HammerActive { get { return _hammerActive.Value; } }
-	public static float HammerPassive { get { return _hammerPassive.Value; } }
+
+	// Melee (近战)
+	private static ConfigEntry<float> _meleeActive;
+	public static float MeleeActive { get { return _meleeActive.Value; } }
 
 	// rebar (钢筋/骨矛)
 	private static ConfigEntry<float> _rebarActive;
-	private static ConfigEntry<float> _rebarPassive;
 	public static float RebarActive { get { return _rebarActive.Value; } }
-	public static float RebarPassive { get { return _rebarPassive.Value; } }
 
 	// piton (自动钻头)
 	private static ConfigEntry<float> _pitonActive;
-	private static ConfigEntry<float> _pitonPassive;
 	public static float PitonActive { get { return _pitonActive.Value; } }
-	public static float PitonPassive { get { return _pitonPassive.Value; } }
 
 	// flare (信号枪)
 	private static ConfigEntry<float> _flareActive;
-	private static ConfigEntry<float> _flarePassive;
 	public static float FlareActive { get { return _flareActive.Value; } }
-	public static float FlarePassive { get { return _flarePassive.Value; } }
 
 	// returnrebar (神器长矛)
 	private static ConfigEntry<float> _returnRebarActive;
-	private static ConfigEntry<float> _returnRebarPassive;
 	public static float ReturnRebarActive { get { return _returnRebarActive.Value; } }
-	public static float ReturnRebarPassive { get { return _returnRebarPassive.Value; } }
 
 	// rebarexplosion (爆炸钢筋)
 	private static ConfigEntry<float> _rebarExplosionActive;
-	private static ConfigEntry<float> _rebarExplosionPassive;
 	public static float RebarExplosionActive { get { return _rebarExplosionActive.Value; } }
-	public static float RebarExplosionPassive { get { return _rebarExplosionPassive.Value; } }
 
 	// rebarexplosion (爆炸)
 	private static ConfigEntry<float> _explosionActive;
-	private static ConfigEntry<float> _explosionPassive;
 	public static float ExplosionActive { get { return _explosionActive.Value; } }
-	public static float ExplosionPassive { get { return _explosionPassive.Value; } }
 
 	// ice (造冰枪-冰锥)
 	private static ConfigEntry<float> _iceActive;
-	private static ConfigEntry<float> _icePassive;
 	public static float IceActive { get { return _iceActive.Value; } }
-	public static float IcePassive { get { return _icePassive.Value; } }
 
 	// other (其他伤害类型)
 	private static ConfigEntry<float> _otherActive;
-	public static ConfigEntry<float> _otherPassive;
 	public static float OtherActive { get { return _otherActive.Value; } }
-	public static float OtherPassive { get { return _otherPassive.Value; } }
 	#endregion
 
 	#region[房间规则控制]
@@ -98,8 +90,18 @@ public class MPConfig {
 	}
 
 	#endregion
-
+	
+	/// <summary>
+	/// 初始化配置文件
+	/// </summary>
 	public static void Initialize(ConfigFile config) {
+
+		// 判断是否是旧版本
+		bool isConfigOutdated = !config.ContainsKey(new ConfigDefinition("Internal", "Version"));
+
+		_configVersion = config.Bind("Internal", "Version", CURRENT_CONFIG_VERSION, "Internal version tracking. Do not modify.内部版本跟踪 别改哦");
+
+		isConfigOutdated |= new Version(_configVersion.Value) < new Version((string)_configVersion.DefaultValue);
 
 		_dataSendFrequency = config.Bind<int>(
 			"Network", "DataSendFrequency", 20,
@@ -115,6 +117,7 @@ public class MPConfig {
 			"RemotePlayer", "Model", "default",
 			"Sets the model used for remote players. Default is 'default', you can set it to 'slugcat' to use the slugcat model.\n" +
 			"设置远程玩家使用的模型,默认值为'default',你可以设置为'slugcat'来使用蛞蝓猫模型.");
+
 		#region[PVP相关]
 
 		config.Bind(
@@ -126,143 +129,109 @@ DAMAGE TYPE REFERENCE:
 ---------------------
 Note: ×N means deals N instances of this damage type.
 
-* Hammer - Type: Hammer, Damage: 1 (Hammer)
-* Auto Piton - Type: piton, Damage: 3 (Auto Piton)
-* Brick - Type: , Damage: 3 (Brick)
-* Flare Gun - Type: flare, Damage: 6 (Flare Gun)
-* Rebar/Bone Spears - Type: rebar, Damage: 10 (Rebar/Bone spears)
-* Rope Rebar - Type: , Damage: 10 (Rope Rebar)
-* Artifact Spear (throw/return) - Type: returnrebar, Damage: 10 (Artifact Spear)
-* Explosive Rebar - Type: explosion, Damage: 10 - Type: rebarexplosion, Damage: 10 (Explosive Rebar)
-* Cryo-Gun (uncharged/charged) - Type: ice, Damage: 10 - Type: , Damage: 0 × 2 (Cryo-Gun)
+* Hammer - Type:Melee Tags:Melee blunt hammer Damage:1-3
+* Auto Piton - Type:piton Damage:3
+* Brick - Damage:3
+* Flare Gun - Type:flare Tags:flare incendiary-long Damage:4
+* Rebar/Bone Spears - Type:rebar Damage:10
+* Rope Rebar - Damage:10
+* Artifact Spear (throw/return) - Type:returnrebar Tags:returnrebar Damage:10
+* Explosive Rebar - Type:explosion Tags:explosion Damage:10 - Type:rebarexplosion Tags:rebarexplosion explosion explosive Damage:10 × 3
+* Cryo-Gun (uncharged/charged) - Type:ice Tags:ice Damage:10 - Tags:explosion explosive Damage: 0 × 3
 
 The Active configuration item controls the damage multiplier dealt by players.
-The Passive configuration item controls the damage multiplier received by players.
 
 Formula:
-Final Damage = Base Damage × AllActive Multiplier × AllPassive Multiplier × Corresponding Type Active Multiplier × Corresponding Type Passive Multiplier
+Final Damage = Base Damage × AllActive Multiplier × Corresponding Type Active Multiplier
 
-* 锤子 - 类型Hammer 伤害1
-* 自动钻头 - 类型piton 伤害3
-* 砖头 - 类型 伤害3
-* 信号枪 - 类型flare 伤害6
-* 钢筋/骨矛 - 类型rebar 伤害10
-* 带绳钢筋 - 类型 伤害10
-* 神器长矛(投出/返回) - 类型returnrebar 伤害10
-* 爆炸钢筋 - 类型explosion 伤害10 - 类型rebarexplosion 伤害10 × 2
-* 造冰枪(不蓄力/蓄力) - 类型ice 伤害10 - 类型 伤害 0 × 2
+* 锤子		类型:Melee	标签:Melee blunt	hammer	伤害1-3
+* 自动钻头	类型:piton	伤害3
+* 砖头		类型			伤害3
+* 信号枪	类型:flare	标签:flare incendiary-long	伤害4
+* 钢筋/骨矛		类型:rebar	伤害10
+* 带绳钢筋		类型			伤害10
+* 神器长矛(投出/返回)	类型:returnrebar		标签:returnrebar		伤害10
+* 爆炸钢筋	类型:explosion		标签:explosion	伤害10
+			类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害10 × 3
+* 造冰枪(不蓄力/蓄力)	类型:ice		标签:ice			伤害10
+					类型			标签:explosion explosive	伤害 0 × 3
 
 Active配置项控制玩家造成的伤害倍率
-Passive配置项控制玩家受到的伤害倍率
-公式 : 最终伤害 = 基础伤害 × AllActive倍率 × AllPassive倍率 × 对应类型Active倍率 × 对应类型Passive倍率
+公式 : 最终伤害 = 基础伤害 × AllActive倍率 × 对应类型Active倍率
 "
 			);
 
 		// All (所有伤害)
 		_allActive = config.Bind<float>(
-			"RemotePlayerPvP", "AllActive", 0.2f,
+			"RemotePlayerPvP", "AllActive", 0.1f,
 			"Multiplier for all damage dealt by the player.\n" +
 			"玩家造成所有伤害类型的伤害倍率");
-		_allPassive = config.Bind<float>(
-			"RemotePlayerPvP", "AllPassive", 1.0f,
-			"Multiplier for all damage received by the player.\n" +
-			"玩家受到所有伤害类型的伤害倍率");
 
 		// Hammer (锤子)
 		_hammerActive = config.Bind<float>(
-			"RemotePlayerPvP", "HammerActive", 5f,
+			"RemotePlayerPvP", "HammerActive", 5.0f,
 			"Multiplier for hammer damage dealt by the player.\n" +
 			"玩家可以使用锤子造成伤害的伤害倍率");
-		_hammerPassive = config.Bind<float>(
-			"RemotePlayerPvP", "HammerPassive", 1.0f,
-			"Multiplier for hammer damage received by the player.\n" +
-			"玩家受到锤子伤害的伤害倍率");
+
+		// Melee (禁止)
+		_meleeActive = config.Bind<float>(
+			"RemotePlayerPvP", "MeleeActive", 5.0f,
+			"Multiplier for melee damage dealt by the player.\n" +
+			"玩家可以使用近战造成伤害的伤害倍率");
 
 		// rebar (钢筋/骨矛)
 		_rebarActive = config.Bind<float>(
 			"RemotePlayerPvP", "RebarActive", 1.0f,
 			"Multiplier for rebar damage dealt by the player.\n" +
 			"玩家可以使用长矛类造成伤害的伤害倍率");
-		_rebarPassive = config.Bind<float>(
-			"RemotePlayerPvP", "RebarPassive", 1.0f,
-			"Multiplier for rebar damage received by the player.\n" +
-			"玩家受到长矛类伤害的伤害倍率");
 
 		// piton (自动钻头)
 		_pitonActive = config.Bind<float>(
 			"RemotePlayerPvP", "PitonActive", 1.0f,
 			"Multiplier for auto-piton damage dealt by the player.\n" +
 			"玩家使用自动钻头造成伤害的伤害倍率");
-		_pitonPassive = config.Bind<float>(
-			"RemotePlayerPvP", "PitonPassive", 1.0f,
-			"Multiplier for auto-piton damage received by the player.\n" +
-			"玩家受到自动钻头伤害的伤害倍率");
 
 		// flare (信号枪)
 		_flareActive = config.Bind<float>(
-			"RemotePlayerPvP", "FlareActive", 1.0f,
+			"RemotePlayerPvP", "FlareActive", 5.0f,
 			"Multiplier for flare gun damage dealt by the player.\n" +
 			"玩家使用信号枪造成伤害的伤害倍率");
-		_flarePassive = config.Bind<float>(
-			"RemotePlayerPvP", "FlarePassive", 1.0f,
-			"Multiplier for flare gun damage received by the player.\n" +
-			"玩家受到信号枪伤害的伤害倍率");
 
 		// returnrebar (神器长矛)
 		_returnRebarActive = config.Bind<float>(
 			"RemotePlayerPvP", "ReturnRebarActive", 1.0f,
 			"Multiplier for artifact spear (returnrebar) damage dealt by the player.\n" +
 			"玩家使用神器长矛造成伤害的伤害倍率");
-		_returnRebarPassive = config.Bind<float>(
-			"RemotePlayerPvP", "ReturnRebarPassive", 1.0f,
-			"Multiplier for artifact spear (returnrebar) damage received by the player.\n" +
-			"玩家受到神器长矛伤害的伤害倍率");
 
 		// rebarexplosion (爆炸钢筋)
 		_rebarExplosionActive = config.Bind<float>(
 			"RemotePlayerPvP", "RebarExplosionActive", 1.0f,
 			"Multiplier for explosion shrapnel (rebarexplosion) damage dealt by the player.\n" +
 			"玩家造成爆炸钢筋伤害的伤害倍率");
-		_rebarExplosionPassive = config.Bind<float>(
-			"RemotePlayerPvP", "RebarExplosionPassive", 1.0f,
-			"Multiplier for explosion shrapnel (rebarexplosion) damage received by the player.\n" +
-			"玩家受到爆炸钢筋伤害的伤害倍率");
 
 		// explosion (爆炸)
 		_explosionActive = config.Bind<float>(
 			"RemotePlayerPvP", "ExplosionActive", 1.0f,
 			"Multiplier for explosion shrapnel (explosion) damage dealt by the player.\n" +
 			"玩家造成爆炸溅射伤害的伤害倍率");
-		_explosionPassive = config.Bind<float>(
-			"RemotePlayerPvP", "ExplosionPassive", 1.0f,
-			"Multiplier for explosion shrapnel (explosion) damage received by the player.\n" +
-			"玩家受到爆炸溅射伤害的伤害倍率");
 
 		// ice (造冰枪-冰锥)
 		_iceActive = config.Bind<float>(
 			"RemotePlayerPvP", "IceActive", 1.0f,
 			"Multiplier for cryo-gun ice spike damage dealt by the player.\n" +
 			"玩家使用造冰枪冰锥造成伤害的伤害倍率");
-		_icePassive = config.Bind<float>(
-			"RemotePlayerPvP", "IcePassive", 1.0f,
-			"Multiplier for cryo-gun ice spike damage received by the player.\n" +
-			"玩家受到造冰枪冰锥伤害的伤害倍率");
 
 		// other (其他伤害类型)
 		_otherActive = config.Bind<float>(
 			"RemotePlayerPvP", "OtherActive", 1.0f,
 			"Multiplier for other damage dealt by the player.\n" +
 			"玩家造成其他伤害类型的伤害倍率");
-		_otherPassive = config.Bind<float>(
-			"RemotePlayerPvP", "OtherPassive", 1.0f,
-			"Multiplier for other damage received by the player.\n" +
-			"玩家受到其他伤害类型的伤害倍率");
 		#endregion
 
 		#region[房间规则控制]
 
 		_allowCheats = config.Bind<bool>(
-			"LobbyRule", "cheats", false, 
+			"LobbyRule", "cheats", false,
 			"Controls whether cheats are allowed by default in lobby you host.\n" +
 			"控制由你开启的房间是否默认可以使用cheats"
 			);
@@ -273,6 +242,50 @@ Passive配置项控制玩家受到的伤害倍率
 			);
 
 		#endregion
+
+		if (isConfigOutdated)
+			VersionDetection(config);
 	}
+
+	/// <summary>
+	/// 进行配置文件版本检查
+	/// </summary>
+	public static void VersionDetection(ConfigFile config) {
+		// 执行重置逻辑
+		_allActive.Value = (float)_allActive.DefaultValue;
+		_hammerActive.Value = (float)_hammerActive.DefaultValue;
+		_meleeActive.Value = (float)_meleeActive.DefaultValue;
+		_rebarActive.Value = (float)_rebarActive.DefaultValue;
+		_returnRebarActive.Value = (float)_returnRebarActive.DefaultValue;
+		_rebarExplosionActive.Value = (float)_rebarExplosionActive.DefaultValue;
+		_explosionActive.Value = (float)_explosionActive.DefaultValue;
+		_pitonActive.Value = (float)_pitonActive.DefaultValue;
+		_flareActive.Value = (float)_flareActive.DefaultValue;
+		_iceActive.Value = (float)_iceActive.DefaultValue;
+		_otherActive.Value = (float)_otherActive.DefaultValue;
+		// 核心步骤：将磁盘上的版本号更新到最新
+		_configVersion.Value = (string)_configVersion.DefaultValue;
+
+		config.Save();
+	}
+
+	public static DamageRules DamageRules {
+		get {
+			return new DamageRules {
+				All = AllActive,
+				Hammer = HammerActive,
+				Melee = MeleeActive,
+				Rebar = RebarActive,
+				ReturnRebar = ReturnRebarActive,
+				RebarExplosion = RebarExplosionActive,
+				Explosion = ExplosionActive,
+				Piton = PitonActive,
+				Flare = FlareActive,
+				Ice = IceActive,
+				Other = OtherActive
+			};
+		}
+	}
+
 }
 

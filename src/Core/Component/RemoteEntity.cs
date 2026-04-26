@@ -17,16 +17,7 @@ public class RemoteEntity : GameEntity {
 
 	public GameObject DamageObject; // 受到伤害时生成的特效对象(如果为null则使用默认对象)
 
-	public float AllActive = 1;
-	public float HammerActive = 1;
-	public float RebarActive = 1;
-	public float ReturnRebarActive = 1;
-	public float RebarExplosionActive = 1;
-	public float ExplosionActive = 1;
-	public float PitonActive = 1;
-	public float FlareActive = 1;
-	public float IceActive = 1;
-	public float OtherActive = 1;
+
 
 	public override void Start() {
 		base.Start();
@@ -48,41 +39,13 @@ public class RemoteEntity : GameEntity {
 
 		// 添加屏幕震动
 		CL_CameraControl.Shake(0.01f);
-		// 发布到事件总线
-		var baseDamage = info.amount * AllActive;
-		float amount;
-		switch (info.type) {
-			case "Hammer":
-				amount = baseDamage * HammerActive;
-				break;
-			case "rebar":
-				amount = baseDamage * RebarActive;
-				break;
-			case "returnrebar":
-				amount = baseDamage * ReturnRebarActive;
-				break;
-			case "rebarexplosion":
-				amount = baseDamage * RebarExplosionActive;
-				break;
-			case "explosion":
-				amount = baseDamage * ExplosionActive;
-				break;
-			case "piton":
-				amount = baseDamage * PitonActive;
-				break;
-			case "flare":
-				amount = baseDamage * FlareActive;
-				break;
-			case "ice":
-				amount = baseDamage * IceActive;
-				break;
-			default:
-				amount = baseDamage * OtherActive;
-				break;
-		}
 
+		// 计算伤害倍率
+		CalculatedDamage(info);
+
+		// 发布到事件总线
 		MPEventBusGame.NotifyPlayerDamage(PlayerId, 
-			Damageable.DamageInfo.CreateDamageInfo(amount, info.type,info.tags));
+			Damageable.DamageInfo.CreateDamageInfo(info.amount, info.type,info.tags));
 		// 会不会死由对方决定
 		return false;
 	}
@@ -96,5 +59,58 @@ public class RemoteEntity : GameEntity {
 		if (!MPCore.IsAllowPVP) return;
 		// 发送冲击力通知事件
 		MPEventBusGame.NotifyPlayerAddForce(PlayerId, v / 10, source);
+	}
+	// 计算伤害
+	public static void CalculatedDamage(Damageable.DamageInfo info) {
+		if (MPCore.damageRules == null) { 
+			info.amount = 0.0f; return;
+		}
+		var baseDamage = info.amount * MPCore.damageRules.All;
+		info.amount = info.type switch {
+			"Hammer" => baseDamage * MPCore.damageRules.Hammer,
+			"Melee" => baseDamage * MPCore.damageRules.Melee,
+			"rebar" => baseDamage * MPCore.damageRules.Rebar,
+			"returnrebar" => baseDamage * MPCore.damageRules.ReturnRebar,
+			"rebarexplosion" => baseDamage * MPCore.damageRules.RebarExplosion,
+			"explosion" => baseDamage * MPCore.damageRules.Explosion,
+			"piton" => baseDamage * MPCore.damageRules.Piton,
+			"flare" => baseDamage * MPCore.damageRules.Flare,
+			"ice" => baseDamage * MPCore.damageRules.Ice,
+			_ => baseDamage * MPCore.damageRules.Other
+		};
+		return;
+	}
+}
+
+/*
+锤子		类型:Melee	标签:Melee blunt	 hammer	伤害1-3
+自动钻头	类型:piton		伤害3
+砖头		类型				伤害3
+信号枪	类型:flare	标签:flare incendiary-long	伤害4
+钢筋/骨矛		类型:rebar	伤害10
+带绳钢筋		类型			伤害10
+神器长矛(投出/返回)	类型:returnrebar		标签:returnrebar		伤害10
+爆炸钢筋		类型:explosion		标签:explosion	伤害10
+			类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害10 × 3
+爆炸钢筋(自伤)	类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害1
+造冰枪(不蓄力/蓄力)	类型:ice		标签:ice			伤害10
+					类型			标签:explosion explosive	伤害 0 × 3
+造冰枪(自伤)			类型			标签:explosion explosive	伤害 0
+ */
+[Serializable]
+public struct DamageRules {
+	public float All = 1;
+	public float Hammer = 1;
+	public float Melee = 1;
+	public float Rebar = 1;
+	public float ReturnRebar = 1;
+	public float RebarExplosion = 1;
+	public float Explosion = 1;
+	public float Piton = 1;
+	public float Flare = 1;
+	public float Ice = 1;
+	public float Other = 1;
+
+	public DamageRules() {
 	}
 }

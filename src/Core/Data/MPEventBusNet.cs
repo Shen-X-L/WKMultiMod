@@ -54,7 +54,7 @@ public static class MPEventBusNet {
 	// 接收事件: 大厅成员数据或大厅所有权发生变更
 	public static event Action<Lobby, Friend> OnLobbyHostChanged;
 	/// <summary>
-	/// 接收事件：大厅数据(规则)变动 订阅者<see cref="MPCore.HandleLobbyDataChanged"/>
+	/// 接收事件: 大厅数据(规则)变动 订阅者<see cref="MPCore.HandleLobbyDataChanged"/>
 	/// </summary>
 	public static event Action<Dictionary<string, string>> OnLobbyDataChanged;
 
