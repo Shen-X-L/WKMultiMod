@@ -19,7 +19,7 @@ namespace WKMPMod.UI;
 
 public class UI_LobbyListPane : MonoBehaviour {
 	// 模板对象路径
-	public const string TEMPLATE_PATH = "Canvas - Screens/Screens/Canvas - Screen - Play/Multi Play Menu/Lobby Pane/Tab Objects/Lobby Pane - Scroll View Tab - Template/Viewport/Content/Mode Selection Button - Endless";
+	public const string TEMPLATE_PATH = "Canvas - Screens/Screens/Canvas - Screen - Play/Multi Play Menu/Lobby Pane/Tab Objects/Lobby Pane - Scroll View Tab - Template/Viewport/Content/Mode Selection Button - Challenge 01 - Advanced Course";
 	public GameObject? template;
 
 	// 大厅ID与对应UI_LobbyButton的字典,用于快速查找和更新UI

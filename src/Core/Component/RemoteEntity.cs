@@ -62,9 +62,6 @@ public class RemoteEntity : GameEntity {
 	}
 	// 计算伤害
 	public static void CalculatedDamage(Damageable.DamageInfo info) {
-		if (MPCore.damageRules == null) { 
-			info.amount = 0.0f; return;
-		}
 		var baseDamage = info.amount * MPCore.damageRules.All;
 		info.amount = info.type switch {
 			"Hammer" => baseDamage * MPCore.damageRules.Hammer,

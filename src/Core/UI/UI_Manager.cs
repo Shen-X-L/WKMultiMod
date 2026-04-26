@@ -269,7 +269,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		if (_screenTabObjects == null) return Error(Localization.Get("UI_Manager.TabContentContainerNotFound"));
 
 		// 缓存内容模板
-		_lobbyPaneTemplate = _screenTabObjects.transform.Find("Play Pane - Scroll View Tab - Custom")?.gameObject;
+		_lobbyPaneTemplate = _screenTabObjects.transform.Find("Play Pane - Scroll View Tab - Challenge")?.gameObject;
 		if (_lobbyPaneTemplate == null) return Error(Localization.Get("UI_Manager.ContentTemplateNotFound"));
 
 		// 重命名模板并修改顺序

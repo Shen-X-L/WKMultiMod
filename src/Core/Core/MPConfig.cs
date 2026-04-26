@@ -173,7 +173,7 @@ Active配置项控制玩家造成的伤害倍率
 			"Multiplier for hammer damage dealt by the player.\n" +
 			"玩家可以使用锤子造成伤害的伤害倍率");
 
-		// Melee (禁止)
+		// Melee (近战)
 		_meleeActive = config.Bind<float>(
 			"RemotePlayerPvP", "MeleeActive", 5.0f,
 			"Multiplier for melee damage dealt by the player.\n" +
@@ -187,7 +187,7 @@ Active配置项控制玩家造成的伤害倍率
 
 		// piton (自动钻头)
 		_pitonActive = config.Bind<float>(
-			"RemotePlayerPvP", "PitonActive", 1.0f,
+			"RemotePlayerPvP", "PitonActive", 10.0f,
 			"Multiplier for auto-piton damage dealt by the player.\n" +
 			"玩家使用自动钻头造成伤害的伤害倍率");
 

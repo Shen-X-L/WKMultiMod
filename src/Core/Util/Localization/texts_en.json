@@ -2,6 +2,7 @@
   "CommandConsole": {
     "AllPlayer": "Name: {0} Id: {1}",
     "AlreadyInOnlineMode": "You are already in online mode, \nplease use the leave command to leave and then go online",
+    "CheatsNotAllowed": "Cheats are not allowed in the current lobby. Please ask the host to use allowcheats true.",
     "CreateLobbyFailed": "Fail to create lobby",
     "FoundLobbyByName": "Found lobby by name: {0}, joining...",
     "HostUsage": "Usage: host <room_name> [max_players]",
@@ -14,13 +15,12 @@
     "LobbyVisibilitySet": "Lobby visibility set to: {0}",
     "LobbyVisibilitySetFailed": "Failed to set lobby visibility. Supported options: public, friends, private",
     "MultipleMatchingIds": "Found multiple matching IDs. Below is the corresponding list:\n{0}",
-    "NeedIsHost": "You need to be the host to use this command.",
-    "NeedToBeOnline": "You need in online mode, \nplease use the host or join",
     "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
     "SearchingLobbyByName": "Searching for lobby by name: {0}...",
     "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
     "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
-    "CheatsNotAllowed": "Cheats are not allowed in the current lobby. Please ask the host to use allowcheats true."
+    "NeedToBeInLobby": "This command must be used in online mode.\nPlease use the host or join command first.",
+    "NeedToBeHost": "This command must be used by the host"
   },
   "CommandHelp": {
     "AllPlayer": "Get info on all players in the current lobby.",
@@ -93,8 +93,8 @@
     "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}"
   },
   "MPGameModeManager": {
-    "GameModeNotFound": "[MP GameModeMan] Game mode named {0} not found",
-    "FieldNotFound": "[MP GameModeMan] Field not found"
+    "FieldNotFound": "[MP GameModeMan] Field not found",
+    "GameModeNotFound": "[MP GameModeMan] Game mode named {0} not found"
   },
   "MPMain": {
     "Destroy": "[MPMain] MPMain (Launcher) has been destroyed."
@@ -113,6 +113,7 @@
     "ShowAllRouteTable": "[MP Router] PacketType: {0} Handler: {1}"
   },
   "MPSteamworks": {
+    "AccessDenied": "[MPSW] Access denied, possibly banned or restricted by region/environment",
     "AllConnectionsDisconnected": "[MPSW] All network connections have been disconnected.",
     "AlreadyActiveConnected": "[MPSW] Already actively connected to the player. SteamId: {0} Connection state: {1}",
     "AlreadyConnected": "[MPSW] Already connected to player. SteamId: {0}",
@@ -129,14 +130,19 @@
     "ConnectionTimeout": "[MPSW] Connection to player timed out. SteamId: {0}",
     "CreateLobbyException": "[MPSW] Create lobby exception: {0}",
     "CreateLobbyFailed": "[MPSW] Failed to create lobby",
+    "CreateLobbyFailedDefault": "[MPSW] Lobby creation failed, Steam error code: {0} ({1})",
     "DisconnectedDetails": "[MPSW] Disconnected details: {0}",
     "EnteredLobby": "[MPSW] Entered lobby. LobbyId: {0}",
     "HostChanged": "[MPSW] Host change: {0} -> {1}",
+    "InvalidParam": "[MPSW] Invalid parameter, maxPlayers exceeds limit",
     "JoinLobbyException": "[MPSW] Join lobby exception: {0}",
     "JoinLobbySuccess": "[MPSW] Successfully joined lobby: {0}",
+    "LimitExceeded": "[MPSW] Limit exceeded, this account may have created too many lobbies",
+    "LimitedUserAccount": "[MPSW] Account restricted, cannot use social features",
     "LobbyCreatedSuccess": "[MPSW] Lobby created successfully. Lobby ID: {0}",
     "LobbyIdChanged": "[MPSW] Lobby Id change: {0} -> {1}",
     "MessageQueueException": "[MPSW] Message processing exception: {0}",
+    "NoConnection": "[MPSW] No connection to Steam network",
     "NullLobbyName": "Unknown lobby",
     "PlayerConnected": "[MPSW] The player has already connected. SteamId: {0} Connection Id: {1} Connection state: {2}",
     "PlayerConnecting": "[MPSW] Player is connecting. SteamId: {0}",
@@ -144,6 +150,8 @@
     "PlayerDisconnectedFromLobby": "[MPSW] Player disconnected from the lobby. SteamName: {0}",
     "PlayerJoinedRoom": "[MPSW] Player joined room. SteamName: {0}",
     "PlayerLeftRoom": "[MPSW] Player left the room. SteamName: {0}",
+    "RateLimitCacheHit": "[MPSW] Within 5-second cooldown, returning cached result",
+    "RateLimitExceeded": "[MPSW] Operation rate limit exceeded by Steam",
     "ReverseConnectionAttempt": "[MPSW] 10-second timeout: starting reverse attempt...",
     "SendingToConnection": "[MPSW] Sending data to connections. SteamId: {0} ConnectionId: {1}",
     "SocketCreateException": "[MPSW] Create Socket exception: {0}",
@@ -152,16 +160,8 @@
     "SteamworksInitException": "[MPSW] Steamworks initialization exception: {0}",
     "SteamworksInitFailed": "[MPSW] Failed to initialize Steamworks. Please check your Steam login status.",
     "SteamworksInitSuccess": "[MPSW] Steamworks initialization succeeded. Player: {0} ID: {1}",
-    "UnicastException": "[MPSW] Unicast data exception: {0} SteamId: {1}",
-    "RateLimitCacheHit": "[MPSW] Within 5-second cooldown, returning cached result",
-    "LimitedUserAccount": "[MPSW] Account restricted, cannot use social features",
-    "NoConnection": "[MPSW] No connection to Steam network",
     "Timeout": "[MPSW] Request timeout, Steam server response too slow",
-    "InvalidParam": "[MPSW] Invalid parameter, maxPlayers exceeds limit",
-    "RateLimitExceeded": "[MPSW] Operation rate limit exceeded by Steam",
-    "LimitExceeded": "[MPSW] Limit exceeded, this account may have created too many lobbies",
-    "AccessDenied": "[MPSW] Access denied, possibly banned or restricted by region/environment",
-    "CreateLobbyFailedDefault": "[MPSW] Lobby creation failed, Steam error code: {0} ({1})"
+    "UnicastException": "[MPSW] Unicast data exception: {0} SteamId: {1}"
   },
   "Patch": {
     "CoreAlreadyInjected": "[MP Patch] MPCore already injected, skipping.",
@@ -229,6 +229,7 @@
     "ButtonTemplateNotFound": "[MP UI] Button template 'Cosmetics' not found",
     "ContentTemplateNotFound": "[MP UI] Content template not found",
     "CreateMenuUIFailed": "[MP UI] Failed to create menu UI: {0}",
+    "LoadingTemplateNotFound": "[MP UI] loadingTemplate cannot be found",
     "LobbyPaneContainerPathError": "[MP UI] Lobby Pane container path error",
     "MainMenuContainerNotFound": "[MP UI] Main menu container not found",
     "MenuButtonComponentNotFound": "[MP UI] Button component 'UI_MenuButton' not found, unable to bind menu event",
@@ -237,7 +238,6 @@
     "PlayScreenContainerNotFound": "[MP UI] Play screen container not found",
     "TabButtonContainerNotFound": "[MP UI] Tab button container not found",
     "TabButtonTemplateNotFound": "[MP UI] Button template 'ModeButton_Custom' not found",
-    "TabContentContainerNotFound": "[MP UI] Tab content container not found",
-    "LoadingTemplateNotFound": "[MP UI] loadingTemplate cannot be found"
+    "TabContentContainerNotFound": "[MP UI] Tab content container not found"
   }
 }

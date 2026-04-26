@@ -213,7 +213,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusNet.OnLobbyEntered -= HandleLobbyEntered;
 		MPEventBusNet.OnLobbyMemberJoined -= HandleLobbyMemberJoined;
 		MPEventBusNet.OnLobbyMemberLeave -= HandleLobbyMemberLeft;
-		MPEventBusNet.OnLobbyDataChanged -= HandleLobbyDataChanged; 
+		MPEventBusNet.OnLobbyDataChanged -= HandleLobbyDataChanged;
 
 		// 退订玩家连接事件
 		MPEventBusNet.OnPlayerConnected -= HandlePlayerConnected;
@@ -435,6 +435,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void RegisterCommands() {
 		// 将命令注册到 CommandConsole
+		// 创建大厅
 		CommandConsole.BuildCommand("host", Host)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Host"))
@@ -464,7 +465,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					}
 				}
 			});
-
+		// 加入大厅
 		CommandConsole.BuildCommand("join", Join)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Join"))
@@ -482,7 +483,7 @@ public class MPCore : MonoSingleton<MPCore> {
 						break;
 				}
 			});
-
+		// 离开大厅
 		CommandConsole.BuildCommand("leave", Leave)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Leave"))
@@ -490,25 +491,38 @@ public class MPCore : MonoSingleton<MPCore> {
 			.OverValue(() => _MPsteamworks.IsInLobby ? "In Lobby" : "Not In Lobby")
 			// 不在大厅则变红
 			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
+		
+		// 获取大厅ID
+		CommandConsole.BuildCommand("lobbyid", (args) => {
+			if (!EnsureInLobby())return;
+			string lobby_id = _MPsteamworks.LobbyId.ToString();
+			CopyToClipboard(lobby_id);
+			CommandConsole.Log(Localization.Get(
+				"CommandConsole.LobbyIdOutput", lobby_id));
 
-		CommandConsole.BuildCommand("lobbyid", LobbyId)
+		})
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.LobbyId"))
 			.OverValue(() => _MPsteamworks.IsInLobby ? _MPsteamworks.LobbyId : "Not In Lobby")
 			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
-
-		CommandConsole.BuildCommand("allplayer", AllPlayerData)
+		// 获取大厅全部玩家
+		CommandConsole.BuildCommand("allplayer", (args) => {
+			foreach (var friend in _MPsteamworks.Members) {
+				CommandConsole.Log(Localization.Get(
+					"CommandConsole.AllPlayer", friend.Name, friend.Id));
+			}
+		})
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.AllPlayer"))
 			.OverValue(() => _MPsteamworks.IsInLobby
 				? $"Player: {_MPsteamworks.Members.Count()}/{_MPsteamworks.LobbySize}"
 				: "Not In Lobby")
 			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
-
+		// 向大厅广播
 		CommandConsole.BuildCommand("talk", Talk)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Talk"));
-
+		// tp到某人(同步背包物品)
 		CommandConsole.BuildCommand("tpto", TpToPlayer)
 			.Description(Localization.Get("CommandHelp.TpTo"))
 			.AutocompleteCustom(autocomplete => {
@@ -520,10 +534,10 @@ public class MPCore : MonoSingleton<MPCore> {
 								name: container.PlayerName)).ToList());
 				}
 			});
-
-		CommandConsole.BuildCommand("changemodel", (str) => {
-			_LocalPlayer.DefaulFactoryId = str[0];
-			MPConfig.RemotePlayerModel = str[0];
+		// 修改玩家模型(局内不生效)
+		CommandConsole.BuildCommand("changemodel", (args) => {
+			_LocalPlayer.DefaulFactoryId = args[0];
+			MPConfig.RemotePlayerModel = args[0];
 		})
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.ChangeModel"))
@@ -532,16 +546,21 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(RPFactoryManager.factories.Keys.ToList());
 				}
 			});
-
+		// 获取全部大厅
 		CommandConsole.BuildCommand("lobbylist", GetAllLobby)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.LobbyList"));
+		// 邀请其他好友
+		CommandConsole.BuildCommand("invite", (args) => {
+			if (!EnsureInLobby()) return;
+			ulong lobby_id = _MPsteamworks.LobbyId;
+			SteamFriends.OpenGameInviteOverlay(lobby_id);
 
-		CommandConsole.BuildCommand("invite", OpenSteamInviteUI)
+		})
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Invite"))
 			.OverValue(() => _MPsteamworks.IsInLobby ? _MPsteamworks.LobbyId : "Not In Lobby");
-
+		// 设置大厅可见度
 		CommandConsole.BuildCommand("lobbytype", SetLobbyVisibility)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.LobbyYype"))
@@ -559,16 +578,24 @@ public class MPCore : MonoSingleton<MPCore> {
 						validator.Reject(); // 不匹配则高亮红色
 				}
 			});
-
-		CommandConsole.BuildCommand("setlobbyname", (str) => {
-			if (_MPsteamworks.IsHost)
-				_MPsteamworks.SetLobbyData("name", string.Join(" ", str));
+		// 设置大厅名称
+		CommandConsole.BuildCommand("setlobbyname", (args) => {
+			if (!EnsureHostPrivileges()) return;
+			_MPsteamworks.SetLobbyData("name", string.Join(" ", args));
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.SetLobbyName"));
-
-		CommandConsole.BuildCommand("allowcheats", (str) => {
-			if (_MPsteamworks.IsHost && bool.TryParse(str[0], out bool result))
-				_MPsteamworks.SetLobbyData("allowCheats", result.ToString());
+		// 设置是否可开启作弊模式
+		CommandConsole.BuildCommand("allowcheats", (args) => {
+			if (!EnsureHostPrivileges()) return;
+			bool enabled = false;
+			if (args.Length == 0 && bool.TryParse(_MPsteamworks.LobbyData?.GetValueOrDefault("allowCheats"), out bool result1)) {
+				// 如果没有参数 获取大厅数据并取反 || 取否
+				enabled = !result1;
+			} else if (bool.TryParse(args[0], out bool result2)) {
+				// 有参数直接使用参数
+				enabled = result2;
+			}
+			_MPsteamworks.SetLobbyData("allowCheats", enabled.ToString());
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.AllowCheats"))
 			.OverValue(() => _MPsteamworks.IsInLobby
@@ -586,10 +613,18 @@ public class MPCore : MonoSingleton<MPCore> {
 						validator.Reject(); // 不匹配则高亮红色
 				}
 			});
-
-		CommandConsole.BuildCommand("allowpvp", (str) => {
-			if (_MPsteamworks.IsHost && bool.TryParse(str[0], out bool result))
-				_MPsteamworks.SetLobbyData("allowPVP", result.ToString());
+		// 设置是否可PVP
+		CommandConsole.BuildCommand("allowpvp", (args) => {
+			if (!EnsureHostPrivileges()) return;
+			bool enabled = false;
+			if (args.Length == 0 && bool.TryParse(_MPsteamworks.LobbyData?.GetValueOrDefault("allowPVP"), out bool result1)) {
+				// 如果没有参数 获取大厅数据并取反 || 取否
+				enabled = !result1;
+			} else if (bool.TryParse(args[0], out bool result2)) {
+				// 有参数直接使用参数
+				enabled = result2;
+			}
+			_MPsteamworks.SetLobbyData("allowPVP", enabled.ToString());
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.AllowPVP"))
 			.OverValue(() => _MPsteamworks.IsInLobby
@@ -807,28 +842,11 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 获取大厅ID
-	/// </summary>
-	public void LobbyId(string[] args) {
-		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
-			return;
-		}
-		string lobby_id = _MPsteamworks.LobbyId.ToString();
-		CopyToClipboard(lobby_id);
-		CommandConsole.Log(Localization.Get(
-			"CommandConsole.LobbyIdOutput", lobby_id));
-	}
-
-	/// <summary>
 	/// 设置大厅可见性 参数: public/friends/private
 	/// </summary>
 	public void SetLobbyVisibility(string[] args) {
 
-		if (!_MPsteamworks.IsHost) {
-			CommandConsole.Log(Localization.Get("CommandConsole.NeedIsHost"));
-			return;
-		}
+		if (!EnsureHostPrivileges()) 			return;
 
 		bool success = args[0].ToLower() switch {
 			"public" => _MPsteamworks._currentLobby.SetPublic(),
@@ -854,10 +872,8 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 发送信息到他人控制台
 	/// </summary>
 	public void Talk(string[] args) {
-		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
-			return;
-		}
+		if (!EnsureInLobby())			return;
+		
 		// 将参数数组组合成一个字符串
 		string message = string.Join(" ", args);
 
@@ -872,10 +888,8 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 向某人TP
 	/// </summary>
 	public void TpToPlayer(string[] args) {
-		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
-			return;
-		}
+		if (!EnsureInLobby()) return;
+		
 		if (!IsInitialized) {
 			CommandConsole.LogError(Localization.Get("CommandConsole.WorldNotInitialized"));
 			return;
@@ -901,16 +915,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 获取全部玩家
-	/// </summary>
-	public void AllPlayerData(string[] args) {
-		foreach (var friend in _MPsteamworks.Members) {
-			CommandConsole.Log(Localization.Get(
-				"CommandConsole.AllPlayer", friend.Name, friend.Id));
-		}
-	}
-
-	/// <summary>
 	/// 通过指令获取全部大厅信息,包含Id/名称/房主/游戏模式等
 	/// </summary>
 	public async void GetAllLobby(string[] args) {
@@ -919,18 +923,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			CommandConsole.Log(Localization.Get("CommandConsole.LobbyInfo", lobby.Id, lobby.GetData("name"),
 				lobby.GetData("owner"), lobby.GetData("gamemode")));
 		}
-	}
-
-	/// <summary>
-	/// 通过指令邀请好友,会打开Steam邀请界面
-	/// </summary>
-	public void OpenSteamInviteUI(string[] args) {
-		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
-			return;
-		}
-		ulong lobby_id = _MPsteamworks.LobbyId;
-		SteamFriends.OpenGameInviteOverlay(lobby_id);
 	}
 	#endregion
 
@@ -1026,7 +1018,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			ENT_Player.GetPlayer().noclip = false;
 		}
 		IsAllowPVP = TryGetBoolInDict(delta, "allowPVP");
-		if (delta.TryGetValue("damageMultiplier", out var value)) { 
+		if (delta.TryGetValue("damageMultiplier", out var value)) {
 			damageRules = JsonUtility.FromJson<DamageRules>(value);
 		}
 	}
@@ -1101,7 +1093,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 尝试从字典中获取key对应的value并转为Bool类型
 	/// </summary>
-	public static bool TryGetBoolInDict(Dictionary<string, string> dictionary,string key, bool defaultValue = false) {
+	public static bool TryGetBoolInDict(Dictionary<string, string> dictionary, string key, bool defaultValue = false) {
 		if (dictionary.TryGetValue(key, out var value) && bool.TryParse(value, out var result)) {
 			return result;
 		} else {
@@ -1109,5 +1101,30 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 	}
 
+	/// <summary>
+	/// 确保在大厅中使用指令
+	/// </summary>
+	private bool EnsureInLobby() {
+		if (!_MPsteamworks.IsInLobby) {
+			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeInLobby"));
+			return false;
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// 确保使用指令的是主机
+	/// </summary>
+	private bool EnsureHostPrivileges() {
+		if (!_MPsteamworks.IsInLobby) {
+			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeInLobby"));
+			return false;
+		}
+		if (!_MPsteamworks.IsHost) {
+			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeHost"));
+			return false;
+		}
+		return true;
+	}
 	#endregion
 }

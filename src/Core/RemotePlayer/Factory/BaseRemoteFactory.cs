@@ -146,16 +146,6 @@ public abstract class BaseRemoteFactory {
 	private void MapMarkersToRemoteEntity(GameObject go, MK_RemoteEntity mk) {
 		var component = go.AddComponent<RemoteEntity>();
 		if (component != null) {
-			component.AllActive = MPConfig.AllActive;
-			component.HammerActive = MPConfig.HammerActive;
-			component.RebarActive = MPConfig.RebarActive;
-			component.ReturnRebarActive = MPConfig.ReturnRebarActive;
-			component.RebarExplosionActive = MPConfig.RebarExplosionActive;
-			component.ExplosionActive = MPConfig.ExplosionActive;
-			component.PitonActive = MPConfig.PitonActive;
-			component.FlareActive = MPConfig.FlareActive;
-			component.IceActive = MPConfig.IceActive;
-			component.OtherActive = MPConfig.OtherActive;
 			component.DamageObject = mk.DamageObject;
 		} else {
 			MPMain.LogError(Localization.Get("RPBaseFactory.RemoteEntityAddFailed"));
