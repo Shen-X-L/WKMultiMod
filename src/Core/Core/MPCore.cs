@@ -1106,7 +1106,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private bool EnsureInLobby() {
 		if (!_MPsteamworks.IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeInLobby"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeInLobby"));
 			return false;
 		}
 		return true;
@@ -1117,11 +1117,11 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private bool EnsureHostPrivileges() {
 		if (!_MPsteamworks.IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeInLobby"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeInLobby"));
 			return false;
 		}
 		if (!_MPsteamworks.IsHost) {
-			CommandConsole.LogError(Localization.Get("CommandConsole", "NeedToBeHost"));
+			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeHost"));
 			return false;
 		}
 		return true;
