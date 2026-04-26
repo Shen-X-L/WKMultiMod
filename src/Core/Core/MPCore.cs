@@ -3,6 +3,7 @@ using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -76,6 +77,9 @@ public class MPCore : MonoSingleton<MPCore> {
 	// 多人模式大厅规则
 	public static bool IsAllowPVP { get; private set; }
 	public static bool IsAllowCheats { get; private set; }
+
+	// PVP伤害倍率
+	public static DamageRules damageRules { get; private set; }
 
 	// 是否处于大厅中
 	public static bool IsInLobby => MultiPlayerStatus.IsInLobby();
@@ -164,6 +168,9 @@ public class MPCore : MonoSingleton<MPCore> {
 
 			// 订阅网络事件
 			SubscribeToEvents();
+
+			// 初始化伤害倍率
+			damageRules = MPConfig.DamageRules;
 			// Debug
 			MPMain.LogInfo(Localization.Get("MPCore.AllManagersInitialized"));
 		} catch (Exception e) {
@@ -319,7 +326,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 退出联机模式时重置设置
 	/// </summary>
 	public void ResetStateVariables() {
-		//MPMain.LogWarning("[MP Debug] 退出联机模式");
 		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
 		MPGameModeManager.ClearCurrentData();
@@ -603,6 +609,10 @@ public class MPCore : MonoSingleton<MPCore> {
 			});
 	}
 
+	#endregion
+
+	#region[大厅操作]
+
 	/// <summary>
 	/// 创建大厅
 	/// </summary>
@@ -633,6 +643,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		var lobbyData = new Dictionary<string, string>() {
 			{ "name", lobbyName },         // 大厅名称
 			{ "gamemode", CL_GameManager.gamemode.gamemodeName }, // 游戏模式
+			{ "damageMultiplier",JsonUtility.ToJson(damageRules)}
 		};
 
 		try {
@@ -642,7 +653,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			if (success) {
 				// 连接成功后的逻辑处理
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
-				//SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 
 				// 设置大厅可见性
 				SetLobbyVisibility(new string[] { visibility });
@@ -811,6 +821,36 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
+	/// 设置大厅可见性 参数: public/friends/private
+	/// </summary>
+	public void SetLobbyVisibility(string[] args) {
+
+		if (!_MPsteamworks.IsHost) {
+			CommandConsole.Log(Localization.Get("CommandConsole.NeedIsHost"));
+			return;
+		}
+
+		bool success = args[0].ToLower() switch {
+			"public" => _MPsteamworks._currentLobby.SetPublic(),
+			"friends" => _MPsteamworks._currentLobby.SetFriendsOnly(),
+			"private" => _MPsteamworks._currentLobby.SetPrivate(),
+			_ => false
+		};
+		if (success) {
+			_MPsteamworks._currentLobby.SetData("visibility", args[0].ToLower());
+			CommandConsole.Log(Localization.Get("CommandConsole.LobbyVisibilitySet", args[0]));
+		} else {
+			CommandConsole.LogError(Localization.Get("CommandConsole.LobbyVisibilitySetFailed"));
+		}
+
+
+	}
+
+	#endregion
+
+	#region[玩家间操作]
+
+	/// <summary>
 	/// 发送信息到他人控制台
 	/// </summary>
 	public void Talk(string[] args) {
@@ -861,24 +901,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 调试用,获取所有链接
-	/// </summary>
-	public void GetAllConnections(string[] args) {
-		if (!IsInLobby) {
-			CommandConsole.LogError(Localization.Get("CommandConsole.NeedToBeOnline"));
-			return;
-		}
-		foreach (var (steamid, connection) in _MPsteamworks._outgoingConnections) {
-			MPMain.LogInfo(Localization.Get(
-				"MPCore.OutgoingConnectionLog", steamid.ToString(), connection.ToString()));
-		}
-		foreach (var (steamid, connection) in _MPsteamworks._allConnections) {
-			MPMain.LogInfo(Localization.Get(
-				"MPCore.AllConnectionLog", steamid.ToString(), connection.ToString()));
-		}
-	}
-
-	/// <summary>
 	/// 获取全部玩家
 	/// </summary>
 	public void AllPlayerData(string[] args) {
@@ -897,32 +919,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			CommandConsole.Log(Localization.Get("CommandConsole.LobbyInfo", lobby.Id, lobby.GetData("name"),
 				lobby.GetData("owner"), lobby.GetData("gamemode")));
 		}
-	}
-
-	/// <summary>
-	/// 设置大厅可见性 参数: public/friends/private
-	/// </summary>
-	public void SetLobbyVisibility(string[] args) {
-
-		if (!_MPsteamworks.IsHost) {
-			CommandConsole.Log(Localization.Get("CommandConsole.NeedIsHost"));
-			return;
-		}
-
-		bool success = args[0].ToLower() switch {
-			"public" => _MPsteamworks._currentLobby.SetPublic(),
-			"friends" => _MPsteamworks._currentLobby.SetFriendsOnly(),
-			"private" => _MPsteamworks._currentLobby.SetPrivate(),
-			_ => false
-		};
-		if (success) {
-			_MPsteamworks._currentLobby.SetData("visibility", args[0].ToLower());
-			CommandConsole.Log(Localization.Get("CommandConsole.LobbyVisibilitySet", args[0]));
-		} else {
-			CommandConsole.LogError(Localization.Get("CommandConsole.LobbyVisibilitySetFailed"));
-		}
-
-
 	}
 
 	/// <summary>
@@ -1023,13 +1019,16 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandleLobbyDataChanged(Dictionary<string, string> delta) {
 		if (delta == null) return;
-		IsAllowCheats = TryGetBool(delta, "allowCheats");
+		IsAllowCheats = TryGetBoolInDict(delta, "allowCheats");
 		// 明确要求关闭作弊
 		if (!IsAllowCheats) {
 			CommandConsole.cheatsEnabled = false;
 			ENT_Player.GetPlayer().noclip = false;
 		}
-		IsAllowPVP = TryGetBool(delta, "allowPVP");
+		IsAllowPVP = TryGetBoolInDict(delta, "allowPVP");
+		if (delta.TryGetValue("damageMultiplier", out var value)) { 
+			damageRules = JsonUtility.FromJson<DamageRules>(value);
+		}
 	}
 
 	#endregion
@@ -1099,8 +1098,10 @@ public class MPCore : MonoSingleton<MPCore> {
 		GUIUtility.systemCopyBuffer = text;
 	}
 
-
-	public static bool TryGetBool(Dictionary<string, string> dictionary,string key, bool defaultValue = false) {
+	/// <summary>
+	/// 尝试从字典中获取key对应的value并转为Bool类型
+	/// </summary>
+	public static bool TryGetBoolInDict(Dictionary<string, string> dictionary,string key, bool defaultValue = false) {
 		if (dictionary.TryGetValue(key, out var value) && bool.TryParse(value, out var result)) {
 			return result;
 		} else {

@@ -544,14 +544,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	/// <summary>
-	/// CreateRoom 异步启动包装器
-	/// </summary>
-	public void CreateRoom(int maxPlayers, Dictionary<string, string> lobbyData, Action<bool> callback) {
-		// 启动异步
-		StartCoroutine(RunAsync(CreateRoomAsync(maxPlayers, lobbyData), callback));
-	}
-
-	/// <summary>
 	/// 加入大厅(客户端模式)- 异步版本
 	/// </summary>
 	public async Task<bool> JoinRoomAsync(Lobby lobby) {
@@ -584,15 +576,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogError(Localization.Get("MPSteamworks.JoinLobbyException", ex.Message));
 			return false;
 		}
-	}
-
-	/// <summary>
-	/// JoinRoom 异步启动包装器
-	/// </summary>
-	public void JoinRoom(ulong lobbyId, Action<bool> callback) {
-		Lobby lobby = new Lobby(lobbyId);
-		// 使用 Unity 的扩展方法来启动 async Task
-		StartCoroutine(RunAsync(JoinRoomAsync(lobby), callback));
 	}
 
 	#endregion
@@ -725,30 +708,38 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		// 针对常见的大厅创建错误进行分类处理
 		switch (result) {
 			case Result.LimitedUserAccount:
-				MPMain.LogWarning("[MP Debug] 账号受限 无法使用社交功能");
+				// 账号受限 无法使用社交功能
+				MPMain.LogWarning(Localization.Get("MPSteamworks.LimitedUserAccount"));
 				break;
 			case Result.NoConnection:
-				MPMain.LogWarning("[MP Debug] 没有连接到 Steam 网络");
+				// 没有连接到 Steam 网络
+				MPMain.LogWarning(Localization.Get("MPSteamworks.NoConnection"));
 				break;
 			case Result.Timeout:
-				MPMain.LogWarning("[MP Debug] 请求超时,Steam 服务器响应过慢");
+				// 请求超时
+				MPMain.LogWarning(Localization.Get("MPSteamworks.Timeout"));
 				break;
 			case Result.InvalidParam:
-				MPMain.LogWarning("[MP Debug] 参数错误,maxPlayers 设置超限");
+				// 参数错误
+				MPMain.LogWarning(Localization.Get("MPSteamworks.InvalidParam"));
 				break;
 			case Result.RateLimitExceeded:
-				MPMain.LogWarning("[MP Debug] 操作过于频繁,被 Steam 暂时限制频率");
+				// 操作过于频繁
+				MPMain.LogWarning(Localization.Get("MPSteamworks.RateLimitExceeded"));
 				break;
 			case Result.LimitExceeded:
-				MPMain.LogWarning("[MP Debug] 达到上限,可能该账号已经开了太多的房间");
+				// 达到上限
+				MPMain.LogWarning(Localization.Get("MPSteamworks.LimitExceeded"));
 				break;
 			case Result.AccessDenied:
-				MPMain.LogWarning("[MP Debug] 权限不足,可能是被封禁或当前区域/环境受限");
+				// 权限不足
+				MPMain.LogWarning(Localization.Get("MPSteamworks.AccessDenied"));
 				break;
 
 			// 默认处理其他不常见错误
 			default:
-				MPMain.LogWarning($"[MP Debug] 大厅创建失败,Steam错误码: {result} ({(int)result})");
+				// 默认错误 带参数
+				MPMain.LogWarning(Localization.Get("MPSteamworks.CreateLobbyFailedDefault", result.ToString(), (int)result));
 				break;
 		}
 	}
@@ -1015,7 +1006,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	public Task<List<Lobby>> RefreshLobbyListAsync() {
 		// 5秒缓存保护
 		if (Time.time - _lastRealFetchTime < CACHE_PROTECTION_TIME) {
-			MPMain.LogInfo("[MP Debug] 处于5秒冷却期内, 直接返回缓存结果");
+			MPMain.LogInfo(Localization.Get("MPSteamworks.RateLimitCacheHit"));
 			return Task.FromResult(LastFetchedLobbies);
 		}
 

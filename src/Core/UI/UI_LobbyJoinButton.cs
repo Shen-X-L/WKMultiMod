@@ -98,9 +98,6 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 	/// 异步加载房主信息, 包括头像和名称
 	/// </summary>
 	private IEnumerator TrackAndLoadOwnerInfoCoroutine() {
-		Stopwatch sw = Stopwatch.StartNew();
-		sw.Restart();
-
 		if (this == null) yield break;
 
 		// 获取 Owner 数据
@@ -132,9 +129,6 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 			hostAvatar.enabled = true;
 			hostName.text = owner.Name;
 		}
-
-		sw.Stop();
-		MPMain.LogWarning($"[MP Debug] UI_LobbyJoinButton.TrackAndLoadOwnerInfoCoroutine: {sw.Elapsed.TotalMilliseconds}ms");
 	}
 
 	/// <summary>

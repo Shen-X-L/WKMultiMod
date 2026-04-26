@@ -148,7 +148,7 @@ public static class PitonSyncManager {
 	}
 
 	/// <summary>
-	/// 应用创建操作：在本地创建远程玩家的岩钉
+	/// 应用创建操作: 在本地创建远程玩家的岩钉
 	/// </summary>
 	private static void ApplyCreate(ulong senderId, string networkId, Vector3 position, Quaternion rotation,
 									float secureAmount, bool secure, bool active) {
@@ -187,7 +187,7 @@ public static class PitonSyncManager {
 	}
 
 	/// <summary>
-	/// 应用更新操作：更新本地岩钉的状态
+	/// 应用更新操作: 更新本地岩钉的状态
 	/// </summary>
 	private static void ApplyUpdate(string networkId, Vector3 position, Quaternion rotation,
 									float secureAmount, bool secure, bool active) {
@@ -196,7 +196,7 @@ public static class PitonSyncManager {
 	}
 
 	/// <summary>
-	/// 应用移除操作：禁用并移除本地岩钉
+	/// 应用移除操作: 禁用并移除本地岩钉
 	/// </summary>
 	private static void ApplyRemove(string networkId) {
 		if (!_pitons.TryGetValue(networkId, out var identity) || identity == null) return;
@@ -269,7 +269,7 @@ public static class PitonSyncManager {
 			}
 		}
 
-		// 回退检查：名称中包含 "piton"
+		// 回退检查: 名称中包含 "piton"
 		return obj.name.IndexOf("piton", StringComparison.OrdinalIgnoreCase) >= 0;
 	}
 

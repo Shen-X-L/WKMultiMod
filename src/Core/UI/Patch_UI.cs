@@ -49,7 +49,6 @@ public class Patch_UI_GamemodeScreen_Initialize {
 [HarmonyPatch(typeof(UI_MenuButton), nameof(UI_MenuButton.Initialize))]
 public class Patch_UI_MenuButton_Initialize {
 	static bool Prefix(UI_MenuButton __instance, UI_Menu menu) {
-		//MPMain.LogWarning($"[MP Debug] Button:{__instance.gameObject.name} menu:{menu.gameObject.name}");
 		// 检查这个按钮是否属于我们克隆出来的菜单
 		if (UI_Manager.IsCloningMultiplayerMenu) {
 			if (__instance.gameObject.name == "Facility Button") {

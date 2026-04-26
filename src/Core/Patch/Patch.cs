@@ -82,3 +82,12 @@ public class Patch_CL_AssetManager_Initialize {
 	}
 }
 
+// 补丁类: 关闭种子偏移, 使复活时种子同步
+[HarmonyPatch(typeof(WorldLoader), ("IncrementSeed"))]
+public class Patch_WorldLoader_IncrementSeed {
+	public static bool Prefix() {
+		if (MPCore.IsInLobby) 
+			return false;
+		return true;
+	}
+}

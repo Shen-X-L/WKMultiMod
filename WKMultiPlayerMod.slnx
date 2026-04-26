@@ -69,6 +69,7 @@
   </Folder>
   <Folder Name="/temp/">
     <File Path="temp/笔记.md" />
+    <File Path="游戏数据.md" />
     <Project Path="temp/DailyKnuckle/DailyKnuckle.csproj">
       <Build Project="false" />
     </Project>

@@ -19,7 +19,8 @@
     "NoLobbyByNameTryId": "未找到匹配名称的大厅, 尝试使用 ID 连接...",
     "SearchingLobbyByName": "正在按名称搜索大厅: {0}...",
     "TargetIdNotFound": "未找到目标ID.此命令使用后缀匹配.\n例如: 目标ID: 76561198279116422 → tpto 6422.",
-    "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化."
+    "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化.",
+    "CheatsNotAllowed": "当前大厅不允许作弊, 请要求房主使用allowcheats true。"
   },
   "CommandHelp": {
     "AllPlayer": "Get info on all players in the current lobby.",
@@ -54,11 +55,10 @@
       "{0} 因为Δ异常脱离了这个世界",
       "{0} 以被本设施解雇",
       "{0} 被mass重新吞噬了",
-      "{0} 的表现让ρ失望"
+      "{0} 被ρ重新带走了"
     ],
     "PlayerDeath": [
       "{0} 被 {1} 杀死",
-      "{0} 被 {1} 带走了",
       "{0} 死于 {1}"
     ]
   },
@@ -94,7 +94,8 @@
     "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}"
   },
   "MPGameModeManager": {
-    "GameModeNotFound": "[MP GameModeMan] 未找到名为 {0} 的对应游戏模式"
+    "GameModeNotFound": "[MP GameModeMan] 未找到名为 {0} 的对应游戏模式",
+    "FieldNotFound": "[MP GameModeMan] 字段未找到"
   },
   "MPMain": {
     "Destroy": "[MPMain] MPMain (启动器) 已被销毁."
@@ -152,7 +153,16 @@
     "SteamworksInitException": "[MPSW] Steamworks初始化异常: {0}",
     "SteamworksInitFailed": "[MPSW] Steamworks初始化失败, 请检查Steam在线情况",
     "SteamworksInitSuccess": "[MPSW] Steamworks初始化成功 玩家: {0} ID: {1}",
-    "UnicastException": "[MPSW] 单播数据异常: {0} SteamId: {1}"
+    "UnicastException": "[MPSW] 单播数据异常: {0} SteamId: {1}",
+    "RateLimitCacheHit": "[MPSW] 处于5秒冷却期内, 直接返回缓存结果",
+    "LimitedUserAccount": "[MPSW] 账号受限 无法使用社交功能",
+    "NoConnection": "[MPSW] 没有连接到 Steam 网络",
+    "Timeout": "[MPSW] 请求超时,Steam 服务器响应过慢",
+    "InvalidParam": "[MPSW] 参数错误,maxPlayers 设置超限",
+    "RateLimitExceeded": "[MPSW] 操作过于频繁,被 Steam 暂时限制频率",
+    "LimitExceeded": "[MPSW] 达到上限,可能该账号已经开了太多的房间",
+    "AccessDenied": "[MPSW] 权限不足,可能是被封禁或当前区域/环境受限",
+    "CreateLobbyFailedDefault": "[MPSW] 大厅创建失败,Steam错误码: {0} ({1})"
   },
   "Patch": {
     "CoreAlreadyInjected": "[MP Patch] Core已经注入过,跳过",
@@ -228,6 +238,7 @@
     "PlayScreenContainerNotFound": "[MP UI] Play屏幕容器未找到",
     "TabButtonContainerNotFound": "[MP UI] 标签页按钮容器未找到",
     "TabButtonTemplateNotFound": "[MP UI] 按钮模板 ModeButton_Custom 未找到",
-    "TabContentContainerNotFound": "[MP UI] 标签页内容容器未找到"
+    "TabContentContainerNotFound": "[MP UI] 标签页内容容器未找到",
+    "LoadingTemplateNotFound": "[MP UI] 加载面板模板未找到"
   }
 }

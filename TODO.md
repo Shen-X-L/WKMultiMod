@@ -1,6 +1,5 @@
-
+改进是否上传排行榜的方式
 MPSteamworks.HandleLobbyCreated改进
-逆向地图生存逻辑+复活地图生成逻辑
 
 玩家ID TMP组件变为UI显示
 
@@ -18,3 +17,5 @@ UI_LobbyListPane.RefreshLobbyList换成对象池
 游乐场模式击杀统计排行榜
 自定义加载的场景死后不断连
 
+完善反编译
+M_Subregion M_Region M_Level WorldLoader M_Gamemode M_GenerationBranch CL_GameManager CL_SaveManager
