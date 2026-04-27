@@ -1,4 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<Import Project="LocalPaths.props" Condition="Exists('LocalPaths.props')" />
+
 	<PropertyGroup>
 		<TargetFramework>net472</TargetFramework>
 		<LangVersion>10.0</LangVersion>
@@ -10,19 +13,23 @@
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 	</PropertyGroup>
 
+	<Target Name="ValidateLocalPaths" BeforeTargets="Build" Condition="'$(GamePath)' == '' And '$(UnityProject)' == ''">
+		<Error Text="GameInstallPath is not set. Copy LocalPaths.props.example to LocalPaths.props and set your local game path." />
+	</Target>
+
 	<!-- AfterTargets="PostBuildEvent"表示在生成完成后执行 -->
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<!-- 创建名为 SharedOutputFiles 的项列表 -->
 		<ItemGroup>
 			<SharedOutputFiles Include="$(TargetDir)$(TargetName).dll" />
 		</ItemGroup>
-		<!--生成.dll复制到lib\Shared\-->
+		<!--生成.dll复制到lib\-->
 		<Copy SourceFiles="@(SharedOutputFiles)" 
-			DestinationFolder="$(SolutionDir)lib\Shared\" 
+			DestinationFolder="$(SolutionDir)lib\" 
 			SkipUnchangedFiles="true" />
 		<!--生成.dll复制到Unity项目下-->
 		<Copy SourceFiles="@(SharedOutputFiles)" 
-			DestinationFolder="D:\DevelopmentPortfolio\Unity\Project\My Asset Built-In\Assets\Plugins" 
+			DestinationFolder="$(UnityProject)\Assets\Plugins" 
 			SkipUnchangedFiles="true" />
 		<!--生成.dll复制到bin\解决方案配置-->
 		<Copy SourceFiles="@(SharedOutputFiles)"
@@ -30,7 +37,7 @@
 			SkipUnchangedFiles="true" />
 		<!--生成.dll复制到游戏文件夹-->
 		<Copy SourceFiles="@(SharedOutputFiles)" 
-			DestinationFolder="D:\GAME\Steam\steamapps\common\White Knuckle\BepInEx\plugins\MP" 
+			DestinationFolder="$(GamePath)\BepInEx\plugins\MP" 
 			SkipUnchangedFiles="true" />
 
 	</Target>
@@ -40,9 +47,24 @@
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<ManagedPath>$(GamePath)\White Knuckle_Data\Managed</ManagedPath>
+		<BepInExPath>$(GamePath)\BepInEx\core</BepInExPath>
+	</PropertyGroup>
+
 	<ItemGroup>
-		<Reference Include="..\..\lib\Unity\*.dll">
-			<Private>False</Private>
-		</Reference>
+		<Reference Include="$(ManagedPath)\Assembly-CSharp.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\Unity*.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\ALINE.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\Facepunch.Steamworks.Win64.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\Newtonsoft.Json.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\DOTween.dll" Private="False" />
+
+		<Reference
+			Include="$(BepInExPath)\*.dll"
+			Exclude="$(BepInExPath)\0Harmony20.dll"
+			Private="False" />
+		<Reference Include="$(LocalLibPath)\**\*.dll" Private="False" />
 	</ItemGroup>
 </Project>
+

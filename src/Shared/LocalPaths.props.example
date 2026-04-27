@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+	  <GamePath>C:\Path\To\Your\Game\White Knuckle</GamePath>
+	  <UnityProject>D:\Path\To\Your\Unity\Project</UnityProject>
+  </PropertyGroup>
+</Project>

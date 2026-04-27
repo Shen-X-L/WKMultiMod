@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+	  <LocalLibPath>..\..\lib</LocalLibPath>
+	  <GamePath>C:\Path\To\Your\Game\White Knuckle\</GamePath>
+  </PropertyGroup>
+</Project>

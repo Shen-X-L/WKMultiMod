@@ -378,3 +378,5 @@ lib/*
 # 排除整个 temp/ 文件夹 
 # 我用来存放他人代码和工具的位置
 temp/
+
+LocalPaths.props

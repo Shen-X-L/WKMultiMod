@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
+	<Import Project="LocalPaths.props" Condition="Exists('LocalPaths.props')" />
 	<PropertyGroup>
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>WKMultiPlayerMod</AssemblyName>
@@ -20,6 +20,10 @@
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
+	<Target Name="ValidateLocalPaths" BeforeTargets="Build" Condition="'$(GamePath)' == ''">
+		<Error Text="GamePath is not set. Copy LocalPaths.props.example to LocalPaths.props and set your local game path." />
+	</Target>
+
 	<ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
 		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
 	</ItemGroup>
@@ -29,34 +33,36 @@
 		<!-- 创建名为 SharedOutputFiles 的项列表 -->
 		<ItemGroup>
 			<SharedOutputFiles Include="$(TargetDir)$(TargetName).dll" />
-			<!-- 包含 JSON 文件 -->
 			<SharedOutputFiles Include="$(ProjectDir)Util\Localization\*.json" />
 		</ItemGroup>
 		<!--生成.dll复制到bin\解决方案配置-->
 		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)bin\$(Configuration)\" SkipUnchangedFiles="true" />
 		<!--生成.dll复制到游戏文件夹-->
-		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="D:\GAME\Steam\steamapps\common\White Knuckle\BepInEx\plugins\MP" SkipUnchangedFiles="true" />
+		<Copy Condition="'$(GamePath)' != ''" SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(GamePath)\BepInEx\plugins\MP" SkipUnchangedFiles="true" />
 	</Target>
 
+	<PropertyGroup>
+		<ManagedPath>$(GamePath)\White Knuckle_Data\Managed</ManagedPath>
+		<BepInExPath>$(GamePath)\BepInEx\core</BepInExPath>
+	</PropertyGroup>
+
 	<ItemGroup>
-		<Reference Include="..\..\lib\BepInEx\*.dll">
-			<Private>False</Private>
-		</Reference>
-
-		<Reference Include="..\..\lib\GameData\*.dll">
-			<Private>False</Private>
-		</Reference>
-
-		<Reference Include="..\..\lib\Unity\*.dll">
-			<Private>False</Private>
-		</Reference>
-
-		<Reference Include="..\..\lib\Shared\*.dll">
-		</Reference>
+		<Reference Include="$(ManagedPath)\Assembly-CSharp.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\Unity*.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\ALINE.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\Facepunch.Steamworks.Win64.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\Newtonsoft.Json.dll" Private="False" />
+		<Reference Include="$(ManagedPath)\DOTween.dll" Private="False" />
+		
+		<Reference
+			Include="$(BepInExPath)\*.dll"
+			Exclude="$(BepInExPath)\0Harmony20.dll"
+			Private="False" />
+		<Reference Include="$(LocalLibPath)\**\*.dll" Private="False" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <None Remove="NetWork\MPPacketRouter.cs~RF634c4182.TMP" />
+		<None Remove="NetWork\MPPacketRouter.cs~RF634c4182.TMP" />
 	</ItemGroup>
 
 </Project>

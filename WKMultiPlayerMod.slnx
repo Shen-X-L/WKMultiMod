@@ -1,94 +1,13 @@
 <Solution>
-  <Folder Name="/lib/">
-    <File Path="lib/copy_lib.py" />
-    <File Path="lib/README.md" />
-  </Folder>
-  <Folder Name="/lib/BepInEx/">
-    <File Path="lib/BepInEx/0Harmony.dll" />
-    <File Path="lib/BepInEx/0Harmony.xml" />
-    <File Path="lib/BepInEx/BepInEx.dll" />
-    <File Path="lib/BepInEx/BepInEx.Harmony.dll" />
-    <File Path="lib/BepInEx/BepInEx.Harmony.xml" />
-    <File Path="lib/BepInEx/BepInEx.Preloader.dll" />
-    <File Path="lib/BepInEx/BepInEx.Preloader.xml" />
-    <File Path="lib/BepInEx/BepInEx.xml" />
-    <File Path="lib/BepInEx/HarmonyXInterop.dll" />
-    <File Path="lib/BepInEx/Mono.Cecil.dll" />
-    <File Path="lib/BepInEx/Mono.Cecil.Mdb.dll" />
-    <File Path="lib/BepInEx/Mono.Cecil.Pdb.dll" />
-    <File Path="lib/BepInEx/Mono.Cecil.Rocks.dll" />
-    <File Path="lib/BepInEx/MonoMod.RuntimeDetour.dll" />
-    <File Path="lib/BepInEx/MonoMod.RuntimeDetour.xml" />
-    <File Path="lib/BepInEx/MonoMod.Utils.dll" />
-    <File Path="lib/BepInEx/MonoMod.Utils.xml" />
-  </Folder>
-  <Folder Name="/lib/GameData/">
-    <File Path="lib/GameData/ALINE.dll" />
-    <File Path="lib/GameData/Assembly-CSharp-firstpass.dll" />
-    <File Path="lib/GameData/Assembly-CSharp.dll" />
-    <File Path="lib/GameData/DarkMachineUI.dll" />
-    <File Path="lib/GameData/Facepunch.Steamworks.Win64.dll" />
-    <File Path="lib/GameData/Newtonsoft.Json.dll" />
-  </Folder>
-  <Folder Name="/lib/Shared/" />
-  <Folder Name="/lib/Temp/">
-    <File Path="lib/Temp/Unity.Netcode.Components.dll" />
-    <File Path="lib/Temp/Unity.Netcode.Runtime.dll" />
-    <File Path="lib/Temp/Unity.Networking.Transport.dll" />
-    <File Path="lib/Temp/Unity.TextMeshPro.dll" />
-    <File Path="lib/Temp/UnityEngine.ImageConversionModule.dll" />
-    <File Path="lib/Temp/UnityEngine.TextCoreFontEngineModule.dll" />
-    <File Path="lib/Temp/UnityEngine.TextCoreTextEngineModule.dll" />
-    <File Path="lib/Temp/UnityEngine.TextRenderingModule.dll" />
-    <File Path="lib/Temp/UnityEngine.UI.dll" />
-    <File Path="lib/Temp/UnityEngine.UIElementsModule.dll" />
-    <File Path="lib/Temp/UnityEngine.UIModule.dll" />
-  </Folder>
-  <Folder Name="/lib/Unity/">
-    <File Path="lib/Unity/Unity.Mathematics.dll" />
-    <File Path="lib/Unity/Unity.Mathematics.Extensions.dll" />
-    <File Path="lib/Unity/Unity.Mathematics.Extensions.Hybrid.dll" />
-    <File Path="lib/Unity/Unity.Postprocessing.Runtime.dll" />
-    <File Path="lib/Unity/UnityEngine.AssetBundleModule.dll" />
-    <File Path="lib/Unity/UnityEngine.CoreModule.dll" />
-    <File Path="lib/Unity/UnityEngine.dll" />
-    <File Path="lib/Unity/UnityEngine.InputLegacyModule.dll" />
-    <File Path="lib/Unity/UnityEngine.PhysicsModule.dll" />
-    <File Path="lib/Unity/UnityEngine.TextRenderingModule.dll" />
-    <File Path="lib/Unity/UnityEngine.UI.dll" />
-  </Folder>
   <Folder Name="/src/" />
   <Folder Name="/src/Core/">
-    <Project Path="src/Core/WKMultiPlayerMod.csproj" />
+    <Project Path="D:/DevelopmentPortfolio/c#/WKMultiPlayerMod/src/Core/WKMultiPlayerMod.csproj" />
   </Folder>
   <Folder Name="/src/Shared/">
-    <Project Path="src/Shared/WKMultiPlayerMod.Shared.csproj" />
-  </Folder>
-  <Folder Name="/src/Test/">
-    <Project Path="../WKTestMod/WKTestMod/WKTestMod.csproj" />
-  </Folder>
-  <Folder Name="/temp/">
-    <File Path="temp/笔记.md" />
-    <File Path="游戏数据.md" />
-    <Project Path="temp/DailyKnuckle/DailyKnuckle.csproj">
-      <Build Project="false" />
-    </Project>
-    <Project Path="temp/GameSource/GameSource.csproj">
-      <Build Project="false" />
-    </Project>
-    <Project Path="temp/MoreCommand/MoreCommand.csproj">
-      <Build Project="false" />
-    </Project>
-    <Project Path="temp/Shotgun/Shotgun.csproj" Id="e2288e0a-77eb-4f2e-b0f2-17bf662eaed7" />
-    <Project Path="temp/SteamWorks/SteamWorks.csproj">
-      <Build Project="false" />
-    </Project>
-    <Project Path="temp/WK_IShowSeed/WK_IShowSeed.csproj">
-      <Build Project="false" />
-    </Project>
+    <Project Path="D:/DevelopmentPortfolio/c#/WKMultiPlayerMod/src/Shared/WKMultiPlayerMod.Shared.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="src/Test/test.csproj" />
+    <Project Path="D:/DevelopmentPortfolio/c#/WKMultiPlayerMod/src/Test/test.csproj" />
   </Folder>
   <Folder Name="/解决方案项/">
     <File Path=".gitattributes" />
