@@ -17,8 +17,6 @@ public class RemoteEntity : GameEntity {
 
 	public GameObject DamageObject; // 受到伤害时生成的特效对象(如果为null则使用默认对象)
 
-
-
 	public override void Start() {
 		base.Start();
 		canSave = false;    // 不保存远程实体

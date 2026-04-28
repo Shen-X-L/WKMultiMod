@@ -465,6 +465,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					}
 				}
 			});
+		
 		// 加入大厅
 		CommandConsole.BuildCommand("join", Join)
 			.NotCheat()
@@ -483,6 +484,7 @@ public class MPCore : MonoSingleton<MPCore> {
 						break;
 				}
 			});
+		
 		// 离开大厅
 		CommandConsole.BuildCommand("leave", Leave)
 			.NotCheat()
@@ -505,6 +507,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			.Description(Localization.Get("CommandHelp.LobbyId"))
 			.OverValue(() => _MPsteamworks.IsInLobby ? _MPsteamworks.LobbyId : "Not In Lobby")
 			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
+		
 		// 获取大厅全部玩家
 		CommandConsole.BuildCommand("allplayer", (args) => {
 			foreach (var friend in _MPsteamworks.Members) {
@@ -518,10 +521,12 @@ public class MPCore : MonoSingleton<MPCore> {
 				? $"Player: {_MPsteamworks.Members.Count()}/{_MPsteamworks.LobbySize}"
 				: "Not In Lobby")
 			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
+		
 		// 向大厅广播
 		CommandConsole.BuildCommand("talk", Talk)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Talk"));
+		
 		// tp到某人(同步背包物品)
 		CommandConsole.BuildCommand("tpto", TpToPlayer)
 			.Description(Localization.Get("CommandHelp.TpTo"))
@@ -534,6 +539,7 @@ public class MPCore : MonoSingleton<MPCore> {
 								name: container.PlayerName)).ToList());
 				}
 			});
+		
 		// 修改玩家模型(局内不生效)
 		CommandConsole.BuildCommand("changemodel", (args) => {
 			_LocalPlayer.DefaulFactoryId = args[0];
@@ -546,10 +552,12 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(RPFactoryManager.factories.Keys.ToList());
 				}
 			});
+		
 		// 获取全部大厅
 		CommandConsole.BuildCommand("lobbylist", GetAllLobby)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.LobbyList"));
+		
 		// 邀请其他好友
 		CommandConsole.BuildCommand("invite", (args) => {
 			if (!EnsureInLobby()) return;
@@ -560,6 +568,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Invite"))
 			.OverValue(() => _MPsteamworks.IsInLobby ? _MPsteamworks.LobbyId : "Not In Lobby");
+		
 		// 设置大厅可见度
 		CommandConsole.BuildCommand("lobbytype", SetLobbyVisibility)
 			.NotCheat()
@@ -578,12 +587,14 @@ public class MPCore : MonoSingleton<MPCore> {
 						validator.Reject(); // 不匹配则高亮红色
 				}
 			});
+
 		// 设置大厅名称
 		CommandConsole.BuildCommand("setlobbyname", (args) => {
 			if (!EnsureHostPrivileges()) return;
 			_MPsteamworks.SetLobbyData("name", string.Join(" ", args));
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.SetLobbyName"));
+
 		// 设置是否可开启作弊模式
 		CommandConsole.BuildCommand("allowcheats", (args) => {
 			if (!EnsureHostPrivileges()) return;
@@ -595,6 +606,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				// 有参数直接使用参数
 				enabled = result2;
 			}
+			MPConfig.AllowCheats = enabled;
 			_MPsteamworks.SetLobbyData("allowCheats", enabled.ToString());
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.AllowCheats"))
@@ -613,6 +625,7 @@ public class MPCore : MonoSingleton<MPCore> {
 						validator.Reject(); // 不匹配则高亮红色
 				}
 			});
+
 		// 设置是否可PVP
 		CommandConsole.BuildCommand("allowpvp", (args) => {
 			if (!EnsureHostPrivileges()) return;
@@ -624,6 +637,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				// 有参数直接使用参数
 				enabled = result2;
 			}
+			MPConfig.AllowPVP = enabled;
 			_MPsteamworks.SetLobbyData("allowPVP", enabled.ToString());
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.AllowPVP"))
@@ -737,18 +751,14 @@ public class MPCore : MonoSingleton<MPCore> {
 		Lobby? targetLobby = null;
 
 		CommandConsole.Log(Localization.Get("CommandConsole.SearchingLobbyByName", input));
-
-		// 创建查询对象 设置过滤条件
-		var query = new LobbyQuery()
-			.FilterDistanceWorldwide()
-			.WithKeyValue("game", "White Knuckle") // 确保是同一款游戏的
-			.WithKeyValue("name", input)           // 匹配名称
-			.WithMaxResults(5);
+		
 		try {
 			// 进行异步查询
-			var searchResults = await query.RequestAsync();
+			var LobbyList = await _MPsteamworks.RefreshLobbyListAsync();
 
-			if (searchResults != null && searchResults.Length == 1) {
+			var searchResults = LobbyList.Where(lobby => lobby.GetData("name") == input).ToList();
+
+			if (searchResults != null && searchResults.Count == 1) {
 				// 找到唯一名称大厅
 				targetLobby = searchResults[0];
 				CommandConsole.Log(Localization.Get("CommandConsole.FoundLobbyByName", targetLobby.Value.Id));
@@ -756,7 +766,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					await ExecuteJoinProcess(targetLobby.Value.Id);
 					return;
 				}
-			} else if (searchResults != null && searchResults.Length > 1) {
+			} else if (searchResults != null && searchResults.Count > 1) {
 				// 找到多个同名大厅
 				foreach (var lobby in searchResults) {
 					CommandConsole.Log(Localization.Get(

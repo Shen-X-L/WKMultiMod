@@ -1,8 +1,6 @@
-UI换页不管用
-
 玩家ID TMP组件变为UI显示
 
-Restart以后做成 HOOK 拦截 + 启动同步协程 + Loading界面
+修复深渊复活时的地图同步
 
 记得修补TMP字体文件 按钮组件 UI_Manager.DisplayMessage
 
