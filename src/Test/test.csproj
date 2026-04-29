@@ -1,28 +1,35 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<Import Project="LocalPaths.props" Condition="Exists('LocalPaths.props')" />
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsPackable>false</IsPackable>
+		<IsTestProject>true</IsTestProject>
+	</PropertyGroup>
+	<Target Name="ValidateLocalPaths" BeforeTargets="Build" Condition="'$(GamePath)' == ''">
+		<Error Text="GamePath is not set. Copy LocalPaths.props.example to LocalPaths.props and set your local game path." />
+	</Target>
+	<ItemGroup>
+		<PackageReference Include="coverlet.collector" Version="6.0.0" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+		<PackageReference Include="NUnit" Version="3.14.0" />
+		<PackageReference Include="NUnit.Analyzers" Version="3.9.0" />
+		<PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+	</ItemGroup>
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-
-    <IsPackable>false</IsPackable>
-    <IsTestProject>true</IsTestProject>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageReference Include="NUnit" Version="3.14.0" />
-    <PackageReference Include="NUnit.Analyzers" Version="3.9.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Core\WKMultiPlayerMod.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Using Include="NUnit.Framework" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Core\WKMultiPlayerMod.csproj" />
+		<ProjectReference Include="..\Shared\WKMultiPlayerMod.Shared.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<Reference Include="$(GamePath)\White Knuckle_Data\Managed\Assembly-CSharp.dll" Private="False" />
+		<Reference Include="$(GamePath)\White Knuckle_Data\Managed\Unity*.dll" Private="False" />
+		<Reference Include="$(GamePath)\White Knuckle_Data\Managed\ALINE.dll" Private="False" />
+		<Reference Include="$(GamePath)\White Knuckle_Data\Managed\Newtonsoft.Json.dll" Private="False" />
+	</ItemGroup>
+	<ItemGroup>
+		<Using Include="NUnit.Framework" />
+	</ItemGroup>
 
 </Project>

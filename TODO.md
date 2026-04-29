@@ -1,3 +1,5 @@
+岩钉通过UT_Damage.Damage来锤入
+
 玩家ID TMP组件变为UI显示
 
 修复深渊复活时的地图同步

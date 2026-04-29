@@ -163,7 +163,7 @@ WhiteKnuckleMod/
 │   │   ├─ UI_LobbyListPane.cs       # 大厅列表面板组件,负责显示大厅列表界面
 │   │   └─ UI_Manager.cs		        # UI管理器,负责创建和管理UI界面
 │   ├─ Util/ 
-│   │   ├─ Localization/     
+│   │   ├─ Localization/   
 │   │   │   ├─ Localization.cs   # 本地化工具类,获取本地化控制台文本
 │   │   │   ├─ json_sort.py      # 用于将Localization文件夹下的json文件排序和对比
 │   │   │   ├─ texts_en.json     # 英文文本
@@ -234,6 +234,7 @@ WhiteKnuckleMod/
 * **[BepInEx](https://github.com/BepInEx/BepInEx)** - 优秀的 Unity 游戏插件框架.
 * **[Time](https://github.com/TimeCr)** - 实现大量功能,岩钉同步,掉落物同步,实体同步(部分功能还在测试)
 * **[Fugel](https://github.com/PotatoeShaman)** - 提供Steam邀请好友,收到邀请等API,局内UI显示
+* 可喵 - 提供mod新封面
 * **《白色节点》游戏社区** - 提供的灵感和测试帮助.
 * **原联机 MOD 作者** - 为其开源代码奠定了基础.
 * **QQ 群和Discord** - 提供bug反馈,mod改进想法
@@ -245,5 +246,3 @@ WhiteKnuckleMod/
 * [**联机Mod Discord**](https://discord.gg/huHkf6ChcV)
 * **QQ 群** : 596296577
 * **作者** : Shenxl - 819452727@qq.com
-
-

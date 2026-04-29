@@ -97,12 +97,10 @@ After enabling cheat mode (`cheats`) in-game, use the following commands:
 
 * `host <port> [max_players]` - Host a server.
 
-   * Example: `host 22222`
-
+  * Example: `host 22222`
 * `join <ip_address> <port>` - Join an existing host server.
 
-   * Example: `join 127.0.0.1 22222` or `join [::1] 22222`
-
+  * Example: `join 127.0.0.1 22222` or `join [::1] 22222`
 * `leave` - Leave the current host server.
 
 ## Development Guide
@@ -176,7 +174,7 @@ WhiteKnuckleMod/
 │   │   ├─ UI_LobbyListPane.cs      # Lobby list panel component, displays the lobby list UI
 │   │   └─ UI_Manager.cs            # UI Manager, creates and manages UI interfaces
 │   ├─ Util/ 
-│   │   ├─ Localization/       
+│   │   ├─ Localization/     
 │   │   │   ├─ Localization.cs      # Localization utility class, retrieves localized console text
 │   │   │   ├─ json_sort.py         # Sorts JSON files in the Localization folder
 │   │   │   ├─ texts_en.json        # English texts
@@ -250,6 +248,7 @@ Welcome to submit Issues for bug reports or suggestions! Pull Requests are also 
 * **[BepInEx](https://github.com/BepInEx/BepInEx)** - An excellent plugin framework for Unity games.
 * **[Time](https://github.com/TimeCr)** - Implemented numerous features, including rock bolt synchronization, dropped item synchronization, and entity synchronization (some features are still under testing).
 * **[Fugel](https://github.com/PotatoeShaman)** - Provided APIs for Steam friend invites, receiving invites, and in‑game UI display.
+* Kemoe! - Provided new icon art for the mod.
 * ***White Knuckle* Game Community** - For inspiration and testing assistance.
 * **Original Online Mod Author(s)** - For laying the groundwork with their open-source code.
 * **QQ Group and Discord** – Provided bug reports and mod improvement ideas.
