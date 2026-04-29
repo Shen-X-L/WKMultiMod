@@ -36,7 +36,9 @@
     "SetLobbyName": "[Lobby Name]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
     "Talk": "[Text]: Send a message to other players.",
     "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
-    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422)."
+    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422).",
+    "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
+    "AllowCheats": "[True|False] Controls whether players can enable cheat mode"
   },
   "DisplayMessage": {
     "EnteredMessages": [

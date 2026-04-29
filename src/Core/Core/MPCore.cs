@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using WKMPMod.Asset;
 using WKMPMod.Component;
@@ -478,8 +479,8 @@ public class MPCore : MonoSingleton<MPCore> {
 						autocomplete.FromArrayWithDesc(
 							_MPsteamworks.LastFetchedLobbies
 								.Select(lobby => (
-									name: lobby.GetData("name") ?? "Unnamed Lobby",
-									desc: lobby.Id.ToString()))
+									desc: lobby.Id.ToString(),
+									name: lobby.GetData("name") ?? "Unnamed Lobby"))
 								.ToList());
 						break;
 				}
@@ -747,7 +748,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			return;
 		}
 
-		string input = args[0];
+		string input = string.Join(" ",args);
 		Lobby? targetLobby = null;
 
 		CommandConsole.Log(Localization.Get("CommandConsole.SearchingLobbyByName", input));
@@ -1021,15 +1022,22 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandleLobbyDataChanged(Dictionary<string, string> delta) {
 		if (delta == null) return;
-		IsAllowCheats = TryGetBoolInDict(delta, "allowCheats");
-		// 明确要求关闭作弊
-		if (!IsAllowCheats) {
-			CommandConsole.cheatsEnabled = false;
-			ENT_Player.GetPlayer().noclip = false;
+
+		if (delta.TryGetValue("allowCheats", out var cheatsValue)) {
+			IsAllowCheats = bool.TryParse(cheatsValue, out var parsed) && parsed;
+			// 明确要求关闭作弊
+			if (!IsAllowCheats) {
+				CommandConsole.cheatsEnabled = false;
+				ENT_Player.GetPlayer().noclip = false;
+			}
 		}
-		IsAllowPVP = TryGetBoolInDict(delta, "allowPVP");
-		if (delta.TryGetValue("damageMultiplier", out var value)) {
-			damageRules = JsonUtility.FromJson<DamageRules>(value);
+
+		if (delta.TryGetValue("allowPVP", out var pvpValue)) {
+			IsAllowPVP = bool.TryParse(pvpValue, out var parsed) && parsed;
+		}
+
+		if (delta.TryGetValue("damageMultiplier", out var damageValue)) {
+			damageRules = JsonUtility.FromJson<DamageRules>(damageValue);
 		}
 	}
 
@@ -1098,17 +1106,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private static void CopyToClipboard(string text) {
 		GUIUtility.systemCopyBuffer = text;
-	}
-
-	/// <summary>
-	/// 尝试从字典中获取key对应的value并转为Bool类型
-	/// </summary>
-	public static bool TryGetBoolInDict(Dictionary<string, string> dictionary, string key, bool defaultValue = false) {
-		if (dictionary.TryGetValue(key, out var value) && bool.TryParse(value, out var result)) {
-			return result;
-		} else {
-			return defaultValue;
-		}
 	}
 
 	/// <summary>

@@ -704,6 +704,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// 接收数据: 大厅创建回调
 	/// </summary>
 	public void HandleLobbyCreated(Result result, Lobby lobby) {
+		if (result == Result.OK) return;
 		// 针对特定错误给玩家提示
 		// 针对常见的大厅创建错误进行分类处理
 		switch (result) {
@@ -758,7 +759,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				delta[kv.Key] = kv.Value;
 			}
 		}
-		LobbyData = lobby.Data.ToDictionary(x => x.Key, x => x.Value);
+		LobbyData = lobby.Data.ToDictionary(k => k.Key, v => v.Value);
 
 		if (delta.Count > 0) {
 			MPEventBusNet.NotifyLobbyDataChanged(delta);

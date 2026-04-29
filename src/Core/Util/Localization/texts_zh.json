@@ -15,7 +15,6 @@
     "LobbyVisibilitySet": "大厅可见级别设置为: {0}",
     "LobbyVisibilitySetFailed": "大厅可见级别设置失败, 支持的选项有: public, friends, private",
     "MultipleMatchingIds": "找到多个匹配的ID.以下是对应的列表:\n{0}",
-    "NeedToBeOnline": "您需要在在线模式下使用此命令, \n请先使用 host 或 join 命令",
     "NoLobbyByNameTryId": "未找到匹配名称的大厅, 尝试使用 ID 连接...",
     "SearchingLobbyByName": "正在按名称搜索大厅: {0}...",
     "TargetIdNotFound": "未找到目标ID.此命令使用后缀匹配.\n例如: 目标ID: 76561198279116422 → tpto 6422.",
@@ -38,8 +37,8 @@
     "Talk": "[Text]: Send a message to other players.",
     "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
     "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422).",
-    "AllowPVP": "[True|False] 控制玩家间是否可以PVP",
-    "AllowCheats": "[True|False] 控制玩家是否可以开启作弊模式"
+    "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
+    "AllowCheats": "[True|False] Controls whether players can enable cheat mode"
   },
   "DisplayMessage": {
     "EnteredMessages": [
