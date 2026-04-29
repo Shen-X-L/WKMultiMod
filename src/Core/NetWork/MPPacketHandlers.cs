@@ -89,7 +89,7 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.PitonStateSync)]
 	private static void HandlePitonStateSync(ulong senderId, DataReader reader) {
-		PitonSyncManager.HandlePitonState(senderId, reader);
+		ClimbableItemSyncManager.HandlePitonState(senderId, reader);
 	}
 
 	/// <summary>
