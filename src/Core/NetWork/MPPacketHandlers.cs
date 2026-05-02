@@ -9,6 +9,7 @@ using WKMPMod.Data;
 using WKMPMod.RemotePlayer;
 using WKMPMod.Util;
 using WKMPMod.World;
+using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
 using static WKMPMod.Util.DictionaryExtensions;
@@ -25,6 +26,7 @@ public class MPPacketHandlers {
 	/// <summary>
 	/// 主机接收WorldInitRequest: 请求初始化数据
 	/// 发送WorldInitData: 初始化数据给新玩家
+	/// <see cref="HandleWorldInit"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.WorldInitRequest)]
 	private static void HandleWorldInitRequest(ulong senderId, DataReader reader) {
@@ -44,7 +46,7 @@ public class MPPacketHandlers {
 	[MPPacketHandler(PacketType.WorldInitData)]
 	private static void HandleWorldInit(ulong senderId, DataReader reader) {
 		// 获取游戏模式数据 
-		var gameModeData = reader.GetGameModeData();
+		var gameModeData = reader.Get<GameModeData>();
 		// 加载游戏模式
 		MPGameModeManager.LoadGameMode(gameModeData);
 		// 设置多人模式加载标签为完成
@@ -94,7 +96,7 @@ public class MPPacketHandlers {
 
 	/// <summary>
 	/// 主机/客户端接收PlayerDamage: 受到伤害<br/>
-	/// 接受路由函数: <see cref="MPCore.HandlePlayerDamage"/>
+	/// 发送函数: <see cref="MPCore.HandlePlayerDamage"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDamage)]
 	private static void HandlePlayerDamage(ulong senderId, DataReader reader) {
@@ -105,7 +107,8 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
-	/// 主机/客户端接收PlayerAddForce: 受到冲击力
+	/// 主机/客户端接收PlayerAddForce: 受到冲击力<br/>
+	/// 发送函数: <see cref="MPCore.HandlePlayerAddForce"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerAddForce)]
 	private static void HandlePlayerAddForce(ulong senderId, DataReader reader) {

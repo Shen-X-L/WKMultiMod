@@ -3,18 +3,43 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using WKMPMod.Data;
 using WKMPMod.Util;
+using WKMultiPlayerMod.Data;
 using static CL_AssetManager;
 
 namespace WKMPMod.Core;
 
 public class MPGameModeManager {
-	public record struct GameModeData {
-		public bool isIron;
-		public bool isHard;
+	public record struct GameModeData: INetworkSerializable {
 		public string gameModeName;			// 可能重名
-		public string gameModeObjectName;	// 可能重名
+		public string gameModeObjectName;   // 可能重名
+		public List<string> activeTrinkets; // 包含饰品和绑定的名称列表
+		public List<string> activeSettings; // 包含铁人、困难等设置的名称列表
+		public bool needBindSync;			// 是否需要同步绑定数据(如果饰品名称不唯一或包含绑定数据则需要同步绑定数据)
 		public int? seed;
+
+		public GameModeData() { }
+
+		public void Serialize(DataWriter writer) {
+			writer.Put(gameModeName);
+			writer.Put(gameModeObjectName);
+			writer.Put(activeTrinkets);
+			writer.Put(activeSettings);
+			writer.Put(needBindSync);
+			writer.Put(seed.HasValue);
+			if (seed.HasValue)
+				writer.Put(seed.Value);
+		}
+
+		public void Deserialize(DataReader reader) { 
+			this.gameModeName = reader.GetString();
+			this.gameModeObjectName = reader.GetString();
+			this.activeTrinkets = reader.GetStringList();
+			this.activeSettings = reader.GetStringList();
+			this.needBindSync = reader.GetBool();
+			this.seed = reader.GetNullableInt();
+		}
 	}
 
 	public static Dictionary<string,M_Gamemode> gameModeDict = new Dictionary<string,M_Gamemode>();
@@ -52,10 +77,11 @@ public class MPGameModeManager {
 	/// </summary>
 	public static GameModeData CaptureCurrentData() {
 		CurrentData = new GameModeData {
-			isIron = SettingsManager.settings.g_iron,
-			isHard = SettingsManager.settings.g_hard,
 			gameModeName = CL_GameManager.gamemode.name,
 			gameModeObjectName = CL_GameManager.gamemode.ToString(),
+			activeTrinkets = StatManager.saveData.GetGameMode(CL_GameManager.GetGamemodeName()).activeTrinkets,
+			activeSettings = StatManager.saveData.GetGameMode(CL_GameManager.GetBaseGamemode().gamemodeName).activeSettings,
+			needBindSync = MPConfig.BindSync,
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
 		return CurrentData.Value;
@@ -83,8 +109,16 @@ public class MPGameModeManager {
 		// 设置游戏模式
 		CL_GameManager.gMan.SetGamemode(m_Gamemode);
 		// 更改难度
-		SettingsManager.settings.g_iron = data.isIron;
-		SettingsManager.settings.g_hard = data.isHard;
+		foreach (var setting in data.activeSettings) {
+			StatManager.saveData.SetSetting(m_Gamemode.gamemodeName, setting, true);
+		}
+		// 饰品和绑定数据默认不同步, 只有设置了需要同步绑定数据才同步
+		if (data.needBindSync) {
+			StatManager.saveData.SetGamemodeTrinkets(CL_GameManager.GetGamemodeName(), data.activeTrinkets);
+			MPCore.NeedResetGamemodeName = CL_GameManager.GetGamemodeName();
+			MPCore.NeedResetTrinkets = true;
+		}
+			
 		// 一直设置种子, 相同种子而跳过设置种子会导致种子重随机
 		if (data.seed is int value) {
 			WorldLoader.SetPresetSeed(value.ToString());

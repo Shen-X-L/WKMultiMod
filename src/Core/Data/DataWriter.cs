@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using WKMultiPlayerMod.Data;
 using static WKMPMod.Core.MPGameModeManager;
 
 namespace WKMPMod.Data;
@@ -17,7 +18,6 @@ public class DataWriter : IDisposable {
 	private readonly ArrayPool<byte> _pool;
 
 	public ArraySegment<byte> Data => new ArraySegment<byte>(_buffer, 0, _position);
-
 
 	public DataWriter(int initialCapacity = 1024) {
 		_pool = ArrayPool<byte>.Shared;
@@ -318,18 +318,6 @@ public class DataWriter : IDisposable {
 	}
 
 	/// <summary>
-	/// 写入<see cref="GameModeData"/> 游戏模式数据
-	/// </summary>
-	public DataWriter Put(GameModeData data) {
-		Put(data.isIron);
-		Put(data.isHard);
-		Put(data.gameModeName);
-		Put(data.gameModeObjectName);
-		Put(data.seed);
-		return this;
-	}
-
-	/// <summary>
 	/// 写入 IReadOnlyList&lt;string&gt; 用于tags等List<string>
 	/// </summary>
 	public DataWriter Put(IReadOnlyList<string> strings) {
@@ -346,8 +334,13 @@ public class DataWriter : IDisposable {
 	#endregion
 
 	#region[写入泛型类型]
+	public DataWriter Put<T>(T obj) where T : INetworkSerializable {
+		// 编译器会直接调用 struct 的方法，不会发生装箱
+		obj.Serialize(this);
+		return this;
+	}
 
-	public DataWriter Put<T>(IReadOnlyList<T> list) where T : IBinarySerializabl {
+	public DataWriter Put<T>(IReadOnlyList<T> list) where T : INetworkSerializable {
 		if (list == null || list.Count == 0) {
 			Put(0);
 			return this;

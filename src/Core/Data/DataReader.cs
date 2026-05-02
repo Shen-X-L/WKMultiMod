@@ -3,7 +3,9 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Text;
+using Unity.VisualScripting;
 using UnityEngine;
+using WKMultiPlayerMod.Data;
 using static WKMPMod.Core.MPGameModeManager;
 
 namespace WKMPMod.Data;
@@ -240,19 +242,6 @@ public class DataReader {
 	}
 
 	/// <summary>
-	/// 获取<see cref="GameModeData"/>  游戏模式数据
-	/// </summary>
-	public GameModeData GetGameModeData() { 
-		var data = new GameModeData();
-		data.isIron = GetBool();
-		data.isHard = GetBool();
-		data.gameModeName = GetString();
-		data.gameModeObjectName = GetString();
-		data.seed = GetNullableInt();
-		return data;
-	}
-
-	/// <summary>
 	/// 获取 List&lt;string&gt; 用于tags等List<string>
 	/// </summary>
 	public List<string> GetStringList() { 
@@ -263,5 +252,47 @@ public class DataReader {
 		}
 		return data;
 	}
+	#endregion
+
+	#region[读取泛型类型]
+
+	/// <summary>
+	/// 读取单个实现了接口的对象
+	/// </summary>
+	public T Get<T>() where T : INetworkSerializable, new() {
+		T obj = new T();
+		obj.Deserialize(this);
+		return obj;
+	}
+
+	/// <summary>
+	/// 读取实现了接口的对象列表
+	/// </summary>
+	public List<T> GetList<T>() where T : INetworkSerializable, new() {
+		int count = GetInt();
+		if (count <= 0) return new List<T>(0);
+
+		List<T> list = new List<T>(count);
+		for (int i = 0; i < count; i++) {
+			T item = new T();
+			item.Deserialize(this);
+			list.Add(item);
+		}
+		return list;
+	}
+
+	/// <summary>
+	/// 填充现有列表, 避免重新分配 List 内存
+	/// </summary>
+	public void GetList<T>(List<T> existingList) where T : INetworkSerializable, new() {
+		int count = GetInt();
+		existingList.Clear();
+		for (int i = 0; i < count; i++) {
+			T item = new T();
+			item.Deserialize(this);
+			existingList.Add(item);
+		}
+	}
+
 	#endregion
 }

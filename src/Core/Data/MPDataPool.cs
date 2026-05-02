@@ -80,10 +80,3 @@ public static class MPWriterPool {
 		return _threadWriter;
 	}
 }
-
-// 序列化接口,用于List等泛型操作
-public interface IBinarySerializabl{
-	abstract void Serialize(DataWriter writer);
-
-	abstract void Deserialize(DataReader reader);
-}

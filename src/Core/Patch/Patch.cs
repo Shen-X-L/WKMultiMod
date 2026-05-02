@@ -36,18 +36,6 @@ public class Patch_M_Level_Awake {
 	}
 }
 
-// 补丁类: 在联机模式下强制应用当前游戏模式的铁人和困难设置
-[HarmonyPatch(typeof(SettingsManager), nameof(SettingsManager.RefreshSettings))]
-public class Patch_SettingsManager_RefreshSettings {
-	public static void Postfix() {
-		// 仅在联机模式下执行特定设置调整
-		if (MPCore.IsInLobby && MPGameModeManager.CurrentData.HasValue) {
-			SettingsManager.settings.g_iron = MPGameModeManager.CurrentData.Value.isIron;
-			SettingsManager.settings.g_hard = MPGameModeManager.CurrentData.Value.isHard;
-		}
-	}
-}
-
 // 补丁类: 在联机模式下重开时重置游戏状态控制器的状态
 [HarmonyPatch(typeof(UT_GameStateController), nameof(UT_GameStateController.RestartScene))]
 public class Patch_UT_GameStateController_RestartScene {

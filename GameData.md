@@ -139,4 +139,25 @@ name:GM_CH_04_Comms				|Comms Array
 name:GM_CH_05_Shutterworld		|Shuttered Rift
 name:GM_CH_06_BoostCourse		|Boost Course
 ```
+## 饰品/绑定
+名称 前缀Trinket_
+GoldNugget
+MassDamper
+Beta
+Carabiner
+Chalk
+EmployeeID
+MoonRock
+PhotoOfHome
+Pouch
+BagExpander
+Headlamp 
 
+名称 前缀Binding_
+HalfInventory
+HighGravity
+NoPerks
+PitonAndBeans
+WeakArms
+Survival
+NoShops

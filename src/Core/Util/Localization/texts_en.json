@@ -38,7 +38,9 @@
     "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
     "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422).",
     "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
-    "AllowCheats": "[True|False] Controls whether players can enable cheat mode"
+    "AllowCheats": "[True|False] Controls whether players can enable cheat mode",
+    "BindSync": "[True|False] Controls whether newly joined players will have their Trinkets and Bindings synced. This setting does not affect players who are already in the lobby."
+
   },
   "DisplayMessage": {
     "EnteredMessages": [

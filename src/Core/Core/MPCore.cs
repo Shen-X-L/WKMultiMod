@@ -85,6 +85,12 @@ public class MPCore : MonoSingleton<MPCore> {
 	// 是否处于大厅中
 	public static bool IsInLobby => MultiPlayerStatus.IsInLobby();
 	public static bool IsInitialized => MultiPlayerStatus.IsInitialized();
+	// 是否满足同步条件(处于大厅中且已初始化且有连接)
+	public static bool CanSync => IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
+
+	// 防止没有解锁选项时被设定了饰品/绑定 在这里重置
+	public static bool NeedResetTrinkets = false;
+	public static string NeedResetGamemodeName = null;
 
 	// 手部皮肤 -> 玩家模型ID 映射字典
 	public static readonly Dictionary<string, string> HandSkinToModelId = new() {
@@ -93,7 +99,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 可在此添加更多映射
 	};
 
-	// 注意:日志通过 MultiPlayerMain.Logger 访问
 	#region[Unity组件生命周期函数]
 	protected override void Awake() {
 		base.Awake();
@@ -332,6 +337,11 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPGameModeManager.ClearCurrentData();
 		_MPsteamworks.DisconnectAll();
 		_RPManager.ResetAll();
+		// 是否需要重置饰品/绑定
+		if (NeedResetTrinkets && NeedResetGamemodeName != null) {
+			StatManager.saveData.SetGamemodeTrinkets(NeedResetGamemodeName, new List<string>());
+			NeedResetTrinkets = false;
+		}
 	}
 
 	/// <summary>
@@ -381,7 +391,8 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 发送给予其他玩家冲击力数据
+	/// 发送给予其他玩家冲击力数据<br/>
+	/// 接受路由函数: <see cref="MPPacketHandlers.HandlePlayerAddForce"/>
 	/// </summary>
 	private void HandlePlayerAddForce(ulong steamId, Vector3 force, string source) {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, steamId, PacketType.PlayerAddForce);
@@ -657,6 +668,37 @@ public class MPCore : MonoSingleton<MPCore> {
 						validator.Reject(); // 不匹配则高亮红色
 				}
 			});
+
+		// 设置是否需要饰品/绑定同步
+		CommandConsole.BuildCommand("bindsync", (args) => {
+			if (!EnsureHostPrivileges()) return;
+			bool enabled = false;
+			if (args.Length == 0 && bool.TryParse(_MPsteamworks.LobbyData?.GetValueOrDefault("bindSync"), out bool result1)) {
+				// 如果没有参数 获取大厅数据并取反 || 取否
+				enabled = !result1;
+			} else if (bool.TryParse(args[0], out bool result2)) {
+				// 有参数直接使用参数
+				enabled = result2;
+			}
+			MPConfig.BindSync = enabled;
+		}).NotCheat()
+			.Description(Localization.Get("CommandHelp.BindSync"))
+			.OverValue(() => _MPsteamworks.IsInLobby
+				? (MPConfig.BindSync.ToString())
+				: "Not In Lobby")
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0 && _MPsteamworks.IsHost)
+					autocomplete.FromArray(new[] { "True", "False" });
+				if (autocomplete.activeArg == 0 && !_MPsteamworks.IsHost)
+					autocomplete.FromArray(new[] { "You Are Not Host" });
+			}).AutocompleteValidator(validator => {
+				if (validator.activeArg == 1) {
+					string vis = validator.ArgumentAt(1).ToLower();
+					if (vis != "True" && vis != "False")
+						validator.Reject(); // 不匹配则高亮红色
+				}
+			});
+
 	}
 
 	#endregion
@@ -1066,9 +1108,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		MultiPlayerStatus.SetField(mask, value);
 	}
 
-	public static bool CanSync() {
-		return MPCore.IsInLobby && MPCore.IsInitialized && MPSteamworks.Instance.HasConnections;
-	}
 	#endregion
 
 	#region[工具函数]

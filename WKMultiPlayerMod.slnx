@@ -12,6 +12,7 @@
   <Folder Name="/解决方案项/">
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
+    <File Path="GameData.md" />
     <File Path="README.md" />
     <File Path="README_CN.md" />
     <File Path="TODO.md" />

@@ -89,8 +89,14 @@ public class MPConfig {
 		set { _allowPVP.Value = value; }
 	}
 
+	private static ConfigEntry<bool> _bindsync;
+	public static bool BindSync {
+		get { return _bindsync.Value; }
+		set { _bindsync.Value = value; }
+	}
+
 	#endregion
-	
+
 	/// <summary>
 	/// 初始化配置文件
 	/// </summary>
@@ -240,7 +246,10 @@ Active配置项控制玩家造成的伤害倍率
 			"Controls whether PvP is enabled by default in lobby you host.\n" +
 			"控制由你开启的房间是否默认可以PVP"
 			);
-
+		_bindsync = config.Bind<bool>(
+			"LobbyRule", "bindsync", false,
+			"Controls whether bindings or trinkets synchronization is enabled by default in lobby you host.\n" +
+			"控制由你开启的房间是否默认可以绑定或天赋同步");
 		#endregion
 
 		if (isConfigOutdated)
@@ -263,7 +272,7 @@ Active配置项控制玩家造成的伤害倍率
 		_flareActive.Value = (float)_flareActive.DefaultValue;
 		_iceActive.Value = (float)_iceActive.DefaultValue;
 		_otherActive.Value = (float)_otherActive.DefaultValue;
-		// 核心步骤：将磁盘上的版本号更新到最新
+		// 将磁盘上的版本号更新到最新
 		_configVersion.Value = (string)_configVersion.DefaultValue;
 
 		config.Save();

@@ -1,8 +1,8 @@
-岩钉通过UT_Damage.Damage来锤入
+修复深渊/其他支线复活时的地图同步
+
+岩钉被拔掉,和锤入时坐标偏移无法同步
 
 玩家ID TMP组件变为UI显示
-
-修复深渊复活时的地图同步
 
 记得修补TMP字体文件 按钮组件 UI_Manager.DisplayMessage
 

@@ -1,12 +1,14 @@
 using Steamworks.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using UnityEngine;
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.Patch;
 using static WKMPMod.Data.MPWriterPool;
 using Object = UnityEngine.Object;
 
@@ -38,17 +40,32 @@ public static class ClimbableItemSyncManager {
 	private const float PositionEpsilonSqr = 0.0004f;
 	private const float RotationEpsilon = 0.5f;
 	private const float SecureAmountEpsilon = 0.01f;
-	private const string CloneSuffix = "(Clone)";
+	private const string CLONE_SUFFIX = "(Clone)";
 
-	// 已同步的Piton对象表，key为NetworkId
+	// MP Debug
+	public static Stopwatch sw = new Stopwatch();
+
+	// 关键: 用来接收捕获到的对象
+	private static List<GameObject> CapturedPitons = new List<GameObject>();
+
+	// List.Add 方法的包装, 供 IL 调用,
+	// 不需要再传入CapturedPitons到栈顶, 直接在方法内访问静态字段即可
+	public static void SaveCapturedPiton(GameObject go) {
+		if (go != null)
+			if (go.GetComponentInChildren<CL_Handhold>(true) != null) {
+				CapturedPitons.Add(go);
+			}
+	}
+
+	// 已同步的Piton对象表, key为NetworkId
 	// Synced piton lookup, keyed by NetworkId
 	private static readonly Dictionary<string, NetworkedClimableItem> _pitons = new();
 
-	// 预制体查找表，用于远程创建时根据名称找到对应Prefab
+	// 预制体查找表, 用于远程创建时根据名称找到对应Prefab
 	// Prefab lookup used to resolve prefabs by name when creating remote objects
 	private static readonly Dictionary<string, GameObject> _prefabLookup = new(StringComparer.OrdinalIgnoreCase);
 
-	// Projectile.sourceEntity字段缓存，用于判断投射物是否属于本地玩家
+	// Projectile.sourceEntity字段缓存, 用于判断投射物是否属于本地玩家
 	// Cached Projectile.sourceEntity field, used to check if a projectile belongs to the local player
 	private static readonly FieldInfo _projectileSourceEntityField =
 		typeof(Projectile).GetField("sourceEntity", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -57,7 +74,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 是否正在应用远程状态
-	/// 用于防止应用远程数据时再次触发本地广播，造成循环同步
+	/// 用于防止应用远程数据时再次触发本地广播, 造成循环同步
 	///
 	/// Whether remote state is currently being applied
 	/// Used to prevent broadcasting again while applying remote data
@@ -84,17 +101,41 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 注册本地新放置的Piton
-	/// 根据已知Handhold列表查找新生成的可攀爬物体，并广播Create消息
+	/// 根据已知Handhold列表查找新生成的可攀爬物体, 并广播Create消息<br/>
 	///
 	/// Registers a newly placed local piton
 	/// Finds the newly spawned climbable using the known handhold list and broadcasts a Create message
 	/// </summary>
 	public static void RegisterNewLocalPiton(HandItem_Piton source, HashSet<int> knownHandholds) {
-		if (!CanSync() || ApplyingRemoteState || source == null || knownHandholds == null || source.pitonWorldObject == null) return;
+		if (!MPCore.CanSync || ApplyingRemoteState || source == null || knownHandholds == null || source.pitonWorldObject == null) return;
 
 		var prefabKey = NormalizePrefabKey(source.pitonWorldObject.name);
 		var root = FindBestNewClimbable(source.GetAimCircleHit().point, knownHandholds, prefabKey, fallback: null);
 		RegisterLocalClimbable(root, prefabKey);
+	}
+
+	/// <summary>
+	/// 注册本地新放置的Piton
+	/// 根据已知Handhold列表查找新生成的可攀爬物体, 并广播Create消息<br/>
+	///
+	/// Registers a newly placed local piton
+	/// Finds the newly spawned climbable using the known handhold list and broadcasts a Create message
+	/// </summary>
+	public static void RegisterNewLocalPiton(HandItem_Piton source) {
+		if (!MPCore.CanSync || ApplyingRemoteState || source == null || CapturedPitons.Count == 0) {
+			CapturedPitons.Clear();
+			return;
+		}
+
+		foreach (var piton in CapturedPitons) {
+			MPMain.LogWarning($"[MP Debug] 生成对象: {piton}");
+			var root = GetClimbableRoot(piton);
+			if (root == null) continue;
+			RegisterLocalClimbable(root, source.pitonWorldObject.name);
+		}
+
+		// 清理捕获列表以备下次使用
+		CapturedPitons.Clear();
 	}
 
 	/// <summary>
@@ -105,7 +146,7 @@ public static class ClimbableItemSyncManager {
 	/// For example climbable points created by shoot-type items
 	/// </summary>
 	public static void RegisterNewLocalProjectileClimbable(Projectile source, RaycastHit hit, HashSet<int> knownHandholds) {
-		if (!CanSync() || ApplyingRemoteState || source == null || knownHandholds == null) return;
+		if (!MPCore.CanSync || ApplyingRemoteState || source == null || knownHandholds == null) return;
 		if (!IsLocalProjectile(source)) return;
 
 		var projectileRoot = GetClimbableRoot(source.gameObject);
@@ -115,12 +156,35 @@ public static class ClimbableItemSyncManager {
 	}
 
 	/// <summary>
+	/// 注册本地投射物生成的可攀爬物体
+	/// 例如由射击类物品产生的钩点/可攀爬对象
+	///
+	/// Registers a climbable spawned by a local projectile
+	/// For example climbable points created by shoot-type items
+	/// </summary>
+	public static void RegisterNewLocalProjectileClimbable(Projectile source, RaycastHit hit) {
+		if (!MPCore.CanSync || ApplyingRemoteState || source == null || !IsLocalProjectile(source)) {
+			CapturedPitons.Clear();
+			return; 
+		}
+
+		foreach (var piton in CapturedPitons) {
+			MPMain.LogWarning($"[MP Debug] 生成对象: {piton}");
+			var root = GetClimbableRoot(piton);
+			if (root == null) continue;
+			RegisterLocalClimbable(root, root != null ? root.name : source.gameObject.name);
+		}
+
+		CapturedPitons.Clear();
+	}
+
+	/// <summary>
 	/// 广播锤击/加固后的Piton状态
 	///
 	/// Broadcasts piton state after hammering/securing
 	/// </summary>
 	public static void BroadcastHammerUpdate(CL_Handhold handhold) {
-		if (!CanSync() || ApplyingRemoteState || handhold == null) return;
+		if (!MPCore.CanSync || ApplyingRemoteState || handhold == null) return;
 
 		var identity = FindIdentity(handhold);
 		if (identity == null || string.IsNullOrEmpty(identity.NetworkId)) return;
@@ -136,7 +200,7 @@ public static class ClimbableItemSyncManager {
 	/// Only sends when position, rotation, active state or secure state changed meaningfully
 	/// </summary>
 	public static void BroadcastPeriodicUpdate(CL_Handhold handhold) {
-		if (!CanSync() || ApplyingRemoteState || handhold == null) return;
+		if (!MPCore.CanSync || ApplyingRemoteState || handhold == null) return;
 
 		var identity = FindIdentity(handhold);
 		if (identity == null || string.IsNullOrEmpty(identity.NetworkId)) return;
@@ -165,8 +229,8 @@ public static class ClimbableItemSyncManager {
 		var action = (PitonSyncAction)reader.GetByte();
 		var networkId = reader.GetString();
 		var prefabKey = reader.GetString();
-		var position = ReadVector3(reader);
-		var rotation = ReadQuaternion(reader);
+		var position = reader.GetVector3();
+		var rotation = reader.GetQuaternion();
 		var secureAmount = reader.GetFloat();
 		var secure = reader.GetBool();
 		var active = reader.GetBool();
@@ -218,7 +282,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 应用远程Create消息
-	/// 如果对象已存在则更新状态，否则实例化对应Prefab
+	/// 如果对象已存在则更新状态, 否则实例化对应Prefab
 	///
 	/// Applies a remote Create message
 	/// Updates state if the object already exists, otherwise instantiates the matching prefab
@@ -268,7 +332,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 应用远程Remove消息
-	/// 不直接销毁对象，而是禁用对象并移除同步记录
+	/// 不直接销毁对象, 而是禁用对象并移除同步记录
 	///
 	/// Applies a remote Remove message
 	/// Does not destroy the object directly; disables it and removes the sync record
@@ -305,7 +369,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 查找最适合的新生成可攀爬对象
-	/// 根据距离、名称匹配和已知Handhold列表进行筛选
+	/// 根据距离, 名称匹配和已知Handhold列表进行筛选<br/>
 	///
 	/// Finds the best newly spawned climbable object
 	/// Filters by distance, name match and known handhold list
@@ -339,7 +403,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 判断是否为新生成的可攀爬根对象
-	///
+	/// 根对象必须不在knownHandholds列表中, 并且包含CL_Handhold组件<br/>
 	/// Checks whether this is a newly spawned climbable root object
 	/// </summary>
 	private static bool IsNewClimbableRoot(GameObject root, HashSet<int> knownHandholds) {
@@ -369,7 +433,7 @@ public static class ClimbableItemSyncManager {
 	}
 
 	/// <summary>
-	/// 判断根对象中是否包含可追踪的Handhold
+	/// 判断根对象中是否包含可追踪的Handhold<br/>
 	///
 	/// Checks whether the root object contains a tracked handhold
 	/// </summary>
@@ -378,7 +442,7 @@ public static class ClimbableItemSyncManager {
 	}
 
 	/// <summary>
-	/// 获取根对象上的CL_Handhold组件
+	/// 获取根对象上的CL_Handhold组件<br/>
 	///
 	/// Gets the CL_Handhold component from the root object
 	/// </summary>
@@ -408,7 +472,7 @@ public static class ClimbableItemSyncManager {
 	}
 
 	/// <summary>
-	/// 判断对象名称是否匹配预期Prefab名称
+	/// 判断对象名称是否匹配预期Prefab名称<br/>
 	///
 	/// Checks whether the object name matches the expected prefab name
 	/// </summary>
@@ -419,6 +483,7 @@ public static class ClimbableItemSyncManager {
 		var normalizedPreferredName = NormalizePrefabKey(preferredName);
 		if (string.IsNullOrEmpty(normalizedName) || string.IsNullOrEmpty(normalizedPreferredName)) return false;
 
+		// 完全匹配或包含关系都算匹配, 忽略大小写
 		return normalizedName.Equals(normalizedPreferredName, StringComparison.OrdinalIgnoreCase) ||
 			   normalizedName.IndexOf(normalizedPreferredName, StringComparison.OrdinalIgnoreCase) >= 0 ||
 			   normalizedPreferredName.IndexOf(normalizedName, StringComparison.OrdinalIgnoreCase) >= 0;
@@ -487,7 +552,7 @@ public static class ClimbableItemSyncManager {
 	}
 
 	/// <summary>
-	/// 尝试注册Prefab到查找表
+	/// 尝试注册Prefab到查找表<br/>
 	///
 	/// Tries to register a prefab into the lookup table
 	/// </summary>
@@ -502,7 +567,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 标准化PrefabKey
-	/// 去除空格和Unity实例化后附加的(Clone)后缀
+	/// 去除空格和Unity实例化后附加的(Clone)后缀<br/>
 	///
 	/// Normalizes a prefab key
 	/// Removes whitespace and Unity's instantiated "(Clone)" suffix
@@ -511,8 +576,8 @@ public static class ClimbableItemSyncManager {
 		if (string.IsNullOrEmpty(prefabKey)) return string.Empty;
 
 		var normalized = prefabKey.Trim();
-		if (normalized.EndsWith(CloneSuffix, StringComparison.OrdinalIgnoreCase)) {
-			normalized = normalized.Substring(0, normalized.Length - CloneSuffix.Length);
+		if (normalized.EndsWith(CLONE_SUFFIX, StringComparison.OrdinalIgnoreCase)) {
+			normalized = normalized.Substring(0, normalized.Length - CLONE_SUFFIX.Length);
 		}
 
 		return normalized.Trim();
@@ -580,8 +645,8 @@ public static class ClimbableItemSyncManager {
 		writer.Put((byte)action);
 		writer.Put(identity.NetworkId);
 		writer.Put(identity.PrefabKey ?? string.Empty);
-		WriteVector3(writer, identity.transform.position);
-		WriteQuaternion(writer, identity.transform.rotation);
+		writer.Put(identity.transform.position);
+		writer.Put(identity.transform.rotation);
 		writer.Put(handhold != null ? handhold.secureAmount : 0f);
 		writer.Put(handhold != null && handhold.secure);
 		writer.Put(identity.gameObject.activeSelf);
@@ -595,7 +660,7 @@ public static class ClimbableItemSyncManager {
 	}
 
 	/// <summary>
-	/// 判断状态是否有足够明显的变化，需要发送同步
+	/// 判断状态是否有足够明显的变化, 需要发送同步
 	///
 	/// Checks whether the state changed enough to require syncing
 	/// </summary>
@@ -622,55 +687,5 @@ public static class ClimbableItemSyncManager {
 			identity.LastSecureAmount = handhold.secureAmount;
 			identity.LastSecure = handhold.secure;
 		}
-	}
-
-	/// <summary>
-	/// 检查当前是否可以同步
-	///
-	/// Checks whether syncing is currently available
-	/// </summary>
-	private static bool CanSync() {
-		return MPCore.IsInLobby && MPCore.IsInitialized && MPSteamworks.Instance.HasConnections;
-	}
-
-	/// <summary>
-	/// 写入Vector3到网络数据流
-	///
-	/// Writes a Vector3 to the network data stream
-	/// </summary>
-	private static void WriteVector3(DataWriter writer, Vector3 value) {
-		writer.Put(value.x);
-		writer.Put(value.y);
-		writer.Put(value.z);
-	}
-
-	/// <summary>
-	/// 从网络数据流读取Vector3
-	///
-	/// Reads a Vector3 from the network data stream
-	/// </summary>
-	private static Vector3 ReadVector3(DataReader reader) {
-		return new Vector3(reader.GetFloat(), reader.GetFloat(), reader.GetFloat());
-	}
-
-	/// <summary>
-	/// 写入Quaternion到网络数据流
-	///
-	/// Writes a Quaternion to the network data stream
-	/// </summary>
-	private static void WriteQuaternion(DataWriter writer, Quaternion value) {
-		writer.Put(value.x);
-		writer.Put(value.y);
-		writer.Put(value.z);
-		writer.Put(value.w);
-	}
-
-	/// <summary>
-	/// 从网络数据流读取Quaternion
-	///
-	/// Reads a Quaternion from the network data stream
-	/// </summary>
-	private static Quaternion ReadQuaternion(DataReader reader) {
-		return new Quaternion(reader.GetFloat(), reader.GetFloat(), reader.GetFloat(), reader.GetFloat());
 	}
 }
