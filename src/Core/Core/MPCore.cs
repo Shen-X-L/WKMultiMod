@@ -60,8 +60,6 @@ public static class MPStatusExtension {
 }
 #endregion
 public class MPCore : MonoSingleton<MPCore> {
-	// Debug日志输出间隔
-	private TickTimer _debugTick = new TickTimer(5f);
 	// 玩家数量同步间隔
 	private TickTimer _syncTick = new TickTimer(3f);
 
@@ -205,7 +203,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusNet.OnLobbyInvite += HandleLobbyInvite;
 
 		// 订阅游戏事件
-		MPEventBusGame.OnPlayerMove += SeedLocalPlayerData;
 		MPEventBusGame.OnPlayerDamage += HandlePlayerDamage;
 		MPEventBusGame.OnPlayerAddForce += HandlePlayerAddForce;
 		MPEventBusGame.OnPlayerDeath += HandlePlayerDeath;
@@ -232,7 +229,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusNet.OnLobbyInvite -= HandleLobbyInvite;
 
 		// 退订游戏事件
-		MPEventBusGame.OnPlayerMove -= SeedLocalPlayerData;
 		MPEventBusGame.OnPlayerDamage -= HandlePlayerDamage;
 		MPEventBusGame.OnPlayerAddForce -= HandlePlayerAddForce;
 		MPEventBusGame.OnPlayerDeath -= HandlePlayerDeath;
@@ -361,21 +357,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	#endregion
 
 	#region[游戏数据收集处理]
-	/// <summary>
-	/// 发送本地玩家数据
-	/// </summary>
-	private void SeedLocalPlayerData(PlayerData data) {
-		var writer = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
-
-		// 进行数据写入
-		writer.Put(data);
-		// 触发Steam数据发送
-		// 转为byte[]
-		// 使用不可靠+立即发送
-		// 广播所有人
-		_MPsteamworks.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
-		return;
-	}
 
 	/// <summary>
 	/// 发送伤害其他玩家数据<br/>

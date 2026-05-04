@@ -92,12 +92,12 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 处理玩家数据
 	/// </summary>
-	public void ProcessPlayerData(ulong playerId, PlayerData playerData) {
+	public void ProcessPlayerData(ulong playerId,ref PlayerData playerData) {
 		if (!MPCore.IsInitialized || !MPCore.IsInLobby) return;
 
 		// 以后加上时间戳处理
 		if (Players.TryGetValue(playerId, out var RPcontainer)) {
-			RPcontainer.HandlePlayerData(playerData);
+			RPcontainer.HandlePlayerData(ref playerData);
 			return;
 		} else if (_debugTick.TryTick()) {
 			MPMain.LogError(Localization.Get(

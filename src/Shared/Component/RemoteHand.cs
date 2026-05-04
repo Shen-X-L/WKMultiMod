@@ -68,7 +68,7 @@ public class RemoteHand : MonoBehaviour {
 	}
 
 	// 从HandData更新手位置(Container调用这个方法)
-	public void UpdateFromHandData(HandData handData) {
+	public void UpdateFromHandData(ref PlayerData.HandData handData) {
 		_isTeleporting = false; // 重置传送标志
 		_targetPosition = handData.Position;	// 使用网络传来的世界位置
 	}

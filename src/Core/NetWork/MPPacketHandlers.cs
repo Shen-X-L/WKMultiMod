@@ -1,5 +1,6 @@
 ﻿using Steamworks;
 using Steamworks.Ugc;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using WKMPMod.Asset;
@@ -25,6 +26,7 @@ public class MPPacketHandlers {
 
 	/// <summary>
 	/// 主机接收WorldInitRequest: 请求初始化数据
+	/// 发送函数 <see cref="MPCore.InitHandshakeRoutine"/>
 	/// 发送WorldInitData: 初始化数据给新玩家
 	/// <see cref="HandleWorldInit"/>
 	/// </summary>
@@ -42,7 +44,6 @@ public class MPPacketHandlers {
 	/// <summary>
 	/// 客户端接收WorldInitData: 新加入玩家,加载世界种子
 	/// </summary>
-	/// <param name="seed"></param>
 	[MPPacketHandler(PacketType.WorldInitData)]
 	private static void HandleWorldInit(ulong senderId, DataReader reader) {
 		// 获取游戏模式数据 
@@ -54,17 +55,19 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
-	/// 主机/客户端接收PlayerDataUpdate: 处理玩家数据更新
+	/// 主机/客户端接收PlayerDataUpdate: 处理玩家数据更新<br/>
+	/// 发送函数 <see cref="LocalPlayer.TrySendLocalPlayerData"/><br/>
+	/// 发送函数 <see cref="HandlePlayerCreateRequest"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDataUpdate)]
 	private static void HandlePlayerDataUpdate(ulong senderId, DataReader reader) {
 		// 如果是从转发给自己的,忽略
-		var playerData = reader.GetPlayerData();
+		reader.GetOut<PlayerData>(out var playerData);
 		var playerId = playerData.playId;
 		if (playerId == MPSteamworks.Instance.UserSteamId) {
 			return;
 		}
-		RPManager.Instance.ProcessPlayerData(playerId, playerData);
+		RPManager.Instance.ProcessPlayerData(playerId,ref playerData);
 	}
 
 	/// <summary>
@@ -181,17 +184,30 @@ public class MPPacketHandlers {
 
 	/// <summary>
 	/// 主机/客户端接收PlayerCreateRequest<br/>
-	/// 发送PlayerCreateResponse: 携带远程玩家工厂ID,让请求方创建远程玩家对象
+	/// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
+	/// 发送PlayerCreateResponse: 携带远程玩家工厂ID,让请求方创建远程玩家对象<br/>
+	/// 发送PlayerDataUpdate: 强制同步玩家数据给新玩家,让新玩家更新远程玩家数据<br/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerCreateRequest)]
 	private static void HandlePlayerCreateRequest(ulong senderId, DataReader reader) {
 		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.PlayerCreateResponse);
 		writer.Put(LocalPlayer.Instance.FactoryId);
 		MPSteamworks.Instance.SendToPeer(senderId, writer);
+
+		// 1秒后强制同步玩家数据,让新玩家更新远程玩家数据,因为有可能在创建玩家对象时,玩家数据还没有被同步过去
+		MPCore.Instance.StartCoroutine(RoutineForceSyncDelay());
+
+		IEnumerator RoutineForceSyncDelay() {
+			yield return new WaitForSeconds(1.0f);
+			if (LocalPlayer.Instance != null) {
+				LocalPlayer.Instance.ForceSyncToTarget(senderId);
+			}
+		}
 	}
 
 	/// <summary>
-	/// 主机/客户端接收PlayerCreateResponse: 创建玩家对象
+	/// 主机/客户端接收PlayerCreateResponse: 创建玩家对象<br/>
+	/// 发送函数 <see cref="HandlePlayerCreateRequest"/><br/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerCreateResponse)]
 	private static void HandlePlayerCreateResponse(ulong senderId, DataReader reader) {

@@ -64,7 +64,6 @@
 			Include="$(BepInExPath)\*.dll"
 			Exclude="$(BepInExPath)\0Harmony20.dll"
 			Private="False" />
-		<Reference Include="$(LocalLibPath)\**\*.dll" Private="False" />
 	</ItemGroup>
 </Project>
 

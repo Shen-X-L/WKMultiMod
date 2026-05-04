@@ -5,8 +5,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMultiPlayerMod.Data;
-using static WKMPMod.Core.MPGameModeManager;
 
 namespace WKMPMod.Data;
 
@@ -294,30 +292,6 @@ public class DataWriter : IDisposable {
 	}
 
 	/// <summary>
-	/// 写入<see cref="PlayerData"/> 玩家数据
-	/// </summary>
-	public DataWriter Put(PlayerData data) {
-		// 基础信息(id,时间戳)
-		Put(data.playId).Put(data.TimestampTicks);   // long
-
-		// 位置信息
-		Put(data.Position);
-
-		// 角度信息
-		Put(data.Rotation);
-
-		// 左手位置数据
-		Put(data.LeftHand.Position);
-
-		// 右手数据
-		Put(data.RightHand.Position);
-
-		// 状态标志
-		Put(data.IsTeleport);
-		return this;
-	}
-
-	/// <summary>
 	/// 写入 IReadOnlyList&lt;string&gt; 用于tags等List<string>
 	/// </summary>
 	public DataWriter Put(IReadOnlyList<string> strings) {
@@ -335,7 +309,14 @@ public class DataWriter : IDisposable {
 
 	#region[写入泛型类型]
 	public DataWriter Put<T>(T obj) where T : INetworkSerializable {
-		// 编译器会直接调用 struct 的方法，不会发生装箱
+		obj.Serialize(this);
+		return this;
+	}
+
+	/// <summary>
+	/// 适用于大的 struct, 避免克隆开销
+	/// </summary>
+	public DataWriter PutIn<T>(in T obj) where T : struct, INetworkSerializable {
 		obj.Serialize(this);
 		return this;
 	}
@@ -359,7 +340,7 @@ public class DataWriter : IDisposable {
 	#region[内存管理函数]
 
 	// 确保缓冲区有足够的空间
-	private void EnsureCapacity(int additional) {
+	public void EnsureCapacity(int additional) {
 		// 如果当前缓冲区不够大,生成一个更大的
 		if (_position + additional > _buffer.Length) {
 			byte[] newBuffer = _pool.Rent((_position + additional) * 2);

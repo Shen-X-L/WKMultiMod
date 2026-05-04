@@ -40,8 +40,8 @@ public class RPContainer {
 			data.Position = PlayerObject.transform.position;
 			data.Rotation = PlayerObject.transform.rotation;
 
-			data.LeftHand = new HandData { };
-			data.RightHand = new HandData { };
+			data.LeftHand = new PlayerData.HandData { };
+			data.RightHand = new PlayerData.HandData { };
 			return data;
 		}
 	}
@@ -66,10 +66,11 @@ public class RPContainer {
 			InitializeAllComponent(PlayerObject);
 			InitializeAllComponentData();
 			// 设为原点
-			HandlePlayerData(new PlayerData {
+			var temp = new PlayerData {
 				IsTeleport = true,
-				Position = new Vector3(0, 0, 0),
-			});
+				Position = new Vector3(0, -2, 0),
+			};
+			HandlePlayerData(ref temp);
 			// Debug
 			MPMain.LogInfo(Localization.Get(
 				"RPContainer.MappingSucceeded", PlayerId.ToString()));
@@ -135,7 +136,7 @@ public class RPContainer {
 	/// <summary>
 	/// 通过数据进行位置更新
 	/// </summary>
-	public void HandlePlayerData(PlayerData playerData) {
+	public void HandlePlayerData(ref PlayerData playerData) {
 		// 死亡后1秒内不接受更新, 避免瞬移和动画冲突
 		if (_isDead == true && _deathTick.IsTickReached) {
 			PlayerObject.SetActive(true);
@@ -160,8 +161,8 @@ public class RPContainer {
 		} else {
 			// 使用插值更新
 			_remotePlayer.UpdateFromPlayerData(playerData.Position, playerData.Rotation);
-			_remoteLeftHand.UpdateFromHandData(playerData.LeftHand);
-			_remoteRightHand.UpdateFromHandData(playerData.RightHand);
+			_remoteLeftHand.UpdateFromHandData(ref playerData.LeftHand);
+			_remoteRightHand.UpdateFromHandData(ref playerData.RightHand);
 		}
 	}
 

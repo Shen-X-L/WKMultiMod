@@ -1,11 +1,14 @@
-﻿using System;
+﻿using Steamworks.Data;
+using System;
 using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.NetWork;
 using WKMPMod.Util;
 using static ENT_Player;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
+using static WKMPMod.Data.MPWriterPool;
 
 namespace WKMPMod.Component;
 
@@ -53,7 +56,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	// 初始化定时器
 	private void InitializeTimers() {
-		_sendDataTimer = new TickTimer(30);  // 20Hz
+		_sendDataTimer = new TickTimer(MPConfig.DataSendFrequency);  // 20Hz
 		_teleportCooldownTimer = new TickTimer(1.0f);         // 传送冷却1秒
 	}
 
@@ -99,8 +102,16 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		// 设置传送标记(传送冷却期间标记为传送)
 		playerData.IsTeleport = !_teleportCooldownTimer.IsTickReached;
 
-		// 通过事件总线发送数据
-		MPEventBusGame.NotifyPlayerMove(playerData);
+		// 获取数据写入器
+		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
+
+		// 进行数据写入
+		writer.Put(playerData);
+		// 触发Steam数据发送
+		// 转为byte[]
+		// 使用不可靠+立即发送
+		// 广播所有人
+		MPSteamworks.Instance.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
 	}
 
 	// 尝试创建本地玩家数据
@@ -119,6 +130,40 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 		return true;
 	}
+
+	/// <summary>
+	/// 强制向指定目标发送一次当前位置数据
+	/// 此方法不检查位移阈值,不重置发送定时器,使用可靠传输
+	/// </summary>
+	/// <param name="targetId">目标玩家的 SteamId</param>
+	public void ForceSyncToTarget(ulong targetId) {
+		// 验证玩家引用是否有效
+		if (!ValidatePlayerReferences()) return;
+
+		// 这里不更新 _lastPosition 等缓存,以免干扰正常频率的阈值判定
+		PlayerData forcedData = new PlayerData {
+			playId = UserId,
+			TimestampTicks = DateTime.UtcNow.Ticks,
+			Position = _cachedPlayer.transform.position,
+			Rotation = _cachedPlayer.transform.rotation,
+			LeftHand = new PlayerData.HandData {
+				Position = _cachedHands[(int)HandType.Left].GetHoldWorldPosition()
+			},
+			RightHand = new PlayerData.HandData {
+				Position = _cachedHands[(int)HandType.Right].GetHoldWorldPosition()
+			},
+			// 即使正在冷却，强制同步通常也视为某种状态对齐，可根据需求设为 true 或保持逻辑
+			IsTeleport = !_teleportCooldownTimer.IsTickReached
+		};
+
+		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, targetId, PacketType.PlayerDataUpdate);
+
+		// 使用高性能写入
+		writer.Put(forcedData);
+
+		MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
+	}
+
 	#endregion
 
 	#region[辅助函数]
@@ -170,10 +215,10 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			TimestampTicks = DateTime.UtcNow.Ticks,
 			Position = _cachedPlayer.transform.position,
 			Rotation = _cachedPlayer.transform.rotation,
-			LeftHand = new HandData {
+			LeftHand = new PlayerData.HandData {
 				Position = _cachedHands[(int)HandType.Left].GetHoldWorldPosition()
 			},
-			RightHand = new HandData {
+			RightHand = new PlayerData.HandData {
 				Position = _cachedHands[(int)HandType.Right].GetHoldWorldPosition()
 			}
 		};

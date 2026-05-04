@@ -5,11 +5,8 @@ using System.Collections.Generic;
 using System.Text;
 using Unity.VisualScripting;
 using UnityEngine;
-using WKMultiPlayerMod.Data;
-using static WKMPMod.Core.MPGameModeManager;
 
 namespace WKMPMod.Data;
-
 public class DataReader {
 	private ReadOnlyMemory<byte> _data;
 	private int _position;
@@ -215,33 +212,6 @@ public class DataReader {
 	}
 
 	/// <summary>
-	/// 获取<see cref="PlayerData"/> 玩家数据
-	/// </summary>
-	public PlayerData GetPlayerData() {
-		var data = new PlayerData();
-		// 基础信息(id,时间戳)
-		data.playId = GetULong();
-		data.TimestampTicks = GetLong();
-
-		// 位置信息
-		data.Position = GetVector3();
-
-		// 角度信息
-		data.Rotation = GetQuaternion();
-
-		// 左手数据
-		data.LeftHand.Position = GetVector3();
-
-		// 右手数据
-		data.RightHand.Position = GetVector3();
-
-		// 状态标志
-		data.IsTeleport = GetBool();
-
-		return data;
-	}
-
-	/// <summary>
 	/// 获取 List&lt;string&gt; 用于tags等List<string>
 	/// </summary>
 	public List<string> GetStringList() { 
@@ -263,6 +233,21 @@ public class DataReader {
 		T obj = new T();
 		obj.Deserialize(this);
 		return obj;
+	}
+
+	/// <summary>
+	/// out 版本: 适合临时读取, 避免克隆对象
+	/// </summary>
+	public void GetOut<T>(out T value) where T : struct, INetworkSerializable {
+		value = default;
+		value.Deserialize(this);
+	}
+
+	/// <summary>
+	/// ref 版本: 重复利用外部变量内存, 避免克隆对象
+	/// </summary>
+	public void GetRef<T>(ref T value) where T : struct, INetworkSerializable {
+		value.Deserialize(this);
 	}
 
 	/// <summary>

@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Data;
 using WKMPMod.Util;
-using WKMultiPlayerMod.Data;
 using static CL_AssetManager;
 
 namespace WKMPMod.Core;

@@ -68,7 +68,7 @@ public class RemotePlayer : MonoBehaviour {
 		_targetPosition = position;
 		transform.rotation = rotation;
 	}
-	public void UpdateFromPlayerData(PlayerData playerData) {
+	public void UpdateFromPlayerData(ref PlayerData playerData) {
 		_isTeleporting = false;	// 重置传送标志
 		_targetPosition = playerData.Position;
 		transform.rotation = playerData.Rotation;
