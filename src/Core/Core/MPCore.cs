@@ -600,6 +600,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				enabled = result2;
 			}
 			MPConfig.AllowCheats = enabled;
+			IsAllowCheats = enabled;
 			_MPsteamworks.SetLobbyData("allowCheats", enabled.ToString());
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.AllowCheats"))
@@ -631,6 +632,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				enabled = result2;
 			}
 			MPConfig.AllowPVP = enabled;
+			IsAllowPVP = enabled;
 			_MPsteamworks.SetLobbyData("allowPVP", enabled.ToString());
 		}).NotCheat()
 			.Description(Localization.Get("CommandHelp.AllowPVP"))

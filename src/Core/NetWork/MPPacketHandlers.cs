@@ -47,7 +47,7 @@ public class MPPacketHandlers {
 	[MPPacketHandler(PacketType.WorldInitData)]
 	private static void HandleWorldInit(ulong senderId, DataReader reader) {
 		// 获取游戏模式数据 
-		var gameModeData = reader.Get<GameModeData>();
+		var gameModeData = reader.Get<OldGameModeData>();//[MP Debug]
 		// 加载游戏模式
 		MPGameModeManager.LoadGameMode(gameModeData);
 		// 设置多人模式加载标签为完成
@@ -195,10 +195,12 @@ public class MPPacketHandlers {
 		MPSteamworks.Instance.SendToPeer(senderId, writer);
 
 		// 1秒后强制同步玩家数据,让新玩家更新远程玩家数据,因为有可能在创建玩家对象时,玩家数据还没有被同步过去
-		MPCore.Instance.StartCoroutine(RoutineForceSyncDelay());
+		MPCore.Instance.StartCoroutine(RoutineForceSyncDelay(1.0f));
+		MPCore.Instance.StartCoroutine(RoutineForceSyncDelay(3.0f));
+		MPCore.Instance.StartCoroutine(RoutineForceSyncDelay(9.0f));
 
-		IEnumerator RoutineForceSyncDelay() {
-			yield return new WaitForSeconds(1.0f);
+		IEnumerator RoutineForceSyncDelay(float time) {
+			yield return new WaitForSeconds(time);
 			if (LocalPlayer.Instance != null) {
 				LocalPlayer.Instance.ForceSyncToTarget(senderId);
 			}
