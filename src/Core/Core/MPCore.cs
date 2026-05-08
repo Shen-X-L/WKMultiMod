@@ -4,11 +4,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using WKMPMod.Asset;
 using WKMPMod.Component;
@@ -173,8 +171,11 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 订阅网络事件
 			SubscribeToEvents();
 
-			// 初始化伤害倍率
+			// 初始化大厅共用数据
 			damageRules = MPConfig.DamageRules;
+			IsAllowCheats = MPConfig.AllowCheats;
+			IsAllowPVP = MPConfig.AllowPVP;
+
 			// Debug
 			MPMain.LogInfo(Localization.Get("MPCore.AllManagersInitialized"));
 		} catch (Exception e) {
@@ -1042,10 +1043,13 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	/// <summary>
 	/// 处理事件总线 大厅数据(规则)改变OnLobbyDataChange<br/>
-	/// 调用者: <see cref="MPSteamworks.HandleLobbyEntered"/><br/>
 	/// 调用者: <see cref="MPSteamworks.HandleLobbyDataChanged"/><br/>
+	/// 调用者: <see cref="MPSteamworks.RefreshLobbyData"/><br/>
 	/// </summary>
 	private void HandleLobbyDataChanged(Dictionary<string, string> delta) {
+
+		MPMain.LogInfo($"[MP Debug] Lobby data changed: {string.Join(", ", delta.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+
 		if (delta == null) return;
 
 		if (delta.TryGetValue("allowCheats", out var cheatsValue)) {
@@ -1053,7 +1057,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 明确要求关闭作弊
 			if (!IsAllowCheats) {
 				CommandConsole.cheatsEnabled = false;
-				ENT_Player.GetPlayer().noclip = false;
+				ENT_Player.GetPlayer()?.noclip = false;
 			}
 		}
 

@@ -5,6 +5,7 @@ using System.Text;
 using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.NetWork;
+using static WorldLoader;
 using Object = UnityEngine.Object;
 
 namespace WKMPMod.Patch;
@@ -74,8 +75,18 @@ public class Patch_CL_AssetManager_Initialize {
 [HarmonyPatch(typeof(WorldLoader), ("IncrementSeed"))]
 public class Patch_WorldLoader_IncrementSeed {
 	public static bool Prefix() {
-		if (MPCore.IsInLobby) 
+		if (MPCore.IsInLobby)
 			return false;
 		return true;
+	}
+}
+// 补丁类: 关闭生成器的种子偏移, 使复活时种子同步
+[HarmonyPatch(typeof(WorldLoader), ("GenerateLevels"))]
+public class Patch_WorldLoader_GenerateLevels {
+	public static void Prefix(GenerationParameters genParams) {
+		if (MPCore.IsInLobby && genParams != null && CL_GameManager.GetBaseGamemode().gamemodeName == "Campaign") {
+			genParams.seedOffset = 0; // 禁用种子偏移
+			MPMain.LogWarning($"[MP Debug] 禁用种子偏移");
+		}
 	}
 }

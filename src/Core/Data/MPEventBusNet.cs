@@ -10,7 +10,7 @@ namespace WKMPMod.Data;
 public enum PacketType {
 	WorldInitRequest = 0,   // 客机->主机: 请求初始化世界数据
 	WorldInitData = 1,      // 主机->客机: 接收初始化世界数据,创建玩家,重加载地图
-	//PlayerCreate = 2,       // 主机->客机: 创建新玩家
+	//PlayerCreate = 2,      // 主机->客机: 创建新玩家
 	PlayerRemove = 3,       // 主机->客机: 移除玩家
 	PlayerDataUpdate = 4,   // 客机->主机->客机: 玩家数据更新
 	WorldStateSync = 5,     // 主机->客机: 世界状态同步, 如Mess高度

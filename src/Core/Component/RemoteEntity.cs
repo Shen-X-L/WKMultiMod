@@ -94,18 +94,15 @@ public class RemoteEntity : GameEntity {
  */
 [Serializable]
 public struct DamageRules {
-	public float All = 1;
-	public float Hammer = 1;
-	public float Melee = 1;
-	public float Rebar = 1;
-	public float ReturnRebar = 1;
-	public float RebarExplosion = 1;
-	public float Explosion = 1;
-	public float Piton = 1;
-	public float Flare = 1;
-	public float Ice = 1;
-	public float Other = 1;
-
-	public DamageRules() {
-	}
+	public float All;
+	public float Hammer;
+	public float Melee;
+	public float Rebar;
+	public float ReturnRebar;
+	public float RebarExplosion;
+	public float Explosion;
+	public float Piton;
+	public float Flare;
+	public float Ice;
+	public float Other;
 }

@@ -1,5 +1,6 @@
 ﻿using Steamworks;
 using Steamworks.Ugc;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -23,6 +24,7 @@ public class MPPacketHandlers {
 	public const string NO_ITEM_NAME = "None";
 	public const string HAMMER_NAME = "Item_Hammer";
 	public const string ARTIFACT_NAME = "Artifact";
+	public const string BLINK_EYE = "Item_BlinkEye";
 
 	/// <summary>
 	/// 主机接收WorldInitRequest: 请求初始化数据
@@ -48,7 +50,7 @@ public class MPPacketHandlers {
 	private static void HandleWorldInit(ulong senderId, DataReader reader) {
 		// 获取游戏模式数据 
 		var gameModeData = reader.Get<OldGameModeData>();//[MP Debug]
-		// 加载游戏模式
+														 // 加载游戏模式
 		MPGameModeManager.LoadGameMode(gameModeData);
 		// 设置多人模式加载标签为完成
 		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
@@ -67,7 +69,7 @@ public class MPPacketHandlers {
 		if (playerId == MPSteamworks.Instance.UserSteamId) {
 			return;
 		}
-		RPManager.Instance.ProcessPlayerData(playerId,ref playerData);
+		RPManager.Instance.ProcessPlayerData(playerId, ref playerData);
 	}
 
 	/// <summary>
@@ -106,7 +108,7 @@ public class MPPacketHandlers {
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
 		List<string> tags = reader.GetStringList();
-		ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type,tags));
+		ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
 	}
 
 	/// <summary>
@@ -220,7 +222,7 @@ public class MPPacketHandlers {
 	/// <summary>
 	/// 主机/客户端接收PlayerTeleportRequest<br/>
 	/// 发送PlayerTeleportRespond: 位置数据, 库存数据, 有Mess环境则携带Mess数据<br/>
-	/// <see cref="MPPacketHandlers.HandlePlayerTeleportRespond(ulong, DataReader)"/>
+	/// <see cref="HandlePlayerTeleportRespond"/>
 	/// </summary>
 	/// <param name="senderId">发送方ID</param>
 	[MPPacketHandler(PacketType.PlayerTeleportRequest)]
@@ -251,7 +253,7 @@ public class MPPacketHandlers {
 
 	/// <summary>
 	/// 主机/客户端接收PlayerTeleportRespond: 位置数据, 库存数据, 有Mess环境则携带Mess数据
-	/// <see cref="MPPacketHandlers.HandlePlayerTeleportRequest(ulong, DataReader)"/>
+	/// <see cref="HandlePlayerTeleportRequest"/>
 	/// </summary>
 	/// <param name="senderId">发送ID</param>
 	[MPPacketHandler(PacketType.PlayerTeleportRespond)]
@@ -271,6 +273,8 @@ public class MPPacketHandlers {
 			if (itemId == NO_ITEM_NAME)
 				continue;
 			if (itemId.Contains(ARTIFACT_NAME))
+				continue;
+			if (itemId.Contains(BLINK_EYE))
 				continue;
 
 			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);

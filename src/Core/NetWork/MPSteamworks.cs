@@ -584,7 +584,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// 接收数据: 进入到大厅<br/>
 	/// LobbyEntered总线订阅者: <see cref="MPCore.HandleLobbyEntered"/><br/>
-	/// LobbyDataChanged总线订阅者: <see cref="MPCore.HandleLobbyDataChanged"/>
 	/// </summary>
 	private void HandleLobbyEntered(Lobby lobby) {
 		_currentLobby = lobby;
@@ -601,7 +600,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 		// 发布事件到总线
 		MPEventBusNet.NotifyLobbyEntered(lobby);
-		MPEventBusNet.NotifyLobbyDataChanged(lobby.Data.ToDictionary(k => k.Key, v => v.Value));
 	}
 
 	/// <summary>
@@ -989,10 +987,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	/// <summary>
 	/// 刷新大厅数据,在加入大厅或创建大厅后调用
+	/// LobbyDataChanged总线订阅者: <see cref="MPCore.HandleLobbyDataChanged"/>
 	/// </summary>
 	public void RefreshLobbyData() {
-		if (_currentLobby.Id.IsValid)
+		if (_currentLobby.Id.IsValid) {
 			LobbyData = _currentLobby.Data.ToDictionary(x => x.Key, x => x.Value);
+			MPEventBusNet.NotifyLobbyDataChanged(LobbyData);
+		}
 	}
 	#endregion
 

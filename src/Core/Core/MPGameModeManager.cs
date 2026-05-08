@@ -38,34 +38,34 @@ public class MPGameModeManager {
 			this.seed = reader.GetNullableInt();
 		}
 	}
-	public record struct GameModeData: INetworkSerializable {
-		public string gameModeName;			// 可能重名
-		public string gameModeObjectName;   // 可能重名
-		public List<string> activeTrinkets; // 包含饰品和绑定的名称列表
-		public List<string> activeSettings; // 包含铁人、困难等设置的名称列表
-		public bool needBindSync;			// 是否需要同步绑定数据(如果饰品名称不唯一或包含绑定数据则需要同步绑定数据)
-		public int? seed;
+	//public record struct GameModeData: INetworkSerializable {
+	//	public string gameModeName;			// 可能重名
+	//	public string gameModeObjectName;   // 可能重名
+	//	public List<string> activeTrinkets; // 包含饰品和绑定的名称列表
+	//	public List<string> activeSettings; // 包含铁人、困难等设置的名称列表
+	//	public bool needBindSync;			// 是否需要同步绑定数据(如果饰品名称不唯一或包含绑定数据则需要同步绑定数据)
+	//	public int? seed;
 
-		public GameModeData() { }
+	//	public GameModeData() { }
 
-		public void Serialize(DataWriter writer) {
-			writer.Put(gameModeName);
-			writer.Put(gameModeObjectName);
-			writer.Put(activeTrinkets);
-			writer.Put(activeSettings);
-			writer.Put(needBindSync);
-			writer.Put(seed);
-		}
+	//	public void Serialize(DataWriter writer) {
+	//		writer.Put(gameModeName);
+	//		writer.Put(gameModeObjectName);
+	//		writer.Put(activeTrinkets);
+	//		writer.Put(activeSettings);
+	//		writer.Put(needBindSync);
+	//		writer.Put(seed);
+	//	}
 
-		public void Deserialize(DataReader reader) { 
-			this.gameModeName = reader.GetString();
-			this.gameModeObjectName = reader.GetString();
-			this.activeTrinkets = reader.GetStringList();
-			this.activeSettings = reader.GetStringList();
-			this.needBindSync = reader.GetBool();
-			this.seed = reader.GetNullableInt();
-		}
-	}
+	//	public void Deserialize(DataReader reader) { 
+	//		this.gameModeName = reader.GetString();
+	//		this.gameModeObjectName = reader.GetString();
+	//		this.activeTrinkets = reader.GetStringList();
+	//		this.activeSettings = reader.GetStringList();
+	//		this.needBindSync = reader.GetBool();
+	//		this.seed = reader.GetNullableInt();
+	//	}
+	//}
 
 	public static Dictionary<string,M_Gamemode> gameModeDict = new Dictionary<string,M_Gamemode>();
 	//public static GameModeData? CurrentData { get; private set; }[MP Debug]<-搜寻标签
@@ -158,8 +158,8 @@ public class MPGameModeManager {
 	/// </summary>
 	public static OldGameModeData CaptureCurrentData() {
 		CurrentData = new OldGameModeData {
-			isIron = SettingsManager.settings.g_iron,
-			isHard = SettingsManager.settings.g_hard,
+			isIron = CL_GameManager.GetBaseGamemode().IsIronKnuckle(),
+			isHard = CL_GameManager.GetBaseGamemode().IsHardMode(),
 			gameModeName = CL_GameManager.gamemode.name,
 			gameModeObjectName = CL_GameManager.gamemode.ToString(),
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
@@ -183,8 +183,8 @@ public class MPGameModeManager {
 		// 设置游戏模式
 		CL_GameManager.gMan.SetGamemode(m_Gamemode);
 		// 更改难度
-		SettingsManager.settings.g_iron = data.isIron;
-		SettingsManager.settings.g_hard = data.isHard;
+		StatManager.saveData.SetSetting(m_Gamemode.gamemodeName, "ironknuckle", data.isIron);
+		StatManager.saveData.SetSetting(m_Gamemode.gamemodeName, "hardmode", data.isHard);
 		// 一直设置种子, 相同种子而跳过设置种子会导致种子重随机
 		if (data.seed is int value) {
 			WorldLoader.SetPresetSeed(value.ToString());

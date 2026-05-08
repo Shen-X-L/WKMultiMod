@@ -16,6 +16,7 @@ namespace WKMPMod.NetWork;
 public class MPPacketRouter {
 	// 路由表
 	private static readonly Action<ulong, DataReader>[] FastHandlers = new Action<ulong, DataReader>[64];
+	public static TickTimer DebugTick = new TickTimer(1);
 
 	#region[初始化路由表]
 	/// <summary>
@@ -59,8 +60,7 @@ public class MPPacketRouter {
 	/// <summary>
 	/// 处理反射获取的方法,转为IEnumerable &lt;(PacketType, Action&lt;ulong, DataReader&gt;)&gt; <br/>迭代器 &lt;包类型,无返回值委托&gt;
 	/// </summary>
-	private static IEnumerable<(PacketType, Action<ulong, DataReader>)> 
-		ProcessMethod(MethodInfo method) {
+	private static IEnumerable<(PacketType, Action<ulong, DataReader>)> ProcessMethod(MethodInfo method) {
 		// 获取方法上的所有 MPPacketHandlerAttribute 特性
 		var attrs = method.GetCustomAttributes<MPPacketHandlerAttribute>();
 		// 获取方法的参数信息
@@ -101,6 +101,41 @@ public class MPPacketRouter {
 	}
 	#endregion
 
+	#region[注册路由接口]
+
+	public static void RegisterRoute(PacketType packetType, Action<ulong, DataReader> handler) {
+		ushort handlerId = (ushort)packetType;
+		// 前64个ID保留给内置处理器,用户注册的处理器必须从64开始
+		if (handlerId >= 64 && handlerId < FastHandlers.Length) {
+			if (FastHandlers[handlerId] != null) {
+				Localization.Get("MPPacketRouter.PacketHandlerOverridden",
+					packetType, FastHandlers[handlerId].Method.Name, handler.Method.Name);
+			}
+			FastHandlers[handlerId] = handler;
+			MPMain.LogInfo(Localization.Get("MPPacketRouter.RegisterRouteSuccess", packetType, handler.Method.Name));
+		} else {
+			Localization.Get("MPPacketRouter.PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
+		}
+	}
+
+	public static void RegisterRoute(MethodInfo method) {
+		var handlers = ProcessMethod(method);
+		foreach (var (packetType, handler) in handlers) {
+			RegisterRoute(packetType, handler);
+		}
+	}
+
+	public static void RegisterRoute(MethodInfo method, params PacketType[] packetTypes) {
+		var parameters = method.GetParameters();
+		var action = CreateAction(method, parameters);
+		if (action == null) return;
+		foreach (var packetType in packetTypes) {
+			RegisterRoute(packetType, action);
+		}
+	}
+
+	#endregion
+
 	#region[生命周期函数]
 	public static void Initialize() {
 		MPEventBusNet.OnReceiveData += Route;
@@ -118,9 +153,6 @@ public class MPPacketRouter {
 		var (senderId, targetId, packetType) = PeekHeader(data);
 
 		// Debug
-		//string hexString1 = BitConverter.ToString(data.Array, data.Offset, 18);
-		//MPMain.LogInfo($"[MP Debug] 16进制数据: {hexString1}");
-		//MPMain.LogInfo($"[MP Debug] 接收包 来源Id {connectionId} 发送者Id: {senderId} 接收者Id: {targetId} 包类型: {packetType}");
 		//string hexString2 = BitConverter.ToString(data.Array, data.Offset + 18, data.Count - 18);
 		//MPMain.LogInfo($"[MP Debug] 16进制数据: {hexString2}");
 
@@ -152,7 +184,11 @@ public class MPPacketRouter {
 		try {
 			FastHandlers[packetType](senderId, reader);
 		} catch (Exception e) {
-			MPMain.LogError(Localization.Get("MPPacketRouter.HandlerException", packetType, e.Message));
+			if (DebugTick.TryTick()) {
+				MPMain.LogError(Localization.Get("MPPacketRouter.HandlerException", packetType, e.Message));
+				MPMain.LogError($"[MP Debug] receive package. connectionId: {connectionId} senderId: {senderId} targetId: {targetId} packetType: {packetType}");
+				MPMain.LogError($"[MP Debug] Hexadecimal data: {BitConverter.ToString(data.Array, data.Offset + 18, data.Count - 18)}");
+			}
 		}
 	}
 	#endregion
