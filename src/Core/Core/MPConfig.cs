@@ -9,7 +9,7 @@ namespace WKMPMod.Core;
 
 public class MPConfig {
 	// 配置版本号
-	private const string CURRENT_CONFIG_VERSION = "1.0";
+	private const string CURRENT_CONFIG_VERSION = "2.0";
 
 	// 配置版本号 (在大更新时对其配置用)
 	private static ConfigEntry<string> _configVersion;
@@ -70,9 +70,15 @@ public class MPConfig {
 	private static ConfigEntry<float> _iceActive;
 	public static float IceActive { get { return _iceActive.Value; } }
 
-	// other (其他伤害类型)
+	// other (其他伤害类型 信号枪灼烧除外)
 	private static ConfigEntry<float> _otherActive;
 	public static float OtherActive { get { return _otherActive.Value; } }
+	// 信号枪灼烧持续时间倍率
+	private static ConfigEntry<float> _fireTimeMult;
+	public static float FireTimeMult { get { return _fireTimeMult.Value; } }
+	// 信号枪灼烧伤害倍率
+	private static ConfigEntry<float> _fireDamageMult;
+	public static float FireDamageMult { get { return _fireDamageMult.Value; } }
 	#endregion
 
 	#region[房间规则控制]
@@ -139,6 +145,7 @@ Note: ×N means deals N instances of this damage type.
 * Auto Piton - Type:piton Damage:3
 * Brick - Damage:3
 * Flare Gun - Type:flare Tags:flare incendiary-long Damage:4
+* Flare Gun Burning - Type:fire Tags:fire Damage:0.5 per 0.5s for 5s (reduced by modifying fireTimeMult and fireDamageMult)
 * Rebar/Bone Spears - Type:rebar Damage:10
 * Rope Rebar - Damage:10
 * Artifact Spear (throw/return) - Type:returnrebar Tags:returnrebar Damage:10
@@ -147,13 +154,14 @@ Note: ×N means deals N instances of this damage type.
 
 The Active configuration item controls the damage multiplier dealt by players.
 
-Formula:
+Formula (Excluding Flare Gun Burning): 
 Final Damage = Base Damage × AllActive Multiplier × Corresponding Type Active Multiplier
 
 * 锤子		类型:Melee	标签:Melee blunt	hammer	伤害1-3
 * 自动钻头	类型:piton	伤害3
 * 砖头		类型			伤害3
-* 信号枪	类型:flare	标签:flare incendiary-long	伤害4
+* 信号枪	类型:flare	标签:flare incendiary-long	伤害4	
+* 信号枪灼烧	类型:fire	标签:fire	伤害0.5 每0.5秒造成一次 共持续5秒	(通过修改fireTimeMult和fireDamageMult降低)
 * 钢筋/骨矛		类型:rebar	伤害10
 * 带绳钢筋		类型			伤害10
 * 神器长矛(投出/返回)	类型:returnrebar		标签:returnrebar		伤害10
@@ -162,7 +170,7 @@ Final Damage = Base Damage × AllActive Multiplier × Corresponding Type Active 
 * 造冰枪(不蓄力/蓄力)	类型:ice		标签:ice			伤害10
 					类型			标签:explosion explosive	伤害 0 × 3
 
-Active配置项控制玩家造成的伤害倍率
+Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 公式 : 最终伤害 = 基础伤害 × AllActive倍率 × 对应类型Active倍率
 "
 			);
@@ -193,13 +201,13 @@ Active配置项控制玩家造成的伤害倍率
 
 		// piton (自动钻头)
 		_pitonActive = config.Bind<float>(
-			"RemotePlayerPvP", "PitonActive", 10.0f,
+			"RemotePlayerPvP", "PitonActive", 7.0f,
 			"Multiplier for auto-piton damage dealt by the player.\n" +
 			"玩家使用自动钻头造成伤害的伤害倍率");
 
 		// flare (信号枪)
 		_flareActive = config.Bind<float>(
-			"RemotePlayerPvP", "FlareActive", 5.0f,
+			"RemotePlayerPvP", "FlareActive", 0f,
 			"Multiplier for flare gun damage dealt by the player.\n" +
 			"玩家使用信号枪造成伤害的伤害倍率");
 
@@ -232,6 +240,18 @@ Active配置项控制玩家造成的伤害倍率
 			"RemotePlayerPvP", "OtherActive", 1.0f,
 			"Multiplier for other damage dealt by the player.\n" +
 			"玩家造成其他伤害类型的伤害倍率");
+
+		// flare burning time (信号枪灼烧时间倍率)
+		_fireTimeMult = config.Bind<float>(
+			"RemotePlayerPvP", "FireTimeMult", 1.0f,
+			"Multiplier for the duration of flare gun burning effect.\n" +
+			"信号枪灼烧效果持续时间的倍率");
+
+		// flare burning damage (信号枪灼烧伤害倍率)
+		_fireDamageMult = config.Bind<float>(
+			"RemotePlayerPvP", "FireDamageMult", 0.6f,
+			"Multiplier for the damage of flare gun burning effect.\n" +
+			"信号枪灼烧效果伤害的倍率");
 		#endregion
 
 		#region[房间规则控制]
@@ -272,6 +292,8 @@ Active配置项控制玩家造成的伤害倍率
 		_flareActive.Value = (float)_flareActive.DefaultValue;
 		_iceActive.Value = (float)_iceActive.DefaultValue;
 		_otherActive.Value = (float)_otherActive.DefaultValue;
+		_fireTimeMult.Value = (float)_fireTimeMult.DefaultValue;
+		_fireDamageMult.Value = (float)_fireDamageMult.DefaultValue;
 		// 将磁盘上的版本号更新到最新
 		_configVersion.Value = (string)_configVersion.DefaultValue;
 
@@ -291,7 +313,9 @@ Active配置项控制玩家造成的伤害倍率
 				Piton = PitonActive,
 				Flare = FlareActive,
 				Ice = IceActive,
-				Other = OtherActive
+				Other = OtherActive,
+				FireTime = FireTimeMult,
+				FireDamage = FireDamageMult,
 			};
 		}
 	}

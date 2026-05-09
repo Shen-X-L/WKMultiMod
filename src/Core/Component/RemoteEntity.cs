@@ -105,4 +105,6 @@ public struct DamageRules {
 	public float Flare;
 	public float Ice;
 	public float Other;
+	public float FireTime;
+	public float FireDamage;
 }
