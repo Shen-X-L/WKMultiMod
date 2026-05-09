@@ -15,6 +15,7 @@ using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
+using WKMPMod.Patch;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
 
@@ -387,6 +388,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	/// <summary>
 	/// 发送玩家死亡信息 死因 string 库存物品 Dictionary<string, ushort>
+	/// 发送函数: <see cref="Patch_ENT_Player.Prefix"/>
 	/// </summary>
 	private void HandlePlayerDeath(string type) {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
@@ -406,19 +408,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		writer.Put(GetGetInventoryItems());
 
 		_MPsteamworks.Broadcast(writer);
-
-		switch (SceneManager.GetActiveScene().name) {
-			case "Game-Main": {
-				// 断开网络连接
-				// StartCoroutine(OnDeathSequence());
-				break;
-			}
-			default: {
-
-				break;
-			}
-		}
-
 	}
 	#endregion
 

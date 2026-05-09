@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.Util;
 using static WorldLoader;
 using Object = UnityEngine.Object;
 
@@ -53,16 +55,6 @@ public class Patch_UT_GameStateController_RestartScene {
 	}
 }
 
-
-// 补丁类: 在联机模式下默认是固定种子,不上传成绩
-[HarmonyPatch(typeof(WorldLoader), nameof(WorldLoader.Initialize))]
-public class Patch_WorldLoader_Initialize {
-	public static void Postfix() {
-		if (MPCore.IsInLobby) 
-			WorldLoader.customSeed = true;
-	}
-}
-
 // 补丁类: 负责初始化游戏模式管理器
 [HarmonyPatch(typeof(CL_AssetManager), nameof(CL_AssetManager.Initialize))]
 public class Patch_CL_AssetManager_Initialize {
@@ -71,22 +63,15 @@ public class Patch_CL_AssetManager_Initialize {
 	}
 }
 
-// 补丁类: 关闭种子偏移, 使复活时种子同步
-[HarmonyPatch(typeof(WorldLoader), ("IncrementSeed"))]
-public class Patch_WorldLoader_IncrementSeed {
-	public static bool Prefix() {
-		if (MPCore.IsInLobby)
-			return false;
-		return true;
-	}
-}
-// 补丁类: 关闭生成器的种子偏移, 使复活时种子同步
-[HarmonyPatch(typeof(WorldLoader), ("GenerateLevels"))]
-public class Patch_WorldLoader_GenerateLevels {
-	public static void Prefix(GenerationParameters genParams) {
-		if (MPCore.IsInLobby && genParams != null && CL_GameManager.GetBaseGamemode().gamemodeName == "Campaign") {
-			genParams.seedOffset = 0; // 禁用种子偏移
-			MPMain.LogWarning($"[MP Debug] 禁用种子偏移");
-		}
-	}
-}
+//[HarmonyPatch(typeof(CL_GameManager), nameof(CL_GameManager.Die))]
+//public class  Patch_CL_GameManager_Die {
+//	public static void Prefix(string type) {
+//		if (CL_GameManager.isDead()) return;
+//		if (MPCore.IsInLobby) {
+//			MPEventBusGame.NotifyPlayerDeath(type);
+//			MPMain.LogInfo(Localization.Get("Patch.PlayerDeath", type));
+//		}
+//	}
+//}
+
+

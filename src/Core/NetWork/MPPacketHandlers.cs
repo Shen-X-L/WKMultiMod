@@ -131,57 +131,12 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDeath)]
 	private static void HandlePlayerDeath(ulong senderId, DataReader reader) {
-		// 生成死亡消息
+		// 死亡消息
 		string type = reader.GetString();
-		string playerName = new Friend(senderId).Name;
-		MPCore.SystemMessage(Localization.GetRandom("DisplayMessage.PlayerDeath", playerName, type), UIDisplayType.HighscoreHeader);
-
-		// 获取玩家对象
-		var playerObject = RPManager.Instance.GetPlayerObject(senderId);
-		if (playerObject == null) {
-			return;
-		}
-
-		// 生成死亡后掉落物品
+		// 掉落物品
 		Dictionary<string, byte> remoteItems = reader.GetStringByteDict();
-		var playerPosition = playerObject.transform.position;
-
-		foreach (var (itemId, count) in remoteItems) {
-			if (itemId == NO_ITEM_NAME)
-				continue;
-			if (itemId == HAMMER_NAME)
-				continue;
-
-			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
-			if (itemPrefab == null) {
-				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
-				continue;
-			}
-
-			for (int i = 0; i < count; i++) {
-				// 随机位置 (-1~1,0~0.5,-1~1)
-				Vector3 offset = new Vector3(
-					Random.Range(-1f, 1f), Random.Range(0f, 0.5f), Random.Range(-1f, 1f));
-
-				// 实例化物品
-				var itemObject = GameObject.Instantiate(
-					itemPrefab, playerPosition + offset, Random.rotation);
-
-				// 获取Rigidbody并添加随机斜上方动量
-				if (itemObject.TryGetComponent<Rigidbody>(out var rb)) {
-					// 随机动量方向: (-1~1,1,-1~1)再归一化
-					Vector3 direction = new Vector3(
-						Random.Range(-1f, 1f), 1f, Random.Range(-1f, 1f)).normalized;
-					// 添加冲量 力度(1-2)
-					rb.AddForce(direction * Random.Range(1f, 2f), ForceMode.Impulse);
-					// 可选: 添加随机旋转扭矩,让物品在空中旋转
-					//rb.AddTorque(Random.insideUnitSphere * Random.Range(1f, 5f), ForceMode.Impulse);
-				}
-			}
-		}
-
 		// 处理玩家死亡
-		RPManager.Instance.ProcessPlayerDeath(senderId);
+		RPManager.Instance.ProcessPlayerDeath(senderId, type, remoteItems);
 	}
 
 	/// <summary>

@@ -1,9 +1,6 @@
 ﻿using HarmonyLib;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using WKMPMod.Core;
-using WKMPMod.NetWork;
 using WKMPMod.Util;
 
 namespace WKMPMod.Patch;
@@ -12,7 +9,8 @@ namespace WKMPMod.Patch;
 public class Patch_CommandConsole {
 	// 补丁类: 修复字符串逻辑
 	[HarmonyPatch("CommandValueAsString")]
-	public static bool Prefix(Func<object> functor, ref string __result) {
+	[HarmonyPrefix]
+	public static bool CommandValueAsString_FixStringDisplay(Func<object> functor, ref string __result) {
 		object obj = functor();
 
 		if (obj is string str) {
@@ -25,14 +23,16 @@ public class Patch_CommandConsole {
 
 	// 启用时注册命令
 	[HarmonyPatch("Awake")]
-	public static void Postfix() {
+	[HarmonyPostfix]
+	public static void Awake_RegisterCommands() {
 		MPCore.Instance.RegisterCommands();
 		return;
 	}
 
 	// 在allowCheats为false时禁止作弊
 	[HarmonyPatch("EnableCheatsCommand")]
-	public static bool Prefix() {
+	[HarmonyPrefix]
+	public static bool EnableCheatsCommand_BlockIfNotAllowed() {
 		// 在大厅且不允许作弊
 		if (MPCore.IsInLobby && !MPCore.IsAllowCheats) {
 			// 当前大厅不允许作弊
