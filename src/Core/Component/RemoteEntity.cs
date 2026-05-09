@@ -93,7 +93,7 @@ public class RemoteEntity : GameEntity {
 造冰枪(自伤)			类型			标签:explosion explosive	伤害 0
  */
 [Serializable]
-public struct DamageRules {
+public class DamageRules {
 	public float All;
 	public float Hammer;
 	public float Melee;

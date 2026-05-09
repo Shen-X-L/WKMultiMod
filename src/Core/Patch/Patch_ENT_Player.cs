@@ -25,8 +25,8 @@ public class Patch_ENT_Player {
 	[HarmonyPostfix]
 	public static void Awake_ResetFireMult(ENT_Player __instance) {
 		if (MPCore.IsInLobby) {
-			__instance.fireTimeMult = MPConfig.FireTimeMult;
-			__instance.fireDamageMult = MPConfig.FireDamageMult;
+			__instance.fireTimeMult = MPCore.damageRules.FireTime;
+			__instance.fireDamageMult = MPCore.damageRules.FireDamage;
 		}
 	}
 }

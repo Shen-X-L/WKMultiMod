@@ -1056,6 +1056,16 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		if (delta.TryGetValue("damageMultiplier", out var damageValue)) {
 			damageRules = JsonUtility.FromJson<DamageRules>(damageValue);
+
+			// 前向兼容
+			if (damageRules.FireTime == 0) {
+				damageRules.FireTime = MPConfig.FireTimeMult;
+			}
+			if (damageRules.FireDamage == 0) {
+				damageRules.FireDamage = MPConfig.FireDamageMult;
+			}
+			ENT_Player.GetPlayer()?.fireTimeMult = damageRules.FireTime;
+			ENT_Player.GetPlayer()?.fireDamageMult = damageRules.FireDamage;
 		}
 	}
 

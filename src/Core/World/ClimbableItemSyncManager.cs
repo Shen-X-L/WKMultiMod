@@ -128,7 +128,6 @@ public static class ClimbableItemSyncManager {
 		}
 
 		foreach (var piton in CapturedPitons) {
-			MPMain.LogWarning($"[MP Debug] 生成对象: {piton}");
 			var root = GetClimbableRoot(piton);
 			if (root == null) continue;
 			RegisterLocalClimbable(root, source.pitonWorldObject.name);
@@ -169,7 +168,6 @@ public static class ClimbableItemSyncManager {
 		}
 
 		foreach (var piton in CapturedPitons) {
-			MPMain.LogWarning($"[MP Debug] 生成对象: {piton}");
 			var root = GetClimbableRoot(piton);
 			if (root == null) continue;
 			RegisterLocalClimbable(root, root != null ? root.name : source.gameObject.name);
