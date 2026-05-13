@@ -144,7 +144,7 @@
     "LimitExceeded": "[MPSW] Limit exceeded, this account may have created too many lobbies",
     "LimitedUserAccount": "[MPSW] Account restricted, cannot use social features",
     "LobbyCreatedSuccess": "[MPSW] Lobby created successfully. Lobby ID: {0}",
-    "LobbyIdChanged": "[MPSW] Lobby Id change: {0} -> {1}",
+    "LobbyDataChanged": "[MPSW] Lobby data changed",
     "MessageQueueException": "[MPSW] Message processing exception: {0}",
     "NoConnection": "[MPSW] No connection to Steam network",
     "NullLobbyName": "Unknown lobby",

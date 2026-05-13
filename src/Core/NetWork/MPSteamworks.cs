@@ -120,7 +120,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		SteamMatchmaking.OnLobbyMemberLeave += HandleLobbyMemberLeave;
 		// 该用户在未离开大厅的情况下断线
 		SteamMatchmaking.OnLobbyMemberDisconnected += HandleLobbyMemberDisconnected;
-		// 当大厅成员数据或大厅所有权发生变更
+		// 当大厅成员数据发生变更
 		SteamMatchmaking.OnLobbyMemberDataChanged += HandleLobbyMemberDataChanged;
 		// 该用户收到Steam好友的大厅邀请
 		SteamMatchmaking.OnLobbyInvite += HandleLobbyInvite;
@@ -128,7 +128,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		SteamFriends.OnGameLobbyJoinRequested += HandleGameLobbyJoinRequested;
 		// 大厅创建后(无论是否成功)的消息
 		SteamMatchmaking.OnLobbyCreated += HandleLobbyCreated;
-		// 大厅数据改变
+		// 大厅数据改变 (包括但不限于主机变更)
 		SteamMatchmaking.OnLobbyDataChanged += HandleLobbyDataChanged;
 
 		// 初始化中继网络(必须调用)
@@ -651,42 +651,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	/// <summary>
-	/// 接收数据: 大厅数据变更->
-	/// 主机变更->LobbyHostChanged总线
+	/// 接收数据: 玩家数据变更
 	/// </summary>
 	private void HandleLobbyMemberDataChanged(Lobby lobby, Friend friend) {
-		// 大厅变更
-		if (lobby.Id != _currentLobby.Id) {
-			// 更新部分大厅数据
-			MPMain.LogInfo(Localization.Get(
-				"MPSteamworks.LobbyIdChanged", _currentLobby.Id.ToString(), lobby.Id.ToString()));
-			_currentLobby = lobby;
-			// 以后会在这里触发总线
-			return;
-		}
 
-		// 原大厅 更新部分大厅数据
-		_currentLobby = lobby;
-		// 获取当前大厅真正的主机(Owner)
-		SteamId currentOwnerId = lobby.Owner.Id;
-		// 检查所有权是否发生了变更
-		if (HostSteamId != 0 && HostSteamId != currentOwnerId) {
-			MPMain.LogInfo(Localization.Get("MPSteamworks.HostChanged", HostSteamId.ToString(), currentOwnerId.ToString()));
-
-			// 触发主机变更总线
-			MPEventBusNet.NotifyLobbyHostChanged(lobby, new Friend(HostSteamId));
-
-			HostSteamId = currentOwnerId;
-
-			// 如果当前玩家是新主机 更改大厅所有者数据
-			if (currentOwnerId == UserSteamId) {
-				_currentLobby.SetData("owner", UserSteamId.ToString());
-				var lobbyName = _currentLobby.GetData("name");
-				if (string.IsNullOrWhiteSpace(lobbyName) || lobbyName.EndsWith("'s game")) {
-					_currentLobby.SetData("name", $"{SteamClient.Name}'s game");
-				}
-			}
-		}
 	}
 
 	/// <summary>
@@ -753,6 +721,28 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// LobbyDataChanged总线订阅者: <see cref="MPCore.HandleLobbyDataChanged"/>
 	/// </summary>
 	public void HandleLobbyDataChanged(Lobby lobby) {
+		// 获取当前大厅真正的主机(Owner)
+		SteamId currentOwnerId = lobby.Owner.Id;
+		// 检查所有权是否发生了变更
+		if (HostSteamId != 0 && HostSteamId != currentOwnerId) {
+			MPMain.LogInfo(Localization.Get("MPSteamworks.HostChanged", HostSteamId.ToString(), currentOwnerId.ToString()));
+
+			// 触发主机变更总线
+			MPEventBusNet.NotifyLobbyHostChanged(lobby, new Friend(HostSteamId));
+
+			HostSteamId = currentOwnerId;
+
+			// 如果当前玩家是新主机 更改大厅所有者数据
+			if (currentOwnerId == UserSteamId) {
+				_currentLobby.SetData("owner", UserSteamId.ToString());
+				var lobbyName = _currentLobby.GetData("name");
+				if (string.IsNullOrWhiteSpace(lobbyName) || lobbyName.EndsWith("'s game")) {
+					_currentLobby.SetData("name", $"{SteamClient.Name}'s game");
+				}
+			}
+		}
+
+		MPMain.LogInfo(Localization.Get("MPSteamworks.LobbyDataChanged"));
 		var newData = lobby.Data.ToDictionary(k => k.Key, v => v.Value);
 		var delta = new Dictionary<string, string>();
 

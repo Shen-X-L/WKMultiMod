@@ -144,7 +144,7 @@
     "LimitExceeded": "[MPSW] 达到上限,可能该账号已经开了太多的房间",
     "LimitedUserAccount": "[MPSW] 账号受限 无法使用社交功能",
     "LobbyCreatedSuccess": "[MPSW] 大厅创建成功, ID: {0}",
-    "LobbyIdChanged": "[MPSW] 大厅Id变更: {0} -> {1}",
+    "LobbyDataChanged": "[MPSW] 大厅数据变更",
     "MessageQueueException": "[MPSW] 消息处理异常: {0}",
     "NoConnection": "[MPSW] 没有连接到 Steam 网络",
     "NullLobbyName": "未知大厅",

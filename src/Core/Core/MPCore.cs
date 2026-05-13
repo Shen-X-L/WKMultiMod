@@ -395,13 +395,13 @@ public class MPCore : MonoSingleton<MPCore> {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
 
 		switch (type) {
-			case "deathfloor": {
-				if (CL_GameManager.GetGamemodeName().Contains(MPGameModeManager.CHIMNEY_GAME_MODE)) 
-					type = "mass";
-				else
-					type = "k-coolant";
+			case "deathfloor":
+				type = "mass";
 				break;
-			}
+
+			case "deathcoolant":
+				type = "k-coolant";
+				break;
 			default:
 				break;
 		}
@@ -452,7 +452,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					}
 				}
 			});
-		
+
 		// 加入大厅
 		CommandConsole.BuildCommand("join", Join)
 			.NotCheat()
@@ -471,7 +471,7 @@ public class MPCore : MonoSingleton<MPCore> {
 						break;
 				}
 			});
-		
+
 		// 离开大厅
 		CommandConsole.BuildCommand("leave", Leave)
 			.NotCheat()
@@ -480,10 +480,10 @@ public class MPCore : MonoSingleton<MPCore> {
 			.OverValue(() => _MPsteamworks.IsInLobby ? "In Lobby" : "Not In Lobby")
 			// 不在大厅则变红
 			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
-		
+
 		// 获取大厅ID
 		CommandConsole.BuildCommand("lobbyid", (args) => {
-			if (!EnsureInLobby())return;
+			if (!EnsureInLobby()) return;
 			string lobby_id = _MPsteamworks.LobbyId.ToString();
 			CopyToClipboard(lobby_id);
 			CommandConsole.Log(Localization.Get(
@@ -494,7 +494,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			.Description(Localization.Get("CommandHelp.LobbyId"))
 			.OverValue(() => _MPsteamworks.IsInLobby ? _MPsteamworks.LobbyId : "Not In Lobby")
 			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
-		
+
 		// 获取大厅全部玩家
 		CommandConsole.BuildCommand("allplayer", (args) => {
 			foreach (var friend in _MPsteamworks.Members) {
@@ -508,12 +508,12 @@ public class MPCore : MonoSingleton<MPCore> {
 				? $"Player: {_MPsteamworks.Members.Count()}/{_MPsteamworks.LobbySize}"
 				: "Not In Lobby")
 			.AutocompleteValidator(validator => { if (!_MPsteamworks.IsInLobby) validator.Reject(); });
-		
+
 		// 向大厅广播
 		CommandConsole.BuildCommand("talk", Talk)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Talk"));
-		
+
 		// tp到某人(同步背包物品)
 		CommandConsole.BuildCommand("tpto", TpToPlayer)
 			.Description(Localization.Get("CommandHelp.TpTo"))
@@ -526,7 +526,7 @@ public class MPCore : MonoSingleton<MPCore> {
 								name: container.PlayerName)).ToList());
 				}
 			});
-		
+
 		// 修改玩家模型(局内不生效)
 		CommandConsole.BuildCommand("changemodel", (args) => {
 			_LocalPlayer.DefaulFactoryId = args[0];
@@ -539,12 +539,12 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(RPFactoryManager.factories.Keys.ToList());
 				}
 			});
-		
+
 		// 获取全部大厅
 		CommandConsole.BuildCommand("lobbylist", GetAllLobby)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.LobbyList"));
-		
+
 		// 邀请其他好友
 		CommandConsole.BuildCommand("invite", (args) => {
 			if (!EnsureInLobby()) return;
@@ -555,7 +555,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.Invite"))
 			.OverValue(() => _MPsteamworks.IsInLobby ? _MPsteamworks.LobbyId : "Not In Lobby");
-		
+
 		// 设置大厅可见度
 		CommandConsole.BuildCommand("lobbytype", SetLobbyVisibility)
 			.NotCheat()
@@ -767,11 +767,11 @@ public class MPCore : MonoSingleton<MPCore> {
 			return;
 		}
 
-		string input = string.Join(" ",args);
+		string input = string.Join(" ", args);
 		Lobby? targetLobby = null;
 
 		CommandConsole.Log(Localization.Get("CommandConsole.SearchingLobbyByName", input));
-		
+
 		try {
 			// 进行异步查询
 			var LobbyList = await _MPsteamworks.RefreshLobbyListAsync();
@@ -876,7 +876,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void SetLobbyVisibility(string[] args) {
 
-		if (!EnsureHostPrivileges()) 			return;
+		if (!EnsureHostPrivileges()) return;
 
 		bool success = args[0].ToLower() switch {
 			"public" => _MPsteamworks._currentLobby.SetPublic(),
@@ -902,8 +902,8 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 发送信息到他人控制台
 	/// </summary>
 	public void Talk(string[] args) {
-		if (!EnsureInLobby())			return;
-		
+		if (!EnsureInLobby()) return;
+
 		// 将参数数组组合成一个字符串
 		string message = string.Join(" ", args);
 
@@ -919,7 +919,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void TpToPlayer(string[] args) {
 		if (!EnsureInLobby()) return;
-		
+
 		if (!IsInitialized) {
 			CommandConsole.LogError(Localization.Get("CommandConsole.WorldNotInitialized"));
 			return;
