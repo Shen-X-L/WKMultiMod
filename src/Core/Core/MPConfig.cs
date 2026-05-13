@@ -258,17 +258,17 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 
 		_allowCheats = config.Bind<bool>(
 			"LobbyRule", "cheats", false,
-			"Controls whether cheats are allowed by default in lobby you host.\n" +
+			"Controls whether cheats are allowed by LobbyRule in lobby you host.\n" +
 			"控制由你开启的房间是否默认可以使用cheats"
 			);
 		_allowPVP = config.Bind<bool>(
 			"LobbyRule", "PVP", false,
-			"Controls whether PvP is enabled by default in lobby you host.\n" +
+			"Controls whether PvP is enabled by LobbyRule in lobby you host.\n" +
 			"控制由你开启的房间是否默认可以PVP"
 			);
 		_bindsync = config.Bind<bool>(
 			"LobbyRule", "bindsync", false,
-			"Controls whether bindings or trinkets synchronization is enabled by default in lobby you host.\n" +
+			"Controls whether bindings or trinkets synchronization is enabled by LobbyRule in lobby you host.\n" +
 			"控制由你开启的房间是否默认可以绑定或天赋同步");
 		#endregion
 

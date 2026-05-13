@@ -6,16 +6,17 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Asset;
 using WKMPMod.Component;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.Patch;
 using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
-using WKMPMod.Patch;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
 
@@ -395,7 +396,10 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		switch (type) {
 			case "deathfloor": {
-				type = "mass";
+				if (CL_GameManager.GetGamemodeName().Contains(MPGameModeManager.CHIMNEY_GAME_MODE)) 
+					type = "mass";
+				else
+					type = "k-coolant";
 				break;
 			}
 			default:

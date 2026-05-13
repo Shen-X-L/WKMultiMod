@@ -70,8 +70,6 @@ public class UI_LobbyListPane : MonoBehaviour {
 	/// 刷新大厅列表并创建对应的UI_LobbyButton
 	/// </summary>
 	public async Task RefreshLobbyList() {
-
-
 		// 获取最新的大厅列表
 		List<Lobby> lobbies = await MPSteamworks.Instance.RefreshLobbyListAsync();
 		HashSet<ulong> activeIds = lobbies.Select(lobby => lobby.Id.Value).ToHashSet();
@@ -87,11 +85,17 @@ public class UI_LobbyListPane : MonoBehaviour {
 			return;
 		}
 
-		foreach (var lobby in lobbies.Where(l => !LobbyDic.ContainsKey(l.Id))) {
-			var newButton = CreateLobbyButton(lobby);
-			if (newButton != null) {
-				LobbyDic[lobby.Id] = newButton;
+		foreach (var lobby in lobbies) {
+			if (LobbyDic.TryGetValue(lobby.Id.Value, out var existingButton)) {
+				// 已存在的大厅: 强制触发一次刷新,以获取最新的房主,大厅名
 				lobby.Refresh();
+			} else {
+				// 新发现的大厅: 创建并刷新
+				var newButton = CreateLobbyButton(lobby);
+				if (newButton != null) {
+					LobbyDic[lobby.Id.Value] = newButton;
+					lobby.Refresh(); // 初始刷新
+				}
 			}
 		}
 

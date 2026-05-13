@@ -679,8 +679,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			HostSteamId = currentOwnerId;
 
 			// 如果当前玩家是新主机 更改大厅所有者数据
-			if (currentOwnerId == UserSteamId)
+			if (currentOwnerId == UserSteamId) {
 				_currentLobby.SetData("owner", UserSteamId.ToString());
+				var lobbyName = _currentLobby.GetData("name");
+				if (string.IsNullOrWhiteSpace(lobbyName) || lobbyName.EndsWith("'s game")) {
+					_currentLobby.SetData("name", $"{SteamClient.Name}'s game");
+				}
+			}
 		}
 	}
 

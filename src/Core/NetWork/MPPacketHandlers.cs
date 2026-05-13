@@ -152,14 +152,16 @@ public class MPPacketHandlers {
 		MPSteamworks.Instance.SendToPeer(senderId, writer);
 
 		// 1秒后强制同步玩家数据,让新玩家更新远程玩家数据,因为有可能在创建玩家对象时,玩家数据还没有被同步过去
-		MPCore.Instance.StartCoroutine(RoutineForceSyncDelay(1.0f));
-		MPCore.Instance.StartCoroutine(RoutineForceSyncDelay(3.0f));
-		MPCore.Instance.StartCoroutine(RoutineForceSyncDelay(9.0f));
+		MPCore.Instance.StartCoroutine(RoutineMultiSync(new float[] { 1f, 3f, 9f, 9f }));
 
-		IEnumerator RoutineForceSyncDelay(float time) {
-			yield return new WaitForSeconds(time);
-			if (LocalPlayer.Instance != null) {
-				LocalPlayer.Instance.ForceSyncToTarget(senderId);
+		IEnumerator RoutineMultiSync(float[] delays) {
+			foreach (float waitTime in delays) {
+				if (waitTime > 0) 
+					yield return new WaitForSeconds(waitTime);
+				if (!MPCore.IsInLobby || LocalPlayer.Instance == null) 
+					yield break; // 停止协程，防止对不存在的玩家发包
+				if (LocalPlayer.Instance != null) 
+					LocalPlayer.Instance.ForceSyncToTarget(senderId);
 			}
 		}
 	}

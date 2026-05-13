@@ -10,6 +10,8 @@ using static CL_AssetManager;
 namespace WKMPMod.Core;
 
 public class MPGameModeManager {
+	public const string CHIMNEY_GAME_MODE = "Chimney";
+
 	// 旧的游戏模式数据结构, 包含铁人, 困难等设置[MP Debug]<-搜寻标签
 	// 1.6.x之前版本使用 记得删除
 	// If using versions prior to 1.6.x, remember to delete it.
