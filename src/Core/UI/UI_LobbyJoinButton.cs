@@ -1,4 +1,5 @@
 ﻿using DG.Tweening;
+using Newtonsoft.Json;
 using Steamworks;
 using Steamworks.Data;
 using System;
@@ -6,6 +7,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using TMPro;
+using Unity.Entities.UniversalDelegates;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -13,32 +15,34 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
+using static WKMPMod.Core.MPGameModeManager;
 
 namespace WKMPMod.UI;
 
-public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler {
+public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler {
 	public Lobby lobby;                         // 关联的大厅数据
-	public M_Gamemode? gamemode;				// 关联的游戏模式
-	public bool isOfficialGamemodes;			// 是否为官方游戏模式(影响显示逻辑)
+	public M_Gamemode? gamemode;                // 关联的游戏模式
+	public bool isOfficialGamemodes;            // 是否为官方游戏模式(影响显示逻辑)
+	public GameModeData? gameModeData;           // 游戏模式数据(仅官方游戏模式有效,包含名称、图标、饰品和设置等信息)
 
 	#region[原UI_Gamemode_Button字段]
-	public UI_LerpOpen? runInProgressDisplay;	// 进行中标识的动画组件
+	public UI_LerpOpen? runInProgressDisplay;   // 进行中标识的动画组件
 	private bool isHovering;                    // 是否正在悬停/选中
-	public TMP_Text? unlockText;				// 锁定原因文本(显示在锁定图标旁边, 解释为什么不可加入)
+	public TMP_Text? unlockText;                // 锁定原因文本(显示在锁定图标旁边, 解释为什么不可加入)
 	#endregion
 
 	#region[原UI_CapsuleButton字段]
 	public float showDelayAnimation;            // 显示动画延迟时间
 	public Selectable? button;                  // 按钮组件引用
-	public CanvasGroup? group;					// CanvasGroup组件(用于控制透明度和交互)
-	public UnityEngine.UI.Image? unlockIcon;	// 未解锁时显示的锁定图标		
+	public CanvasGroup? group;                  // CanvasGroup组件(用于控制透明度和交互)
+	public UnityEngine.UI.Image? unlockIcon;    // 未解锁时显示的锁定图标		
 	#endregion
 
-	public TMP_Text? lobbyName;					// 大厅名称文本
-	public UnityEngine.UI.Image? hostAvatar;	// 房主头像
+	public TMP_Text? lobbyName;                 // 大厅名称文本
+	public UnityEngine.UI.Image? hostAvatar;    // 房主头像
 	public TMP_Text? hostName;                  // 房主名
 	public Button? btnComp;                      // 按钮引用
-	public UnityEngine.UI.Image? lobbyImage;	// 大厅图标
+	public UnityEngine.UI.Image? lobbyImage;    // 大厅图标
 
 	/// <summary>
 	/// 初始化按钮 - 设置点击事件、图标、标题和统计文本
@@ -67,17 +71,26 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 			}
 		});
 
+		var rawData = lobby.GetData("gamemode");
+
+		try {
+			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
+		} catch (JsonException ex) {
+			MPMain.LogError($"[MP Debug] JSON 格式解析失败,原始数据: {rawData} | 错误: {ex.Message}");
+		}
+
 		// 获取游戏模式数据
-		isOfficialGamemodes = MPGameModeManager.TryGetGameMode(lobby.GetData("gamemode"), out var gamemode);
+		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
 
 		// 更新锁定图标显示
 		if (unlockIcon != null) {
-			unlockIcon.gameObject.SetActive(!isOfficialGamemodes);  // 自定义游戏模式显示锁定图标,官方游戏模式不显示
+			// 自定义游戏模式显示锁定图标,官方游戏模式不显示
+			unlockIcon.gameObject.SetActive(!isOfficialGamemodes);  
 		}
 		// 设置按钮交互和透明度
 		if (group != null) {
-			group.interactable = isOfficialGamemodes;      
-			group.alpha = isOfficialGamemodes ? 1f : 0.5f; 
+			group.interactable = isOfficialGamemodes;
+			group.alpha = isOfficialGamemodes ? 1f : 0.5f;
 		}
 		// 官方游戏模式显示胶囊图标,自定义游戏模式不显示(后续可以考虑添加自定义图标支持)
 		if (isOfficialGamemodes) {
@@ -226,7 +239,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 		}
 		// 显示Loading弹窗
 		// 显示最长10秒的Loading,实际关闭由JoinSuccess或JoinFailed触发
-		MPEventBusGame.NotifyShowLoading(10f); 
+		MPEventBusGame.NotifyShowLoading(10f);
 	}
 	// 加入失败 - 目前没有额外逻辑
 	public void JoinFailed() {
@@ -238,7 +251,7 @@ public class UI_LobbyJoinButton: MonoBehaviour, IPointerEnterHandler, IPointerEx
 			pane.SetAllButtonsInteractable(true);
 		}
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading(); 
+		MPEventBusGame.NotifyHideLoading();
 	}
 
 	// 加入成功 - 目前没有额外逻辑

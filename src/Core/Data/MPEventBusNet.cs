@@ -8,8 +8,8 @@ namespace WKMPMod.Data;
 
 // 数据包类型枚举 - 定义不同类型的网络消息
 public enum PacketType {
-	WorldInitRequest = 0,   // 客机->主机: 请求初始化世界数据
-	WorldInitData = 1,      // 主机->客机: 接收初始化世界数据,创建玩家,重加载地图
+	//WorldInitRequest = 0,   // 客机->主机: 请求初始化世界数据
+	//WorldInitData = 1,      // 主机->客机: 接收初始化世界数据,创建玩家,重加载地图
 	//PlayerCreate = 2,      // 主机->客机: 创建新玩家
 	PlayerRemove = 3,       // 主机->客机: 移除玩家
 	PlayerDataUpdate = 4,   // 客机->主机->客机: 玩家数据更新

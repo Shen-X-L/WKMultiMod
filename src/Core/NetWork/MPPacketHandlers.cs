@@ -27,37 +27,6 @@ public class MPPacketHandlers {
 	public const string BLINK_EYE = "Item_BlinkEye";
 
 	/// <summary>
-	/// 主机接收WorldInitRequest: 请求初始化数据
-	/// 发送函数 <see cref="MPCore.InitHandshakeRoutine"/>
-	/// 发送WorldInitData: 初始化数据给新玩家
-	/// <see cref="HandleWorldInit"/>
-	/// </summary>
-	[MPPacketHandler(PacketType.WorldInitRequest)]
-	private static void HandleWorldInitRequest(ulong senderId, DataReader reader) {
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.WorldInitData);
-		// 获取游戏模式数据 (是否铁指,是否困难,模式名称,模式对象名称,可能的种子)
-		writer.Put(MPGameModeManager.CaptureCurrentData());
-		// 发生到客户端
-		MPSteamworks.Instance.SendToPeer(senderId, writer);
-		// Debug
-		MPMain.LogInfo(Localization.Get("MPMessageHandlers.SentInitData"));
-	}
-
-	/// <summary>
-	/// 客户端接收WorldInitData: 新加入玩家,加载世界种子
-	/// </summary>
-	[MPPacketHandler(PacketType.WorldInitData)]
-	private static void HandleWorldInit(ulong senderId, DataReader reader) {
-		// 获取游戏模式数据 
-		//[MP Debug]
-		var gameModeData = reader.Get<OldGameModeData>();
-		// 加载游戏模式
-		MPGameModeManager.LoadGameMode(gameModeData);
-		// 设置多人模式加载标签为完成
-		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
-	}
-
-	/// <summary>
 	/// 主机/客户端接收PlayerDataUpdate: 处理玩家数据更新<br/>
 	/// 发送函数 <see cref="LocalPlayer.TrySendLocalPlayerData"/><br/>
 	/// 发送函数 <see cref="HandlePlayerCreateRequest"/>

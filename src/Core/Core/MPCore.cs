@@ -1,4 +1,6 @@
-﻿using Steamworks;
+﻿
+using Newtonsoft.Json;
+using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Collections;
@@ -17,6 +19,8 @@ using WKMPMod.Patch;
 using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
+using XUnity.Common.Extensions;
+using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
 
@@ -274,33 +278,29 @@ public class MPCore : MonoSingleton<MPCore> {
 		switch (scene.name) {
 			case "Game-Main": {
 				// 注册命令和初始化世界数据
-				if (CommandConsole.instance != null) {
-					ChangeRPFactoryId();
-				} else {
-					// Debug
-					MPMain.LogError(Localization.Get("MPCore.CommandConsoleNullAfterSceneLoad"));
-				}
+				ChangeRPFactoryId();
 				// 如果是主游戏场景且是房主,抓取当前模式数据并广播给其他人
 				if (_MPsteamworks.IsHost) {
 					// 设置当前游戏模式数据
-					MPGameModeManager.CaptureCurrentData();
+					var currentModeData = CaptureCurrentModeData();
+					if (_MPsteamworks.LobbyData?.GetValueOrDefault("gameMode").IsNullOrWhiteSpace() ?? true) {
+						_MPsteamworks.SetLobbyData("gameMode", JsonConvert.SerializeObject(currentModeData));
+					}
 					// 以后会在这里广播模式数据,用于房主切换游戏模式
-
 					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
-				}
-				if (IsInLobby && !IsInitialized) {
-					StartCoroutine(InitHandshakeRoutine());
 				}
 				break;
 			}
 			case "Playground": {
-				// 注册命令和初始化世界数据
-				if (CommandConsole.instance != null) {
-					ChangeRPFactoryId();
-					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
-				} else {
-					// Debug
-					MPMain.LogError(Localization.Get("MPCore.CommandConsoleNullAfterSceneLoad"));
+				// 游乐场场景不需要重载地图,但需要初始化玩家模型ID
+				SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
+				ChangeRPFactoryId();
+				if (_MPsteamworks.IsHost) {
+					// 设置当前游戏模式数据
+					var currentModeData = MPGameModeManager.CaptureCurrentModeData();
+					if (_MPsteamworks.LobbyData?.GetValueOrDefault("gameMode").IsNullOrWhiteSpace() ?? true) {
+						_MPsteamworks.SetLobbyData("gameMode", JsonConvert.SerializeObject(currentModeData));
+					}
 				}
 				break;
 			}
@@ -333,7 +333,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	public void ResetStateVariables() {
 		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
-		MPGameModeManager.ClearCurrentData();
+		ClearCurrentData();
 		_MPsteamworks.DisconnectAll();
 		_RPManager.ResetAll();
 		// 是否需要重置饰品/绑定
@@ -713,8 +713,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 预设置大厅数据
 		var lobbyData = new Dictionary<string, string>() {
 			{ "name", lobbyName },         // 大厅名称
-			{ "gamemode", CL_GameManager.gamemode.gamemodeName }, // 游戏模式
-			{ "damageMultiplier",JsonUtility.ToJson(damageRules)}
 		};
 
 		try {
@@ -971,6 +969,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 启动协程发送请求初始化数据
 		StartCoroutine(InitHandshakeRoutine());
 
+
 		// 显示加入大厅信息
 		StartCoroutine(ShowLobbyData());
 
@@ -988,6 +987,33 @@ public class MPCore : MonoSingleton<MPCore> {
 			var message = Localization.GetRandom("DisplayMessage.EnteredMessages",
 				lobby.GetData("name"), lobby.MemberCount, lobby.MaxMembers, lobby.Id.Value);
 			SystemMessage(message, UIDisplayType.AscentHeader);
+		}
+
+		IEnumerator InitHandshakeRoutine() {
+			for (int i = 0; i < 3 && IsInLobby && !IsInitialized; i++) {
+				string rawData = lobby.GetData("gameMode");
+				if (string.IsNullOrEmpty(rawData)) {
+					// 尝试获取原始字符串
+					MPMain.LogWarning($"[MP Debug] (尝试 {i + 1}) 大厅的游戏模式数据尚未同步或丢失");
+					_MPsteamworks.RefreshLobbyData();
+				} else {
+					// 尝试解析 JSON
+					GameModeData data = null;
+					try {
+						data = JsonConvert.DeserializeObject<GameModeData>(rawData);
+					} catch (JsonException ex) {
+						MPMain.LogError($"[MP Debug] (尝试 {i + 1}) JSON 格式解析失败,原始数据: {rawData} | 错误: {ex.Message}");
+					}
+					// 解析成功则加载并退出协程
+					if (data != null) {
+						LoadGameMode(data);
+						yield break;
+					}
+				}
+				yield return new WaitForSeconds(1.0f);
+			}
+			MPMain.LogError("[MP Debug] 初始化握手失败：重试次数耗尽或已离开大厅.");
+			Leave(null);
 		}
 	}
 
@@ -1010,7 +1036,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 处理事件总线 玩家连接OnPlayerConnected 发送PlayerCreateResponse
+	/// 处理玩家连接事件
 	/// </summary>
 	private void HandlePlayerConnected(SteamId steamId) {
 		// 创建玩家发包
@@ -1020,7 +1046,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 处理事件总线 玩家断连OnPlayerDisconnected
+	/// 处理玩家断连事件
 	/// </summary>
 	private void HandlePlayerDisconnected(SteamId steamId) {
 		// Debug
@@ -1061,7 +1087,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 
 		if (delta.TryGetValue("damageMultiplier", out var damageValue)) {
-			damageRules = JsonUtility.FromJson<DamageRules>(damageValue);
+			damageRules = JsonConvert.DeserializeObject<DamageRules>(damageValue) ?? new DamageRules();
 
 			// 前向兼容
 			if (damageRules.FireTime == 0) {
@@ -1072,24 +1098,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			}
 			ENT_Player.GetPlayer()?.fireTimeMult = damageRules.FireTime;
 			ENT_Player.GetPlayer()?.fireDamageMult = damageRules.FireDamage;
-		}
-	}
-
-	#endregion
-
-	#region [网络数据处理]
-
-	/// <summary>
-	/// 客户端发送WorldInitRequest: 协程请求初始化数据
-	/// </summary>
-	public IEnumerator InitHandshakeRoutine() {
-		yield return new WaitForSeconds(0.5f);
-		// 在大厅并且未加载
-		while (IsInLobby && !IsInitialized) {
-			MPMain.LogInfo(Localization.Get("MPCore.RequestedInitData"));
-			var writer = GetWriter(_MPsteamworks.UserSteamId, _MPsteamworks.HostSteamId, PacketType.WorldInitRequest);
-			_MPsteamworks.SendToHost(writer);
-			yield return new WaitForSeconds(3.0f);
 		}
 	}
 

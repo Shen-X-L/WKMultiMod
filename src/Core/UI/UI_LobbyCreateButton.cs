@@ -52,8 +52,6 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 		// 预设置大厅数据
 		var lobbyData = new Dictionary<string, string>() {
 			{ "name", name + "'s game" },         // 大厅名称
-			{ "gamemode", CL_GameManager.gamemode.gamemodeName }, // 游戏模式
-			{ "damageMultiplier",JsonUtility.ToJson(MPCore.damageRules)},	// 伤害倍率
 		};
 
 		// 设置状态为正在创建

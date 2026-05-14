@@ -1,4 +1,5 @@
-﻿using Steamworks;
+﻿using Newtonsoft.Json;
+using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Buffers;
@@ -945,10 +946,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		var dict = new Dictionary<string, string>();
 		dict["game"] = "White Knuckle";
 		dict["version"] = Application.version;
+		dict["mod version"] = MPMain.ModVersion;
 		dict["owner"] = UserSteamId.ToString();
 		dict["visibility"] = "public";
 		dict["allowCheats"] = MPConfig.AllowCheats.ToString();
 		dict["allowPVP"] = MPConfig.AllowPVP.ToString();
+		// 伤害倍率
+		dict["damageMultiplier"] = JsonConvert.SerializeObject(MPCore.damageRules);
 		return dict;
 	}
 

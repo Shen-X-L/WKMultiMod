@@ -44,7 +44,7 @@ public class Patch_M_Level_Awake {
 public class Patch_UT_GameStateController_RestartScene {
 	public static bool Prefix() {
 		if (MPCore.IsInLobby) {
-			if (MPGameModeManager.CurrentData.HasValue) {
+			if (MPGameModeManager.CurrentData!=null) {
 				MPGameModeManager.RestartGameMode();
 				return false;
 			}
