@@ -140,7 +140,7 @@ public class RPManager : Singleton<RPManager> {
 
 		if (_lastDeathTime.TryGetValue(playerId, out float lastTime)) {
 			if (currentTime - lastTime < DEATH_COOLDOWN) {
-				MPMain.LogWarning($"[MP Debug] 玩家 {playerId} 死亡信息频率过高");
+				MPMain.LogWarning(Localization.Get("RPManager.PlayerDeathRateExceeded", playerId.ToString()));
 				return;
 			}
 		}
@@ -169,7 +169,7 @@ public class RPManager : Singleton<RPManager> {
 
 			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
 			if (itemPrefab == null) {
-				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
+				MPMain.LogError(Localization.Get("RPManager.PrefabDoesNotExist", itemId));
 				continue;
 			}
 

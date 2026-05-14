@@ -49,8 +49,9 @@ public class MPPacketHandlers {
 	[MPPacketHandler(PacketType.WorldInitData)]
 	private static void HandleWorldInit(ulong senderId, DataReader reader) {
 		// 获取游戏模式数据 
-		var gameModeData = reader.Get<OldGameModeData>();//[MP Debug]
-														 // 加载游戏模式
+		//[MP Debug]
+		var gameModeData = reader.Get<OldGameModeData>();
+		// 加载游戏模式
 		MPGameModeManager.LoadGameMode(gameModeData);
 		// 设置多人模式加载标签为完成
 		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);

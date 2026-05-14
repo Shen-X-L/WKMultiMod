@@ -6,6 +6,7 @@ using System.Linq;
 using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.Util;
+using static Unity.Collections.AllocatorManager;
 using static WorldLoader;
 
 namespace WKMPMod.Patch;
@@ -47,7 +48,7 @@ public class Patch_WorldLoader {
 	public static void GenerateLevels_GenParams_Off(BranchInfo branch, GenerationParameters genParams, WorldLoader __instance, WorldGenerator ___currentGenerator) {
 		if (MPCore.IsInLobby && genParams != null && CL_GameManager.GetBaseGamemode().gamemodeName == "Campaign") {
 			// 禁用种子偏移
-			genParams.seedOffset = 0; 
+			genParams.seedOffset = 0;
 			// 启动协程等待生成结束并收集数据
 			bool isGenerationBranch = genParams.generator is M_GenerationBranch;
 			__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
@@ -60,7 +61,7 @@ public class Patch_WorldLoader {
 		yield return new WaitUntil(() => WorldLoader.isLoaded == true);
 
 		if (targetBranch == null) {
-			MPMain.LogError("[MP Debug] targetBranch 为空，退出协程");
+			MPMain.LogError(Localization.Get("Patch.TargetBranchIsNull"));
 			yield break;
 		}
 
@@ -71,7 +72,7 @@ public class Patch_WorldLoader {
 		}
 	}
 	private static void PerformCoordinateCorrection(BranchInfo targetBranch) {
-		MPMain.LogInfo($"[MP Debug] 开始矫正支线坐标...");
+		MPMain.LogInfo(Localization.Get("Patch.StartCorrectingSideRouteCoords"));
 
 		// 获取核心组件
 		var worldRoot = GameObject.Find("World_Root(Clone)");
@@ -87,7 +88,7 @@ public class Patch_WorldLoader {
 			.FirstOrDefault(x => x.Level != null && targetDataDict.ContainsKey(x.Level.gameObject.name));
 
 		if (match == null) {
-			MPMain.LogError("[MP Debug] 未找到匹配的关卡数据进行矫正");
+			MPMain.LogError(Localization.Get("Patch.NoMatchingLevelDataForCorrection"));
 			return;
 		}
 
@@ -108,20 +109,25 @@ public class Patch_WorldLoader {
 		// 累加偏移，防止多次矫正导致的跳变
 		Patch_CL_GameManager.HeightOffset += posDelta.y;
 
-		// 应用变换 (使用父子节点法处理玩家，最稳妥)
+		// 应用变换
 		Transform originalPlayerParent = playerTf.parent;
+
+		player.Lock();
 		playerTf.SetParent(rootTf, true);
 
 		rootTf.SetPositionAndRotation(finalRootPos, finalRootRot);
 
 		playerTf.SetParent(originalPlayerParent, true);
+		// 轻微提升玩家位置，防止穿地
+		playerTf.position += Vector3.up * 0.05f;
+		player.UnLock();
 
 		// 处理mass
 		if (DEN_DeathFloor.instance != null && DEN_DeathFloor.instance.IsActive()) {
 			DEN_DeathFloor.instance.OffsetEntity(posDelta.y);
 		}
 
-		MPMain.LogInfo($"[MP Debug] 矫正 {targetData.levelName} 完成 偏移量: {posDelta.ToString()}");
+		MPMain.LogInfo(Localization.Get("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
 	}
 
 	private static void CaptureWorldData(BranchInfo targetBranch) {
@@ -136,6 +142,6 @@ public class Patch_WorldLoader {
 				};
 			}).ToList();
 
-		MPMain.LogInfo($"[MP Debug] 获取关卡数据,共 {levelWorldTransformDatas.Count} 条");
+		MPMain.LogInfo(Localization.Get("Patch.LevelDataRetrieved", levelWorldTransformDatas.Count));
 	}
 }

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using UnityEngine;
 using WKMPMod.Core;
+using WKMPMod.Util;
 using WKMPMod.World;
 using static Projectile;
 
@@ -55,7 +56,7 @@ public class Patch_HandItem_Piton_PitonHit {
 		}
 
 		if (!found) {
-			MPMain.LogError("[MP Debug] PitonHit Transpiler 定位失败, 请检查 IL 结构");
+			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Piton.PitonHit"));
 		} 
 		return codes;
 	}
@@ -141,7 +142,7 @@ public class Patch_Projectile_CreateHitEffect_ClimbableSync {
 				}
 			}
 		}
-		MPMain.LogError("[MP Debug] CreateHitEffect Transpiler 定位失败, 请检查 IL 结构");
+		MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
 		return codes;
 	}
 }

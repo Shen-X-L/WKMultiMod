@@ -88,7 +88,3 @@ if __name__ == "__main__":
     # 对比json结构
     compare_file_structure("texts_zh.json","texts_en.json")
     
-    
-
-
-

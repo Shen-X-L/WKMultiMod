@@ -152,10 +152,6 @@ public class MPPacketRouter {
 		// 发送方ID
 		var (senderId, targetId, packetType) = PeekHeader(data);
 
-		// Debug
-		//string hexString2 = BitConverter.ToString(data.Array, data.Offset + 18, data.Count - 18);
-		//MPMain.LogInfo($"[MP Debug] 16进制数据: {hexString2}");
-
 		// 转发:目标不是我,也不是广播,也不是特殊判断ID
 		if (targetId != MPSteamworks.Instance.UserSteamId
 			&& targetId != MPProtocol.BroadcastId

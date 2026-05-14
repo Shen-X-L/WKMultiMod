@@ -498,8 +498,10 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 获取大厅全部玩家
 		CommandConsole.BuildCommand("allplayer", (args) => {
 			foreach (var friend in _MPsteamworks.Members) {
+				Vector3 position = friend.Id == _MPsteamworks.UserSteamId ? Vector3.zero : _RPManager.GetPlayerObject(friend.Id)?.transform.position ?? Vector3.zero;
+				float distance = position == Vector3.zero ? 0 : Vector3.Distance(LocalPlayer.Instance.transform.position, position);
 				CommandConsole.Log(Localization.Get(
-					"CommandConsole.AllPlayer", friend.Name, friend.Id));
+					"CommandConsole.AllPlayer", friend.Name, friend.Id, distance, position));
 			}
 		})
 			.NotCheat()
@@ -1041,7 +1043,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandleLobbyDataChanged(Dictionary<string, string> delta) {
 
-		MPMain.LogInfo($"[MP Debug] Lobby data changed: {string.Join(", ", delta.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+		MPMain.LogInfo(Localization.Get("MPCore.LobbyDataChanged", string.Join(", ", delta.Select(kvp => $"{kvp.Key}={kvp.Value}"))));
 
 		if (delta == null) return;
 

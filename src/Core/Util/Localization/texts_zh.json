@@ -1,6 +1,6 @@
 {
   "CommandConsole": {
-    "AllPlayer": "名称: {0} Id: {1}",
+    "AllPlayer": "名称: {0} Id: {1} 距离: {2} 坐标: {3}",
     "AlreadyInOnlineMode": "您已处于在线模式, \n请使用 leave 命令离开后再进行联机",
     "CheatsNotAllowed": "当前大厅不允许作弊, 请要求房主使用allowcheats true。",
     "CreateLobbyFailed": "创建大厅失败",
@@ -15,15 +15,18 @@
     "LobbyVisibilitySet": "大厅可见级别设置为: {0}",
     "LobbyVisibilitySetFailed": "大厅可见级别设置失败, 支持的选项有: public, friends, private",
     "MultipleMatchingIds": "找到多个匹配的ID.以下是对应的列表:\n{0}",
+    "NeedToBeHost": "该命令需要是房主时使用此命令",
+    "NeedToBeInLobby": "该命令需要在联机模式下使用此命令, \n请先使用 host 或 join 命令",
     "NoLobbyByNameTryId": "未找到匹配名称的大厅, 尝试使用 ID 连接...",
     "SearchingLobbyByName": "正在按名称搜索大厅: {0}...",
     "TargetIdNotFound": "未找到目标ID.此命令使用后缀匹配.\n例如: 目标ID: 76561198279116422 → tpto 6422.",
-    "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化.",
-    "NeedToBeInLobby": "该命令需要在联机模式下使用此命令, \n请先使用 host 或 join 命令",
-    "NeedToBeHost": "该命令需要是房主时使用此命令"
+    "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化."
   },
   "CommandHelp": {
     "AllPlayer": "Get info on all players in the current lobby.",
+    "AllowCheats": "[True|False] Controls whether players can enable cheat mode",
+    "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
+    "BindSync": "[True|False] Controls whether newly joined players will have their Trinkets and Bindings synced. This setting does not affect players who are already in the lobby.",
     "ChangeModel": "[Model name]: Model switching doesn’t take effect in-game, and the developer doesn’t know how to model — it won’t look good anyway, so just make do.",
     "CheatsTest": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, and affects game balance.",
     "Host": "[Lobby Name (Visibility=public|friends|private) (Max Player=8)]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;). Visibility controls whether the lobby can be found by others.",
@@ -36,10 +39,7 @@
     "SetLobbyName": "[Lobby Name]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
     "Talk": "[Text]: Send a message to other players.",
     "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
-    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422).",
-    "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
-    "AllowCheats": "[True|False] Controls whether players can enable cheat mode",
-    "BindSync": "[True|False] Controls whether newly joined players will have their Trinkets and Bindings synced. This setting does not affect players who are already in the lobby."
+    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422)."
   },
   "DisplayMessage": {
     "EnteredMessages": [
@@ -87,6 +87,7 @@
     "JoinLobbyFailed": "[MPCore] 加入大厅失败",
     "JoiningLobby": "[MPCore] 正在加入大厅: {0}...",
     "LoadingWorld": "[MPCore] 加载世界, 种子号: {0}",
+    "LobbyDataChanged": "[MPCore] 大厅数据变更: {0}",
     "ManagerInitializationFailed": "[MPCore] 管理器初始化失败: {0}",
     "OutgoingConnectionLog": "[MPCore] 出站连接 SteamId: {0} 连接Id: {1}",
     "PlayerDataMissing": "[MPCore] 玩家: {0} 未创建,正在请求数据已创建玩家",
@@ -104,7 +105,6 @@
     "Destroy": "[MPMain] MPMain (启动器) 已被销毁."
   },
   "MPMessageHandlers": {
-    "PrefabDoesNotExist": "[MP Handlers] 预制体: {0} 不存在",
     "PrefabIsNotItem": "[MP Handlers] 预制体: {0} 不是可拾取物,不能放入背包",
     "SentInitData": "[MP Handlers] 已向新玩家发送初始化数据"
   },
@@ -172,8 +172,14 @@
     "CoreInjectionFailed": "[MP Patch] 注入核心失败: {0}",
     "CoreInjectionSuccess": "[MP Patch] MPCore 对象已成功注入 SteamManager",
     "CoreInstanceExists": "[MP Patch] 已存在核心实例: {0}",
+    "CorrectionCompleted": "[MP Patch] 矫正基准关卡 {0} 完成 偏移量: {1}",
+    "LevelDataRetrieved": "[MP Patch] 获取关卡数据,共 {0} 条",
+    "NoMatchingLevelDataForCorrection": "[MP Patch] 未找到匹配的关卡数据进行矫正",
     "PlayerDeath": "[MP Patch] 玩家死亡,类型: {0}",
-    "PreparingToInjectCore": "[MP Patch] SteamManager.Awake 调用,准备注入MPCore"
+    "PreparingToInjectCore": "[MP Patch] SteamManager.Awake 调用,准备注入MPCore",
+    "StartCorrectingSideRouteCoords": "[MP Patch] 开始矫正支线坐标",
+    "TargetBranchIsNull": "[MP Patch] targetBranch 为空, 不是有效的分支信息",
+    "TranspilerError": "[MP Patch] {0} 的Transpiler定位失败, 请检查游戏和mod版本是否匹配"
   },
   "RPBaseFactory": {
     "CL_HandholdAddFailed": "[MP RPBaseFactory] 预制体CL_Handhold组件添加失败",
@@ -200,6 +206,8 @@
   },
   "RPManager": {
     "FactoryCreateObjectFailed": "[MP RPMan] 创建远程映射对象失败",
+    "PlayerDeathRateExceeded": "[MP RPMan] 玩家 {0} 死亡消息频率过高",
+    "PrefabDoesNotExist": "[MP RPMan] 预制体: {0} 不存在",
     "RemotePlayerObjectNotFound": "[MP RPMan] 未找到远程映射对象 ID: {0}"
   },
   "RPSlugcatFactory": {

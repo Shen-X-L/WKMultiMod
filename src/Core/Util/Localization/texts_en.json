@@ -1,6 +1,6 @@
 {
   "CommandConsole": {
-    "AllPlayer": "Name: {0} Id: {1}",
+    "AllPlayer": "Name: {0} Id: {1} Distance: {2} Position: {3}",
     "AlreadyInOnlineMode": "You are already in online mode, \nplease use the leave command to leave and then go online",
     "CheatsNotAllowed": "Cheats are not allowed in the current lobby. Please ask the host to use allowcheats true.",
     "CreateLobbyFailed": "Fail to create lobby",
@@ -15,15 +15,18 @@
     "LobbyVisibilitySet": "Lobby visibility set to: {0}",
     "LobbyVisibilitySetFailed": "Failed to set lobby visibility. Supported options: public, friends, private",
     "MultipleMatchingIds": "Found multiple matching IDs. Below is the corresponding list:\n{0}",
+    "NeedToBeHost": "This command must be used by the host",
+    "NeedToBeInLobby": "This command must be used in online mode.\nPlease use the host or join command first.",
     "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
     "SearchingLobbyByName": "Searching for lobby by name: {0}...",
     "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
-    "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
-    "NeedToBeInLobby": "This command must be used in online mode.\nPlease use the host or join command first.",
-    "NeedToBeHost": "This command must be used by the host"
+    "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization."
   },
   "CommandHelp": {
     "AllPlayer": "Get info on all players in the current lobby.",
+    "AllowCheats": "[True|False] Controls whether players can enable cheat mode",
+    "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
+    "BindSync": "[True|False] Controls whether newly joined players will have their Trinkets and Bindings synced. This setting does not affect players who are already in the lobby.",
     "ChangeModel": "[Model name]: Model switching doesn’t take effect in-game, and the developer doesn’t know how to model — it won’t look good anyway, so just make do.",
     "CheatsTest": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, and affects game balance.",
     "Host": "[Lobby Name (Visibility=public|friends|private) (Max Player=8)]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;). Visibility controls whether the lobby can be found by others.",
@@ -36,11 +39,7 @@
     "SetLobbyName": "[Lobby Name]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
     "Talk": "[Text]: Send a message to other players.",
     "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
-    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422).",
-    "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
-    "AllowCheats": "[True|False] Controls whether players can enable cheat mode",
-    "BindSync": "[True|False] Controls whether newly joined players will have their Trinkets and Bindings synced. This setting does not affect players who are already in the lobby."
-
+    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422)."
   },
   "DisplayMessage": {
     "EnteredMessages": [
@@ -87,6 +86,7 @@
     "JoinLobbyFailed": "[MPCore] Fail to join lobby: {0}",
     "JoiningLobby": "[MPCore] Joining lobby: {0}...",
     "LoadingWorld": "[MPCore] Loading world, seed: {0}",
+    "LobbyDataChanged": "[MPCore] Lobby data changed: {0}",
     "ManagerInitializationFailed": "[MPCore] Failed to initialize Manager: {0}",
     "OutgoingConnectionLog": "[MPCore] Outgoing connections SteamId: {0} connections Id: {1}",
     "PlayerDataMissing": "[MPCore] Player: {0} has not been created. Requesting data to created player",
@@ -104,7 +104,6 @@
     "Destroy": "[MPMain] MPMain (Launcher) has been destroyed."
   },
   "MPMessageHandlers": {
-    "PrefabDoesNotExist": "[MP Handlers] Prefab: {0} does not exist",
     "PrefabIsNotItem": "[MP Handlers] Prefab: {0} is not an item and cannot be put into inventory",
     "SentInitData": "[MP Handlers] Initialization data has been sent to the new player."
   },
@@ -172,8 +171,14 @@
     "CoreInjectionFailed": "[MP Patch] Failed to inject MPCore: {0}",
     "CoreInjectionSuccess": "[MP Patch] MPCore object successfully injected into SteamManager.",
     "CoreInstanceExists": "[MP Patch] MPCore instance already exists. GameObjectName: {0}",
+    "CorrectionCompleted": "[MP Patch] Correction completed for reference level {0}. Offset: {1}",
+    "LevelDataRetrieved": "[MP Patch] Retrieved level data. Total entries: {0}",
+    "NoMatchingLevelDataForCorrection": "[MP Patch] No matching level data found for correction.",
     "PlayerDeath": "[MP Patch] Player death,type: {0}",
-    "PreparingToInjectCore": "[MP Patch] SteamManager.Awake called, preparing to inject core."
+    "PreparingToInjectCore": "[MP Patch] SteamManager.Awake called, preparing to inject core.",
+    "StartCorrectingSideRouteCoords": "[MP Patch] Starting to correct side route coordinates...",
+    "TargetBranchIsNull": "[MP Patch] targetBranch is null — not a valid branch info.",
+    "TranspilerError": "[MP Patch] Transpiler targeting failed for {0}. Please check if the game and mod versions match."
   },
   "RPBaseFactory": {
     "CL_HandholdAddFailed": "[MP RPBaseFactory] Failed to add the CL_Handhold component to prefab",
@@ -200,6 +205,8 @@
   },
   "RPManager": {
     "FactoryCreateObjectFailed": "[MP RPMan] Failed to create the remote player object",
+    "PlayerDeathRateExceeded": "[MP RPMan] Player {playerId} death message frequency too high.",
+    "PrefabDoesNotExist": "[MP RPMan] Prefab: {0} does not exist",
     "RemotePlayerObjectNotFound": "[MP RPMan] Remote player object not found. ID: {0}"
   },
   "RPSlugcatFactory": {
