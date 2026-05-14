@@ -19,7 +19,6 @@ using WKMPMod.Patch;
 using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
-using XUnity.Common.Extensions;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -283,8 +282,8 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (_MPsteamworks.IsHost) {
 					// 设置当前游戏模式数据
 					var currentModeData = CaptureCurrentModeData();
-					if (_MPsteamworks.LobbyData?.GetValueOrDefault("gameMode").IsNullOrWhiteSpace() ?? true) {
-						_MPsteamworks.SetLobbyData("gameMode", JsonConvert.SerializeObject(currentModeData));
+					if (string.IsNullOrWhiteSpace(_MPsteamworks.LobbyData?.GetValueOrDefault("gamemode"))) {
+						_MPsteamworks.SetLobbyData("gamemode", JsonConvert.SerializeObject(currentModeData));
 					}
 					// 以后会在这里广播模式数据,用于房主切换游戏模式
 					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
@@ -298,8 +297,8 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (_MPsteamworks.IsHost) {
 					// 设置当前游戏模式数据
 					var currentModeData = MPGameModeManager.CaptureCurrentModeData();
-					if (_MPsteamworks.LobbyData?.GetValueOrDefault("gameMode").IsNullOrWhiteSpace() ?? true) {
-						_MPsteamworks.SetLobbyData("gameMode", JsonConvert.SerializeObject(currentModeData));
+					if (string.IsNullOrWhiteSpace(_MPsteamworks.LobbyData?.GetValueOrDefault("gamemode"))) {
+						_MPsteamworks.SetLobbyData("gamemode", JsonConvert.SerializeObject(currentModeData));
 					}
 				}
 				break;
@@ -967,8 +966,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPMain.LogInfo(Localization.Get("MPCore.EnteringLobby", lobby.Id.ToString()));
 
 		// 启动协程发送请求初始化数据
-		StartCoroutine(InitHandshakeRoutine());
-
+		if (IsInLobby && !IsInitialized){
+			StartCoroutine(InitGamemodeRoutine());
+		}
 
 		// 显示加入大厅信息
 		StartCoroutine(ShowLobbyData());
@@ -989,18 +989,21 @@ public class MPCore : MonoSingleton<MPCore> {
 			SystemMessage(message, UIDisplayType.AscentHeader);
 		}
 
-		IEnumerator InitHandshakeRoutine() {
+		// 获取游戏模式数据的协程
+		IEnumerator InitGamemodeRoutine() {
 			for (int i = 0; i < 3 && IsInLobby && !IsInitialized; i++) {
-				string rawData = lobby.GetData("gameMode");
+				string rawData = lobby.GetData("gamemode");
 				if (string.IsNullOrEmpty(rawData)) {
 					// 尝试获取原始字符串
 					MPMain.LogWarning($"[MP Debug] (尝试 {i + 1}) 大厅的游戏模式数据尚未同步或丢失");
 					_MPsteamworks.RefreshLobbyData();
 				} else {
+					MPMain.LogInfo($"[MP Debug] 游戏模式数据: {rawData}");
 					// 尝试解析 JSON
 					GameModeData data = null;
 					try {
 						data = JsonConvert.DeserializeObject<GameModeData>(rawData);
+
 					} catch (JsonException ex) {
 						MPMain.LogError($"[MP Debug] (尝试 {i + 1}) JSON 格式解析失败,原始数据: {rawData} | 错误: {ex.Message}");
 					}
@@ -1012,8 +1015,10 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 				yield return new WaitForSeconds(1.0f);
 			}
-			MPMain.LogError("[MP Debug] 初始化握手失败：重试次数耗尽或已离开大厅.");
-			Leave(null);
+			if (!IsInitialized) {
+				MPMain.LogError("[MP Debug] 初始化握手失败：重试次数耗尽或已离开大厅.");
+				Leave(null);
+			}
 		}
 	}
 

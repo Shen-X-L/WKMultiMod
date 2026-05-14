@@ -1,5 +1,4 @@
-﻿using JetBrains.Annotations;
-using Steamworks;
+﻿using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Collections;
@@ -134,7 +133,13 @@ public class UI_LobbyListPane : MonoBehaviour {
 		btnComp.interactable = interactable;
 
 		if (lobbyBtn != null) {
-			lobbyBtn.Initialize(lobby);
+			try{ 
+				lobbyBtn.Initialize(lobby); 
+			}catch(Exception ex) {
+				MPMain.LogError($"[MP Debug] 初始化大厅按钮失败: {lobby.Id} 错误: {ex.Message}");
+				Destroy(newButtonObj);
+				return null;
+			}
 			return lobbyBtn;
 		} else {
 			MPMain.LogError(Localization.Get("UI_LobbyListPane.LobbyButtonComponentNotFound",newButtonObj.name));
@@ -234,7 +239,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 
 		// 预设不需要根据大厅变化的文字
 		if (lobbyButton.unlockText != null) {
-			lobbyButton.unlockText.text = Localization.Get("UI_LobbyJoinButton.CustomGamemodeNotice");
+			lobbyButton.unlockText.text = "Unknown reason: unable to connect.";
 		}
 
 		// 移除不需要的子物体(如果存在),避免显示错误信息

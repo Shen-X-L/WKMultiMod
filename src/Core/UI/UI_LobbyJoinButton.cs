@@ -71,27 +71,37 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			}
 		});
 
-		var rawData = lobby.GetData("gamemode");
+		unlockIcon?.gameObject.SetActive(false);
 
+		// 获取游戏模式数据
+		var rawData = lobby.GetData("gamemode");
 		try {
 			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
 		} catch (JsonException ex) {
-			MPMain.LogError($"[MP Debug] JSON 格式解析失败,原始数据: {rawData} | 错误: {ex.Message}");
+			MPMain.LogError($"[MP Debug] JSON 格式解析失败,原始数据: {rawData} 错误: {ex.Message}");
 		}
 
-		// 获取游戏模式数据
 		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
-
-		// 更新锁定图标显示
-		if (unlockIcon != null) {
-			// 自定义游戏模式显示锁定图标,官方游戏模式不显示
-			unlockIcon.gameObject.SetActive(!isOfficialGamemodes);  
+		// 自定义游戏模式显示锁定图标,显示未知游戏模式文本
+		if (!isOfficialGamemodes) {
+			unlockIcon?.gameObject.SetActive(true);
+			unlockText?.text = "Unknown gamemode";
 		}
+
+		var v1 = new Version(MPMain.ModVersion);
+		if (!Version.TryParse(lobby.GetData("modversion"), out var v2) ||
+			v1.Major != v2.Major || v1.Minor != v2.Minor) {
+			unlockIcon?.gameObject.SetActive(true);
+			string modVersion = lobby.GetData("modversion");
+			unlockText?.text = $"Incompatible mod version: {(string.IsNullOrEmpty(modVersion) ? "unknown" : modVersion)}";
+		}
+
 		// 设置按钮交互和透明度
 		if (group != null) {
 			group.interactable = isOfficialGamemodes;
 			group.alpha = isOfficialGamemodes ? 1f : 0.5f;
 		}
+
 		// 官方游戏模式显示胶囊图标,自定义游戏模式不显示(后续可以考虑添加自定义图标支持)
 		if (isOfficialGamemodes) {
 			this.gamemode = gamemode;

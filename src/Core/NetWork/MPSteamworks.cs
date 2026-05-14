@@ -1034,11 +1034,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			var combinedLobbies = new List<Lobby>();
 			// 扫描好友大厅
 			foreach (var friend in SteamFriends.GetFriends()) {
-				if (friend.IsPlayingThisGame
-					&& friend.GameInfo?.Lobby is Lobby lobby) {
-
-					if (lobbyIds.Add(lobby.Id)) combinedLobbies.Add(lobby);// 添加不重复Lobby
-				}
+				// 添加不重复Lobby
+				if (friend.IsPlayingThisGame 
+					&& friend.GameInfo?.Lobby is Lobby lobby 
+					&& lobbyIds.Add(lobby.Id)) combinedLobbies.Add(lobby);
 			}
 
 			// 搜索公开大厅

@@ -221,7 +221,6 @@
     "GameModeDetailPanelNull": "[MP UI] 游戏模式详情面板为空 无法加载游戏模式"
   },
   "UI_LobbyJoinButton": {
-    "CustomGamemodeNotice": "此大厅使用自定义游戏模式",
     "FailedToGetOwnerId": "[MP UI] 无法获取房主ID, 使用手动设置的owner, 大厅ID: {0}",
     "FailedToLoadOwnerAvatar": "[MP UI] 无法加载房主头像, 大厅ID: {0}, OwnerID: {1}, OwnerName: {2}",
     "JoinLobbyFailed": "[MP UI] 加入大厅失败: {0}",

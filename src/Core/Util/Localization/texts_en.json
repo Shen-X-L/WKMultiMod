@@ -220,7 +220,6 @@
     "GameModeDetailPanelNull": "[MP UI] Game mode detail panel is null, cannot load game mode"
   },
   "UI_LobbyJoinButton": {
-    "CustomGamemodeNotice": "This lobby is using custom game modes",
     "FailedToGetOwnerId": "[MP UI] Failed to get host ID, using manually set owner. Lobby ID: {0}",
     "FailedToLoadOwnerAvatar": "[MP UI] Failed to load host avatar. Lobby ID: {0}, OwnerID: {1}, OwnerName: {2}",
     "JoinLobbyFailed": "[MP UI] failed to join lobby: {0}",
