@@ -18,7 +18,8 @@ public enum PacketType {
 	PlayerDamage = 7,       // 客机->主机->客机: 玩家造成伤害
 	PlayerAddForce = 8,     // 客机->主机->客机: 玩家添加冲击力
 	PlayerDeath = 9,        // 客机->主机->客机: 玩家死亡, 发送广播
-	SystemUIMessage = 10,	// 客机->主机->客机: 调用游戏本体UI组件显示消息
+	GameUIMessage = 10,	// 客机->主机->客机: 调用游戏本体UI组件显示消息
+
 	PitonStateSync = 12,    // 客机->主机->客机: 同步已放置Piton的创建/敲入/失效状态
 
 
@@ -34,25 +35,43 @@ public static class MPEventBusNet {
 	public static void NotifyReceive(ulong steamId, ArraySegment<byte> data)
 		=> OnReceiveData?.Invoke(steamId, data);
 
-	// 接收事件: 玩家连接信息 玩家 -> 主机
+	/// <summary>
+	/// 接收事件: 玩家连接信息 玩家 -> 主机
+	/// </summary>
 	public static event Action<SteamId> OnPlayerConnected;
-	// 接收事件: 断开连接
+	/// <summary>
+	/// 接收事件: 断开连接
+	/// </summary>
 	public static event Action<SteamId> OnPlayerDisconnected;
+	/// <summary>
+	/// 接收事件: 玩家数据发送改变 订阅者<see cref="MPCore.HandleMemberDataChanged"/>
+	/// </summary>
+	public static event Action<Friend, Dictionary<string, string>> OnMemberDataChanged;
 
 	public static void NotifyPlayerConnected(SteamId steamId)
 		=> OnPlayerConnected?.Invoke(steamId);
 	public static void NotifyPlayerDisconnected(SteamId steamId)
 		=> OnPlayerDisconnected?.Invoke(steamId);
+	public static void NotifyMemberDataChanged(Friend steamId, Dictionary<string, string> data)
+	=> OnMemberDataChanged?.Invoke(steamId, data);
 
 	// 大厅事件
-	// 接收事件: 进入大厅
+	/// <summary>
+	/// 接收事件: 进入大厅
+	/// </summary>
 	public static event Action<Lobby> OnLobbyEntered;
-	// 接收事件: 玩家加入大厅
+	/// <summary>
+	/// 接收事件: 玩家加入大厅
+	/// </summary>
 	public static event Action<Friend> OnLobbyMemberJoined;
-	// 接收事件: 玩家离开大厅
+	/// <summary>
+	/// 接收事件: 玩家离开大厅
+	/// </summary>
 	public static event Action<Friend> OnLobbyMemberLeave;
-	// 接收事件: 大厅成员数据或大厅所有权发生变更
-	public static event Action<Lobby, Friend> OnLobbyHostChanged;
+	/// <summary>
+	/// 接收事件: 大厅所有权发生变更
+	/// </summary>
+	public static event Action<Friend> OnLobbyHostChanged;
 	/// <summary>
 	/// 接收事件: 大厅数据(规则)变动 订阅者<see cref="MPCore.HandleLobbyDataChanged"/>
 	/// </summary>
@@ -64,8 +83,8 @@ public static class MPEventBusNet {
 		=> OnLobbyMemberJoined?.Invoke(steamId);
 	public static void NotifyLobbyMemberLeave(Friend steamId)
 		=> OnLobbyMemberLeave?.Invoke(steamId);
-	public static void NotifyLobbyHostChanged(Lobby lobby, Friend hostId)
-		=> OnLobbyHostChanged?.Invoke(lobby, hostId);
+	public static void NotifyLobbyHostChanged(Friend hostId)
+		=> OnLobbyHostChanged?.Invoke(hostId);
 	public static void NotifyLobbyDataChanged(Dictionary<string, string> delta)
 		=> OnLobbyDataChanged?.Invoke(delta);
 

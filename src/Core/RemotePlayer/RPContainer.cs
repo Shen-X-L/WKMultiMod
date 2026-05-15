@@ -18,15 +18,20 @@ public class RPContainer {
 	public string PlayerName { get; set; }
 	public GameObject PlayerObject { get; private set; }
 
+	// 本体组件
 	private Component.RemotePlayer _remotePlayer;
 	private RemoteHand _remoteLeftHand;
 	private RemoteHand _remoteRightHand;
 	private RemoteTag _remoteTag;
 	private RemoteEntity[] _remoteEntities;
-	private int _initializationCount = 5;
-	private bool _isDead = false;
+
 	// 死亡后0.5秒内不接受更新, 避免瞬移和动画冲突
+	private bool _isDead = false;
 	private TickTimer _deathTick = new TickTimer(0.5f);
+
+	// 玩家模型信息数据
+	public string prefabId;
+
 	public PlayerData PlayerData {
 		get {
 			var data = new PlayerData {
@@ -44,9 +49,10 @@ public class RPContainer {
 	}
 
 	// 构造函数 - 只设置基本信息
-	public RPContainer(ulong playId) {
+	public RPContainer(ulong playId, string prefabId) {
 		PlayerId = playId;
 		PlayerName = new Friend(PlayerId).Name;
+		this.prefabId = prefabId;
 	}
 
 	// 新初始化方法
@@ -72,13 +78,11 @@ public class RPContainer {
 			_isDead = true;
 			PlayerObject.SetActive(false);
 			// Debug
-			MPMain.LogInfo(Localization.Get(
-				"RPContainer.MappingSucceeded", PlayerId.ToString()));
+			MPMain.LogInfo(Localization.Get("RPContainer.MappingSucceeded", PlayerId.ToString()));
 			return true;
 		} catch (Exception ex) {
 			// Debug
-			MPMain.LogError(Localization.Get(
-				"RPContainer.MappingFailed", PlayerId.ToString(), ex.Message));
+			MPMain.LogError(Localization.Get("RPContainer.MappingFailed", PlayerId.ToString(), ex.Message));
 
 			if (PlayerObject != null) Object.Destroy(PlayerObject);
 
@@ -145,12 +149,6 @@ public class RPContainer {
 		if (_isDead && _deathTick.IsTickReached) {
 			PlayerObject.SetActive(true);
 			_isDead = false;
-		}
-
-		// 判断是否处于初始化 5 秒内
-		if (playerData.IsTeleport || _initializationCount > 0) {
-			playerData.IsTeleport = true;
-			--_initializationCount;
 		}
 
 		if (playerData.IsTeleport) {

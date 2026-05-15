@@ -18,6 +18,7 @@ public static class Localization {
 		public string[] AsArray => _data as string[];
 		public string AsString => _data as string;
 		public bool IsArray => _data is string[];
+		public int Count => IsArray ? ((string[])_data).Length : 1;
 
 		// 获取指定索引的方法,越界时返回最后一个元素
 		public string GetValue(int index = 0) {
@@ -186,6 +187,21 @@ public static class Localization {
 	}
 
 	/// <summary>
+	/// 获取本地化文本数组数量
+	/// </summary>
+	public static int GetCountSplit(string category, string key) {
+		return TryGetValueSplit(category, key, out var val) ? val.Count : 0;
+	}
+
+	/// <summary>
+	/// 获取本地化文本的所有元素 (非数组时返回单元素数组)
+	/// </summary>
+	public static string[] GetAllSplit(string category, string key) {
+		if (!TryGetValueSplit(category, key, out var val)) return new string[] { };
+		return val.IsArray ? val.AsArray : new[] { val.AsString };
+	}
+
+	/// <summary>
 	/// 避免代码重复
 	/// </summary>
 	private static string SafeFormat(string pattern, object[] args) {
@@ -239,6 +255,20 @@ public static class Localization {
 		return SafeFormat(val.GetValue(index), args);
 	}
 
+	/// <summary>
+	/// 获取本地化文本数组数量
+	/// </summary>
+	public static int GetCount(string key) {
+		return TryGetValue(key, out var val) ? val.Count : 0;
+	}
+
+	/// <summary>
+	/// 获取本地化文本的所有元素 (非数组时返回单元素数组)
+	/// </summary>
+	public static string[] GetAll(string key) {
+		if (!TryGetValue(key, out var val)) return new string[] { };
+		return val.IsArray ? val.AsArray : new[] { val.AsString };
+	}
 	#endregion
 
 	#region[Debug检查]

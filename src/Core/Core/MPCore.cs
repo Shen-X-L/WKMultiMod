@@ -198,9 +198,10 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusNet.OnLobbyMemberLeave += HandleLobbyMemberLeft;
 		MPEventBusNet.OnLobbyDataChanged += HandleLobbyDataChanged;
 
-		// 订阅玩家连接事件
+		// 订阅玩家事件
 		MPEventBusNet.OnPlayerConnected += HandlePlayerConnected;
 		MPEventBusNet.OnPlayerDisconnected += HandlePlayerDisconnected;
+		MPEventBusNet.OnMemberDataChanged += HandleMemberDataChanged;
 
 		// 订阅接收邀请事件
 		MPEventBusNet.OnGameLobbyJoinRequested += Join;
@@ -212,6 +213,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusGame.OnPlayerDamage += HandlePlayerDamage;
 		MPEventBusGame.OnPlayerAddForce += HandlePlayerAddForce;
 		MPEventBusGame.OnPlayerDeath += HandlePlayerDeath;
+		MPEventBusGame.OnPlayerWin += HandlePlayerWin;
 	}
 
 	/// <summary>
@@ -227,6 +229,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 退订玩家连接事件
 		MPEventBusNet.OnPlayerConnected -= HandlePlayerConnected;
 		MPEventBusNet.OnPlayerDisconnected -= HandlePlayerDisconnected;
+		MPEventBusNet.OnMemberDataChanged -= HandleMemberDataChanged;
 
 		// 退订接收邀请事件
 		MPEventBusNet.OnGameLobbyJoinRequested -= Join;
@@ -238,14 +241,13 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusGame.OnPlayerDamage -= HandlePlayerDamage;
 		MPEventBusGame.OnPlayerAddForce -= HandlePlayerAddForce;
 		MPEventBusGame.OnPlayerDeath -= HandlePlayerDeath;
-
+		MPEventBusGame.OnPlayerWin -= HandlePlayerWin;
 	}
 
 	#endregion
 
 	#region[玩家数量同步]
 	private void CheckAndRepairPlayers() {
-
 		if (!IsInitialized || !IsInLobby) return;
 		if (!_syncTick.TryTick()) return;
 		// 在大厅但没有连接
@@ -260,9 +262,8 @@ public class MPCore : MonoSingleton<MPCore> {
 			if (!_RPManager.Players.ContainsKey(steamId)) {
 				MPMain.LogWarning(Localization.Get("MPCore.PlayerDataMissing", steamId));
 				// 从MemberData获取模型数据
-				var modelId = _MPsteamworks.GetMemberData(steamId, MPKeys.MODEL_ID);
-				if (!string.IsNullOrEmpty(modelId))
-					RPManager.Instance.PlayerCreate(steamId, modelId);
+				var data = _MPsteamworks.GetAllMemberData(new Friend(steamId));
+				_RPManager.ProcessMemberData(steamId, data);
 			}
 		}
 	}
@@ -376,7 +377,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	/// <summary>
 	/// 发送给予其他玩家冲击力数据<br/>
-	/// 接受路由函数: <see cref="MPPacketHandlers.HandlePlayerAddForce"/>
+	/// 接受路由函数: <see cref="MPPacketHandlers.HandlePlayerAddForce"/><br/>
 	/// </summary>
 	private void HandlePlayerAddForce(ulong steamId, Vector3 force, string source) {
 		var writer = GetWriter(_MPsteamworks.UserSteamId, steamId, PacketType.PlayerAddForce);
@@ -388,30 +389,42 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 发送玩家死亡信息 死因 string 库存物品 Dictionary<string, ushort>
-	/// 发送函数: <see cref="Patch_ENT_Player.Prefix"/>
+	/// 发送玩家死亡信息<br/>
+	/// 发送函数: <see cref="Patch_ENT_Player.Prefix"/><br/>
+	/// 发送PacketType.PlayerDeath: 库存物品 Dictionary&lt;string, short&gt;<br/>
+	/// 接受路由函数: <see cref="MPPacketHandlers.HandlePlayerDeath"/><br/>
+	/// 发送PacketType.GameUIMessage: 死因 string,UI类型 byte,持续时间 float,是否在控制台显示 bool<br/>
+	/// 接受路由函数: <see cref="MPPacketHandlers.HandleSystemUIMessage"/><br/>
 	/// </summary>
 	private void HandlePlayerDeath(string type) {
-		var writer = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
-
-		switch (type) {
-			case "deathfloor":
-				type = "mass";
-				break;
-
-			case "deathcoolant":
-				type = "k-coolant";
-				break;
-			default:
-				break;
-		}
-		// 死因
-		writer.Put(type);
+		var writerDeath = GetWriter(_MPsteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
 
 		// 库存物品字典
-		writer.Put(GetGetInventoryItems());
+		writerDeath.Put(GetGetInventoryItems());
 
-		_MPsteamworks.Broadcast(writer);
+		// 发送背包道具
+		_MPsteamworks.Broadcast(writerDeath);
+
+		// 死亡信息获取
+		var name = new Friend(_MPsteamworks.UserSteamId).Name;
+		var message = Localization.HasKey("0_DeathMessage", type)
+			? Localization.GetRandomSplit("0_DeathMessage", type, name)
+			: Localization.GetRandom("0_DeathMessage.default", type, name);
+
+		var writerMessage = BuildingMessage(message, UIDisplayType.HighscoreHeader, logToConsole: true);
+		if (writerMessage != null)
+			// 发送死亡信息
+			_MPsteamworks.Broadcast(writerMessage);
+	}
+
+	/// <summary>
+	/// 发送玩家胜利信息<br/>
+	/// </summary>
+	private void HandlePlayerWin() {
+		var writerMessage = BuildingMessage(Localization.GetRandom("0_DisplayMessage.WinMessages"), UIDisplayType.TipHeader, logToConsole: true);
+		if (writerMessage != null)
+			// 发送胜利信息
+			_MPsteamworks.Broadcast(writerMessage);
 	}
 	#endregion
 
@@ -533,7 +546,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("changemodel", (args) => {
 			_LocalPlayer.DefaulFactoryId = args[0];
 			MPConfig.RemotePlayerModel = args[0];
-			_MPsteamworks.SetMemberData(MPKeys.MODEL_ID, args[0]);
+			_MPsteamworks.SetMemberData(MPKeys.PREFAB_ID, args[0]);
 		})
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.ChangeModel"))
@@ -797,7 +810,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					} catch (Exception ex) {
 						MPMain.LogWarning($"[MP Debug] 无法将 {gamemode} 转为JSON数据 错误信息: {ex.Message}");
 					}
-					
+
 					CommandConsole.Log(Localization.Get(
 						"CommandConsole.LobbyInfo", lobby.Id, lobby.GetData(MPKeys.LOBBY_NAME),
 						lobby.GetData(MPKeys.OWNER_NAME), gamemode));
@@ -985,12 +998,18 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPMain.LogInfo(Localization.Get("MPCore.EnteringLobby", lobby.Id.ToString()));
 
 		// 启动协程发送请求初始化数据
-		if (IsInLobby && !IsInitialized && !_MPsteamworks.IsHost){
+		if (IsInLobby && !IsInitialized && !_MPsteamworks.IsHost) {
 			StartCoroutine(InitGamemodeRoutine());
 		}
 
 		// 设置玩家个人数据
-		_MPsteamworks.SetMemberData(MPKeys.MODEL_ID, LocalPlayer.Instance.FactoryId);
+		var joinMsgArray = Localization.GetAll("0_DisplayMessage.JoinMessages");
+		var leaveMsgArray = Localization.GetAll("0_DisplayMessage.LeaveMessages");
+		var random = new System.Random();
+		var randomInt = random.Next(Math.Min(joinMsgArray.Length, leaveMsgArray.Length));
+		_MPsteamworks.SetMemberData(MPKeys.PREFAB_ID, _LocalPlayer.FactoryId);
+		_MPsteamworks.SetMemberData(MPKeys.JOIN_MESSAGE, string.Format(joinMsgArray[randomInt], SteamClient.Name));
+		_MPsteamworks.SetMemberData(MPKeys.LEAVE_MESSAGE, string.Format(leaveMsgArray[randomInt], SteamClient.Name));
 
 		// 显示加入大厅信息
 		StartCoroutine(ShowLobbyData());
@@ -1006,7 +1025,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 			}
 			yield return new WaitForSecondsRealtime(0.5f);
-			var message = Localization.GetRandom("DisplayMessage.EnteredMessages",
+			var message = Localization.GetRandom("0_DisplayMessage.EnteredMessages",
 				lobby.GetData(MPKeys.LOBBY_NAME), lobby.MemberCount, lobby.MaxMembers, lobby.Id.Value);
 			SystemMessage(message, UIDisplayType.AscentHeader);
 		}
@@ -1048,9 +1067,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 处理大厅成员加入
 	/// </summary> 
 	private void HandleLobbyMemberJoined(Friend friend) {
-		if (friend.Id == _MPsteamworks.UserSteamId) return;
-		var message = Localization.GetRandom("DisplayMessage.JoinedMessages", friend.Name);
-		SystemMessage(message, UIDisplayType.AscentHeader);
+
 	}
 
 	/// <summary>
@@ -1058,17 +1075,17 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	/// <param name="friend"></param>
 	private void HandleLobbyMemberLeft(Friend friend) {
-		var message = Localization.GetRandom("DisplayMessage.LeaveMessages", friend.Name);
-		SystemMessage(message, UIDisplayType.AscentHeader);
+
 	}
 
 	/// <summary>
 	/// 处理玩家连接事件
 	/// </summary>
 	private void HandlePlayerConnected(SteamId steamId) {
-		var modelId = _MPsteamworks.GetMemberData(steamId, MPKeys.MODEL_ID);
-		if (!string.IsNullOrEmpty(modelId)) 
-			RPManager.Instance.PlayerCreate(steamId, modelId);
+		//MPMain.Debug("HandlePlayerConnected");
+		//var modelId = _MPsteamworks.GetMemberData(steamId, MPKeys.MODEL_ID);
+		//if (!string.IsNullOrEmpty(modelId))
+		//	RPManager.Instance.PlayerCreate(steamId, modelId);
 	}
 
 	/// <summary>
@@ -1077,14 +1094,14 @@ public class MPCore : MonoSingleton<MPCore> {
 	private void HandlePlayerDisconnected(SteamId steamId) {
 		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore.PlayerDisconnected", steamId.ToString()));
-		_RPManager.PlayerRemove(steamId);
+		_RPManager.ProcessPlayerLeave(steamId);
 	}
 
 	/// <summary>
 	/// 处理事件总线 大厅邀请OnLobbyInvite
 	/// </summary>
 	private void HandleLobbyInvite(Friend friend, Lobby lobby) {
-		var message = Localization.GetRandom("DisplayMessage.InviteReceivedMessages", friend.Name, lobby.GetData(MPKeys.LOBBY_NAME));
+		var message = Localization.GetRandom("0_DisplayMessage.InviteReceivedMessages", friend.Name, lobby.GetData(MPKeys.LOBBY_NAME));
 		SystemMessage(message, UIDisplayType.AscentHeader);
 	}
 
@@ -1127,6 +1144,14 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 	}
 
+	/// <summary>
+	/// 处理事件总线 玩家数据改变OnMemberDataChanged<br/>
+	/// </summary>
+	private void HandleMemberDataChanged(Friend steamId, Dictionary<string, string> data) {
+		if (steamId.Id == _MPsteamworks.UserSteamId) return;
+		MPMain.Debug($"steamId: {steamId.Id} data: {string.Join(", ", data.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+		_RPManager.ProcessMemberData(steamId.Id, data);
+	}
 	#endregion
 
 	#region[联机状态函数]
@@ -1161,8 +1186,8 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 在主要UI显示系统消息,并在控制台输出
 	/// </summary>
-	public static void SystemMessage(string message, UIDisplayType displayType) {
-		UI_Manager.DisplayMessage(message, displayType);
+	public static void SystemMessage(string message, UIDisplayType displayType, float duration = 5.0f) {
+		UI_Manager.DisplayMessage(message, displayType, duration);
 		CommandConsole.Log($"[SYSTEM] {message}");
 	}
 

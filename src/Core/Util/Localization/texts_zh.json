@@ -41,14 +41,19 @@
     "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
     "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422)."
   },
-  "DisplayMessage": {
+  "0_DeathMessage": {
+    "default": [
+      "{0} died due to {1}"
+    ]
+  },
+  "0_DisplayMessage": {
     "EnteredMessages": [
       "加入 {0} - {1}/{2}\nid: {3}"
     ],
     "InviteReceivedMessages": [
       "{0} 已被邀请到设施"
     ],
-    "JoinedMessages": [
+    "JoinMessages": [
       "{0} 因为Δ异常卷入了这个世界",
       "{0} 以被本设施雇佣",
       "{0} 从mass中逃脱出来",
@@ -60,9 +65,8 @@
       "{0} 被mass重新吞噬了",
       "{0} 被ρ重新带走了"
     ],
-    "PlayerDeath": [
-      "{0} 被 {1} 杀死",
-      "{0} 死于 {1}"
+    "WinMessages": [
+      "{0} 逃出生天"
     ]
   },
   "LocalPlayer": {

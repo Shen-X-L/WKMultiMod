@@ -30,6 +30,11 @@ public static class MPEventBusGame {
 	public static event Action<string> OnPlayerDeath;
 	public static void NotifyPlayerDeath(string type) => OnPlayerDeath?.Invoke(type);
 
+	// 游戏事件: 玩家胜利
+	public static event Action OnPlayerWin;
+	public static void NotifyPlayerWin() => OnPlayerWin?.Invoke();
+
+
 	// UI事件: 显示加载界面
 	public static event Action<float> OnShowLoading;
 	public static void NotifyShowLoading(float duration) => OnShowLoading?.Invoke(duration);

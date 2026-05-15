@@ -649,7 +649,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	private void HandleLobbyMemberDisconnected(Lobby lobby, Friend friend) {
 		if (lobby.Id == _currentLobby.Id) {
-			_currentLobby = lobby;
 			MPMain.LogInfo(Localization.Get("MPSteamworks.PlayerDisconnectedFromLobby", friend.Name));
 
 			// 重复分发
@@ -662,7 +661,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// 接收数据: 玩家数据变更
 	/// </summary>
 	private void HandleLobbyMemberDataChanged(Lobby lobby, Friend friend) {
-
+		var data = GetAllMemberData(friend);
+		MPEventBusNet.NotifyMemberDataChanged(friend,data);
 	}
 
 	/// <summary>
@@ -736,7 +736,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogInfo(Localization.Get("MPSteamworks.HostChanged", HostSteamId.ToString(), currentOwnerId.ToString()));
 
 			// 触发主机变更总线
-			MPEventBusNet.NotifyLobbyHostChanged(lobby, new Friend(HostSteamId));
+			MPEventBusNet.NotifyLobbyHostChanged(new Friend(HostSteamId));
 
 			HostSteamId = currentOwnerId;
 
@@ -1028,21 +1028,20 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// 通过索引 Key 获取指定玩家的所有个人数据
 	/// </summary>
-	public Dictionary<string, string> GetAllMemberData(ulong friendId) {
+	public Dictionary<string, string> GetAllMemberData(Friend friend) {
 		var result = new Dictionary<string, string>();
 		if (!_currentLobby.Id.IsValid) return result;
 
 		try {
-			Friend target = new Friend(friendId);
 			// 先拿到索引字符串
-			string allKeysRaw = _currentLobby.GetMemberData(target, MPKeys.ALL_KEYS_INDEX);
+			string allKeysRaw = _currentLobby.GetMemberData(friend, MPKeys.ALL_KEYS_INDEX);
 
 			if (string.IsNullOrEmpty(allKeysRaw)) return result;
 
 			// 拆分并逐一拉取数据
 			string[] keys = allKeysRaw.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 			foreach (var key in keys) {
-				string val = _currentLobby.GetMemberData(target, key);
+				string val = _currentLobby.GetMemberData(friend, key);
 				result[key] = val;
 			}
 		} catch (Exception ex) {

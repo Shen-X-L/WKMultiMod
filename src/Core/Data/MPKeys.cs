@@ -26,5 +26,7 @@ public static partial class MPKeys {
 	public const string DAMAGE_CONFIG = "damage config";
 
 	public const string ALL_KEYS_INDEX = "__all_keys__";
-	public const string MODEL_ID = "model id";
+	public const string PREFAB_ID = "prefab id";
+	public const string JOIN_MESSAGE = "join message";
+	public const string LEAVE_MESSAGE = "leave message";
 }

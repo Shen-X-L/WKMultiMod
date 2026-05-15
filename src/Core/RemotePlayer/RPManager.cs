@@ -1,5 +1,6 @@
 ﻿using Steamworks;
 using System.Collections.Generic;
+using System.ComponentModel;
 using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
@@ -24,9 +25,12 @@ public class RPManager : Singleton<RPManager> {
 	internal Dictionary<ulong, RPContainer> Players = new Dictionary<ulong, RPContainer>();
 	private Dictionary<ulong, float> _lastDeathTime = new Dictionary<ulong, float>();
 	// 同一个玩家 1 秒内只能处理一次死亡信息, 避免重复处理导致的物品重复掉落和动画冲突
-	private const float DEATH_COOLDOWN = 1.0f; 
+	private const float DEATH_COOLDOWN = 1.0f;
 	// 根对象引用
 	private Transform _remotePlayersRoot;
+	// 加入信息和离开信息
+	private HashSet<ulong> joinMessages = new HashSet<ulong>();
+	private Dictionary<ulong, string> leaveMessages = new Dictionary<ulong, string>();
 
 	private RPManager() {
 		_ = RPFactoryManager.Instance;
@@ -45,6 +49,8 @@ public class RPManager : Singleton<RPManager> {
 			container.Destroy();
 		}
 		Players.Clear();
+		joinMessages.Clear();
+		leaveMessages.Clear();
 	}
 
 	#region[创建/销毁玩家]
@@ -55,7 +61,7 @@ public class RPManager : Singleton<RPManager> {
 		if (Players.TryGetValue(playId, out var existing))
 			return existing;
 
-		var container = new RPContainer(playId);
+		var container = new RPContainer(playId, prefab);
 
 		// 从工厂直接获取实例
 		GameObject instance = RPFactoryManager.Instance.Create(prefab);
@@ -73,16 +79,16 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 清除特定玩家
 	/// </summary>
-	public void PlayerRemove(ulong playId) {
-		if (Players.TryGetValue(playId, out var container)) {
+	public void PlayerRemove(ulong playerId) {
+		if (Players.TryGetValue(playerId, out var container)) {
 
 			// 生成死亡特效
 			var playerPosition = container.PlayerObject.transform.position;
 			var playerRotation = container.PlayerObject.transform.rotation;
 
 			var deathParticle = MPAssetManager.GetAssetGameObject(MPAssetManager.DEATH_OBJECT_NAME);
-			if (deathParticle != null) 
-				GameObject.Instantiate(deathParticle,playerPosition, playerRotation);
+			if (deathParticle != null)
+				GameObject.Instantiate(deathParticle, playerPosition, playerRotation);
 
 			// 工厂清理
 			RPFactoryManager.Instance.Cleanup(container.PlayerObject);
@@ -91,7 +97,7 @@ public class RPManager : Singleton<RPManager> {
 			container.Destroy();
 
 			// 字典删除
-			Players.Remove(playId);
+			Players.Remove(playerId);
 		}
 	}
 	#endregion
@@ -99,9 +105,48 @@ public class RPManager : Singleton<RPManager> {
 	#region[处理消息]
 
 	/// <summary>
-	/// 处理玩家数据
+	/// 处理玩家数据字典
 	/// </summary>
-	public void ProcessPlayerData(ulong playerId,ref PlayerData playerData) {
+	public void ProcessMemberData(ulong playerId, Dictionary<string, string> data) {
+		if (data.TryGetValue(MPKeys.PREFAB_ID, out var prefabId)) {
+			// 不存在 → 创建
+			if (!Players.TryGetValue(playerId, out var container)) {
+				PlayerCreate(playerId, prefabId);
+			}
+			// 存在但不一致 → 重建
+			else if (container.prefabId != prefabId) {
+				PlayerRemove(playerId);
+				PlayerCreate(playerId, prefabId);
+			}
+		}
+
+		// 没有加入消息记录 播放加入消息
+		if (data.TryGetValue(MPKeys.JOIN_MESSAGE, out var joinMessage)
+			&& !joinMessages.Contains(playerId)) {
+			joinMessages.Add(playerId);
+			MPCore.SystemMessage(joinMessage, UIDisplayType.TipHeader);
+		}
+
+		// 更新离开信息
+		if (data.TryGetValue(MPKeys.LEAVE_MESSAGE, out var leaveMessage))
+			leaveMessages[playerId] = leaveMessage;
+	}
+
+	/// <summary>
+	/// 处理玩家离开
+	/// </summary>
+	public void ProcessPlayerLeave(ulong playerId) {
+		PlayerRemove(playerId);
+		if (leaveMessages.TryGetValue(playerId, out var leaveMessage))
+			MPCore.SystemMessage(leaveMessage, UIDisplayType.TipHeader);
+		leaveMessages.Remove(playerId);
+		joinMessages.Remove(playerId);
+	}
+
+	/// <summary>
+	/// 处理玩家位置数据
+	/// </summary>
+	public void ProcessPlayerData(ulong playerId, ref PlayerData playerData) {
 		if (!MPCore.IsInitialized || !MPCore.IsInLobby) return;
 
 		// 以后加上时间戳处理
@@ -135,7 +180,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 处理玩家死亡
 	/// </summary>
-	public void ProcessPlayerDeath(ulong playerId, string type, Dictionary<string, byte> remoteItems) {
+	public void ProcessPlayerDeath(ulong playerId, Dictionary<string, byte> remoteItems) {
 		float currentTime = Time.time;
 
 		if (_lastDeathTime.TryGetValue(playerId, out float lastTime)) {
@@ -145,9 +190,6 @@ public class RPManager : Singleton<RPManager> {
 			}
 		}
 		_lastDeathTime[playerId] = currentTime;
-
-		string playerName = new Friend(playerId).Name;
-		MPCore.SystemMessage(Localization.GetRandom("DisplayMessage.PlayerDeath", playerName, type), UIDisplayType.HighscoreHeader);
 
 		// 获取玩家对象
 		GetPlayerObject(playerId);
@@ -195,12 +237,7 @@ public class RPManager : Singleton<RPManager> {
 			}
 		}
 
-		if (Players.TryGetValue(playerId, out var RPcontainer)) {
-			RPcontainer.HandleDeath();
-			return;
-		}
-		MPMain.LogError(Localization.Get(
-			"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
+		container.HandleDeath();
 		return;
 	}
 

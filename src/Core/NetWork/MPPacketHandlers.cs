@@ -9,6 +9,7 @@ using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.RemotePlayer;
+using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
 using static WKMPMod.Core.MPGameModeManager;
@@ -97,16 +98,15 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
-	/// 主机/客户端接收PlayerDeath: 玩家死亡
+	/// 主机/客户端接收PlayerDeath: 玩家死亡<br/>
+	/// 发送函数: <see cref="MPCore.HandlePlayerDeath"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDeath)]
 	private static void HandlePlayerDeath(ulong senderId, DataReader reader) {
-		// 死亡消息
-		string type = reader.GetString();
 		// 掉落物品
 		Dictionary<string, byte> remoteItems = reader.GetStringByteDict();
 		// 处理玩家死亡
-		RPManager.Instance.ProcessPlayerDeath(senderId, type, remoteItems);
+		RPManager.Instance.ProcessPlayerDeath(senderId, remoteItems);
 	}
 
 	///// <summary>
@@ -145,6 +145,22 @@ public class MPPacketHandlers {
 	//	string factoryId = reader.GetString();
 	//	RPManager.Instance.PlayerCreate(senderId, factoryId);
 	//}
+
+	/// <summary>
+	/// 主机/客户端接收SystemUIMessage: 显示文字在游戏内UI<br/>
+	/// </summary>
+	/// <param name="senderId">发送方ID</param>
+	[MPPacketHandler(PacketType.GameUIMessage)]
+	private static void HandleSystemUIMessage(ulong senderId, DataReader reader) { 
+		var message = reader.GetString();
+		var displayType = reader.GetByte();
+		var duration = reader.GetFloat();
+		var logToConsole = reader.GetBool();
+		if (logToConsole)
+			MPCore.SystemMessage(message, (UIDisplayType)displayType, duration);
+		else
+			UI_Manager.DisplayMessage(message, (UIDisplayType)displayType, duration);
+	}
 
 	/// <summary>
 	/// 主机/客户端接收PlayerTeleportRequest<br/>

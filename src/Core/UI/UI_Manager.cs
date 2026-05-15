@@ -11,6 +11,7 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
+using static WKMPMod.Data.MPWriterPool;
 
 namespace WKMPMod.UI;
 
@@ -482,9 +483,22 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 	#endregion
 
+	#region[API函数]
+
+	public static DataWriter BuildingMessage(string message, UIDisplayType type, ulong senderId = 0, ulong targetId = MPProtocol.BroadcastId, float duration = 5.0f, bool logToConsole = false) {
+		if (message == null) return null;
+		if (senderId == 0)
+			senderId = MPSteamworks.Instance.UserSteamId;
+		var writer = GetWriter(senderId, targetId, PacketType.GameUIMessage);
+		writer.Put(message).Put((byte)type).Put(duration).Put(logToConsole);
+		return writer;
+	}
+
+	#endregion
+
 	#region[主游戏屏幕显示]
 
-	public static void DisplayMessage(string message, UIDisplayType type,float delay = 5.0f) {
+	public static void DisplayMessage(string message, UIDisplayType type,float duration = 5.0f) {
 		var showSubtitles = SettingsManager.settings.showSubtitles;
 		switch (type) {
 			case UIDisplayType.AscentHeader:
@@ -501,8 +515,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 				break;
 			case UIDisplayType.Subtitle: {
 				SettingsManager.settings.showSubtitles = true;
-				CL_UIManager.ShowSubtitle($"<delay={delay}>{message}");
-				Instance.StartCoroutine(SubtitleDisplay(delay));
+				CL_UIManager.ShowSubtitle($"<delay={duration}>{message}");
+				Instance.StartCoroutine(SubtitleDisplay(duration));
 				break;
 			}
 			default:
