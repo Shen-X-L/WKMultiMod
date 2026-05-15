@@ -109,42 +109,42 @@ public class MPPacketHandlers {
 		RPManager.Instance.ProcessPlayerDeath(senderId, type, remoteItems);
 	}
 
-	/// <summary>
-	/// 主机/客户端接收PlayerCreateRequest<br/>
-	/// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
-	/// 发送PlayerCreateResponse: 携带远程玩家工厂ID,让请求方创建远程玩家对象<br/>
-	/// 发送PlayerDataUpdate: 强制同步玩家数据给新玩家,让新玩家更新远程玩家数据<br/>
-	/// </summary>
-	[MPPacketHandler(PacketType.PlayerCreateRequest)]
-	private static void HandlePlayerCreateRequest(ulong senderId, DataReader reader) {
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.PlayerCreateResponse);
-		writer.Put(LocalPlayer.Instance.FactoryId);
-		MPSteamworks.Instance.SendToPeer(senderId, writer);
+	///// <summary>
+	///// 主机/客户端接收PlayerCreateRequest<br/>
+	///// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
+	///// 发送PlayerCreateResponse: 携带远程玩家工厂ID,让请求方创建远程玩家对象<br/>
+	///// 发送PlayerDataUpdate: 强制同步玩家数据给新玩家,让新玩家更新远程玩家数据<br/>
+	///// </summary>
+	//[MPPacketHandler(PacketType.PlayerCreateRequest)]
+	//private static void HandlePlayerCreateRequest(ulong senderId, DataReader reader) {
+	//	var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.PlayerCreateResponse);
+	//	writer.Put(LocalPlayer.Instance.FactoryId);
+	//	MPSteamworks.Instance.SendToPeer(senderId, writer);
 
-		// 1秒后强制同步玩家数据,让新玩家更新远程玩家数据,因为有可能在创建玩家对象时,玩家数据还没有被同步过去
-		MPCore.Instance.StartCoroutine(RoutineMultiSync(new float[] { 1f, 3f, 9f, 9f }));
+	//	// 1秒后强制同步玩家数据,让新玩家更新远程玩家数据,因为有可能在创建玩家对象时,玩家数据还没有被同步过去
+	//	MPCore.Instance.StartCoroutine(RoutineMultiSync(new float[] { 1f, 3f, 9f, 9f }));
 
-		IEnumerator RoutineMultiSync(float[] delays) {
-			foreach (float waitTime in delays) {
-				if (waitTime > 0) 
-					yield return new WaitForSeconds(waitTime);
-				if (!MPCore.IsInLobby || LocalPlayer.Instance == null) 
-					yield break; // 停止协程，防止对不存在的玩家发包
-				if (LocalPlayer.Instance != null) 
-					LocalPlayer.Instance.ForceSyncToTarget(senderId);
-			}
-		}
-	}
+	//	IEnumerator RoutineMultiSync(float[] delays) {
+	//		foreach (float waitTime in delays) {
+	//			if (waitTime > 0) 
+	//				yield return new WaitForSeconds(waitTime);
+	//			if (!MPCore.IsInLobby || LocalPlayer.Instance == null) 
+	//				yield break; // 停止协程，防止对不存在的玩家发包
+	//			if (LocalPlayer.Instance != null) 
+	//				LocalPlayer.Instance.ForceSyncToTarget(senderId);
+	//		}
+	//	}
+	//}
 
-	/// <summary>
-	/// 主机/客户端接收PlayerCreateResponse: 创建玩家对象<br/>
-	/// 发送函数 <see cref="HandlePlayerCreateRequest"/><br/>
-	/// </summary>
-	[MPPacketHandler(PacketType.PlayerCreateResponse)]
-	private static void HandlePlayerCreateResponse(ulong senderId, DataReader reader) {
-		string factoryId = reader.GetString();
-		RPManager.Instance.PlayerCreate(senderId, factoryId);
-	}
+	///// <summary>
+	///// 主机/客户端接收PlayerCreateResponse: 创建玩家对象<br/>
+	///// 发送函数 <see cref="HandlePlayerCreateRequest"/><br/>
+	///// </summary>
+	//[MPPacketHandler(PacketType.PlayerCreateResponse)]
+	//private static void HandlePlayerCreateResponse(ulong senderId, DataReader reader) {
+	//	string factoryId = reader.GetString();
+	//	RPManager.Instance.PlayerCreate(senderId, factoryId);
+	//}
 
 	/// <summary>
 	/// 主机/客户端接收PlayerTeleportRequest<br/>

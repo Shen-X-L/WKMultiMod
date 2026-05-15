@@ -74,7 +74,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		unlockIcon?.gameObject.SetActive(false);
 
 		// 获取游戏模式数据
-		var rawData = lobby.GetData("gamemode");
+		var rawData = lobby.GetData(MPKeys.GAMEMODE_JSON);
 		try {
 			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
 		} catch (JsonException ex) {
@@ -89,10 +89,10 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		}
 
 		var v1 = new Version(MPMain.ModVersion);
-		if (!Version.TryParse(lobby.GetData("modversion"), out var v2) ||
+		if (!Version.TryParse(lobby.GetData(MPKeys.MOD_VERSION), out var v2) ||
 			v1.Major != v2.Major || v1.Minor != v2.Minor) {
 			unlockIcon?.gameObject.SetActive(true);
-			string modVersion = lobby.GetData("modversion");
+			string modVersion = lobby.GetData(MPKeys.MOD_VERSION);
 			unlockText?.text = $"Incompatible mod version: {(string.IsNullOrEmpty(modVersion) ? "unknown" : modVersion)}";
 		}
 
@@ -110,7 +110,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		}
 
 		// 设置标题(支持自定义名称)
-		string nameData = lobby.GetData("name");
+		string nameData = lobby.GetData(MPKeys.LOBBY_NAME);
 		lobbyName?.text = !string.IsNullOrEmpty(nameData) ? nameData : lobby.Id.ToString();
 
 		// 加载房主信息(头像和名称)
@@ -125,7 +125,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 
 		// 获取 Owner 数据
 		var owner = lobby.Owner;
-		if (owner.Id == 0 && ulong.TryParse(lobby.GetData("owner"), out var ownerId)) {
+		if (owner.Id == 0 && ulong.TryParse(lobby.GetData(MPKeys.OWNER_NAME), out var ownerId)) {
 			owner = new Friend(ownerId);
 		}
 
@@ -162,11 +162,20 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		this.lobby = updatedLobby;
 
 		// 重新检测游戏模式
-		isOfficialGamemodes = MPGameModeManager.TryGetGameMode(lobby.GetData("gamemode"), out var gamemode);
+		var rawData = lobby.GetData(MPKeys.GAMEMODE_JSON);
+		try {
+			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
+		} catch (JsonException ex) {
+			MPMain.LogError($"[MP Debug] JSON 格式解析失败,原始数据: {rawData} 错误: {ex.Message}");
+		}
 
+		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
+
+
+		var tempLobbyName = lobby.GetData(MPKeys.LOBBY_NAME);
 		// 更新名称
-		if (!string.IsNullOrEmpty(lobby.GetData("name"))) {
-			lobbyName?.text = lobby.GetData("name");
+		if (!string.IsNullOrEmpty(tempLobbyName)) {
+			lobbyName?.text = tempLobbyName;
 		}
 
 		// 更新 UI 状态

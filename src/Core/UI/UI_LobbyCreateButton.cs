@@ -51,7 +51,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 
 		// 预设置大厅数据
 		var lobbyData = new Dictionary<string, string>() {
-			{ "name", name + "'s game" },         // 大厅名称
+			{ MPKeys.LOBBY_NAME, name + "'s game" },         // 大厅名称
 		};
 
 		// 设置状态为正在创建

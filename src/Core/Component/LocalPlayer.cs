@@ -1,14 +1,15 @@
 ﻿using Steamworks.Data;
 using System;
 using UnityEngine;
+using UnityEngine.XR;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
 using static ENT_Player;
+using static WKMPMod.Data.MPWriterPool;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
-using static WKMPMod.Data.MPWriterPool;
 
 namespace WKMPMod.Component;
 
@@ -35,10 +36,11 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	// 定时器
 	private TickTimer _sendDataTimer;//本地玩家数据频率器, 定时发送玩家数据
 	private TickTimer _teleportCooldownTimer;//传输状态定时器, 期间内传送标记为真
+	private TickTimer _minUpdateFrequencyTimer = new TickTimer(10.0f);//最小更新频率定时器
 
 	// 缓存引用
 	private ENT_Player _cachedPlayer;
-	private Hand[] _cachedHands;
+	private ENT_Player.Hand[] _cachedHands;
 
 	public void Start() {
 		InitializeTimers();
@@ -104,13 +106,9 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 		// 获取数据写入器
 		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
-
 		// 进行数据写入
 		writer.Put(playerData);
-		// 触发Steam数据发送
-		// 转为byte[]
-		// 使用不可靠+立即发送
-		// 广播所有人
+		// 触发Steam数据发送 广播所有人 (转为byte[] 使用不可靠+立即发送)
 		MPSteamworks.Instance.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
 	}
 
@@ -118,17 +116,44 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	public bool TryCreateLocalPlayerData(out PlayerData data) {
 		data = default;
 
-		// 检查是否有显著变化
-		if (!HasSignificantChanges())
-			return false;
+		// 获取当前实际数据
+		Vector3 currentPos = _cachedPlayer.transform.position;
+		Quaternion currentRot = _cachedPlayer.transform.rotation;
+		Vector3 currentLHand = _cachedHands[(int)HandType.Left].GetHoldWorldPosition();
+		Vector3 currentRHand = _cachedHands[(int)HandType.Right].GetHoldWorldPosition();
 
-		// 创建数据包
-		data = CreatePlayerDataPacket();
+		bool isKeepAliveTick = _minUpdateFrequencyTimer.TryTick();
+		// 检查是否有显著变化:位置,旋转,手部位置任一超过阈值都视为有变化
+		bool hasChanged = ((currentPos - _lastPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR)
+			|| !IsRotationSimilar(currentRot, _lastRotation, ROTATION_CHANGE_THRESHOLD_DEG)
+			|| ((currentLHand - _lastLeftHandPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR)
+			|| ((currentRHand - _lastRightHandPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR);
 
-		// 更新缓存
-		UpdateStateCache();
+		if (isKeepAliveTick || hasChanged) {
+			// 创建数据包
+			data = new PlayerData {
+				playId = UserId,
+				TimestampTicks = DateTime.UtcNow.Ticks,
+				Position = currentPos,
+				Rotation = currentRot,
+				LeftHand = new PlayerData.HandData { Position = currentLHand },
+				RightHand = new PlayerData.HandData { Position = currentRHand }
+			};
 
-		return true;
+			// 如果是因为位移触发的发送，重置保底计时器，避免短时间内重复发送
+			if (hasChanged) {
+				_minUpdateFrequencyTimer.Reset();
+			}
+
+			// 更新缓存并返回
+			_lastPosition = currentPos;
+			_lastRotation = currentRot;
+			_lastLeftHandPosition = currentLHand;
+			_lastRightHandPosition = currentRHand;
+			return true;
+		}
+
+		return false;
 	}
 
 	/// <summary>
@@ -187,49 +212,21 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		return true;
 	}
 
-	// 检验
-	private bool HasSignificantChanges() {
-		// 使用平方距离和点积优化性能
-		bool hasPositionChange =
-			(_cachedPlayer.transform.position - _lastPosition).sqrMagnitude >=
-			POSITION_CHANGE_THRESHOLD_SQR;
-
-		bool hasRotationChange =
-			!IsRotationSimilar(_cachedPlayer.transform.rotation, _lastRotation, ROTATION_CHANGE_THRESHOLD_DEG);
-
-		bool hasLeftHandChange =
-			(_cachedHands[(int)HandType.Left].GetHoldWorldPosition() - _lastLeftHandPosition).sqrMagnitude >=
-			POSITION_CHANGE_THRESHOLD_SQR;
-
-		bool hasRightHandChange =
-			(_cachedHands[(int)HandType.Right].GetHoldWorldPosition() - _lastRightHandPosition).sqrMagnitude >=
-			POSITION_CHANGE_THRESHOLD_SQR;
-
-		return hasPositionChange || hasRotationChange || hasLeftHandChange || hasRightHandChange;
-	}
-
-	// 创建玩家数据包
-	private PlayerData CreatePlayerDataPacket() {
-		return new PlayerData {
-			playId = UserId,
-			TimestampTicks = DateTime.UtcNow.Ticks,
-			Position = _cachedPlayer.transform.position,
-			Rotation = _cachedPlayer.transform.rotation,
-			LeftHand = new PlayerData.HandData {
-				Position = _cachedHands[(int)HandType.Left].GetHoldWorldPosition()
-			},
-			RightHand = new PlayerData.HandData {
-				Position = _cachedHands[(int)HandType.Right].GetHoldWorldPosition()
-			}
-		};
+	// 检查是否有显著变化
+	private bool HasSignificantChanges(Vector3 pos, Quaternion rot, Vector3 lHand, Vector3 rHand) {
+		if ((pos - _lastPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR) return true;
+		if (!IsRotationSimilar(rot, _lastRotation, ROTATION_CHANGE_THRESHOLD_DEG)) return true;
+		if ((lHand - _lastLeftHandPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR) return true;
+		if ((rHand - _lastRightHandPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR) return true;
+		return false;
 	}
 
 	// 更新上次网络发包状态
-	private void UpdateStateCache() {
-		_lastPosition = _cachedPlayer.transform.position;
-		_lastRotation = _cachedPlayer.transform.rotation;
-		_lastLeftHandPosition = _cachedHands[(int)HandType.Left].GetHoldWorldPosition();
-		_lastRightHandPosition = _cachedHands[(int)HandType.Right].GetHoldWorldPosition();
+	private void UpdateStateCache(Vector3 pos, Quaternion rot, Vector3 lHand, Vector3 rHand) {
+		_lastPosition = pos;
+		_lastRotation = rot;
+		_lastLeftHandPosition = lHand;
+		_lastRightHandPosition = rHand;
 	}
 
 	// 重设上次网络发包状态

@@ -8,7 +8,7 @@ namespace WKMPMod.Util;
 public static class ReflectionExtensions {
 
 	/// <summary>
-	/// 获取字段值（支持私有字段和基类字段）
+	/// 获取字段值 (支持私有字段和基类字段) 
 	/// </summary>
 	public static T GetFieldValue<T>(this object obj, string fieldName) {
 		if (obj == null) throw new ArgumentNullException(nameof(obj));

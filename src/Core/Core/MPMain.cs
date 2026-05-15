@@ -87,4 +87,8 @@ public class MPMain : BaseUnityPlugin {
 	public static void LogError(string log) {
 		Logger.LogError(log);
 	}
+
+	public static void Debug(string log) {
+		Logger.LogWarning("[MP Debug] "+log);
+	}
 }

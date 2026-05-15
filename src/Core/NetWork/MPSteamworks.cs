@@ -7,14 +7,11 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Principal;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Windows;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
-using static WKMPMod.UI.UI_Manager;
 
 namespace WKMPMod.NetWork;
 
@@ -38,9 +35,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	// 获取大厅相关信息
 	public ulong LobbyId { get => _currentLobby.Id.Value; }
-	public string LobbyName { get { return _currentLobby.GetData("name"); } }
+	public string LobbyName { get { return _currentLobby.GetData(MPKeys.LOBBY_NAME); } }
 	public int LobbySize { get { return _currentLobby.MaxMembers; } }
 	public Dictionary<string, string> LobbyData { get; private set; }
+
+
+	// 本地缓存已存在的 Key，避免每次 SetMemberData 都去读取和解析索引字符串
+	private readonly HashSet<string> _knownKeysCache = new HashSet<string>();
 
 	// 获取全部在线玩家
 	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
@@ -134,6 +135,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 		// 初始化中继网络(必须调用)
 		SteamNetworkingUtils.InitRelayNetworkAccess();
+
+		//[MP Debug]
+		DebugTest();
 	}
 
 
@@ -209,6 +213,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		HasConnections = false;
 		HostSteamId = 0;
 		LobbyData = null;
+
+		// 清空本地缓存
+		_knownKeysCache.Clear();
 
 		// 离开大厅(如果有)
 		if (_currentLobby.Id.IsValid) {
@@ -735,10 +742,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			// 如果当前玩家是新主机 更改大厅所有者数据
 			if (currentOwnerId == UserSteamId) {
-				_currentLobby.SetData("owner", UserSteamId.ToString());
-				var lobbyName = _currentLobby.GetData("name");
+				_currentLobby.SetData(MPKeys.OWNER_NAME, UserSteamId.ToString());
+				var lobbyName = _currentLobby.GetData(MPKeys.LOBBY_NAME);
 				if (string.IsNullOrWhiteSpace(lobbyName) || lobbyName.EndsWith("'s game")) {
-					_currentLobby.SetData("name", $"{SteamClient.Name}'s game");
+					_currentLobby.SetData(MPKeys.LOBBY_NAME, $"{SteamClient.Name}'s game");
 				}
 			}
 		}
@@ -917,42 +924,22 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 	#endregion
 
-	#region[工具函数]
-
-	/// <summary>
-	/// 这是一个通用的辅助方法,用于将 async Task<bool> 包装到 Unity 的 StartCoroutine 中,
-	/// 并将结果传递给 Action<bool> 回调.
-	/// </summary>
-	private IEnumerator RunAsync(Task<bool> task, Action<bool> callback) {
-		// 等待 Task 完成
-		yield return new WaitWhile(() => !task.IsCompleted);
-
-		// 强制等待一帧,确保 Task 内部的上下文完全释放
-		yield return null;
-
-		if (task.IsFaulted) {
-			MPMain.LogError(Localization.Get("MPSteamworks.AsyncTaskFailed", task.Exception.InnerException.Message));
-			callback?.Invoke(false);
-		} else {
-			// Task.Result 即为异步方法的返回值 (bool)
-			callback?.Invoke(task.Result);
-		}
-	}
+	#region[工具/API函数]
 
 	/// <summary>
 	/// 设置大厅默认数据,确保所有玩家都能识别这是同一款游戏的大厅,并且可以进行版本兼容性检查
 	/// </summary>
 	private Dictionary<string, string> GetDefaultLobbyData() {
 		var dict = new Dictionary<string, string>();
-		dict["game"] = "White Knuckle";
-		dict["version"] = Application.version;
-		dict["mod version"] = MPMain.ModVersion;
-		dict["owner"] = UserSteamId.ToString();
-		dict["visibility"] = "public";
-		dict["allowCheats"] = MPConfig.AllowCheats.ToString();
-		dict["allowPVP"] = MPConfig.AllowPVP.ToString();
+		dict[MPKeys.GAME_KEY] = MPKeys.GAME_VALUE;
+		dict[MPKeys.VERSION] = Application.version;
+		dict[MPKeys.MOD_VERSION] = MPMain.ModVersion;
+		dict[MPKeys.OWNER_NAME] = UserSteamId.ToString();
+		dict[MPKeys.LOBBY_VISIBILITY] = "public";
+		dict[MPKeys.ALLOW_CHEATS] = MPConfig.AllowCheats.ToString();
+		dict[MPKeys.ALLOW_PVP] = MPConfig.AllowPVP.ToString();
 		// 伤害倍率
-		dict["damageMultiplier"] = JsonConvert.SerializeObject(MPCore.damageRules);
+		dict[MPKeys.DAMAGE_CONFIG] = JsonConvert.SerializeObject(MPCore.damageRules);
 		return dict;
 	}
 
@@ -983,6 +970,102 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			}
 		}
 	}
+
+	/// <summary>
+	/// 设置个人数据，并同步更新索引 Key
+	/// </summary>
+	public void SetMemberData(string key, string value) {
+		if (!_currentLobby.Id.IsValid) return;
+		if (key == MPKeys.ALL_KEYS_INDEX) return; // 禁止手动修改索引 Key
+
+		try {
+			// 设置实际数据
+			_currentLobby.SetMemberData(key, value);
+
+			// 检查并更新索引
+			if (!_knownKeysCache.Contains(key)) {
+				// 获取当前已有的索引
+				string currentKeys = _currentLobby.GetMemberData(new Friend(UserSteamId), MPKeys.ALL_KEYS_INDEX);
+				// 构建新的索引字符串 (以逗号分隔)
+				string newKeys = string.IsNullOrEmpty(currentKeys) ? key : $"{currentKeys},{key}";
+				// 更新 Steam 上的索引
+				_currentLobby.SetMemberData(MPKeys.ALL_KEYS_INDEX, newKeys);
+				// 更新本地缓存
+				_knownKeysCache.Add(key);
+			}
+		} catch (Exception ex) {
+			MPMain.LogError($"[MP Debug] 设置成员数据失败: {ex.Message}");
+		}
+	}
+
+	/// <summary>
+	/// 批量设置个人数据
+	/// </summary>
+	public void SetMemberData(Dictionary<string, string> memberData) {
+		if (!_currentLobby.Id.IsValid || memberData == null) return;
+
+		// 获取一次当前的索引, 减少循环内的读取开销
+		string currentKeys = _currentLobby.GetMemberData(new Friend(SteamClient.SteamId), MPKeys.ALL_KEYS_INDEX);
+		bool indexChanged = false;
+
+		foreach (var kvp in memberData) {
+			if (kvp.Key == MPKeys.ALL_KEYS_INDEX) continue;
+
+			_currentLobby.SetMemberData(kvp.Key, kvp.Value);
+
+			if (!_knownKeysCache.Contains(kvp.Key)) {
+				currentKeys = string.IsNullOrEmpty(currentKeys) ? kvp.Key : $"{currentKeys},{kvp.Key}";
+				_knownKeysCache.Add(kvp.Key);
+				indexChanged = true;
+			}
+		}
+
+		if (indexChanged) {
+			_currentLobby.SetMemberData(MPKeys.ALL_KEYS_INDEX, currentKeys);
+		}
+	}
+
+	/// <summary>
+	/// 通过索引 Key 获取指定玩家的所有个人数据
+	/// </summary>
+	public Dictionary<string, string> GetAllMemberData(ulong friendId) {
+		var result = new Dictionary<string, string>();
+		if (!_currentLobby.Id.IsValid) return result;
+
+		try {
+			Friend target = new Friend(friendId);
+			// 先拿到索引字符串
+			string allKeysRaw = _currentLobby.GetMemberData(target, MPKeys.ALL_KEYS_INDEX);
+
+			if (string.IsNullOrEmpty(allKeysRaw)) return result;
+
+			// 拆分并逐一拉取数据
+			string[] keys = allKeysRaw.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+			foreach (var key in keys) {
+				string val = _currentLobby.GetMemberData(target, key);
+				result[key] = val;
+			}
+		} catch (Exception ex) {
+			MPMain.LogError($"[MP Debug] GetAllMemberData 异常: {ex.Message}");
+		}
+
+		return result;
+	}
+
+	/// <summary>
+	/// 获取个人数据的公共接口,允许业务层在加入大厅时传入自定义数据
+	/// </summary>
+	public string GetMemberData(ulong friendId, string key) {
+		if (_currentLobby.Id.IsValid) {
+			try {
+				return _currentLobby.GetMemberData(new Friend(friendId), key);
+			} catch (Exception ex) {
+				MPMain.LogError($"[MP Debug] 获取成员数据失败: {ex.Message}");
+			}
+		}
+		return null;
+	}
+
 
 	/// <summary>
 	/// 刷新大厅数据,在加入大厅或创建大厅后调用
@@ -1034,16 +1117,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			var combinedLobbies = new List<Lobby>();
 			// 扫描好友大厅
 			foreach (var friend in SteamFriends.GetFriends()) {
-				// 添加不重复Lobby
-				if (friend.IsPlayingThisGame 
-					&& friend.GameInfo?.Lobby is Lobby lobby 
-					&& lobbyIds.Add(lobby.Id)) combinedLobbies.Add(lobby);
+				if (friend.IsPlayingThisGame && friend.GameInfo?.Lobby is Lobby lobby 
+					&& lobbyIds.Add(lobby.Id)){
+					// 添加不重复Lobby
+					combinedLobbies.Add(lobby);
+				}
 			}
 
 			// 搜索公开大厅
 			var query = new Steamworks.Data.LobbyQuery()
 				.FilterDistanceWorldwide()
-				.WithKeyValue("game", "White Knuckle") // 确保是同一款游戏的
+				.WithKeyValue(MPKeys.GAME_KEY, "White Knuckle") // 确保是同一款游戏的
 				.WithMaxResults(50);
 			var publicLobbies = await query.RequestAsync();
 
@@ -1060,6 +1144,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogError(Localization.Get("MPSteamworks.LobbySearchException", ex.Message));
 			return LastFetchedLobbies;
 		}
+	}
+
+	#endregion
+
+	#region[富状态控制]
+
+	public void DebugTest() {
+		SteamFriends.SetRichPresence("steam_display", "run form RMSS");
+		SteamFriends.SetRichPresence("status", "Test text A");
+		SteamFriends.SetRichPresence("steam_player_group", _currentLobby.Id.ToString());
+		SteamFriends.SetRichPresence("steam_player_group_size", _currentLobby.MemberCount.ToString());
 	}
 
 	#endregion

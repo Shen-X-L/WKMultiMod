@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -84,7 +85,6 @@ public class MPGameModeManager {
 			needBindSync = MPConfig.BindSync,
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
-		MPSteamworks.Instance?.SetLobbyData("gamemode", CurrentData.gameModeName);
 		return CurrentData;
 	}
 

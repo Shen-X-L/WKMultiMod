@@ -11,16 +11,16 @@ public enum PacketType {
 	//WorldInitRequest = 0,   // 客机->主机: 请求初始化世界数据
 	//WorldInitData = 1,      // 主机->客机: 接收初始化世界数据,创建玩家,重加载地图
 	//PlayerCreate = 2,      // 主机->客机: 创建新玩家
-	PlayerRemove = 3,       // 主机->客机: 移除玩家
+	//PlayerRemove = 3,       // 主机->客机: 移除玩家
 	PlayerDataUpdate = 4,   // 客机->主机->客机: 玩家数据更新
 	WorldStateSync = 5,     // 主机->客机: 世界状态同步, 如Mess高度
 	BroadcastMessage = 6,   // 客机->主机->客机: 广播信息
 	PlayerDamage = 7,       // 客机->主机->客机: 玩家造成伤害
 	PlayerAddForce = 8,     // 客机->主机->客机: 玩家添加冲击力
 	PlayerDeath = 9,        // 客机->主机->客机: 玩家死亡, 发送广播
-	PlayerCreateRequest = 10, // 客机->主机->客机: 请求创建玩家相应信息(内容:模型工厂名)
-	PlayerCreateResponse = 11, // 主机->客机: 响应创建玩家请求的相关信息(内容:模型工厂名)
-	PitonStateSync = 12,    // 客机->客机: 同步已放置Piton的创建/敲入/失效状态
+	SystemUIMessage = 10,	// 客机->主机->客机: 调用游戏本体UI组件显示消息
+	PitonStateSync = 12,    // 客机->主机->客机: 同步已放置Piton的创建/敲入/失效状态
+
 
 
 	// 临时措施

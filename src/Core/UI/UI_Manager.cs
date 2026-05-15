@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
@@ -34,7 +35,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		AscentHeader,// 最顶部
 		TipHeader,//1/3处
 		Header,//2/5处
-		HighscoreHeader//3/5处
+		HighscoreHeader,//3/5处
+		Subtitle,//最底部字幕
 	}
 
 	// 主菜单UI按钮容器路径
@@ -482,7 +484,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	#region[主游戏屏幕显示]
 
-	public void DisplayMessage(string message, UIDisplayType type) {
+	public static void DisplayMessage(string message, UIDisplayType type,float delay = 5.0f) {
+		var showSubtitles = SettingsManager.settings.showSubtitles;
 		switch (type) {
 			case UIDisplayType.AscentHeader:
 				CL_GameManager.gMan.uiMan.ascentHeader.ShowText(message);
@@ -496,8 +499,19 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 			case UIDisplayType.HighscoreHeader:
 				CL_GameManager.gMan.uiMan.highscoreHeader.ShowText(message);
 				break;
+			case UIDisplayType.Subtitle: {
+				SettingsManager.settings.showSubtitles = true;
+				CL_UIManager.ShowSubtitle($"<delay={delay}>{message}");
+				Instance.StartCoroutine(SubtitleDisplay(delay));
+				break;
+			}
 			default:
 				break;
+		}
+
+		IEnumerator SubtitleDisplay(float delay) {
+			yield return new WaitForSeconds(1.5f + delay);
+			SettingsManager.settings.showSubtitles = showSubtitles;
 		}
 	}
 

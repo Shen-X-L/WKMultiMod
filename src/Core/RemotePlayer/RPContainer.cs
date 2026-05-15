@@ -68,6 +68,9 @@ public class RPContainer {
 				Position = new Vector3(0, -2, 0),
 			};
 			HandlePlayerData(ref temp);
+			// 初始状态设为隐藏, 等数据更新后再显示, 避免瞬移
+			_isDead = true;
+			PlayerObject.SetActive(false);
 			// Debug
 			MPMain.LogInfo(Localization.Get(
 				"RPContainer.MappingSucceeded", PlayerId.ToString()));

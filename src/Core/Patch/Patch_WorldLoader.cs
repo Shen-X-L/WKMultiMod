@@ -46,11 +46,11 @@ public class Patch_WorldLoader {
 	[HarmonyPatch(("GenerateLevels"))]
 	[HarmonyPrefix]
 	public static void GenerateLevels_GenParams_Off(BranchInfo branch, GenerationParameters genParams, WorldLoader __instance, WorldGenerator ___currentGenerator) {
-		if (MPCore.IsInLobby && genParams != null && CL_GameManager.GetBaseGamemode().gamemodeName == "Campaign") {
+		if (MPCore.IsInLobby && CL_GameManager.GetBaseGamemode().gamemodeName == "Campaign") {
 			// 禁用种子偏移
-			genParams.seedOffset = 0;
+			genParams?.seedOffset = 0;
 			// 启动协程等待生成结束并收集数据
-			bool isGenerationBranch = genParams.generator is M_GenerationBranch;
+			bool isGenerationBranch = genParams?.generator is M_GenerationBranch;
 			__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
 		}
 	}
@@ -59,12 +59,10 @@ public class Patch_WorldLoader {
 		yield return new WaitUntil(() => loader.GetFieldValue<bool>("loading") == true);
 		// 等待生成流程彻底结束 (isLoaded 变为 true) 
 		yield return new WaitUntil(() => WorldLoader.isLoaded == true);
-
 		if (targetBranch == null) {
 			MPMain.LogError(Localization.Get("Patch.TargetBranchIsNull"));
 			yield break;
 		}
-
 		if (isGenerationBranch) {
 			PerformCoordinateCorrection(targetBranch);
 		} else {
