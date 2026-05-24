@@ -1,6 +1,14 @@
-控制RichPresence富状态
+改进玩家抓握逻辑,互相抓握会弹开,会加重,互相拉取玩家会弹开,(受到锤击可能松手??)
+
+理解物品同步代码
+
+压缩玩家ID ulong->short 创建玩家ID字典类,数据储存在steamLobbyData中
+分配规则??? 时间戳+(steamId hash)去除大部分冲突+LobbyData进行二次校验来进行偏移
+LP组件使用压缩ID,RP中使用压缩ID+自定义玩家名字
 
 岩钉被拔掉,和锤入时坐标偏移无法同步
+
+使用WKLib构建部分UI
 
 玩家ID TMP组件变为UI显示
 
@@ -8,7 +16,6 @@
 
 修改光亮
 换个UI
-Patch_UI_GamemodeScreen.Postfix 改成根据反射onClick激活的函数来确定应该在哪个页面克隆按钮
 
 UI_LobbyListPane.RefreshLobbyList换成对象池
 

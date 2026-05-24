@@ -43,6 +43,9 @@ public class Patch_M_Level_Awake {
 [HarmonyPatch(typeof(UT_GameStateController), nameof(UT_GameStateController.RestartScene))]
 public class Patch_UT_GameStateController_RestartScene {
 	public static bool Prefix() {
+		// 重置偏移高度
+		Patch_CL_GameManager.RestartHeightOffset();
+
 		if (MPCore.IsInLobby) {
 			if (MPGameModeManager.CurrentData!=null) {
 				MPGameModeManager.RestartGameMode();

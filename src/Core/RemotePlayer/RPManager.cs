@@ -36,8 +36,10 @@ public class RPManager : Singleton<RPManager> {
 		_ = RPFactoryManager.Instance;
 	}
 
+	#region[RAII]
 	public void Initialize(Transform RootTransform) {
 		_remotePlayersRoot = RootTransform;
+		MPEventBusGame.OnPlayerDamage += ProcessPlayerDamage;
 	}
 
 	/// <summary>
@@ -50,8 +52,10 @@ public class RPManager : Singleton<RPManager> {
 		}
 		Players.Clear();
 		joinMessages.Clear();
-		leaveMessages.Clear();
+		leaveMessages.Clear(); 
+		RPFactoryManager.Instance.ClearPrefabCache();
 	}
+	#endregion
 
 	#region[创建/销毁玩家]
 	/// <summary>
@@ -241,6 +245,25 @@ public class RPManager : Singleton<RPManager> {
 		return;
 	}
 
+	/// <summary>
+	/// 处理玩家受伤
+	/// </summary>
+	public void ProcessPlayerDamage(ulong playerId, Damageable.DamageInfo info) {
+		// 获取对应的远程玩家容器
+		if (!Players.TryGetValue(playerId, out var container)) return;
+
+		// 获取对应模型专属的数据配置
+		ICustomModelExtension extension = RPFactoryManager.GetExtension(container.prefabId);
+
+		// 决定采用什么受击特效资产名字
+		string effectName = extension?.DamageEffectAssetName ?? MPAssetManager.DAMAGE_OBJECT_NAME;
+		GameObject effectPrefab = MPAssetManager.GetAssetGameObject(effectName)
+						   ?? CL_AssetManager.GetAssetGameObject(effectName);
+		if (effectPrefab != null) {
+			// info.position 是原版 GameEntity 挨打时的精确物理坐标
+			GameObject.Instantiate(effectPrefab, info.position, Quaternion.identity);
+		}
+	}
 	#endregion
 
 	#region[获取玩家对象]

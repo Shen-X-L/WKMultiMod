@@ -13,7 +13,7 @@ public class Patch_CL_GameManager {
 	[HarmonyPatch(nameof(CL_GameManager.GetPlayerTravelDistance))]
 	[HarmonyPostfix]
 	public static void GetDistance(ref float __result) {
-		// 在原始计算结果基础上，减去偏移量
+		// 在原始计算结果基础上, 减去偏移量
 		__result -= HeightOffset;
 	}
 
@@ -27,5 +27,9 @@ public class Patch_CL_GameManager {
 	[HarmonyPrefix]
 	public static void Win() {
 		MPEventBusGame.NotifyPlayerWin();
+	}
+
+	public static void RestartHeightOffset() {
+		HeightOffset = 0f;
 	}
 }

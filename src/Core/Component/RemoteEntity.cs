@@ -3,37 +3,21 @@ using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.RemotePlayer;
 
 namespace WKMPMod.Component;
 
 public class RemoteEntity : GameEntity {
-	private ulong _playerId;
-	public ulong PlayerId {
-		get => _playerId;
-		set {
-			_playerId = value;
-		}
-	}
-
-	public GameObject DamageObject; // 受到伤害时生成的特效对象(如果为null则使用默认对象)
+	public ulong playerId;
 
 	public override void Start() {
 		base.Start();
 		canSave = false;    // 不保存远程实体
-
-		if (DamageObject == null) {
-			DamageObject = MPAssetManager.GetAssetGameObject(MPAssetManager.DAMAGE_OBJECT_NAME);
-		}
 	}
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
 		// 关闭pvp
 		if (!MPCore.IsAllowPVP) return false;
-
-		// 生成伤害特效
-		if (DamageObject != null) {
-			Instantiate(DamageObject, base.transform.position, base.transform.rotation, base.transform.parent);
-		}
 
 		// 添加屏幕震动
 		CL_CameraControl.Shake(0.01f);
@@ -42,8 +26,7 @@ public class RemoteEntity : GameEntity {
 		CalculatedDamage(info);
 
 		// 发布到事件总线
-		MPEventBusGame.NotifyPlayerDamage(PlayerId, 
-			Damageable.DamageInfo.CreateDamageInfo(info.amount, info.type,info.tags));
+		MPEventBusGame.NotifyPlayerDamage(playerId, info);
 		// 会不会死由对方决定
 		return false;
 	}
@@ -56,7 +39,7 @@ public class RemoteEntity : GameEntity {
 		// 关闭pvp
 		if (!MPCore.IsAllowPVP) return;
 		// 发送冲击力通知事件
-		MPEventBusGame.NotifyPlayerAddForce(PlayerId, v / 10, source);
+		MPEventBusGame.NotifyPlayerAddForce(playerId, v / 10, source);
 	}
 	// 计算伤害
 	public static void CalculatedDamage(Damageable.DamageInfo info) {

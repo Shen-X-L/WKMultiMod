@@ -129,7 +129,7 @@ public class MPPacketHandlers {
 	//			if (waitTime > 0) 
 	//				yield return new WaitForSeconds(waitTime);
 	//			if (!MPCore.IsInLobby || LocalPlayer.Instance == null) 
-	//				yield break; // 停止协程，防止对不存在的玩家发包
+	//				yield break; // 停止协程, 防止对不存在的玩家发包
 	//			if (LocalPlayer.Instance != null) 
 	//				LocalPlayer.Instance.ForceSyncToTarget(senderId);
 	//		}
@@ -266,6 +266,14 @@ public class MPPacketHandlers {
 			LocalPlayer.Instance.TriggerTeleport();
 			ENT_Player.GetPlayer().Teleport(new Vector3(posX, posY, posZ));
 		}
-
 	}
+
+	/// <summary>
+	/// 主机/客户端接收ItemStateSync: 通过物品同步管理器来进行物品同步
+	/// </summary>
+	[MPPacketHandler(PacketType.ItemStateSync)]
+	private static void HandleItemStateSync(ulong senderId, DataReader reader) {
+		ItemSyncManager.HandleItemState(senderId, reader);
+	}
+
 }

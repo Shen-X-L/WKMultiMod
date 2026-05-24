@@ -140,7 +140,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 				RightHand = new PlayerData.HandData { Position = currentRHand }
 			};
 
-			// 如果是因为位移触发的发送，重置保底计时器，避免短时间内重复发送
+			// 如果是因为位移触发的发送, 重置保底计时器, 避免短时间内重复发送
 			if (hasChanged) {
 				_minUpdateFrequencyTimer.Reset();
 			}
@@ -177,7 +177,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			RightHand = new PlayerData.HandData {
 				Position = _cachedHands[(int)HandType.Right].GetHoldWorldPosition()
 			},
-			// 即使正在冷却，强制同步通常也视为某种状态对齐，可根据需求设为 true 或保持逻辑
+			// 即使正在冷却, 强制同步通常也视为某种状态对齐, 可根据需求设为 true 或保持逻辑
 			IsTeleport = !_teleportCooldownTimer.IsTickReached
 		};
 

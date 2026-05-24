@@ -54,15 +54,11 @@
 		<Reference Include="$(ManagedPath)\Newtonsoft.Json.dll" Private="False" />
 		<Reference Include="$(ManagedPath)\DOTween.dll" Private="False" />
 		
-		<Reference
-			Include="$(BepInExPath)\*.dll"
-			Exclude="$(BepInExPath)\0Harmony20.dll"
-			Private="False" />
-		<Reference Include="$(LocalLibPath)\**\*.dll" Private="False" />
+		<Reference Include="$(BepInExPath)\*.dll" Exclude="$(BepInExPath)\0Harmony20.dll" Private="False" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Remove="NetWork\MPPacketRouter.cs~RF634c4182.TMP" />
+	  <ProjectReference Include="..\Shared\WKMultiPlayerMod.Shared.csproj" />
 	</ItemGroup>
 
 </Project>

@@ -40,7 +40,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	public Dictionary<string, string> LobbyData { get; private set; }
 
 
-	// 本地缓存已存在的 Key，避免每次 SetMemberData 都去读取和解析索引字符串
+	// 本地缓存已存在的 Key, 避免每次 SetMemberData 都去读取和解析索引字符串
 	private readonly HashSet<string> _knownKeysCache = new HashSet<string>();
 
 	// 获取全部在线玩家
@@ -972,7 +972,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	/// <summary>
-	/// 设置个人数据，并同步更新索引 Key
+	/// 设置个人数据, 并同步更新索引 Key
 	/// </summary>
 	public void SetMemberData(string key, string value) {
 		if (!_currentLobby.Id.IsValid) return;

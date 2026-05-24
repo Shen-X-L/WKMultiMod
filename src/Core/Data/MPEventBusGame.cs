@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using WKMPMod.Component;
 using WKMPMod.Core;
+using WKMPMod.RemotePlayer;
 
 namespace WKMPMod.Data;
 
@@ -12,7 +13,9 @@ public static class MPEventBusGame {
 	public static void NotifyPlayerMove(PlayerData playerData) => OnPlayerMove?.Invoke(playerData);
 
 	/// <summary>
-	/// 游戏组件事件: 收到攻击 订阅者<see cref="MPCore.HandlePlayerDamage">
+	/// 游戏组件事件: 收到攻击 订阅者:<br/>
+	/// <see cref="MPCore.HandlePlayerDamage"><br/>
+	/// <see cref="RPContainer.ProcessPlayerDeath"><br/>
 	/// </summary>
 	public static event Action<ulong, Damageable.DamageInfo> OnPlayerDamage;
 	/// <summary>

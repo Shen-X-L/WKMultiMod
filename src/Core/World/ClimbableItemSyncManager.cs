@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using Steamworks.Data;
 using System;
 using System.Collections.Generic;
@@ -109,14 +110,14 @@ public static class ClimbableItemSyncManager {
 	public static void RegisterNewLocalPiton(HandItem_Piton source, HashSet<int> knownHandholds) {
 		if (!MPCore.CanSync || ApplyingRemoteState || source == null || knownHandholds == null || source.pitonWorldObject == null) return;
 
-		var prefabKey = NormalizePrefabKey(source.pitonWorldObject.name);
+		var prefabKey = CleanCloneName(source.pitonWorldObject.name);
 		var root = FindBestNewClimbable(source.GetAimCircleHit().point, knownHandholds, prefabKey, fallback: null);
 		RegisterLocalClimbable(root, prefabKey);
 	}
 
 	/// <summary>
 	/// 注册本地新放置的Piton
-	/// 根据已知Handhold列表查找新生成的可攀爬物体, 并广播Create消息<br/>
+	/// 通过修改IL代码, 直接返回HandItem_Piton组件, 并广播Create消息<br/>
 	///
 	/// Registers a newly placed local piton
 	/// Finds the newly spawned climbable using the known handhold list and broadcasts a Create message
@@ -263,7 +264,7 @@ public static class ClimbableItemSyncManager {
 	private static void RegisterLocalClimbable(GameObject root, string prefabKey) {
 		if (root == null) return;
 
-		var normalizedPrefabKey = NormalizePrefabKey(prefabKey);
+		var normalizedPrefabKey = CleanCloneName(prefabKey);
 		if (string.IsNullOrEmpty(normalizedPrefabKey)) return;
 
 		var identity = GetOrCreateIdentity(root);
@@ -288,7 +289,7 @@ public static class ClimbableItemSyncManager {
 	private static void ApplyCreate(ulong senderId, string networkId, string prefabKey, Vector3 position, Quaternion rotation,
 									float secureAmount, bool secure, bool active) {
 		if (_pitons.TryGetValue(networkId, out var existing) && existing != null) {
-			existing.PrefabKey = NormalizePrefabKey(prefabKey);
+			existing.PrefabKey = CleanCloneName(prefabKey);
 			ApplyState(existing, position, rotation, secureAmount, secure, active);
 			return;
 		}
@@ -309,7 +310,7 @@ public static class ClimbableItemSyncManager {
 
 		var identity = GetOrCreateIdentity(climbableObject);
 		identity.NetworkId = networkId;
-		identity.PrefabKey = NormalizePrefabKey(prefabKey);
+		identity.PrefabKey = CleanCloneName(prefabKey);
 		identity.OwnerId = senderId;
 		identity.IsRemote = true;
 		_pitons[networkId] = identity;
@@ -477,8 +478,8 @@ public static class ClimbableItemSyncManager {
 	private static bool NameMatches(string name, string preferredName) {
 		if (string.IsNullOrEmpty(preferredName)) return true;
 
-		var normalizedName = NormalizePrefabKey(name);
-		var normalizedPreferredName = NormalizePrefabKey(preferredName);
+		var normalizedName = CleanCloneName(name);
+		var normalizedPreferredName = CleanCloneName(preferredName);
 		if (string.IsNullOrEmpty(normalizedName) || string.IsNullOrEmpty(normalizedPreferredName)) return false;
 
 		// 完全匹配或包含关系都算匹配, 忽略大小写
@@ -493,7 +494,7 @@ public static class ClimbableItemSyncManager {
 	/// Resolves a prefab by prefab key
 	/// </summary>
 	private static GameObject ResolvePrefab(string prefabKey) {
-		var normalizedPrefabKey = NormalizePrefabKey(prefabKey);
+		var normalizedPrefabKey = CleanCloneName(prefabKey);
 		if (string.IsNullOrEmpty(normalizedPrefabKey)) return null;
 
 		if (_prefabLookup.TryGetValue(normalizedPrefabKey, out var prefab) && prefab != null) {
@@ -557,7 +558,7 @@ public static class ClimbableItemSyncManager {
 	private static void TryRegisterPrefab(GameObject prefab) {
 		if (prefab == null) return;
 
-		var key = NormalizePrefabKey(prefab.name);
+		var key = CleanCloneName(prefab.name);
 		if (string.IsNullOrEmpty(key) || _prefabLookup.ContainsKey(key)) return;
 
 		_prefabLookup[key] = prefab;
@@ -570,15 +571,10 @@ public static class ClimbableItemSyncManager {
 	/// Normalizes a prefab key
 	/// Removes whitespace and Unity's instantiated "(Clone)" suffix
 	/// </summary>
-	private static string NormalizePrefabKey(string prefabKey) {
+	private static string CleanCloneName(string prefabKey) {
 		if (string.IsNullOrEmpty(prefabKey)) return string.Empty;
 
-		var normalized = prefabKey.Trim();
-		if (normalized.EndsWith(CLONE_SUFFIX, StringComparison.OrdinalIgnoreCase)) {
-			normalized = normalized.Substring(0, normalized.Length - CLONE_SUFFIX.Length);
-		}
-
-		return normalized.Trim();
+		return prefabKey.Replace("(Clone)", string.Empty).Trim();
 	}
 
 	/// <summary>

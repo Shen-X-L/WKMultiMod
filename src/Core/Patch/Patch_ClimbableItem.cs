@@ -23,6 +23,7 @@ namespace WKMPMod.Patch;
 [HarmonyPatch(typeof(HandItem_Piton), nameof(HandItem_Piton.PitonHit))]
 public class Patch_HandItem_Piton_PitonHit {
 
+	[HarmonyTranspiler]
 	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
 		var codes = new List<CodeInstruction>(instructions);
 
@@ -226,3 +227,7 @@ public class Patch_CL_Handhold_Breakable_Update_PitonSync {
 		ClimbableItemSyncManager.BroadcastPeriodicUpdate(__instance);
 	}
 }
+
+// [MP Debug] 仅当需要让断裂的岩钉生成同步的世界掉落物时才保留此桥接代码
+//Vector3 velocity = rotation * Vector3.forward * BrokenPitonForwardVelocity + Vector3.down * BrokenPitonDownVelocity;
+//ItemSyncManager.SpawnSyncedWorldDrop(dropPrefabKey, position, rotation, velocity);

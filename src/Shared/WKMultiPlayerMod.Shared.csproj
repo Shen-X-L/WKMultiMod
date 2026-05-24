@@ -23,10 +23,7 @@
 		<ItemGroup>
 			<SharedOutputFiles Include="$(TargetDir)$(TargetName).dll" />
 		</ItemGroup>
-		<!--生成.dll复制到lib\-->
-		<Copy SourceFiles="@(SharedOutputFiles)" 
-			DestinationFolder="$(SolutionDir)lib\" 
-			SkipUnchangedFiles="true" />
+
 		<!--生成.dll复制到Unity项目下-->
 		<Copy SourceFiles="@(SharedOutputFiles)" 
 			DestinationFolder="$(UnityProject)\Assets\Plugins" 

@@ -59,8 +59,9 @@ public class RPContainer {
 	public bool Initialize(GameObject playerInstance, Transform persistentParent = null) {
 		if (playerInstance == null) return false;
 		try {
-			// 创建对象引用
+			// 创建对象引用并重命名
 			PlayerObject = playerInstance;
+			PlayerObject.name = $"RemotePlayer_{PlayerName}_{PlayerId}";
 			// 设置持久化
 			if (persistentParent != null) {
 				PlayerObject.transform.SetParent(persistentParent, false);
@@ -74,9 +75,8 @@ public class RPContainer {
 				Position = new Vector3(0, -2, 0),
 			};
 			HandlePlayerData(ref temp);
-			// 初始状态设为隐藏, 等数据更新后再显示, 避免瞬移
-			_isDead = true;
-			PlayerObject.SetActive(false);
+			// 直接送去视野外进行隐藏
+			PlayerObject.transform.position = new Vector3(0, -9999f, 0);
 			// Debug
 			MPMain.LogInfo(Localization.Get("RPContainer.MappingSucceeded", PlayerId.ToString()));
 			return true;
@@ -113,7 +113,7 @@ public class RPContainer {
 		// 实体标签赋予玩家Id
 		if (_remoteEntities != null) {
 			foreach (var entity in _remoteEntities) {
-				entity.PlayerId = PlayerId;
+				entity.playerId = PlayerId;
 			}
 		}
 	}
@@ -188,41 +188,21 @@ public class RPContainer {
 		// 生成死亡特效
 		var playerPosition = PlayerObject.transform.position;
 		var playerRotation = PlayerObject.transform.rotation;
-		var deathParticle = MPAssetManager.GetAssetGameObject(MPAssetManager.DEATH_OBJECT_NAME);
+		// 动态获取当前模型的死亡特效配置
+		ICustomModelExtension extension = RPFactoryManager.GetExtension(this.prefabId);
+		string effectName = extension?.DeathEffectAssetName ?? MPAssetManager.DEATH_OBJECT_NAME;
+
+		GameObject deathParticle = MPAssetManager.GetAssetGameObject(effectName)
+								?? CL_AssetManager.GetAssetGameObject(effectName);
+
 		if (deathParticle != null) {
 			GameObject.Instantiate(deathParticle, playerPosition, playerRotation);
 		}
+
 		PlayerObject.SetActive(false);
 		_isDead = true;
 		// 死亡后重置死亡计时器, 1秒内不接受更新, 避免瞬移和动画冲突
 		_deathTick.Reset();
 	}
-	#endregion
-
-	#region[旧工具函数]
-
-	// 赋予可攀爬组件
-	public static void AddHandHold(GameObject gameObject) {
-		// 添加 ObjectTagger 组件
-		ObjectTagger tagger = gameObject.AddComponent<ObjectTagger>();
-		if (tagger != null) {
-			tagger.tags.Add("Handhold");    //攀爬标签
-		}
-
-		// 添加 CL_Handhold 组件 (攀爬逻辑)
-		CL_Handhold handholdComponent = gameObject.AddComponent<CL_Handhold>();
-		if (handholdComponent != null) {
-			// 添加停止和激活事件
-			handholdComponent.stopEvent = new UnityEvent();
-			handholdComponent.activeEvent = new UnityEvent();
-		}
-
-		// 确保 渲染器 被赋值, 否则 材质 设置会崩溃
-		Renderer objectRenderer = gameObject.GetComponent<Renderer>();
-		if (objectRenderer != null) {
-			gameObject.GetComponent<CL_Handhold>().handholdRenderer = objectRenderer;
-		}
-	}
-
 	#endregion
 }

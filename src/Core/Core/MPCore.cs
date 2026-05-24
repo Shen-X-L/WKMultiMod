@@ -18,6 +18,7 @@ using WKMPMod.Patch;
 using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
+using WKMPMod.World;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -276,6 +277,8 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 场景加载完成时调用
 	/// </summary>
 	private void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
+		// 重置偏移高度
+		Patch_CL_GameManager.RestartHeightOffset();
 		switch (scene.name) {
 			case "Game-Main": {
 				// 注册命令和初始化世界数据
@@ -337,6 +340,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		ClearCurrentData();
 		_MPsteamworks.DisconnectAll();
 		_RPManager.ResetAll();
+		ItemSyncManager.ResetState();
 		// 是否需要重置饰品/绑定
 		if (NeedResetTrinkets && NeedResetGamemodeName != null) {
 			StatManager.saveData.SetGamemodeTrinkets(NeedResetGamemodeName, new List<string>());
@@ -552,7 +556,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			.Description(Localization.Get("CommandHelp.ChangeModel"))
 			.AutocompleteCustom(autocomplete => {
 				if (autocomplete.activeArg == 0) {
-					autocomplete.FromArray(RPFactoryManager.factories.Keys.ToList());
+					autocomplete.FromArray(RPFactoryManager.ModelIDs);
 				}
 			});
 
@@ -744,6 +748,13 @@ public class MPCore : MonoSingleton<MPCore> {
 					// 主游戏需要相同种子的重载地图
 					case "Game-Main": {
 						WorldLoader.ReloadWithSeed(new string[] { WorldLoader.instance.seed.ToString() });
+						break;
+					}
+					case "Playground": {
+						// 设置当前游戏模式数据
+						var currentModeData = MPGameModeManager.CaptureCurrentModeData();
+						if (string.IsNullOrWhiteSpace(_MPsteamworks.LobbyData?.GetValueOrDefault(MPKeys.GAMEMODE_JSON)))
+							_MPsteamworks.SetLobbyData(MPKeys.GAMEMODE_JSON, JsonConvert.SerializeObject(currentModeData));
 						break;
 					}
 					// 其他模式不需要重载地图
@@ -1057,7 +1068,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				yield return new WaitForSeconds(1.0f);
 			}
 			if (!IsInitialized && !_MPsteamworks.IsHost) {
-				MPMain.LogError("[MP Debug] 初始化握手失败：重试次数耗尽或已离开大厅.");
+				MPMain.LogError("[MP Debug] 初始化握手失败: 重试次数耗尽或已离开大厅.");
 				Leave(null);
 			}
 		}
@@ -1082,10 +1093,9 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 处理玩家连接事件
 	/// </summary>
 	private void HandlePlayerConnected(SteamId steamId) {
-		//MPMain.Debug("HandlePlayerConnected");
-		//var modelId = _MPsteamworks.GetMemberData(steamId, MPKeys.MODEL_ID);
-		//if (!string.IsNullOrEmpty(modelId))
-		//	RPManager.Instance.PlayerCreate(steamId, modelId);
+		if (_MPsteamworks.IsHost) {
+			ItemSyncManager.SendSnapshotToClient(steamId);
+		}
 	}
 
 	/// <summary>

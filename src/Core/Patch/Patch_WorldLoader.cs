@@ -54,6 +54,8 @@ public class Patch_WorldLoader {
 			__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
 		}
 	}
+
+	#region[支线坐标同步协程]
 	public static IEnumerator WaitAndCollectData(WorldLoader loader, BranchInfo targetBranch, bool isGenerationBranch) {
 		// 等待生成流程开始 (loading 变为 true) 
 		yield return new WaitUntil(() => loader.GetFieldValue<bool>("loading") == true);
@@ -64,82 +66,79 @@ public class Patch_WorldLoader {
 			yield break;
 		}
 		if (isGenerationBranch) {
-			PerformCoordinateCorrection(targetBranch);
+			yield return null;
+			MPMain.LogInfo(Localization.Get("Patch.StartCorrectingSideRouteCoords"));
+
+			// 获取核心组件
+			var worldRoot = GameObject.Find("World_Root(Clone)");
+			var player = ENT_Player.GetPlayer();
+			if (worldRoot == null || player == null) yield break;
+
+			// 匹配第一个相同的关卡
+			// 提前构建 Dictionary 提升匹配速度 (O(n))
+			var targetDataDict = levelWorldTransformDatas.ToDictionary(d => d.levelName, d => d);
+
+			var match = targetBranch.levelTracker
+				.Select(info => new { Info = info, Level = info.GetLevel() })
+				.FirstOrDefault(x => x.Level != null && targetDataDict.ContainsKey(x.Level.gameObject.name));
+
+			if (match == null) {
+				MPMain.LogError(Localization.Get("Patch.NoMatchingLevelDataForCorrection"));
+				yield break;
+			}
+
+			// 提取变换引用
+			var targetData = targetDataDict[match.Level.gameObject.name];
+			Transform childTf = match.Level.transform;
+			Transform rootTf = worldRoot.transform;
+			Transform playerTf = player.transform;
+
+			// 计算目标位姿
+			// 旋转目标: Target = Root * Local -> Root = Target * inv(Local)
+			Quaternion finalRootRot = targetData.rotation * Quaternion.Inverse(childTf.localRotation);
+			// 位置目标: Target = RootPos + (RootRot * LocalPos) -> RootPos = Target - (RootRot * LocalPos)
+			Vector3 finalRootPos = targetData.position - (finalRootRot * childTf.localPosition);
+
+			// 记录偏移并处理分数补偿
+			Vector3 posDelta = finalRootPos - rootTf.position;
+			// 累加偏移, 防止多次矫正导致的跳变
+			Patch_CL_GameManager.HeightOffset += posDelta.y;
+
+			// 应用变换
+			Transform originalPlayerParent = playerTf.parent;
+
+			player.Lock();
+			playerTf.SetParent(rootTf, true);
+
+			rootTf.SetPositionAndRotation(finalRootPos, finalRootRot);
+
+			playerTf.SetParent(originalPlayerParent, true);
+			// 轻微提升玩家位置, 防止穿地
+			playerTf.position += Vector3.up * 0.05f;
+			player.UnLock();
+
+			// 处理mass
+			if (DEN_DeathFloor.instance != null && DEN_DeathFloor.instance.IsActive()) {
+				DEN_DeathFloor.instance.OffsetEntity(posDelta.y);
+			}
+
+			MPMain.LogInfo(Localization.Get("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
+
 		} else {
-			CaptureWorldData(targetBranch);
+			levelWorldTransformDatas = targetBranch.levelTracker
+				.Where(info => info.GetLevel() != null)
+				.Select(info => {
+					var go = info.GetLevel().gameObject;
+					return new LevelTransformData {
+						levelName = go.name,
+						position = go.transform.position,
+						rotation = go.transform.rotation
+					};
+				}).ToList();
+
+			MPMain.LogInfo(Localization.Get("Patch.LevelDataRetrieved", levelWorldTransformDatas.Count));
 		}
 	}
-	private static void PerformCoordinateCorrection(BranchInfo targetBranch) {
-		MPMain.LogInfo(Localization.Get("Patch.StartCorrectingSideRouteCoords"));
 
-		// 获取核心组件
-		var worldRoot = GameObject.Find("World_Root(Clone)");
-		var player = ENT_Player.GetPlayer();
-		if (worldRoot == null || player == null) return;
-
-		// 匹配第一个相同的关卡
-		// 提前构建 Dictionary 提升匹配速度 (O(n))
-		var targetDataDict = levelWorldTransformDatas.ToDictionary(d => d.levelName, d => d);
-
-		var match = targetBranch.levelTracker
-			.Select(info => new { Info = info, Level = info.GetLevel() })
-			.FirstOrDefault(x => x.Level != null && targetDataDict.ContainsKey(x.Level.gameObject.name));
-
-		if (match == null) {
-			MPMain.LogError(Localization.Get("Patch.NoMatchingLevelDataForCorrection"));
-			return;
-		}
-
-		// 提取变换引用
-		var targetData = targetDataDict[match.Level.gameObject.name];
-		Transform childTf = match.Level.transform;
-		Transform rootTf = worldRoot.transform;
-		Transform playerTf = player.transform;
-
-		// 计算目标位姿
-		// 旋转目标：Target = Root * Local -> Root = Target * inv(Local)
-		Quaternion finalRootRot = targetData.rotation * Quaternion.Inverse(childTf.localRotation);
-		// 位置目标：Target = RootPos + (RootRot * LocalPos) -> RootPos = Target - (RootRot * LocalPos)
-		Vector3 finalRootPos = targetData.position - (finalRootRot * childTf.localPosition);
-
-		// 记录偏移并处理分数补偿
-		Vector3 posDelta = finalRootPos - rootTf.position;
-		// 累加偏移，防止多次矫正导致的跳变
-		Patch_CL_GameManager.HeightOffset += posDelta.y;
-
-		// 应用变换
-		Transform originalPlayerParent = playerTf.parent;
-
-		player.Lock();
-		playerTf.SetParent(rootTf, true);
-
-		rootTf.SetPositionAndRotation(finalRootPos, finalRootRot);
-
-		playerTf.SetParent(originalPlayerParent, true);
-		// 轻微提升玩家位置，防止穿地
-		playerTf.position += Vector3.up * 0.05f;
-		player.UnLock();
-
-		// 处理mass
-		if (DEN_DeathFloor.instance != null && DEN_DeathFloor.instance.IsActive()) {
-			DEN_DeathFloor.instance.OffsetEntity(posDelta.y);
-		}
-
-		MPMain.LogInfo(Localization.Get("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
-	}
-
-	private static void CaptureWorldData(BranchInfo targetBranch) {
-		levelWorldTransformDatas = targetBranch.levelTracker
-			.Where(info => info.GetLevel() != null)
-			.Select(info => {
-				var go = info.GetLevel().gameObject;
-				return new LevelTransformData {
-					levelName = go.name,
-					position = go.transform.position,
-					rotation = go.transform.rotation
-				};
-			}).ToList();
-
-		MPMain.LogInfo(Localization.Get("Patch.LevelDataRetrieved", levelWorldTransformDatas.Count));
-	}
+	#endregion
 }
