@@ -26,18 +26,18 @@ public class Patch_CL_ProgressionManager_HasProgressionUnlock {
 	}
 }
 
-// 补丁类: 禁用关卡翻转功能
-// Copy自WK_IShowSeed Mod GitHub仓库地址: https://github.com/shishyando/WK_IShowSeed
-[HarmonyPatch(typeof(M_Level), "Awake")]
-public class Patch_M_Level_Awake {
-	public static void Prefix(M_Level __instance) {
-		// 仅在联机模式下禁用关卡翻转
-		if (MPCore.IsInLobby) {
-			// 禁用关卡翻转功能
-			__instance.canFlip = false;
-		}
-	}
-}
+//// 补丁类: 禁用关卡翻转功能
+//// Copy自WK_IShowSeed Mod GitHub仓库地址: https://github.com/shishyando/WK_IShowSeed
+//[HarmonyPatch(typeof(M_Level), "Awake")]
+//public class Patch_M_Level_Awake {
+//	public static void Prefix(M_Level __instance) {
+//		// 仅在联机模式下禁用关卡翻转
+//		if (MPCore.IsInLobby) {
+//			// 禁用关卡翻转功能
+//			__instance.canFlip = false;
+//		}
+//	}
+//}
 
 // 补丁类: 在联机模式下重开时重置游戏状态控制器的状态
 [HarmonyPatch(typeof(UT_GameStateController), nameof(UT_GameStateController.RestartScene))]

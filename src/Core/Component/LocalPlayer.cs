@@ -1,10 +1,10 @@
 ﻿using Steamworks.Data;
 using System;
-using UnityEngine;
-using UnityEngine.XR;
+using System.Collections.Generic;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.RemotePlayer;
 using WKMPMod.Util;
 using static ENT_Player;
 using static WKMPMod.Data.MPWriterPool;
@@ -16,22 +16,22 @@ namespace WKMPMod.Component;
 //仅获取本地玩家信息并触发事件给其他系统使用
 //仅在联机时创建一个实例
 public class LocalPlayer : MonoSingleton<LocalPlayer> {
-	private const float POSITION_CHANGE_THRESHOLD_SQR = 0.0025f; // 0.05单位的平方
-	private const float ROTATION_CHANGE_THRESHOLD_DEG = 0.5f;    // 最小旋转角度
+	public const float LIMIT_SENDING_DISTANCE = 100.0f;				// 超过该距离时仅保证最小更新频率发送数据
 
 	// 网络发送控制
-	public bool ShouldSendData { get; set; } = false;  // 改为属性,更清晰
+	public bool ShouldSendData { get; set; } = false;
 
 	// 玩家标识
 	public ulong UserId { get; private set; }          // 本地玩家SteamID
 	public string FactoryId { get; set; }   // 预制体工厂ID
 	public string DefaulFactoryId { get; set; } = "default"; // 默认工厂ID,如果没有指定工厂ID则使用这个
 
+	// 状态存储: 谁正在对本地玩家施加交互
+	private readonly HashSet<ulong> _playersPullingMe = new();    // 被该Id的玩家拖拽
+	private readonly HashSet<ulong> _playersGrabbingMe = new();   // 被该Id的玩家抓取
+
 	// 状态缓存
-	private Vector3 _lastPosition;
-	private Quaternion _lastRotation;
-	private Vector3 _lastLeftHandPosition;
-	private Vector3 _lastRightHandPosition;
+	private PlayerData _lastPlayerData;
 
 	// 定时器
 	private TickTimer _sendDataTimer;//本地玩家数据频率器, 定时发送玩家数据
@@ -40,11 +40,15 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	// 缓存引用
 	private ENT_Player _cachedPlayer;
-	private ENT_Player.Hand[] _cachedHands;
+	private Hand[] _cachedHands;
+
+	#region[Unity生命周期函数]
 
 	public void Start() {
 		InitializeTimers();
 		CachePlayerReferences();
+		MPEventBusGame.OnRemoteGrabStateChanged += HandleRemoteGrabChanged;
+		MPEventBusGame.OnRemotePullStateChanged += HandleRemotePullChanged;
 	}
 
 	public void Update() {
@@ -54,6 +58,14 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		// 发送本地玩家数据
 		TrySendLocalPlayerData();
 	}
+
+	protected override void OnDestroy() {
+		base.OnDestroy();
+		// 组件销毁时必须注销事件，防止内存泄漏
+		MPEventBusGame.OnRemoteGrabStateChanged -= HandleRemoteGrabChanged;
+		MPEventBusGame.OnRemotePullStateChanged -= HandleRemotePullChanged;
+	}
+	#endregion
 	#region[初始化方法]
 
 	// 初始化定时器
@@ -72,125 +84,166 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	// 重置状态缓存
 	public void Initialize(ulong userId,string factoryId) {
-
 		UserId = userId;
 		DefaulFactoryId = factoryId;
 		FactoryId = factoryId;
-		ResetStateCache();
+		_lastPlayerData = default;
+
+		_playersPullingMe.Clear();
+		_playersGrabbingMe.Clear();
 	}
 
 	#endregion
+	#region[[网络事件回调]]
 
+	private void HandleRemoteGrabChanged(ulong remoteId, bool isActive) {
+		if (isActive) _playersGrabbingMe.Add(remoteId);
+		else _playersGrabbingMe.Remove(remoteId);
+	}
+
+	private void HandleRemotePullChanged(ulong remoteId, bool isActive) {
+		if (isActive) _playersPullingMe.Add(remoteId);
+		else _playersPullingMe.Remove(remoteId);
+	}
+
+	#endregion
 	#region[核心逻辑]
 
-	// 尝试发送本地玩家数据
+	// 尝试发送本地玩家数据 (结合距离剔除算法)
 	private void TrySendLocalPlayerData() {
-		// 频率限制
-		if (!_sendDataTimer.TryTick())
+		bool tickNormal = _sendDataTimer.TryTick();
+		bool tickMinFreq = _minUpdateFrequencyTimer.TryTick();
+
+		// 如果没有任何定时器触发, 返回
+		if (!tickNormal && !tickMinFreq)
 			return;
 
-		// 验证玩家引用
 		if (!ValidatePlayerReferences())
 			return;
 
-		// 如果玩家死亡则不发送数据
 		if (_cachedPlayer.IsDead())
 			return;
 
-		// 尝试创建玩家数据
-		if (!TryCreateLocalPlayerData(out PlayerData playerData))
+		// 瞬移补偿判定
+		float dx = _cachedPlayer.transform.position.x - _lastPlayerData.PosX;
+		float dy = _cachedPlayer.transform.position.y - _lastPlayerData.PosY;
+		float dz = _cachedPlayer.transform.position.z - _lastPlayerData.PosZ;
+
+		// 检查是否发生大于50米的位移 (50 * 50 = 2500)
+		if (_lastPlayerData.TimestampTicks != 0 && (dx * dx + dy * dy + dz * dz) >= 2500.0f) {
+			// 强制本帧作为保底帧发送，确保原本在近处(现在变成远处)的玩家A能收到这个离去包
+			tickMinFreq = true;
+			_minUpdateFrequencyTimer.Reset(); // 重新开始计算10秒
+		}
+
+		// 如果没有显著变换 && 不强制发送, 返回
+		if (!CheckLocalPlayerUpdates(tickMinFreq))
 			return;
 
-		// 设置传送标记(传送冷却期间标记为传送)
-		playerData.IsTeleport = !_teleportCooldownTimer.IsTickReached;
+		// 获取距离分层列表 (将本地玩家当前位置作为中心点)
+		RPManager.Instance.GetPlayersByDistance(
+			_lastPlayerData.Position,
+			LIMIT_SENDING_DISTANCE,
+			out List<ulong> farPlayers,
+			out List<ulong> nearPlayers
+		);
 
-		// 获取数据写入器
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
-		// 进行数据写入
-		writer.Put(playerData);
-		// 触发Steam数据发送 广播所有人 (转为byte[] 使用不可靠+立即发送)
-		MPSteamworks.Instance.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
+		// 发送给近距离玩家 常规频率定时器 && 位置发生了变化, 或者保底更新频率到了
+		if (tickNormal || tickMinFreq) {
+			foreach (ulong targetId in nearPlayers) {
+				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
+				writer.Put(_lastPlayerData);
+				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Unreliable | SendType.NoNagle);
+			}
+		}
+
+		// 发送给远距离玩家 仅在最小频率定时器(如10秒一次)触发时发送
+		if (tickMinFreq) {
+			foreach (ulong targetId in farPlayers) {
+				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
+				writer.Put(_lastPlayerData);
+				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Unreliable | SendType.NoNagle);
+			}
+		}
 	}
 
-	// 尝试创建本地玩家数据
-	public bool TryCreateLocalPlayerData(out PlayerData data) {
-		data = default;
+	// 获取玩家数据, 更新缓存状态, 并返回是否发生了变化
+	public bool CheckLocalPlayerUpdates(bool forceUpdate) {
+		GetHandData(0,out var currentLHand);
+		GetHandData(1, out var currentRHand);
 
-		// 获取当前实际数据
-		Vector3 currentPos = _cachedPlayer.transform.position;
-		Quaternion currentRot = _cachedPlayer.transform.rotation;
-		Vector3 currentLHand = _cachedHands[(int)HandType.Left].GetHoldWorldPosition();
-		Vector3 currentRHand = _cachedHands[(int)HandType.Right].GetHoldWorldPosition();
+		var data = new PlayerData {
+			playId = UserId,
+			TimestampTicks = DateTime.UtcNow.Ticks,
+			Position = _cachedPlayer.transform.position,
+			Rotation = _cachedPlayer.transform.rotation,
+			LeftHand = currentLHand,
+			RightHand = currentRHand,
+			IsTeleport = !_teleportCooldownTimer.IsTickReached
+		};
 
-		bool isKeepAliveTick = _minUpdateFrequencyTimer.TryTick();
-		// 检查是否有显著变化:位置,旋转,手部位置任一超过阈值都视为有变化
-		bool hasChanged = ((currentPos - _lastPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR)
-			|| !IsRotationSimilar(currentRot, _lastRotation, ROTATION_CHANGE_THRESHOLD_DEG)
-			|| ((currentLHand - _lastLeftHandPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR)
-			|| ((currentRHand - _lastRightHandPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR);
-
-		if (isKeepAliveTick || hasChanged) {
-			// 创建数据包
-			data = new PlayerData {
-				playId = UserId,
-				TimestampTicks = DateTime.UtcNow.Ticks,
-				Position = currentPos,
-				Rotation = currentRot,
-				LeftHand = new PlayerData.HandData { Position = currentLHand },
-				RightHand = new PlayerData.HandData { Position = currentRHand }
-			};
-
-			// 如果是因为位移触发的发送, 重置保底计时器, 避免短时间内重复发送
-			if (hasChanged) {
-				_minUpdateFrequencyTimer.Reset();
-			}
-
-			// 更新缓存并返回
-			_lastPosition = currentPos;
-			_lastRotation = currentRot;
-			_lastLeftHandPosition = currentLHand;
-			_lastRightHandPosition = currentRHand;
+		// 获取是否改变, 如果改变, 更新旧坐标
+		if (_lastPlayerData.UpdateIfChanged(data, forceUpdate)){
 			return true;
 		}
 
 		return false;
 	}
 
-	/// <summary>
-	/// 强制向指定目标发送一次当前位置数据
-	/// 此方法不检查位移阈值,不重置发送定时器,使用可靠传输
-	/// </summary>
-	/// <param name="targetId">目标玩家的 SteamId</param>
-	public void ForceSyncToTarget(ulong targetId) {
-		// 验证玩家引用是否有效
-		if (!ValidatePlayerReferences()) return;
-
-		// 这里不更新 _lastPosition 等缓存,以免干扰正常频率的阈值判定
-		PlayerData forcedData = new PlayerData {
-			playId = UserId,
-			TimestampTicks = DateTime.UtcNow.Ticks,
-			Position = _cachedPlayer.transform.position,
-			Rotation = _cachedPlayer.transform.rotation,
-			LeftHand = new PlayerData.HandData {
-				Position = _cachedHands[(int)HandType.Left].GetHoldWorldPosition()
-			},
-			RightHand = new PlayerData.HandData {
-				Position = _cachedHands[(int)HandType.Right].GetHoldWorldPosition()
-			},
-			// 即使正在冷却, 强制同步通常也视为某种状态对齐, 可根据需求设为 true 或保持逻辑
-			IsTeleport = !_teleportCooldownTimer.IsTickReached
+	// 获取手部数据
+	public void GetHandData(int handIndex, out PlayerData.HandData data) {
+		ENT_Player.Hand hand = handIndex == 0 ? _cachedHands[0] : _cachedHands[1];
+		data = new PlayerData.HandData {
+			Position = hand.GetHoldWorldPosition(),
 		};
 
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, targetId, PacketType.PlayerDataUpdate);
+		IDType targetRemoteId = 0;
 
-		// 使用高性能写入
-		writer.Put(forcedData);
-
-		MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
+		switch (hand.interactState) {
+			// 无抓取时, 带有持有物预制体ID
+			case InteractType.none: {
+				data.itemName = hand.inventoryHand.currentItem?.prefabName ?? "None";
+				data.interactState = (byte)InteractType.none;
+				break;
+			}
+			// 拖拽玩家时, 带有被抓玩家ID和目标点
+			case InteractType.grab: {
+				if (hand.grabTarget?.gameObject.TryGetComponent<RPContainerRef>(out var parent) == true) {
+					targetRemoteId = parent.container.PlayerId;
+					if (targetRemoteId != 0 && _playersPullingMe.Contains(targetRemoteId)) {
+						data.interactState = (byte)InteractType.none;
+						data.itemName = "None";
+						ReleaseAndRepelLocalHand(handIndex, targetRemoteId);
+					} else {
+						data.interactState = (byte)InteractType.grab;
+						data.targetId = targetRemoteId;
+						data.DesiredPosition = _cachedPlayer.camTransform.position + _cachedPlayer.camTransform.forward * 1.8f;
+					}
+				}
+				break;
+			}
+			// 抓取玩家时, 带有被抓玩家ID
+			case InteractType.hanging: {
+				if (hand.handhold?.gameObject.TryGetComponent<RPContainerRef>(out var parent) == true) {
+					targetRemoteId = parent.container.PlayerId;
+					if (targetRemoteId != 0 && _playersGrabbingMe.Contains(targetRemoteId)) {
+						data.interactState = (byte)InteractType.none;
+						data.itemName = "None";
+						ReleaseAndRepelLocalHand(handIndex, targetRemoteId);
+					} else {
+						data.interactState = (byte)InteractType.hanging;
+						data.targetId = targetRemoteId;
+					}
+				}
+				break;
+			}
+			default: {
+				data.interactState = (byte)hand.interactState;
+				break;
+			}
+		}
 	}
-
 	#endregion
-
 	#region[辅助函数]
 
 	// 验证或获取玩家引用
@@ -212,44 +265,18 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		return true;
 	}
 
-	// 检查是否有显著变化
-	private bool HasSignificantChanges(Vector3 pos, Quaternion rot, Vector3 lHand, Vector3 rHand) {
-		if ((pos - _lastPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR) return true;
-		if (!IsRotationSimilar(rot, _lastRotation, ROTATION_CHANGE_THRESHOLD_DEG)) return true;
-		if ((lHand - _lastLeftHandPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR) return true;
-		if ((rHand - _lastRightHandPosition).sqrMagnitude >= POSITION_CHANGE_THRESHOLD_SQR) return true;
-		return false;
-	}
-
-	// 更新上次网络发包状态
-	private void UpdateStateCache(Vector3 pos, Quaternion rot, Vector3 lHand, Vector3 rHand) {
-		_lastPosition = pos;
-		_lastRotation = rot;
-		_lastLeftHandPosition = lHand;
-		_lastRightHandPosition = rHand;
-	}
-
-	// 重设上次网络发包状态
-	private void ResetStateCache() {
-		_lastPosition = Vector3.zero;
-		_lastRotation = Quaternion.identity;
-		_lastLeftHandPosition = Vector3.zero;
-		_lastRightHandPosition = Vector3.zero;
-	}
 	#endregion
-
 	#region[工具函数]
-	/// 优化版的旋转相似性检查(避免Quaternion.Angle的开方运算)
-	private bool IsRotationSimilar(Quaternion a, Quaternion b, float thresholdDegrees) {
-		// 使用点积判断,比Quaternion.Angle更快
-		float cosThreshold = Mathf.Cos(thresholdDegrees * Mathf.Deg2Rad * 0.5f);
-		float dot = Mathf.Abs(Quaternion.Dot(a, b));
-		return dot > cosThreshold;
-	}
 
 	// 触发传送事件
 	public void TriggerTeleport() {
 		_teleportCooldownTimer.Reset();
+	}
+
+	public void ReleaseAndRepelLocalHand(int handIndex, IDType targetRemoteId) {
+		_cachedPlayer.StopInteraction(handIndex);
+		_cachedPlayer.AddForce(-_cachedPlayer.camTransform.forward, "RepelByRemote");
+		MPSteamworks.Instance.SendToPeer(targetRemoteId, GetWriter(MPSteamworks.UserSteamId, targetRemoteId, PacketType.PlayerStopInteraction), SendType.Reliable);
 	}
 	#endregion
 

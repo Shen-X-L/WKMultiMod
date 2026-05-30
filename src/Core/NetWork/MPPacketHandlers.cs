@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR;
 using WKMPMod.Asset;
 using WKMPMod.Component;
 using WKMPMod.Core;
@@ -12,6 +13,7 @@ using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
+using static ENT_Player;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -37,7 +39,7 @@ public class MPPacketHandlers {
 		// 如果是从转发给自己的,忽略
 		reader.GetOut<PlayerData>(out var playerData);
 		var playerId = playerData.playId;
-		if (playerId == MPSteamworks.Instance.UserSteamId) {
+		if (playerId == MPSteamworks.UserSteamId) {
 			return;
 		}
 		RPManager.Instance.ProcessPlayerData(playerId, ref playerData);
@@ -117,7 +119,7 @@ public class MPPacketHandlers {
 	///// </summary>
 	//[MPPacketHandler(PacketType.PlayerCreateRequest)]
 	//private static void HandlePlayerCreateRequest(ulong senderId, DataReader reader) {
-	//	var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.PlayerCreateResponse);
+	//	var writer = GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.PlayerCreateResponse);
 	//	writer.Put(LocalPlayer.Instance.FactoryId);
 	//	MPSteamworks.Instance.SendToPeer(senderId, writer);
 
@@ -172,7 +174,7 @@ public class MPPacketHandlers {
 	private static void HandlePlayerTeleportRequest(ulong senderId, DataReader reader) {
 		// 获取数据
 		var playerPos = ENT_Player.GetPlayer().transform.position;
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, senderId, PacketType.PlayerTeleportRespond);
+		var writer = GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.PlayerTeleportRespond);
 		writer.Put(playerPos.x);
 		writer.Put(playerPos.y);
 		writer.Put(playerPos.z);
@@ -276,4 +278,30 @@ public class MPPacketHandlers {
 		ItemSyncManager.HandleItemState(senderId, reader);
 	}
 
+	[MPPacketHandler(PacketType.PlayerStopInteraction)]
+	private static void HandlePlayerStopInteraction(ulong senderId, DataReader reader) {
+		var hands = ENT_Player.GetPlayer().hands;
+		for (int i = 0; i < hands.Length; i++) {
+			var hand = hands[i];
+			if (hand.interactState == InteractType.none) {
+				continue;
+			}
+			if (hand.interactState == InteractType.grab
+				&& hand.grabTarget?.gameObject.TryGetComponent<RPContainerRef>(out var parent) == true
+				&& senderId == parent.container.PlayerId) {
+				DropIt(i);
+			}
+			if (hand.interactState == InteractType.hanging
+				&& hand.handhold?.gameObject.TryGetComponent<RPContainerRef>(out var hangingParent) == true
+				&& senderId == hangingParent.container.PlayerId) {
+				DropIt(i);
+			}
+		}
+
+		void DropIt(int handIndex) {
+			var _cachedPlayer = ENT_Player.GetPlayer();
+			_cachedPlayer.StopInteraction(handIndex);
+			_cachedPlayer.AddForce(-_cachedPlayer.camTransform.forward, "RepelByRemote");
+		}
+	}
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,7 +21,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	private readonly string mainBundlePath = Path.Combine(MPMain.path, "player_prefab");
 
 	public static List<string> ModelIDs { get => _registry.Keys.ToList(); }
-		 
+
 	#region[生命周期/RAII函数]
 
 	private RPFactoryManager() {
@@ -34,7 +35,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	private void RegisterDefaultModels() {
 		// 内置默认模型 1: 胶囊体保底
 		RegisterModelExtension(new DefaultModelExtension(), mainBundlePath);
-		// 内置默认模型 2: 原版猫
+		// 内置默认模型 2: 蛞蝓猫
 		RegisterModelExtension(new SlugcatModelExtension(), mainBundlePath);
 	}
 
@@ -52,7 +53,6 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	#endregion
-
 	#region[静态接口]
 
 	/// <summary>
@@ -85,7 +85,6 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		return model.Extension;
 	}
 	#endregion
-
 	#region[对象生成/清理]
 
 	/// <summary>
@@ -185,9 +184,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	#endregion
-
 	#region[Debug]
-
 
 	/// <summary>
 	/// 仅供调试使用,列出所有注册的工厂信息
@@ -200,6 +197,91 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 				factoryId, ext?.PrefabAssetName ?? "None", registration.BundlePath));
 		}
 	}
+
+	/// <summary>
+	/// 调试API：遍历所有注册的 BundlePath，打印出对应 AssetBundle 内部的所有资源名称
+	/// </summary>
+	public void DebugDumpAllBundleContents() {
+		// 获取去重后的所有 AB 包路径
+		var uniquePaths = _registry.Values.Select(r => r.BundlePath).Distinct().ToList();
+
+		MPMain.LogWarning($"\n=== [RPFactoryManager Debug] 开始扫描所有 AB 包内容 (共 {uniquePaths.Count} 个包) ===");
+
+		foreach (var path in uniquePaths) {
+			MPMain.LogWarning($"正在检查物理文件路径: {path}");
+			if (!File.Exists(path)) {
+				MPMain.LogError($"[错误] 该路径上的物理文件并不存在！");
+				continue;
+			}
+
+			AssetBundle bundle = null;
+			try {
+				// 临时加载包读取信息
+				bundle = AssetBundle.LoadFromFile(path);
+				if (bundle == null) {
+					MPMain.LogError($"[错误] 无法载入该 AssetBundle 物理文件！");
+					continue;
+				}
+
+				// 获取内部所有资源的名称（Unity默认会返回小写全路径，如 assets/prefabs/capsuleplayerprefab.prefab）
+				string[] assetNames = bundle.GetAllAssetNames();
+				MPMain.LogWarning($"[成功] 载入成功。该 AB 包内包含 {assetNames.Length} 个资源：");
+
+				for (int i = 0; i < assetNames.Length; i++) {
+					MPMain.LogWarning($"   -> 索引 [{i}]: {assetNames[i]}");
+				}
+
+			} catch (Exception ex) {
+				MPMain.LogError($"[异常] 读取 AB 包内容时崩溃: {ex.Message}");
+			} finally {
+				if (bundle != null) {
+					// 仅卸载包本身，不销毁内存中可能的已有资源
+					bundle.Unload(false);
+				}
+			}
+		}
+		MPMain.LogWarning("=== [RPFactoryManager Debug] AB 包内容扫描结束 ===\n");
+	}
+
+	/// <summary>
+	/// 调试API：以一定的时间间隔，依次创建所有注册的模型预制体实例
+	/// </summary>
+	/// <param name="intervalSeconds">创建间隔时间（秒）</param>
+	public void DebugSpawnAllPrefabsSequentially(float intervalSeconds) {
+		// 启动协程流程
+		MPCore.Instance.StartCoroutine(SpawnFlow(ModelIDs, intervalSeconds));
+
+		IEnumerator SpawnFlow(List<string> modelIds, float interval) {
+			MPMain.LogWarning($"\n=== [RPFactoryManager Debug] 开始定时生成测试 ===");
+			MPMain.LogWarning($"总计模型数: {modelIds.Count} 个，生成间隔: {interval} 秒");
+
+			int index = 0;
+			foreach (var modelId in modelIds) {
+				MPMain.LogWarning($"[测试 {index + 1}/{modelIds.Count}] 正在尝试创建模型ID: '{modelId}'");
+
+				try {
+					GameObject instance = RPFactoryManager.Instance.Create(modelId);
+					if (instance != null) {
+						// 为了防止模型全部叠在 0,0,0 点，让它们在 X 轴上排开
+						instance.transform.position = new Vector3(index * 3.0f, 0f, 0f);
+						instance.name = $"Debug_PlayerInstance_{modelId}";
+
+						MPMain.LogWarning($"[成功] 模型 '{modelId}' 实例化成功！世界坐标: {instance.transform.position}");
+					} else {
+						MPMain.LogError($"[失败] 模型 '{modelId}' 创建返回了 null 实例");
+					}
+				} catch (Exception ex) {
+					MPMain.LogError($"[崩溃] 创建模型 '{modelId}' 时触发代码异常: {ex.Message}\n{ex.StackTrace}");
+				}
+
+				index++;
+				// 等待指定间隔
+				yield return new WaitForSeconds(interval);
+			}
+			MPMain.LogWarning($"=== [RPFactoryManager Debug] 定时生成测试完毕，调试组件已自动销毁 ===\n");
+		}
+	}
+
 
 	#endregion
 

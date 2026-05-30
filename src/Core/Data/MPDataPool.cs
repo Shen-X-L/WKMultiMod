@@ -1,8 +1,8 @@
-﻿using System;
+﻿global using IDType = ulong;
+using System;
 using System.Buffers.Binary;
 
 namespace WKMPMod.Data;
-
 /// <summary>
 /// 协议头结构: <br/>
 /// 0-7字节: 发送者ID (ulong) <br/>
@@ -16,9 +16,9 @@ public static class MPProtocol {
 	public const int PacketTypeOffset = 16;
 	public const int HeaderSize = 18;
 	// 广播Id
-	public const ulong BroadcastId = 0;
+	public const IDType BroadcastId = 0;
 	// 特殊Id (必须解包)
-	public const ulong SpecialId = 1;
+	public const IDType SpecialId = 1;
 }
 
 public static class MPReaderPool {

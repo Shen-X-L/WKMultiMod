@@ -2,7 +2,7 @@
   "CommandConsole": {
     "AllPlayer": "名称: {0} Id: {1} 距离: {2} 坐标: {3}",
     "AlreadyInOnlineMode": "您已处于在线模式, \n请使用 leave 命令离开后再进行联机",
-    "CheatsNotAllowed": "当前大厅不允许作弊, 请要求房主使用allowcheats true。",
+    "CheatsNotAllowed": "当前大厅不允许作弊, 请要求房主使用allowcheats true. ",
     "CreateLobbyFailed": "创建大厅失败",
     "FoundLobbyByName": "通过名称找到了大厅: {0} 正在加入",
     "HostUsage": "用法: host <房间名称> [最大玩家数]",

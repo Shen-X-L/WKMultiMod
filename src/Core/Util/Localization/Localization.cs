@@ -128,7 +128,6 @@ public static class Localization {
 	}
 
 	#endregion
-
 	#region["分类","键名" 获取多语言文本]
 
 	/// <summary>
@@ -215,7 +214,6 @@ public static class Localization {
 	}
 
 	#endregion
-
 	#region["分类.键名" 获取多语言文本]
 
 	/// <summary>
@@ -270,7 +268,6 @@ public static class Localization {
 		return val.IsArray ? val.AsArray : new[] { val.AsString };
 	}
 	#endregion
-
 	#region[Debug检查]
 
 	/// <summary>
@@ -308,7 +305,6 @@ public static class Localization {
 	}
 
 	#endregion
-
 	#region[获取系统语言]
 	public static string GetGameLanguage() {
 		// 根据系统语言返回 "zh", "en" 等

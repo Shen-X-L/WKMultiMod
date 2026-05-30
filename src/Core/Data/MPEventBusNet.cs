@@ -12,17 +12,18 @@ public enum PacketType {
 	//WorldInitData = 1,      // 主机->客机: 接收初始化世界数据,创建玩家,重加载地图
 	//PlayerCreate = 2,      // 主机->客机: 创建新玩家
 	//PlayerRemove = 3,       // 主机->客机: 移除玩家
-	PlayerDataUpdate = 4,   // 客机->主机->客机: 玩家数据更新
 	WorldStateSync = 5,     // 主机->客机: 世界状态同步, 如Mess高度
 	BroadcastMessage = 6,   // 客机->主机->客机: 广播信息
-	PlayerDamage = 7,       // 客机->主机->客机: 玩家造成伤害
-	PlayerAddForce = 8,     // 客机->主机->客机: 玩家添加冲击力
 	PlayerDeath = 9,        // 客机->主机->客机: 玩家死亡, 发送广播
 	GameUIMessage = 10,		// 客机->主机->客机: 调用游戏本体UI组件显示消息
-
 	PitonStateSync = 12,    // 客机->主机->客机: 同步已放置可攀爬物(岩钉/自动岩钉/钢筋/带绳钢筋)的创建/敲入/失效状态
-
 	ItemStateSync = 14,     // 客机->主机->客机: 同步物品的扔出/拾取
+
+	// 玩家间互动
+	PlayerDataUpdate = 20,   // 客机->主机->客机: 玩家数据更新
+	PlayerDamage = 21,       // 客机->主机->客机: 玩家造成伤害
+	PlayerAddForce = 22,     // 客机->主机->客机: 玩家添加冲击力
+	PlayerStopInteraction = 23,	// 客机->主机->客机: 玩家停止当前交互(如抓取)
 
 	// 临时措施
 	PlayerTeleportRequest = 40, // 客机->主机->客机: 请求传送

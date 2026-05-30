@@ -269,8 +269,8 @@ public static class ClimbableItemSyncManager {
 
 		var identity = GetOrCreateIdentity(root);
 		if (string.IsNullOrEmpty(identity.NetworkId)) {
-			identity.NetworkId = $"{MPSteamworks.Instance.UserSteamId}:{_nextLocalId++}";
-			identity.OwnerId = MPSteamworks.Instance.UserSteamId;
+			identity.NetworkId = $"{MPSteamworks.UserSteamId}:{_nextLocalId++}";
+			identity.OwnerId = MPSteamworks.UserSteamId;
 			identity.IsRemote = false;
 		}
 
@@ -635,7 +635,7 @@ public static class ClimbableItemSyncManager {
 		if (identity == null || string.IsNullOrEmpty(identity.NetworkId)) return;
 
 		var handhold = GetTrackedHandhold(identity.gameObject);
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, MPProtocol.BroadcastId, PacketType.PitonStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PitonStateSync);
 		writer.Put((byte)action);
 		writer.Put(identity.NetworkId);
 		writer.Put(identity.PrefabKey ?? string.Empty);

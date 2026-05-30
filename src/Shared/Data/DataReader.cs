@@ -105,7 +105,6 @@ public class DataReader {
 	}
 
 	#endregion
-
 	#region[读取可空值类型]
 
 	public byte? GetNullableByte() {
@@ -130,7 +129,6 @@ public class DataReader {
 	}
 
 	#endregion
-
 	#region[读取Unity类型]
 
 	/// <summary>
@@ -164,7 +162,6 @@ public class DataReader {
 	}
 
 	#endregion
-
 	#region[读取复合类型]
 
 	// 获取字符串 (先读取长度 再读取内容)
@@ -194,7 +191,6 @@ public class DataReader {
 	}
 
 	#endregion
-
 	#region[读取自定义类型]
 
 	/// <summary>
@@ -223,7 +219,6 @@ public class DataReader {
 		return data;
 	}
 	#endregion
-
 	#region[读取泛型类型]
 
 	/// <summary>

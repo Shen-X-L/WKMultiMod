@@ -80,7 +80,6 @@ public class MPConfig {
 	private static ConfigEntry<float> _fireDamageMult;
 	public static float FireDamageMult { get { return _fireDamageMult.Value; } }
 	#endregion
-
 	#region[房间规则控制]
 
 	private static ConfigEntry<bool> _allowCheats;

@@ -46,21 +46,10 @@
 
 	<PropertyGroup>
 		<ManagedPath>$(GamePath)\White Knuckle_Data\Managed</ManagedPath>
-		<BepInExPath>$(GamePath)\BepInEx\core</BepInExPath>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Reference Include="$(ManagedPath)\Assembly-CSharp.dll" Private="False" />
 		<Reference Include="$(ManagedPath)\Unity*.dll" Private="False" />
-		<Reference Include="$(ManagedPath)\ALINE.dll" Private="False" />
-		<Reference Include="$(ManagedPath)\Facepunch.Steamworks.Win64.dll" Private="False" />
-		<Reference Include="$(ManagedPath)\Newtonsoft.Json.dll" Private="False" />
-		<Reference Include="$(ManagedPath)\DOTween.dll" Private="False" />
-
-		<Reference
-			Include="$(BepInExPath)\*.dll"
-			Exclude="$(BepInExPath)\0Harmony20.dll"
-			Private="False" />
 	</ItemGroup>
 </Project>
 

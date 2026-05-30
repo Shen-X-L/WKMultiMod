@@ -103,7 +103,7 @@ public static class ItemSyncManager {
 		if (!MPCore.CanSync) return;
 		if (!MPSteamworks.Instance.IsHost) return;
 		if (MPCore.Instance == null) return;
-		if (clientId == 0 || clientId == MPSteamworks.Instance.UserSteamId) return;
+		if (clientId == 0 || clientId == MPSteamworks.UserSteamId) return;
 
 		if (_snapshotRoutines.TryGetValue(clientId, out var existingRoutine) && existingRoutine != null) {
 			MPCore.Instance.StopCoroutine(existingRoutine);
@@ -410,11 +410,11 @@ public static class ItemSyncManager {
 		}
 
 		if (string.IsNullOrEmpty(identity.NetworkId)) {
-			identity.NetworkId = $"{MPSteamworks.Instance.UserSteamId}:item:{_nextHostItemId++}";
+			identity.NetworkId = $"{MPSteamworks.UserSteamId}:item:{_nextHostItemId++}";
 		}
 
 		identity.PrefabKey = prefabKey;
-		identity.OwnerId = MPSteamworks.Instance.UserSteamId;
+		identity.OwnerId = MPSteamworks.UserSteamId;
 		identity.IsRemote = false;
 		identity.WasInstantiatedBySync = false;
 
@@ -691,14 +691,14 @@ public static class ItemSyncManager {
 	}
 
 	private static void SendSnapshotReset(ulong clientId) {
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, clientId, PacketType.ItemStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.SnapshotReset);
 
 		MPSteamworks.Instance.SendToPeer(clientId, writer);
 	}
 
 	private static void SendSnapshotFinalize(ulong clientId) {
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, clientId, PacketType.ItemStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.SnapshotFinalize);
 
 		MPSteamworks.Instance.SendToPeer(clientId, writer);
@@ -713,7 +713,7 @@ public static class ItemSyncManager {
 	) {
 		if (identity == null || itemObject == null || string.IsNullOrEmpty(identity.NetworkId)) return;
 
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, clientId, PacketType.ItemStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.Create);
 		writer.Put(identity.NetworkId);
 		writer.Put(identity.PrefabKey);
@@ -728,7 +728,7 @@ public static class ItemSyncManager {
 	private static void BroadcastCreate(NetworkedItem identity, Item_Object itemObject, Vector3 velocity, bool isDropSpawn) {
 		if (identity == null || itemObject == null || string.IsNullOrEmpty(identity.NetworkId)) return;
 
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, MPProtocol.BroadcastId, PacketType.ItemStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.Create);
 		writer.Put(identity.NetworkId);
 		writer.Put(identity.PrefabKey);
@@ -741,7 +741,7 @@ public static class ItemSyncManager {
 	}
 
 	private static void BroadcastRemove(string networkId) {
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, MPProtocol.BroadcastId, PacketType.ItemStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.Remove);
 		writer.Put(networkId);
 
@@ -751,7 +751,7 @@ public static class ItemSyncManager {
 	}
 
 	private static void SendPickupRequest(string networkId) {
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.ItemStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.PickupRequest);
 		writer.Put(networkId);
 
@@ -761,7 +761,7 @@ public static class ItemSyncManager {
 	}
 
 	private static void SendDropRequest(string prefabKey, Vector3 position, Quaternion rotation, Vector3 velocity) {
-		var writer = GetWriter(MPSteamworks.Instance.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.ItemStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.DropRequest);
 		writer.Put(prefabKey);
 		writer.Put(position);

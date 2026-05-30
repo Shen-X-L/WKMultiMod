@@ -149,7 +149,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
-
 	#region[主菜单UI]
 
 	// 在主菜单创建多人模式按钮
@@ -176,7 +175,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
-
 	#region[多人模式菜单]
 
 	// 创建多人模式大厅屏幕
@@ -403,7 +401,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
-
 	#region[初始化UI关联]
 
 	// 初始化UI关联
@@ -431,7 +428,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
-
 	#region[Loading界面构建]
 
 	public void CreateLoadingScreen() {
@@ -450,7 +446,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
-
 	#region[工具函数]
 
 	// 修复UI_LerpOpen组件可能存在的目标位置和缩放问题
@@ -482,20 +477,18 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		return false;
 	}
 	#endregion
-
 	#region[API函数]
 
 	public static DataWriter BuildingMessage(string message, UIDisplayType type, ulong senderId = 0, ulong targetId = MPProtocol.BroadcastId, float duration = 5.0f, bool logToConsole = false) {
 		if (message == null) return null;
 		if (senderId == 0)
-			senderId = MPSteamworks.Instance.UserSteamId;
+			senderId = MPSteamworks.UserSteamId;
 		var writer = GetWriter(senderId, targetId, PacketType.GameUIMessage);
 		writer.Put(message).Put((byte)type).Put(duration).Put(logToConsole);
 		return writer;
 	}
 
 	#endregion
-
 	#region[主游戏屏幕显示]
 
 	public static void DisplayMessage(string message, UIDisplayType type,float duration = 5.0f) {

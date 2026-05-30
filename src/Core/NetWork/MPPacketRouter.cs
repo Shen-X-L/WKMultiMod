@@ -100,7 +100,6 @@ public class MPPacketRouter {
 		}
 	}
 	#endregion
-
 	#region[注册路由接口]
 
 	public static void RegisterRoute(PacketType packetType, Action<ulong, DataReader> handler) {
@@ -135,13 +134,11 @@ public class MPPacketRouter {
 	}
 
 	#endregion
-
 	#region[生命周期函数]
 	public static void Initialize() {
 		MPEventBusNet.OnReceiveData += Route;
 	}
 	#endregion
-
 	#region[数据转换+路由]
 	public static void Route(ulong connectionId, ArraySegment<byte> data) {
 		// 确保数据足够读取一个整数(数据包类型)
@@ -153,7 +150,7 @@ public class MPPacketRouter {
 		var (senderId, targetId, packetType) = PeekHeader(data);
 
 		// 转发:目标不是我,也不是广播,也不是特殊判断ID
-		if (targetId != MPSteamworks.Instance.UserSteamId
+		if (targetId != MPSteamworks.UserSteamId
 			&& targetId != MPProtocol.BroadcastId
 			&& targetId != MPProtocol.SpecialId) {
 
@@ -163,7 +160,7 @@ public class MPPacketRouter {
 
 		// 广播:如果是广播,且不是我发出的
 		if (targetId == MPProtocol.BroadcastId
-			&& senderId != MPSteamworks.Instance.UserSteamId) {
+			&& senderId != MPSteamworks.UserSteamId) {
 
 			// P2P直连模式不需要进行广播包转发
 			//ProcessBroadcastExcept(senderId, data);
@@ -181,14 +178,13 @@ public class MPPacketRouter {
 			FastHandlers[packetType](senderId, reader);
 		} catch (Exception e) {
 			if (DebugTick.TryTick()) {
-				MPMain.LogError(Localization.Get("MPPacketRouter.HandlerException", packetType, e.Message));
+				MPMain.LogError(Localization.Get("MPPacketRouter.HandlerException", packetType, e));
 				MPMain.LogError($"[MP Debug] receive package. connectionId: {connectionId} senderId: {senderId} targetId: {targetId} packetType: {packetType}");
 				MPMain.LogError($"[MP Debug] Hexadecimal data: {BitConverter.ToString(data.Array, data.Offset + 18, data.Count - 18)}");
 			}
 		}
 	}
 	#endregion
-
 	#region[网络发送工具类]
 	/// <summary>
 	/// 转发网络数据包到指定的客户端

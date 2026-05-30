@@ -52,7 +52,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	// 本机Id
-	public ulong UserSteamId { get => SteamClient.SteamId; }
+	public static ulong UserSteamId { get => SteamClient.SteamId; }
 	// 主机Id													
 	public ulong HostSteamId { get; private set; }
 
@@ -189,7 +189,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[RAII函数]
 
 	/// <summary>
@@ -232,7 +231,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[发送数据函数]
 
 	/// <summary>
@@ -334,7 +332,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 	#endregion
-
 	#region[消息处理函数]
 	/// <summary>
 	/// 接收数据: 任意玩家->消息队列
@@ -381,7 +378,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 	#endregion
-
 	#region[连接/断连 回调函数]
 
 	/// <summary>
@@ -416,7 +412,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[连接器管理函数]
 
 	/// <summary>
@@ -502,7 +497,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[创建/加入大厅函数]
 
 	/// <summary>
@@ -587,7 +581,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[Steam事件处理函数]
 	/// <summary>
 	/// 接收数据: 进入到大厅<br/>
@@ -768,7 +761,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[重连机制]
 
 	/// <summary>
@@ -864,7 +856,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[SocketManager接口实现]
 
 	// 有玩家正在接入
@@ -894,7 +885,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[Steam 连接Connection管理器]
 	internal class SteamConnectionManager : ConnectionManager, IConnectionManager {
 
@@ -923,7 +913,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 	#endregion
-
 	#region[工具/API函数]
 
 	/// <summary>
@@ -1077,7 +1066,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 	#endregion
-
 	#region[大厅检索]
 
 	/// <summary>
@@ -1146,7 +1134,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
-
 	#region[富状态控制]
 
 	public void DebugTest() {

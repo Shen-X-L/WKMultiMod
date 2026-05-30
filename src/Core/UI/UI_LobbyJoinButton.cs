@@ -30,7 +30,6 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	private bool isHovering;                    // 是否正在悬停/选中
 	public TMP_Text? unlockText;                // 锁定原因文本(显示在锁定图标旁边, 解释为什么不可加入)
 	#endregion
-
 	#region[原UI_CapsuleButton字段]
 	public float showDelayAnimation;            // 显示动画延迟时间
 	public Selectable? button;                  // 按钮组件引用
@@ -245,7 +244,6 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	}
 
 	#endregion
-
 	#region[大厅加入事件回调]
 	// 加入中 - 目前没有额外逻辑
 	public void Joining() {
@@ -281,7 +279,6 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	}
 
 	#endregion
-
 	#region[动画相关]
 	/// <summary>
 	/// 显示按钮动画 - 通常在容器启用时调用, 实现按钮逐个出现的效果

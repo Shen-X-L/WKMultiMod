@@ -1,11 +1,13 @@
 ﻿using Steamworks;
 using System;
+using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Events;
 using WKMPMod.Asset;
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.NetWork;
 using WKMPMod.Util;
 using static Steamworks.InventoryItem;
 using Object = UnityEngine.Object;
@@ -24,6 +26,7 @@ public class RPContainer {
 	private RemoteHand _remoteRightHand;
 	private RemoteTag _remoteTag;
 	private RemoteEntity[] _remoteEntities;
+	private ObjectTagger[] _objectTaggers;
 
 	// 死亡后0.5秒内不接受更新, 避免瞬移和动画冲突
 	private bool _isDead = false;
@@ -32,21 +35,7 @@ public class RPContainer {
 	// 玩家模型信息数据
 	public string prefabId;
 
-	public PlayerData PlayerData {
-		get {
-			var data = new PlayerData {
-				playId = this.PlayerId,
-				TimestampTicks = DateTime.UtcNow.Ticks,
-				IsTeleport = true,
-			};
-			data.Position = PlayerObject.transform.position;
-			data.Rotation = PlayerObject.transform.rotation;
-
-			data.LeftHand = new PlayerData.HandData { };
-			data.RightHand = new PlayerData.HandData { };
-			return data;
-		}
-	}
+	#region[RAII函数]
 
 	// 构造函数 - 只设置基本信息
 	public RPContainer(ulong playId, string prefabId) {
@@ -69,12 +58,6 @@ public class RPContainer {
 			// 组件初始化
 			InitializeAllComponent(PlayerObject);
 			InitializeAllComponentData();
-			// 设为原点
-			var temp = new PlayerData {
-				IsTeleport = true,
-				Position = new Vector3(0, -2, 0),
-			};
-			HandlePlayerData(ref temp);
 			// 直接送去视野外进行隐藏
 			PlayerObject.transform.position = new Vector3(0, -9999f, 0);
 			// Debug
@@ -90,6 +73,7 @@ public class RPContainer {
 		}
 	}
 
+	#endregion
 	#region[新创建组件函数]
 
 	// 初始化远程实体组件引用
@@ -97,12 +81,25 @@ public class RPContainer {
 		_remotePlayer = instance.GetComponentInChildren<Component.RemotePlayer>();
 		_remoteTag = instance.GetComponentInChildren<RemoteTag>();
 		_remoteEntities = instance.GetComponentsInChildren<RemoteEntity>();
+		_objectTaggers = instance.GetComponentsInChildren<ObjectTagger>();
 
 		// 处理左右手:获取所有 RemoteHand,然后通过内部字段区分
 		RemoteHand[] hands = instance.GetComponentsInChildren<RemoteHand>();
 		foreach (var hand in hands) {
-			if (hand.hand == HandType.Left) _remoteLeftHand = hand;
-			else if (hand.hand == HandType.Right) _remoteRightHand = hand;
+			if (hand.handType == 0) _remoteLeftHand = hand;
+			else if (hand.handType == 1) _remoteRightHand = hand;
+		}
+
+		Transform[] allChildren = instance.GetComponentsInChildren<Transform>(true);
+
+		foreach (Transform child in allChildren) {
+			// 如果还没有该组件, 则添加
+			if (child.TryGetComponent<RPContainerRef>(out var containerRef)) {
+				containerRef.container = this;
+			} else {
+				var parent = child.gameObject.AddComponent<RPContainerRef>();
+				parent.container = this;
+			}
 		}
 	}
 
@@ -116,10 +113,12 @@ public class RPContainer {
 				entity.playerId = PlayerId;
 			}
 		}
+		_remotePlayer?.playerId = PlayerId;
+		_remoteLeftHand?.playerId = PlayerId;
+		_remoteRightHand?.playerId = PlayerId;
 	}
 
 	#endregion
-
 	#region[新对象清理函数]
 
 	// 销毁方法 - 清理所有资源
@@ -134,7 +133,6 @@ public class RPContainer {
 	}
 
 	#endregion
-
 	#region[数据更新]
 
 	/// <summary>
@@ -142,7 +140,7 @@ public class RPContainer {
 	/// </summary>
 	public void HandlePlayerData(ref PlayerData playerData) {
 		// 死亡后0.5秒内不接受更新, 避免瞬移和动画冲突
-		if (_isDead && !_deathTick.IsTickReached) {
+		if (_isDead && !_deathTick.IsTickReached || PlayerObject == null || _remotePlayer == null) {
 			return;
 		}
 
@@ -156,15 +154,15 @@ public class RPContainer {
 			_remotePlayer.Teleport(playerData.Position, playerData.Rotation);
 
 			Vector3 leftTarget = playerData.LeftHand.Position;
-			_remoteLeftHand.Teleport(leftTarget);
+			_remoteLeftHand.TeleportToPosition(leftTarget);
 
 			Vector3 rightTarget = playerData.RightHand.Position;
-			_remoteRightHand.Teleport(rightTarget);
+			_remoteRightHand.TeleportToPosition(rightTarget);
 		} else {
 			// 使用插值更新
 			_remotePlayer.UpdateFromPlayerData(playerData.Position, playerData.Rotation);
-			_remoteLeftHand.UpdateFromHandData(ref playerData.LeftHand);
-			_remoteRightHand.UpdateFromHandData(ref playerData.RightHand);
+			_remoteLeftHand.UpdateFromHandData(ref playerData.LeftHand, MPSteamworks.UserSteamId);
+			_remoteRightHand.UpdateFromHandData(ref playerData.RightHand, MPSteamworks.UserSteamId);
 		}
 	}
 
@@ -204,5 +202,18 @@ public class RPContainer {
 		// 死亡后重置死亡计时器, 1秒内不接受更新, 避免瞬移和动画冲突
 		_deathTick.Reset();
 	}
+
+	public void AddAllObjectTagger(string tag) {
+		foreach (var tagger in _objectTaggers) {
+			tagger.AddTag(tag);
+		}
+	}
+
+	public void RemoveAllObjectTagger(string tag) {
+		foreach (var tagger in _objectTaggers) {
+			tagger.RemoveTag(tag);
+		}
+	}
+
 	#endregion
 }

@@ -1,10 +1,12 @@
 ﻿using System.Collections;
 using UnityEngine;
-using WKMPMod.Data;
 
 namespace WKMPMod.Component;
 // MultiPlayerComponent: 管理玩家的网络同步位置和旋转
 public class RemotePlayer : MonoBehaviour {
+	// 玩家ID,用于识别玩家
+	public ulong playerId;    
+
 	[Header("距离设置")]
 	[Tooltip("当当前位置与目标位置超过此距离时直接瞬移")]
 	public float teleportThreshold = 50f;	// Unity可编辑的瞬移阈值
@@ -14,7 +16,7 @@ public class RemotePlayer : MonoBehaviour {
 
 	private bool _isTeleporting = false;    // 是否进行了传送
 	private Vector3 _targetPosition;	// 目标位置
-	private Vector3 _velocity = Vector3.zero;	// 当前速度,用于平滑插值
+	private Vector3 _velocity = Vector3.zero;   // 当前速度,用于平滑插值
 
 	// 每帧更新位置
 	void LateUpdate() {

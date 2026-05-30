@@ -40,6 +40,17 @@ public static class RPPrefabProcessor {
 	}
 
 	private static void ProcessPrefabMarkers(GameObject prefab) {
+		var rootRigidbody = prefab.GetComponent<Rigidbody>();
+
+		foreach (var mk in prefab.GetComponentsInChildren<MK_RemoteHand>(true)) {
+			var component = mk.gameObject.AddComponent<RemoteHand>();
+			component.handType = mk.hand;
+			component.teleportThreshold = mk.teleportThreshold;
+			component.fastSmoothDistance = mk.fastSmoothDistance;
+			component.basePullStrength = mk.basePullStrength;
+			Object.DestroyImmediate(mk);
+		}
+
 		// 1. 处理受击实体
 		foreach (var mk in prefab.GetComponentsInChildren<MK_RemoteEntity>(true)) {
 			var component = mk.gameObject.AddComponent<RemoteEntity>();
@@ -73,4 +84,5 @@ public static class RPPrefabProcessor {
 			la.userScale = MPConfig.NameTagScale;
 		}
 	}
+
 }

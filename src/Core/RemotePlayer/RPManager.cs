@@ -56,7 +56,6 @@ public class RPManager : Singleton<RPManager> {
 		RPFactoryManager.Instance.ClearPrefabCache();
 	}
 	#endregion
-
 	#region[创建/销毁玩家]
 	/// <summary>
 	/// 根据Id创建玩家
@@ -65,17 +64,23 @@ public class RPManager : Singleton<RPManager> {
 		if (Players.TryGetValue(playId, out var existing))
 			return existing;
 
-		var container = new RPContainer(playId, prefab);
-
-		// 从工厂直接获取实例
+		// 从工厂获取物体
 		GameObject instance = RPFactoryManager.Instance.Create(prefab);
-
 		if (instance == null) {
 			MPMain.LogError(Localization.Get("RPManager.FactoryCreateObjectFailed"));
 			return null;
 		}
 
-		container.Initialize(instance, _remotePlayersRoot);
+		// 构造纯 C# 对象
+		var container = new RPContainer(playId, prefab);
+
+		// 检查初始化是否成功
+		if (!container.Initialize(instance, _remotePlayersRoot)) {
+			// Initialize 内部已经 Destroy 了 instance，这里直接返回 null 即可
+			return null;
+		}
+
+		// 成功后才写入缓存
 		Players[playId] = container;
 		return container;
 	}
@@ -105,7 +110,6 @@ public class RPManager : Singleton<RPManager> {
 		}
 	}
 	#endregion
-
 	#region[处理消息]
 
 	/// <summary>
@@ -265,7 +269,6 @@ public class RPManager : Singleton<RPManager> {
 		}
 	}
 	#endregion
-
 	#region[获取玩家对象]
 
 	// 返回玩家对象
@@ -278,4 +281,53 @@ public class RPManager : Singleton<RPManager> {
 		return null;
 	}
 	#endregion
+	#region[工具函数]
+
+	/// <summary>
+	/// 根据距离将远程玩家列表分为两组, 实现视野内和视野外的分层同步
+	/// 返回 ulong(玩家ID) 列表, 以便直接交给网络层调用 SendToPeer
+	/// </summary>
+	/// <param name="origin">计算距离的中心点(通常为本地玩家坐标)</param>
+	/// <param name="distanceThreshold">距离阈值</param>
+	/// <param name="farPlayers">输出: 距离 >= 阈值的玩家ID集合</param>
+	/// <param name="nearPlayers">输出: 距离 < 阈值的玩家ID集合</param>
+	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, out List<ulong> farPlayers, out List<ulong> nearPlayers) {
+		farPlayers = new List<ulong>();
+		nearPlayers = new List<ulong>();
+
+		// 使用平方距离计算, 避免使用开销较大的 Vector3.Distance (开平方运算)
+		float sqrThreshold = distanceThreshold * distanceThreshold;
+
+		foreach (var kvp in Players) {
+			ulong playerId = kvp.Key;
+			RPContainer container = kvp.Value;
+
+			// 安全检查: 忽略无效的远程玩家实体
+			if (container == null || container.PlayerObject == null) {
+				continue;
+			}
+
+			float sqrDistance = (container.PlayerObject.transform.position - origin).sqrMagnitude;
+			if (sqrDistance >= sqrThreshold) {
+				farPlayers.Add(playerId);
+			} else {
+				nearPlayers.Add(playerId);
+			}
+		}
+	}
+
+	public void AddAllObjectTagger(string tag) {
+		foreach (var (id, container) in Players) {
+			container.AddAllObjectTagger(tag);
+		}
+	}
+
+	public void RemoveAllObjectTagger(string tag) {
+		foreach (var (id, container) in Players) {
+			container.RemoveAllObjectTagger(tag);
+		}
+	}
+
+	#endregion
+
 }

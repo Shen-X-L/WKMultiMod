@@ -17,16 +17,16 @@ public static class MPEventBusGame {
 	/// <see cref="MPCore.HandlePlayerDamage"><br/>
 	/// <see cref="RPContainer.ProcessPlayerDeath"><br/>
 	/// </summary>
-	public static event Action<ulong, Damageable.DamageInfo> OnPlayerDamage;
+	public static event Action<IDType, Damageable.DamageInfo> OnPlayerDamage;
 	/// <summary>
 	/// 调用者 <see cref="RemoteEntity.Damage">
 	/// </summary>
-	public static void NotifyPlayerDamage(ulong steamId, Damageable.DamageInfo info)
+	public static void NotifyPlayerDamage(IDType steamId, Damageable.DamageInfo info)
 		=> OnPlayerDamage?.Invoke(steamId, info);
 
 	// 游戏组件事件: 受到冲击力
-	public static event Action<ulong, Vector3, string> OnPlayerAddForce;
-	public static void NotifyPlayerAddForce(ulong steamId, Vector3 force, string source)
+	public static event Action<IDType, Vector3, string> OnPlayerAddForce;
+	public static void NotifyPlayerAddForce(IDType steamId, Vector3 force, string source = "")
 		=> OnPlayerAddForce?.Invoke(steamId, force, source);
 
 	// 游戏事件: 玩家死亡
@@ -49,4 +49,12 @@ public static class MPEventBusGame {
 	// UI事件: 刷新大厅列表
 	public static event Func<Task> OnRefreshLobbyList;
 	public static void NotifyRefreshLobbyList() => OnRefreshLobbyList?.Invoke();
+
+	// 远程玩家 抓取/松开 了本地玩家
+	public static event Action<IDType, bool> OnRemoteGrabStateChanged;
+	// 远程玩家 拖拽/释放 了本地玩家
+	public static event Action<IDType, bool> OnRemotePullStateChanged;
+
+	public static void NotifyRemoteGrab(IDType playerId, bool isActive) => OnRemoteGrabStateChanged?.Invoke(playerId, isActive);
+	public static void NotifyRemotePull(IDType playerId, bool isActive) => OnRemotePullStateChanged?.Invoke(playerId, isActive);
 }
