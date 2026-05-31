@@ -1,16 +1,18 @@
 ﻿using HarmonyLib;
+using Steamworks.Data;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
 using static Clickable;
 
 namespace WKMPMod.Component;
 
-public class RemoteEntity : CL_Prop, Clickable {
+public class RemoteEntity : CL_Prop {
 	public ulong playerId;
 	// 使用 Harmony 的 FieldRef 高效读写基类 CL_Prop 中的私有变量 rigid 和 initialized
 	private static readonly AccessTools.FieldRef<CL_Prop, Rigidbody> PropRigidRef =
@@ -62,6 +64,11 @@ public class RemoteEntity : CL_Prop, Clickable {
 
 		// 发布到事件总线
 		MPEventBusGame.NotifyPlayerDamage(playerId, info);
+
+		// 如果对方正在抓着我，强制对方放手
+		if (LocalPlayer.IsHoldingMe(playerId))
+			MPEventBusGame.NotifyPlayerStopInteraction(playerId);
+
 		// 会不会死由对方决定
 		return false;
 	}
@@ -89,30 +96,6 @@ public class RemoteEntity : CL_Prop, Clickable {
 
 	// 舌头拉扯
 	public override void TonguePull(Vector3 v) { 
-	}
-	#endregion
-	#region[Clickable实现]
-
-	void Clickable.Interact(InteractionInfo info) { 
-	}
-
-	void Clickable.StartInteract(ENT_Player p, string s) {
-	}
-
-	void Clickable.StopInteract(ENT_Player p, string s) {
-	}
-
-	void Clickable.StopInteract(ENT_Player p, ENT_Player.Hand hand, string s) {
-	}
-
-	bool Clickable.CanInteract(Interaction info) {
-		return true;
-	}
-	ObjectTagger Clickable.GetTagger() {
-		return gameObject.GetComponent<ObjectTagger>();
-	}
-	GameObject Clickable.GetGameObject() {
-		return gameObject;
 	}
 	#endregion
 	#region[]
@@ -168,4 +151,5 @@ public class DamageRules {
 	public float Other;
 	public float FireTime;
 	public float FireDamage;
+	
 }

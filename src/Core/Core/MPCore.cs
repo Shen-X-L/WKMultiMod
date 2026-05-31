@@ -102,7 +102,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 可在此添加更多映射
 	};
 
-	#region[Unity组件生命周期函数]
+	#region[Unity生命周期函数]
 	protected override void Awake() {
 		base.Awake();
 		// Debug
@@ -126,16 +126,18 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 定期检查玩家数量和连接状态,修复异常状态
 		CheckAndRepairPlayers();
 
-		//// 检测是否启用不攀爬模式并修改ObjectTagger
-		//if (focusMode != Patch_ENT_Player.IsFocusModeActive()) {
-		//	focusMode = !focusMode;
-		//	// 是专注模式 添加Pickupable标签
-		//	if (focusMode) {
-		//		_RPManager.AddAllObjectTagger("Pickupable");
-		//	} else {
-		//		_RPManager.RemoveAllObjectTagger("Pickupable");
-		//	}
-		//}
+		// 检测是否启用不攀爬模式并修改ObjectTagger
+		if (focusMode != Patch_ENT_Player.IsFocusModeActive()) {
+			focusMode = !focusMode;
+			// 是专注模式 添加Pickupable标签
+			if (focusMode) {
+				_RPManager.AddAllObjectTagger("Pickupable");
+				_RPManager.AddAllObjectTagger("Button");
+			} else {
+				_RPManager.RemoveAllObjectTagger("Pickupable");
+				_RPManager.RemoveAllObjectTagger("Button");
+			}
+		}
 	}
 
 	/// <summary>
@@ -228,6 +230,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusGame.OnPlayerAddForce += HandlePlayerAddForce;
 		MPEventBusGame.OnPlayerDeath += HandlePlayerDeath;
 		MPEventBusGame.OnPlayerWin += HandlePlayerWin;
+		MPEventBusGame.OnPlayerStopInteraction += HandlePlayerStopInteraction;
 	}
 
 	/// <summary>
@@ -256,6 +259,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusGame.OnPlayerAddForce -= HandlePlayerAddForce;
 		MPEventBusGame.OnPlayerDeath -= HandlePlayerDeath;
 		MPEventBusGame.OnPlayerWin -= HandlePlayerWin;
+		MPEventBusGame.OnPlayerStopInteraction -= HandlePlayerStopInteraction;
 	}
 
 	#endregion
@@ -378,7 +382,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 发送伤害其他玩家数据<br/>
 	/// 接受路由函数: <see cref="MPPacketHandlers.HandlePlayerDamage"/>
 	/// </summary>
-	private void HandlePlayerDamage(ulong steamId, Damageable.DamageInfo info) {
+	private void HandlePlayerDamage(IDType steamId, Damageable.DamageInfo info) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, steamId, PacketType.PlayerDamage);
 		writer.Put(info.amount);
 		writer.Put(info.type);
@@ -391,7 +395,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 发送给予其他玩家冲击力数据<br/>
 	/// 接受路由函数: <see cref="MPPacketHandlers.HandlePlayerAddForce"/><br/>
 	/// </summary>
-	private void HandlePlayerAddForce(ulong steamId, Vector3 force, string source) {
+	private void HandlePlayerAddForce(IDType steamId, Vector3 force, string source) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, steamId, PacketType.PlayerAddForce);
 		writer.Put(force.x);
 		writer.Put(force.y);
@@ -438,6 +442,15 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 发送胜利信息
 			_MPsteamworks.Broadcast(writerMessage);
 	}
+
+	/// <summary>
+	/// 发送玩家停止交互信息<br/>
+	/// </summary>
+	/// <param name="steamId"></param>
+	private void HandlePlayerStopInteraction(IDType steamId) {
+		MPSteamworks.Instance.SendToPeer(steamId, GetWriter(MPSteamworks.UserSteamId, steamId, PacketType.PlayerStopInteraction), SendType.Reliable);
+	}
+
 	#endregion
 	#region[命令注册]
 
@@ -1145,16 +1158,6 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		if (delta.TryGetValue(MPKeys.DAMAGE_CONFIG, out var damageValue)) {
 			damageRules = JsonConvert.DeserializeObject<DamageRules>(damageValue) ?? new DamageRules();
-
-			// 前向兼容
-			if (damageRules.FireTime == 0) {
-				damageRules.FireTime = MPConfig.FireTimeMult;
-			}
-			if (damageRules.FireDamage == 0) {
-				damageRules.FireDamage = MPConfig.FireDamageMult;
-			}
-			ENT_Player.GetPlayer()?.fireTimeMult = damageRules.FireTime;
-			ENT_Player.GetPlayer()?.fireDamageMult = damageRules.FireDamage;
 		}
 	}
 

@@ -22,13 +22,13 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	public bool ShouldSendData { get; set; } = false;
 
 	// 玩家标识
-	public ulong UserId { get; private set; }          // 本地玩家SteamID
+	public IDType UserId { get; private set; }          // 本地玩家SteamID
 	public string FactoryId { get; set; }   // 预制体工厂ID
 	public string DefaulFactoryId { get; set; } = "default"; // 默认工厂ID,如果没有指定工厂ID则使用这个
 
 	// 状态存储: 谁正在对本地玩家施加交互
-	private readonly HashSet<ulong> _playersPullingMe = new();    // 被该Id的玩家拖拽
-	private readonly HashSet<ulong> _playersGrabbingMe = new();   // 被该Id的玩家抓取
+	private readonly HashSet<IDType> _playersGrabbingMe = new();    // 被该Id的玩家拖拽
+	private readonly HashSet<IDType> _playersHangingMe = new();   // 被该Id的玩家抓取
 
 	// 状态缓存
 	private PlayerData _lastPlayerData;
@@ -47,8 +47,8 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	public void Start() {
 		InitializeTimers();
 		CachePlayerReferences();
+		MPEventBusGame.OnRemoteHangStateChanged += HandleRemoteHangChanged;
 		MPEventBusGame.OnRemoteGrabStateChanged += HandleRemoteGrabChanged;
-		MPEventBusGame.OnRemotePullStateChanged += HandleRemotePullChanged;
 	}
 
 	public void Update() {
@@ -62,8 +62,8 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	protected override void OnDestroy() {
 		base.OnDestroy();
 		// 组件销毁时必须注销事件，防止内存泄漏
+		MPEventBusGame.OnRemoteHangStateChanged -= HandleRemoteHangChanged;
 		MPEventBusGame.OnRemoteGrabStateChanged -= HandleRemoteGrabChanged;
-		MPEventBusGame.OnRemotePullStateChanged -= HandleRemotePullChanged;
 	}
 	#endregion
 	#region[初始化方法]
@@ -83,27 +83,27 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	}
 
 	// 重置状态缓存
-	public void Initialize(ulong userId,string factoryId) {
+	public void Initialize(IDType userId,string factoryId) {
 		UserId = userId;
 		DefaulFactoryId = factoryId;
 		FactoryId = factoryId;
 		_lastPlayerData = default;
 
-		_playersPullingMe.Clear();
 		_playersGrabbingMe.Clear();
+		_playersHangingMe.Clear();
 	}
 
 	#endregion
 	#region[[网络事件回调]]
 
-	private void HandleRemoteGrabChanged(ulong remoteId, bool isActive) {
-		if (isActive) _playersGrabbingMe.Add(remoteId);
-		else _playersGrabbingMe.Remove(remoteId);
+	private void HandleRemoteHangChanged(IDType remoteId, bool isActive) {
+		if (isActive) _playersHangingMe.Add(remoteId);
+		else _playersHangingMe.Remove(remoteId);
 	}
 
-	private void HandleRemotePullChanged(ulong remoteId, bool isActive) {
-		if (isActive) _playersPullingMe.Add(remoteId);
-		else _playersPullingMe.Remove(remoteId);
+	private void HandleRemoteGrabChanged(IDType remoteId, bool isActive) {
+		if (isActive) _playersGrabbingMe.Add(remoteId);
+		else _playersGrabbingMe.Remove(remoteId);
 	}
 
 	#endregion
@@ -210,7 +210,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			case InteractType.grab: {
 				if (hand.grabTarget?.gameObject.TryGetComponent<RPContainerRef>(out var parent) == true) {
 					targetRemoteId = parent.container.PlayerId;
-					if (targetRemoteId != 0 && _playersPullingMe.Contains(targetRemoteId)) {
+					if (targetRemoteId != 0 && _playersGrabbingMe.Contains(targetRemoteId)) {
 						data.interactState = (byte)InteractType.none;
 						data.itemName = "None";
 						ReleaseAndRepelLocalHand(handIndex, targetRemoteId);
@@ -219,6 +219,8 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 						data.targetId = targetRemoteId;
 						data.DesiredPosition = _cachedPlayer.camTransform.position + _cachedPlayer.camTransform.forward * 1.8f;
 					}
+				} else {
+					data.interactState = (byte)InteractType.grab;
 				}
 				break;
 			}
@@ -226,7 +228,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			case InteractType.hanging: {
 				if (hand.handhold?.gameObject.TryGetComponent<RPContainerRef>(out var parent) == true) {
 					targetRemoteId = parent.container.PlayerId;
-					if (targetRemoteId != 0 && _playersGrabbingMe.Contains(targetRemoteId)) {
+					if (targetRemoteId != 0 && _playersHangingMe.Contains(targetRemoteId)) {
 						data.interactState = (byte)InteractType.none;
 						data.itemName = "None";
 						ReleaseAndRepelLocalHand(handIndex, targetRemoteId);
@@ -234,6 +236,8 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 						data.interactState = (byte)InteractType.hanging;
 						data.targetId = targetRemoteId;
 					}
+				} else {
+					data.interactState = (byte)InteractType.hanging;
 				}
 				break;
 			}
@@ -243,6 +247,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			}
 		}
 	}
+
 	#endregion
 	#region[辅助函数]
 
@@ -276,9 +281,16 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	public void ReleaseAndRepelLocalHand(int handIndex, IDType targetRemoteId) {
 		_cachedPlayer.StopInteraction(handIndex);
 		_cachedPlayer.AddForce(-_cachedPlayer.camTransform.forward, "RepelByRemote");
-		MPSteamworks.Instance.SendToPeer(targetRemoteId, GetWriter(MPSteamworks.UserSteamId, targetRemoteId, PacketType.PlayerStopInteraction), SendType.Reliable);
+		MPEventBusGame.NotifyPlayerStopInteraction(targetRemoteId);
 	}
 	#endregion
+	#region[API函数]
 
+	public static bool IsHoldingMe(IDType targetRemoteId) { 
+		if (Instance._cachedPlayer == null) return false;
+		return Instance._playersGrabbingMe.Contains(targetRemoteId)|| Instance._playersHangingMe.Contains(targetRemoteId);
+	}
+
+	#endregion
 }
 

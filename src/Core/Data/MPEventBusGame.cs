@@ -8,14 +8,16 @@ using WKMPMod.RemotePlayer;
 namespace WKMPMod.Data;
 
 public static class MPEventBusGame {
+	#region[游戏事件]
+
 	// 游戏事件: 广播位置
 	public static event Action<PlayerData> OnPlayerMove;
 	public static void NotifyPlayerMove(PlayerData playerData) => OnPlayerMove?.Invoke(playerData);
 
 	/// <summary>
-	/// 游戏组件事件: 收到攻击 订阅者:<br/>
-	/// <see cref="MPCore.HandlePlayerDamage"><br/>
-	/// <see cref="RPContainer.ProcessPlayerDeath"><br/>
+	/// 游戏组件事件: 受到攻击 订阅者:<br/>
+	/// <see cref="MPCore.HandlePlayerDamage"/><br/>
+	/// <see cref="RPManager.ProcessPlayerDamage"/><br/>
 	/// </summary>
 	public static event Action<IDType, Damageable.DamageInfo> OnPlayerDamage;
 	/// <summary>
@@ -37,6 +39,12 @@ public static class MPEventBusGame {
 	public static event Action OnPlayerWin;
 	public static void NotifyPlayerWin() => OnPlayerWin?.Invoke();
 
+	// 游戏事件: 命令目标玩家停止抓握/拖拽交互
+	public static event Action<IDType> OnPlayerStopInteraction;
+	public static void NotifyPlayerStopInteraction(IDType playerId) => OnPlayerStopInteraction?.Invoke(playerId);
+
+	#endregion
+	#region[UI事件]
 
 	// UI事件: 显示加载界面
 	public static event Action<float> OnShowLoading;
@@ -51,10 +59,12 @@ public static class MPEventBusGame {
 	public static void NotifyRefreshLobbyList() => OnRefreshLobbyList?.Invoke();
 
 	// 远程玩家 抓取/松开 了本地玩家
-	public static event Action<IDType, bool> OnRemoteGrabStateChanged;
+	public static event Action<IDType, bool> OnRemoteHangStateChanged;
 	// 远程玩家 拖拽/释放 了本地玩家
-	public static event Action<IDType, bool> OnRemotePullStateChanged;
+	public static event Action<IDType, bool> OnRemoteGrabStateChanged;
 
+	public static void NotifyRemoteHang(IDType playerId, bool isActive) => OnRemoteHangStateChanged?.Invoke(playerId, isActive);
 	public static void NotifyRemoteGrab(IDType playerId, bool isActive) => OnRemoteGrabStateChanged?.Invoke(playerId, isActive);
-	public static void NotifyRemotePull(IDType playerId, bool isActive) => OnRemotePullStateChanged?.Invoke(playerId, isActive);
+
+	#endregion
 }

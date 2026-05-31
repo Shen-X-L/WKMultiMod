@@ -89,11 +89,11 @@ public struct PlayerData : INetworkSerializable {
 			}
 		}
 
-		public bool IsGrabbing(ulong targetPlayerId) {
+		public bool IsBeGrabbing(ulong targetPlayerId) {
 			return interactState == 2 && targetId == targetPlayerId;
 		}
 
-		public bool IsHanging(ulong targetPlayerId) {
+		public bool IsBeHanging(ulong targetPlayerId) {
 			return interactState == 4 && targetId == targetPlayerId;
 		}
 

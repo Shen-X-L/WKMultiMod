@@ -299,6 +299,7 @@ public class MPPacketHandlers {
 		}
 
 		void DropIt(int handIndex) {
+			MPMain.Debug($"松开手 {handIndex}");
 			var _cachedPlayer = ENT_Player.GetPlayer();
 			_cachedPlayer.StopInteraction(handIndex);
 			_cachedPlayer.AddForce(-_cachedPlayer.camTransform.forward, "RepelByRemote");

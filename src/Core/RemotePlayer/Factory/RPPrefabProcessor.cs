@@ -47,7 +47,7 @@ public static class RPPrefabProcessor {
 			component.handType = mk.hand;
 			component.teleportThreshold = mk.teleportThreshold;
 			component.fastSmoothDistance = mk.fastSmoothDistance;
-			component.basePullStrength = mk.basePullStrength;
+			component.baseGrabStrength = mk.basePullStrength;
 			Object.DestroyImmediate(mk);
 		}
 
