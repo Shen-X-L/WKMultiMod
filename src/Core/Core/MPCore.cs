@@ -694,7 +694,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (argIndex == 0 || argIndex == 1) {
 					// 假设你有一个获取当前游戏所有队伍名的列表
 					// 这里加入了默认队伍关键字 MPKeys.DEFAULT_TEAM
-					List<string> teams = TeamRuleManager.GetActiveTeams().ToList();
+					List<string> teams = TeamRuleManager._activeTeams.ToList();
 					if (!teams.Contains(MPKeys.DEFAULT_TEAM)) teams.Insert(0, MPKeys.DEFAULT_TEAM);
 					autocomplete.FromArray(teams);
 					return;
@@ -708,7 +708,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 					// 如果前一个参数是逗号，说明在写新数据块的 [队伍A]
 					if (prevArg == ",") {
-						List<string> teams = TeamRuleManager.GetActiveTeams().ToList();
+						List<string> teams = TeamRuleManager._activeTeams.ToList();
 						if (!teams.Contains(MPKeys.DEFAULT_TEAM)) teams.Insert(0, MPKeys.DEFAULT_TEAM);
 						autocomplete.FromArray(teams);
 					}
@@ -724,7 +724,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 					// 如果两步前是逗号，说明现在处于新数据块的 [队伍B] 位置
 					if (prevArg2 == ",") {
-						List<string> teams = TeamRuleManager.GetActiveTeams().ToList();
+						List<string> teams = TeamRuleManager._activeTeams.ToList();
 						if (!teams.Contains(MPKeys.DEFAULT_TEAM)) teams.Insert(0, MPKeys.DEFAULT_TEAM);
 						autocomplete.FromArray(teams);
 					}
@@ -745,7 +745,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				// 验证队伍名 (参数0, 参数1, 以及逗号之后的相对位置)
 				if (argIndex == 0 || argIndex == 1) {
 					// 如果输入的不是有效队伍且不是默认队伍
-					if (!TeamRuleManager.GetActiveTeams().Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
+					if (!TeamRuleManager._activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
 						validator.Reject();
 					}
 					return;
@@ -755,7 +755,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					string prevArg = validator.ArgumentAt(argIndex - 1);
 					if (prevArg == ",") {
 						// 逗号后紧跟的必须是有效队伍名
-						if (!TeamRuleManager.GetActiveTeams().Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
+						if (!TeamRuleManager._activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
 							validator.Reject();
 						}
 					} else {
@@ -768,7 +768,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					string prevArg2 = validator.ArgumentAt(argIndex - 2);
 					if (prevArg2 == ",") {
 						// 新块的第二个参数，必须是有效队伍名
-						if (!TeamRuleManager.GetActiveTeams().Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
+						if (!TeamRuleManager._activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
 							validator.Reject();
 						}
 					} else {
@@ -784,7 +784,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("addteam", AddTeamCommand)
 			.NotCheat()
 			.Description("手动添加一个活跃队伍. 格式: addteam [队伍名]")
-			.OverValue(() => _MPsteamworks.IsInLobby ? (TeamRuleManager.GetActiveTeams()) : "Not In Lobby")
+			.OverValue(() => _MPsteamworks.IsInLobby ? (TeamRuleManager._activeTeams) : "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
 				if (!_MPsteamworks.IsHost) autocomplete.FromArray(new[] { "You Are Not Host" });
 			});
@@ -793,14 +793,14 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("removeteam", RemoveTeamCommand)
 			.NotCheat()
 			.Description("手动删除一个活跃队伍及其所有规则(default不可删除). 格式: removeteam [队伍名]")
-			.OverValue(() => _MPsteamworks.IsInLobby ? (TeamRuleManager.GetActiveTeams()) : "Not In Lobby")
+			.OverValue(() => _MPsteamworks.IsInLobby ? (TeamRuleManager._activeTeams) : "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
 				if (!_MPsteamworks.IsHost) {
 					autocomplete.FromArray(new[] { "You Are Not Host" });
 					return;
 				}
 				// 只能删除当前存在的队伍，且排除 default
-				autocomplete.FromArray(TeamRuleManager.GetActiveTeams()
+				autocomplete.FromArray(TeamRuleManager._activeTeams
 					.Where(t => t != MPKeys.DEFAULT_TEAM.ToLower()).ToList());
 			})
 			.AutocompleteValidator(validator => {
@@ -875,7 +875,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			.Description(Localization.Get("CommandHelp.JoinTeam"))
 			.AutocompleteCustom(autocomplete => {
 				if (autocomplete.activeArg == 0) {
-					autocomplete.FromArray(TeamRuleManager.GetActiveTeams().ToList());
+					autocomplete.FromArray(TeamRuleManager._activeTeams.ToList());
 				}
 			});
 	}
@@ -1170,7 +1170,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		TeamRuleManager.AddActiveTeam(teamName);
 
 		// 更新大厅中的队伍列表字符串，触发客户端同步
-		_MPsteamworks.SetLobbyData(MPKeys.ACTIVE_TEAMS, string.Join(",", TeamRuleManager.GetActiveTeams()));
+		_MPsteamworks.SetLobbyData(MPKeys.ACTIVE_TEAMS, string.Join(",", TeamRuleManager._activeTeams));
 		MPMain.Debug($"成功添加活跃队伍: {teamName}");
 	}
 
@@ -1194,7 +1194,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		TeamRuleManager.RemoveActiveTeam(teamName);
 
 		// 网络同步与持久化
-		_MPsteamworks.SetLobbyData(MPKeys.ACTIVE_TEAMS, string.Join(",", TeamRuleManager.GetActiveTeams()));
+		_MPsteamworks.SetLobbyData(MPKeys.ACTIVE_TEAMS, string.Join(",", TeamRuleManager._activeTeams));
 		RuleConfigLoader.SaveCurrentRulesToFile();
 		MPMain.Debug($"成功删除活跃队伍及其规则: {teamName}");
 	}
@@ -1230,7 +1230,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			: args[0].Trim().ToLower();
 
 		if (string.IsNullOrEmpty(teamName)) return;
-		if (!TeamRuleManager.GetActiveTeams().Contains(teamName)) {
+		if (!TeamRuleManager._activeTeams.Contains(teamName)) {
 			CommandConsole.LogError(Localization.Get("CommandConsole.TeamNotExist", teamName));
 			return;
 		}
@@ -1333,7 +1333,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		var leaveMsgArray = Localization.GetAll("0_DisplayMessage.LeaveMessages");
 		var random = new System.Random();
 		var randomInt = random.Next(Math.Min(joinMsgArray.Length, leaveMsgArray.Length));
-		var playerName = MPConfig.RemotePlayerName ?? SteamClient.Name;
+		var playerName = MPConfig.RemotePlayerName == "" ? SteamClient.Name : MPConfig.RemotePlayerName;
 		_MPsteamworks.SetMemberData(new Dictionary<string, string>() {
 				{ MPKeys.PREFAB_ID, _LocalPlayer.FactoryId },
 				{ MPKeys.PLAYER_NAME, playerName },
@@ -1466,10 +1466,11 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 值为 "pvp:1,grab:0,hang:1" 等
 		var ruleChange = false;
 		foreach (var kvp in changedData) {
-			if (kvp.Key.StartsWith("Rule_")) {
+			var teamNames = kvp.Key.Split('_');
+			if (teamNames.Length == 3 && teamNames[0] == "Rule") {
+				// 更新规则缓存
 				TeamRuleManager.UpdateRuleCache(kvp.Key, kvp.Value);
-				if (kvp.Key.StartsWith($"Rule_{CurrentTeam}_")
-					|| kvp.Key.StartsWith($"Rule_{MPKeys.DEFAULT_TEAM}_")) ruleChange = true;
+				if (teamNames[1] == CurrentTeam || teamNames[1] == MPKeys.DEFAULT_TEAM) ruleChange = true;
 			}
 		}
 

@@ -14,7 +14,7 @@ public enum RuleType { Pvp, Hang, Grab, TagShow, SyncItem, SyncInventory, SyncDi
 // 队伍规则实体 (使用可空布尔值 bool?, null代表未设置, 需要触发回退) 
 public class TeamRule {
 	public static readonly List<string> ruleFieldNames = new List<string>(){
-		"pvp", "hang", "grab", "tagShow", "syncItem", "syncInventory", "syncDied", "collision"};
+		"pvp", "hang", "grab", "tagshow", "syncitem", "syncinventory", "syncdied", "collision"};
 	public static readonly HashSet<string> ruleFieldLookup = new HashSet<string>(ruleFieldNames);
 
 	public bool? pvp;
@@ -152,7 +152,7 @@ public static class TeamRuleManager {
 	private static Dictionary<string, FlattenedRule> _flatRulesByTarget = new();
 
 	// 活跃队伍列表
-	private static HashSet<string> _activeTeams = new HashSet<string>();
+	public static HashSet<string> _activeTeams = new HashSet<string>();
 
 	public static string GetRuleKey(string attackerTeam, string targetTeam) => $"Rule_{attackerTeam}_{targetTeam}";
 
@@ -205,9 +205,6 @@ public static class TeamRuleManager {
 		rule.SetFieldValue(type, safeDefault);
 		return rule.SerializeTeamRule();
 	}
-
-	// 供外部调用的 API: 获取所有活跃队伍列表
-	public static IReadOnlyCollection<string> GetActiveTeams() => _activeTeams;
 
 	// 更新活跃队伍列表 (在解析规则时调用)
 	public static void UpdateActiveTeams(IEnumerable<string> teams) {
@@ -311,6 +308,7 @@ public static class RuleConfigLoader {
 			template.GlobalDefault.Add("pvp", false);
 			template.GlobalDefault.Add("hang", true);
 			template.GlobalDefault.Add("grab", true);
+			template.GlobalDefault.Add("tagshow", true);
 			template.SpecificRules.Add(new SpecificRuleConfig {
 				attackerTeam = "hunter",
 				victimTeam = "runner",
