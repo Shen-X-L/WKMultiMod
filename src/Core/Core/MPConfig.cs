@@ -18,6 +18,11 @@ public class MPConfig {
 	private static ConfigEntry<int> _dataSendFrequency;
 	public static int DataSendFrequency { get { return _dataSendFrequency.Value; } }
 
+	private static ConfigEntry<string> _toggleKey;
+	public static string ToggleKey => _toggleKey.Value;
+
+	#region[自定义相关]
+
 	// 头顶名称标签字体最大值
 	private static ConfigEntry<float> _nameTagScale;
 	public static float NameTagScale { get { return _nameTagScale.Value; } }
@@ -29,7 +34,16 @@ public class MPConfig {
 		set { _remotePlayerModel.Value = value; }
 	}
 
+	// 远程玩家替代名称
+	private static ConfigEntry<string> _remotePlayerName;
+	public static string RemotePlayerName {
+		get { return _remotePlayerName.Value; }
+		set { _remotePlayerName.Value = value; }
+	}
+
+	#endregion
 	#region[PVP相关]
+
 	// All (所有伤害)
 	private static ConfigEntry<float> _allActive;
 	public static float AllActive { get { return _allActive.Value; } }
@@ -79,6 +93,15 @@ public class MPConfig {
 	// 信号枪灼烧伤害倍率
 	private static ConfigEntry<float> _fireDamageMult;
 	public static float FireDamageMult { get { return _fireDamageMult.Value; } }
+
+	// 爆发伤害窗口期
+	private static ConfigEntry<float> _burstWindow;
+	public static float BurstWindow { get { return _burstWindow.Value; } }
+
+	// 无敌时间
+	private static ConfigEntry<float> _invincibilityTime;
+	public static float InvincibilityTime { get { return _invincibilityTime.Value; } }
+
 	#endregion
 	#region[房间规则控制]
 
@@ -119,6 +142,8 @@ public class MPConfig {
 			"Sets how many times per second data is sent to other players.\n" +
 			"设置每秒向其他玩家发送数据的次数.");
 
+		#region[自定义相关]
+
 		_nameTagScale = config.Bind<float>(
 			"RemotePlayer", "NameTagScale", 1f,
 			"This value sets the scale size for player name tags above their heads.\n" +
@@ -129,6 +154,12 @@ public class MPConfig {
 			"Sets the model used for remote players. Default is 'default', you can set it to 'slugcat' to use the slugcat model.\n" +
 			"设置远程玩家使用的模型,默认值为'default',你可以设置为'slugcat'来使用蛞蝓猫模型.");
 
+		_remotePlayerName = config.Bind<string>(
+			"RemotePlayer", "Name", "",
+			"Sets a custom name to display for remote players. Leave empty to use their Steam name.\n" +
+			"设置一个自定义名称来显示远程玩家,留空则使用他们的Steam名称");
+
+		#endregion
 		#region[PVP相关]
 
 		config.Bind(
@@ -251,8 +282,18 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 			"RemotePlayerPvP", "FireDamageMult", 0.6f,
 			"Multiplier for the damage of flare gun burning effect.\n" +
 			"信号枪灼烧效果伤害的倍率");
-		#endregion
 
+		_burstWindow = config.Bind<float>(
+			"RemotePlayerPvP", "BurstWindow", 0.05f, // 默认 50毫秒
+			"Damage window (in seconds) to allow multiple hits like shotgun pellets before invincibility starts.\n" +
+			"允许霰弹枪等多段伤害同时生效的并发窗口期(秒)");
+
+		_invincibilityTime = config.Bind<float>(
+			"RemotePlayerPvP", "InvincibilityTime", 0.3f, // 默认 0.3秒
+			"Duration (in seconds) of invincibility after the burst window ends.\n" +
+			"玩家受到伤害后的无敌时间(秒)");
+
+		#endregion
 		#region[房间规则控制]
 
 		_allowCheats = config.Bind<bool>(
@@ -270,6 +311,8 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 			"Controls whether bindings or trinkets synchronization is enabled by LobbyRule in lobby you host.\n" +
 			"控制由你开启的房间是否默认可以绑定或天赋同步");
 		#endregion
+
+		_toggleKey = config.Bind("Controls", "ToggleKey", "g", "按下此键切换抓取/拖拽状态");
 
 		if (isConfigOutdated)
 			VersionDetection(config);
@@ -295,6 +338,8 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 		_fireDamageMult.Value = (float)_fireDamageMult.DefaultValue;
 		// 将磁盘上的版本号更新到最新
 		_configVersion.Value = (string)_configVersion.DefaultValue;
+		_burstWindow.Value = (float)_burstWindow.DefaultValue;
+		_invincibilityTime.Value = (float)_invincibilityTime.DefaultValue;
 
 		config.Save();
 	}
@@ -315,6 +360,8 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 				Other = OtherActive,
 				FireTime = FireTimeMult,
 				FireDamage = FireDamageMult,
+				BurstWindow = BurstWindow, 
+				InvincibilityTime = InvincibilityTime
 			};
 		}
 	}

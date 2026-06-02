@@ -9,7 +9,7 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
-using static Steamworks.InventoryItem;
+using static UI_TabGroup;
 using Object = UnityEngine.Object;
 
 namespace WKMPMod.RemotePlayer;
@@ -35,11 +35,14 @@ public class RPContainer {
 	// 玩家模型信息数据
 	public string prefabId;
 
+	// 队伍信息, 默认为 "default", 可以通过玩家数据更新
+	public string team = MPKeys.DEFAULT_TEAM;
+	public FlattenedRule actionRule;
 	#region[RAII函数]
 
 	// 构造函数 - 只设置基本信息
-	public RPContainer(ulong playId, string prefabId) {
-		PlayerId = playId;
+	public RPContainer(IDType playerId, string prefabId) {
+		PlayerId = playerId;
 		PlayerName = new Friend(PlayerId).Name;
 		this.prefabId = prefabId;
 	}
@@ -203,17 +206,62 @@ public class RPContainer {
 		_deathTick.Reset();
 	}
 
-	public void AddAllObjectTagger(string tag) {
-		foreach (var tagger in _objectTaggers) {
-			tagger.AddTag(tag);
-		}
+	/// <summary>
+	/// 更新玩家名字 - 同时更新标签组件的名字显示
+	/// </summary>
+	public void UpdatePlayerName(string newName) {
+		PlayerName = newName;
+		_remoteTag.PlayerName = PlayerName;
 	}
 
-	public void RemoveAllObjectTagger(string tag) {
-		foreach (var tagger in _objectTaggers) {
-			tagger.RemoveTag(tag);
+	#endregion
+	#region[队伍/规则函数]
+
+	/// <summary>
+	/// 处理队伍变更 - 更新队伍信息并刷新规则引用
+	/// </summary>
+	public void HandleTeamChanged(string newTeam) {
+		this.team = newTeam.Trim().ToLower();
+		RefreshRuleReference();
+	}
+
+	/// <summary>
+	/// 刷新规则引用 - 从 TeamRuleManager 获取当前队伍的规则引用并更新本地缓存
+	/// </summary>
+	public void RefreshRuleReference() {
+		// O(1) 抓取引用
+		actionRule = TeamRuleManager.GetActiveRuleRef(team);
+
+		// 更新名牌显示
+		if (_remoteTag != null) {
+			_remoteTag.gameObject.SetActive(actionRule.tagShow);
 		}
+
+		// 更新玩家间交互权限
+		ChangeGrabOrHang(MPCore.IsGrabOrHangState);
+
+		// 更新PVP权限
+		foreach (var entity in _remoteEntities)
+			entity.pvpEnabled = actionRule.pvp;
+	}
+
+	/// <summary>
+	/// 处理动作权限变更 - 根据当前规则和权限状态更新玩家对象的标签组件, 以控制玩家的交互能力
+	/// </summary>
+	public void ChangeGrabOrHang(ENT_Player.InteractType interactType) {
+		foreach (var tagger in _objectTaggers) {
+			if (interactType == ENT_Player.InteractType.grab && actionRule.grab)
+				tagger.AddTag(MPKeys.GRAB_TAGGER);
+			else
+				tagger.RemoveTag(MPKeys.GRAB_TAGGER);
+			if (interactType == ENT_Player.InteractType.hanging && actionRule.hang)
+				tagger.AddTag(MPKeys.HANGING_TAGGER);
+			else
+				tagger.RemoveTag(MPKeys.HANGING_TAGGER);
+		}
+
 	}
 
 	#endregion
 }
+

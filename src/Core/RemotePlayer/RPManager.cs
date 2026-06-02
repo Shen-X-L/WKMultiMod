@@ -22,21 +22,22 @@ public class RPManager : Singleton<RPManager> {
 	// Debug日志输出间隔
 	private TickTimer _debugTick = new TickTimer(5f);
 	// 存储所有远程对象
-	internal Dictionary<ulong, RPContainer> Players = new Dictionary<ulong, RPContainer>();
-	private Dictionary<ulong, float> _lastDeathTime = new Dictionary<ulong, float>();
+	internal Dictionary<IDType, RPContainer> Players = new Dictionary<IDType, RPContainer>();
+	private Dictionary<IDType, float> _lastDeathTime = new Dictionary<IDType, float>();
 	// 同一个玩家 1 秒内只能处理一次死亡信息, 避免重复处理导致的物品重复掉落和动画冲突
 	private const float DEATH_COOLDOWN = 1.0f;
 	// 根对象引用
 	private Transform _remotePlayersRoot;
 	// 加入信息和离开信息
-	private HashSet<ulong> joinMessages = new HashSet<ulong>();
-	private Dictionary<ulong, string> leaveMessages = new Dictionary<ulong, string>();
+	private HashSet<IDType> joinMessages = new HashSet<IDType>();
+	private Dictionary<IDType, string> leaveMessages = new Dictionary<IDType, string>();
 
 	private RPManager() {
 		_ = RPFactoryManager.Instance;
 	}
 
 	#region[RAII]
+
 	public void Initialize(Transform RootTransform) {
 		_remotePlayersRoot = RootTransform;
 		MPEventBusGame.OnPlayerDamage += ProcessPlayerDamage;
@@ -55,12 +56,14 @@ public class RPManager : Singleton<RPManager> {
 		leaveMessages.Clear(); 
 		RPFactoryManager.Instance.ClearPrefabCache();
 	}
+
 	#endregion
 	#region[创建/销毁玩家]
+
 	/// <summary>
 	/// 根据Id创建玩家
 	/// </summary>
-	public RPContainer PlayerCreate(ulong playId, string prefab) {
+	public RPContainer PlayerCreate(IDType playId, string prefab) {
 		if (Players.TryGetValue(playId, out var existing))
 			return existing;
 
@@ -71,12 +74,12 @@ public class RPManager : Singleton<RPManager> {
 			return null;
 		}
 
-		// 构造纯 C# 对象
+		// 构造对象
 		var container = new RPContainer(playId, prefab);
 
 		// 检查初始化是否成功
 		if (!container.Initialize(instance, _remotePlayersRoot)) {
-			// Initialize 内部已经 Destroy 了 instance，这里直接返回 null 即可
+			// Initialize 内部已经 Destroy 了 instance, 这里直接返回 null 即可
 			return null;
 		}
 
@@ -109,6 +112,7 @@ public class RPManager : Singleton<RPManager> {
 			Players.Remove(playerId);
 		}
 	}
+
 	#endregion
 	#region[处理消息]
 
@@ -116,6 +120,7 @@ public class RPManager : Singleton<RPManager> {
 	/// 处理玩家数据字典
 	/// </summary>
 	public void ProcessMemberData(ulong playerId, Dictionary<string, string> data) {
+		// 更新玩家模型
 		if (data.TryGetValue(MPKeys.PREFAB_ID, out var prefabId)) {
 			// 不存在 → 创建
 			if (!Players.TryGetValue(playerId, out var container)) {
@@ -125,6 +130,20 @@ public class RPManager : Singleton<RPManager> {
 			else if (container.prefabId != prefabId) {
 				PlayerRemove(playerId);
 				PlayerCreate(playerId, prefabId);
+			}
+		}
+
+		// 更新玩家名字
+		if (data.TryGetValue(MPKeys.PLAYER_NAME, out var playerName)) {
+			if (Players.TryGetValue(playerId, out var container)) {
+				container.UpdatePlayerName(playerName);
+			}
+		}
+
+		// 更新玩家队伍并更新权限
+		if (data.TryGetValue(MPKeys.TEAM, out var teamName)) {
+			if (Players.TryGetValue(playerId, out var container) && container.team != teamName) {
+				container.HandleTeamChanged(teamName);
 			}
 		}
 
@@ -268,6 +287,7 @@ public class RPManager : Singleton<RPManager> {
 			GameObject.Instantiate(effectPrefab, info.position, Quaternion.identity);
 		}
 	}
+
 	#endregion
 	#region[获取玩家对象]
 
@@ -280,6 +300,7 @@ public class RPManager : Singleton<RPManager> {
 			"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 		return null;
 	}
+
 	#endregion
 	#region[工具函数]
 
@@ -291,15 +312,15 @@ public class RPManager : Singleton<RPManager> {
 	/// <param name="distanceThreshold">距离阈值</param>
 	/// <param name="farPlayers">输出: 距离 >= 阈值的玩家ID集合</param>
 	/// <param name="nearPlayers">输出: 距离 < 阈值的玩家ID集合</param>
-	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, out List<ulong> farPlayers, out List<ulong> nearPlayers) {
-		farPlayers = new List<ulong>();
-		nearPlayers = new List<ulong>();
+	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, List<IDType> farPlayers, List<IDType> nearPlayers) {
+		farPlayers.Clear();
+		nearPlayers.Clear();
 
 		// 使用平方距离计算, 避免使用开销较大的 Vector3.Distance (开平方运算)
 		float sqrThreshold = distanceThreshold * distanceThreshold;
 
 		foreach (var kvp in Players) {
-			ulong playerId = kvp.Key;
+			IDType playerId = kvp.Key;
 			RPContainer container = kvp.Value;
 
 			// 安全检查: 忽略无效的远程玩家实体
@@ -316,16 +337,21 @@ public class RPManager : Singleton<RPManager> {
 		}
 	}
 
-	public void AddAllObjectTagger(string tag) {
+	/// <summary>
+	/// 切换所有玩家的抓取/悬挂状态, 以适应不同的交互类型
+	/// </summary>
+	public void ChangeAllPlayerGrabOrHang(ENT_Player.InteractType interactType) {
 		foreach (var (id, container) in Players) {
-			container.AddAllObjectTagger(tag);
+			container.ChangeGrabOrHang(interactType);
 		}
 	}
 
-	public void RemoveAllObjectTagger(string tag) {
-		foreach (var (id, container) in Players) {
-			container.RemoveAllObjectTagger(tag);
-		}
+	/// <summary>
+	/// 刷新所有玩家的规则引用, 以适应规则修改时的即时生效
+	/// </summary>
+	public void RefreshAllRule() {
+		foreach (var (id, container) in Players) 
+			container.RefreshRuleReference();
 	}
 
 	#endregion

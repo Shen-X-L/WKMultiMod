@@ -32,6 +32,8 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	// 状态缓存
 	private PlayerData _lastPlayerData;
+	private List<IDType> _farPlayersBuffer = new List<IDType>(16);
+	private List<IDType> _nearPlayersBuffer = new List<IDType>(16);
 
 	// 定时器
 	private TickTimer _sendDataTimer;//本地玩家数据频率器, 定时发送玩家数据
@@ -61,7 +63,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	protected override void OnDestroy() {
 		base.OnDestroy();
-		// 组件销毁时必须注销事件，防止内存泄漏
+		// 组件销毁时必须注销事件, 防止内存泄漏
 		MPEventBusGame.OnRemoteHangStateChanged -= HandleRemoteHangChanged;
 		MPEventBusGame.OnRemoteGrabStateChanged -= HandleRemoteGrabChanged;
 	}
@@ -94,7 +96,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	}
 
 	#endregion
-	#region[[网络事件回调]]
+	#region[网络事件回调]
 
 	private void HandleRemoteHangChanged(IDType remoteId, bool isActive) {
 		if (isActive) _playersHangingMe.Add(remoteId);
@@ -131,7 +133,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 		// 检查是否发生大于50米的位移 (50 * 50 = 2500)
 		if (_lastPlayerData.TimestampTicks != 0 && (dx * dx + dy * dy + dz * dz) >= 2500.0f) {
-			// 强制本帧作为保底帧发送，确保原本在近处(现在变成远处)的玩家A能收到这个离去包
+			// 强制本帧作为保底帧发送, 确保原本在近处(现在变成远处)的玩家A能收到这个离去包
 			tickMinFreq = true;
 			_minUpdateFrequencyTimer.Reset(); // 重新开始计算10秒
 		}
@@ -144,13 +146,13 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		RPManager.Instance.GetPlayersByDistance(
 			_lastPlayerData.Position,
 			LIMIT_SENDING_DISTANCE,
-			out List<ulong> farPlayers,
-			out List<ulong> nearPlayers
+			_farPlayersBuffer,
+			_nearPlayersBuffer
 		);
 
 		// 发送给近距离玩家 常规频率定时器 && 位置发生了变化, 或者保底更新频率到了
 		if (tickNormal || tickMinFreq) {
-			foreach (ulong targetId in nearPlayers) {
+			foreach (ulong targetId in _nearPlayersBuffer) {
 				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
 				writer.Put(_lastPlayerData);
 				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Unreliable | SendType.NoNagle);
@@ -159,7 +161,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 		// 发送给远距离玩家 仅在最小频率定时器(如10秒一次)触发时发送
 		if (tickMinFreq) {
-			foreach (ulong targetId in farPlayers) {
+			foreach (ulong targetId in _farPlayersBuffer) {
 				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
 				writer.Put(_lastPlayerData);
 				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Unreliable | SendType.NoNagle);

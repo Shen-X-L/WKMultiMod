@@ -19,7 +19,7 @@ public class RemoteHand : MonoBehaviour {
 	[Tooltip("最大平滑距离：超过此距离使用快速平滑")]
 	[SerializeField] public float fastSmoothDistance = 10f;
 
-	[Header("拖拽设置（被敌对物体拉拽）")]
+	[Header("拖拽设置 (被敌对物体拉拽) ")]
 	[Tooltip("基础拖拽力度")]
 	[SerializeField] public float baseGrabStrength = 0.2f;
 
@@ -29,7 +29,7 @@ public class RemoteHand : MonoBehaviour {
 	[Tooltip("拖拽最大有效距离")]
 	[SerializeField] public float maxGrabDistance = 10f;
 
-	[Tooltip("拖拽超时时间（秒）")]
+	[Tooltip("拖拽超时时间 (秒) ")]
 	private const float GRAB_TIMEOUT_SECONDS = 1.0f;
 
 	// 玩家ID,用于识别玩家
@@ -122,7 +122,7 @@ public class RemoteHand : MonoBehaviour {
 
 		player.SetGrappled(true);
 
-		// 计算距离因子 泊松分布，距离适中时力度最大
+		// 计算距离因子 泊松分布, 距离适中时力度最大
 		float k = distance / 2.0f;
 		float distanceFactor = k * Mathf.Exp(1.0f - k);
 		// 远距离衰减

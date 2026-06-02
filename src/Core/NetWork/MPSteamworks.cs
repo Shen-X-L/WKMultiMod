@@ -918,6 +918,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// 设置大厅默认数据,确保所有玩家都能识别这是同一款游戏的大厅,并且可以进行版本兼容性检查
 	/// </summary>
+	
 	private Dictionary<string, string> GetDefaultLobbyData() {
 		var dict = new Dictionary<string, string>();
 		dict[MPKeys.GAME_KEY] = MPKeys.GAME_VALUE;
@@ -926,9 +927,14 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		dict[MPKeys.OWNER_NAME] = UserSteamId.ToString();
 		dict[MPKeys.LOBBY_VISIBILITY] = "public";
 		dict[MPKeys.ALLOW_CHEATS] = MPConfig.AllowCheats.ToString();
-		dict[MPKeys.ALLOW_PVP] = MPConfig.AllowPVP.ToString();
 		// 伤害倍率
 		dict[MPKeys.DAMAGE_CONFIG] = JsonConvert.SerializeObject(MPCore.damageRules);
+		// 队伍规则配置
+		foreach (var kvp in RuleConfigLoader.LoadRulesAsLobbyData()) {
+			dict[kvp.Key] = kvp.Value;  // 重复键会覆盖
+		}
+		// 活动队伍列表
+		dict[MPKeys.ACTIVE_TEAMS] = string.Join(",", TeamRuleManager.GetActiveTeams());
 		return dict;
 	}
 

@@ -199,7 +199,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	/// <summary>
-	/// 调试API：遍历所有注册的 BundlePath，打印出对应 AssetBundle 内部的所有资源名称
+	/// 调试API：遍历所有注册的 BundlePath, 打印出对应 AssetBundle 内部的所有资源名称
 	/// </summary>
 	public void DebugDumpAllBundleContents() {
 		// 获取去重后的所有 AB 包路径
@@ -223,9 +223,9 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 					continue;
 				}
 
-				// 获取内部所有资源的名称（Unity默认会返回小写全路径，如 assets/prefabs/capsuleplayerprefab.prefab）
+				// 获取内部所有资源的名称 (Unity默认会返回小写全路径, 如 assets/prefabs/capsuleplayerprefab.prefab) 
 				string[] assetNames = bundle.GetAllAssetNames();
-				MPMain.LogWarning($"[成功] 载入成功。该 AB 包内包含 {assetNames.Length} 个资源：");
+				MPMain.LogWarning($"[成功] 载入成功. 该 AB 包内包含 {assetNames.Length} 个资源：");
 
 				for (int i = 0; i < assetNames.Length; i++) {
 					MPMain.LogWarning($"   -> 索引 [{i}]: {assetNames[i]}");
@@ -235,7 +235,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 				MPMain.LogError($"[异常] 读取 AB 包内容时崩溃: {ex.Message}");
 			} finally {
 				if (bundle != null) {
-					// 仅卸载包本身，不销毁内存中可能的已有资源
+					// 仅卸载包本身, 不销毁内存中可能的已有资源
 					bundle.Unload(false);
 				}
 			}
@@ -244,16 +244,16 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	/// <summary>
-	/// 调试API：以一定的时间间隔，依次创建所有注册的模型预制体实例
+	/// 调试API：以一定的时间间隔, 依次创建所有注册的模型预制体实例
 	/// </summary>
-	/// <param name="intervalSeconds">创建间隔时间（秒）</param>
+	/// <param name="intervalSeconds">创建间隔时间 (秒) </param>
 	public void DebugSpawnAllPrefabsSequentially(float intervalSeconds) {
 		// 启动协程流程
 		MPCore.Instance.StartCoroutine(SpawnFlow(ModelIDs, intervalSeconds));
 
 		IEnumerator SpawnFlow(List<string> modelIds, float interval) {
 			MPMain.LogWarning($"\n=== [RPFactoryManager Debug] 开始定时生成测试 ===");
-			MPMain.LogWarning($"总计模型数: {modelIds.Count} 个，生成间隔: {interval} 秒");
+			MPMain.LogWarning($"总计模型数: {modelIds.Count} 个, 生成间隔: {interval} 秒");
 
 			int index = 0;
 			foreach (var modelId in modelIds) {
@@ -262,7 +262,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 				try {
 					GameObject instance = RPFactoryManager.Instance.Create(modelId);
 					if (instance != null) {
-						// 为了防止模型全部叠在 0,0,0 点，让它们在 X 轴上排开
+						// 为了防止模型全部叠在 0,0,0 点, 让它们在 X 轴上排开
 						instance.transform.position = new Vector3(index * 3.0f, 0f, 0f);
 						instance.name = $"Debug_PlayerInstance_{modelId}";
 
@@ -278,7 +278,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 				// 等待指定间隔
 				yield return new WaitForSeconds(interval);
 			}
-			MPMain.LogWarning($"=== [RPFactoryManager Debug] 定时生成测试完毕，调试组件已自动销毁 ===\n");
+			MPMain.LogWarning($"=== [RPFactoryManager Debug] 定时生成测试完毕, 调试组件已自动销毁 ===\n");
 		}
 	}
 

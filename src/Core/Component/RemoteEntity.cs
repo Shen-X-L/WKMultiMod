@@ -8,6 +8,7 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
+using WKMPMod.Util;
 using static Clickable;
 
 namespace WKMPMod.Component;
@@ -22,6 +23,12 @@ public class RemoteEntity : CL_Prop {
 	private static readonly AccessTools.FieldRef<CL_Prop, List<Collider>> PropCollidersRef =
 		AccessTools.FieldRefAccess<CL_Prop, List<Collider>>("colliders");
 
+	// 负责处理 无敌帧 的重置计时器
+	private TickTimer _invincibilityTimer = new TickTimer(0.5f);
+	// 负责记录每次 无敌帧并发窗口 的起始物理时间
+	private float _burstStartTime = -999f;
+	// 是否启用PVP伤害判定, 可通过玩家数据更新
+	public bool pvpEnabled = false;  
 
 	#region[Unity生命周期函数]
 
@@ -29,7 +36,7 @@ public class RemoteEntity : CL_Prop {
 		// 动态获取当前克隆实例上的 Root Rigidbody (绝对不能用预制体母本的)
 		Rigidbody rootRigidbody = transform.root.GetComponent<Rigidbody>();
 		if (rootRigidbody == null) {
-			// 保底方案: 如果顶层没有，就往父级或自身找
+			// 保底方案: 如果顶层没有, 就往父级或自身找
 			rootRigidbody = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
 		}
 
@@ -37,7 +44,7 @@ public class RemoteEntity : CL_Prop {
 		PropRigidRef(this) = rootRigidbody;
 		PropCollidersRef(this) = new List<Collider>(GetComponentsInChildren<Collider>());
 
-		// 提前标记为已初始化，双重保险
+		// 提前标记为已初始化, 双重保险
 		PropInitializedRef(this) = true;
 		canSave = false;    // 不保存远程实体
 
@@ -54,7 +61,23 @@ public class RemoteEntity : CL_Prop {
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
 		// 关闭pvp
-		if (!MPCore.IsAllowPVP) return false;
+		if (!pvpEnabled) return false;
+
+		_invincibilityTimer.SetInterval(MPCore.damageRules.InvincibilityTime);
+
+		// 如果无敌时间已到 (大于 b), 开启新一轮的伤害判定窗口
+		if (_invincibilityTimer.IsTickReached) {
+			_invincibilityTimer.Reset();   // 重置 TickTimer
+			_burstStartTime = Time.time;   // 记录本轮第一发子弹打中的时间
+		}
+		// 如果还在无敌倒计时内, 但时间处于并发窗口期 (小于 a)
+		else if (Time.time - _burstStartTime <= MPCore.damageRules.BurstWindow) {
+			// 允许伤害通过！(这是和第一发子弹几乎同时到达的霰弹枪弹丸)
+		}
+		// 处于 (a, b) 之间, 属于真正的无敌保护期
+		else {
+			return false; // 免疫伤害
+		}
 
 		// 添加屏幕震动
 		CL_CameraControl.Shake(0.01f);
@@ -65,7 +88,7 @@ public class RemoteEntity : CL_Prop {
 		// 发布到事件总线
 		MPEventBusGame.NotifyPlayerDamage(playerId, info);
 
-		// 如果对方正在抓着我，强制对方放手
+		// 如果对方正在抓着我, 强制对方放手
 		if (LocalPlayer.IsHoldingMe(playerId))
 			MPEventBusGame.NotifyPlayerStopInteraction(playerId);
 
@@ -84,7 +107,7 @@ public class RemoteEntity : CL_Prop {
 	// 添加力(基础实现)
 	public override void AddForce(Vector3 v, string source = "") {
 		// 关闭pvp
-		if (!MPCore.IsAllowPVP) return;
+		if (!pvpEnabled) return;
 		// 发送冲击力通知事件
 		MPEventBusGame.NotifyPlayerAddForce(playerId, v / 10, source);
 	}
@@ -98,7 +121,7 @@ public class RemoteEntity : CL_Prop {
 	public override void TonguePull(Vector3 v) { 
 	}
 	#endregion
-	#region[]
+	#region[工具函数]
 
 	// 计算伤害
 	public static void CalculatedDamage(Damageable.DamageInfo info) {
@@ -151,5 +174,8 @@ public class DamageRules {
 	public float Other;
 	public float FireTime;
 	public float FireDamage;
-	
+	// 新增：并发伤害允许的窗口期 (秒)
+	public float BurstWindow;
+	// 新增：受伤后的完整无敌时间 (秒)
+	public float InvincibilityTime;
 }
