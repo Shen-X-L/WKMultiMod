@@ -1,11 +1,14 @@
 ﻿using Newtonsoft.Json;
+using Steamworks.Data;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.Patch;
 using WKMPMod.Util;
 using static CL_AssetManager;
 
@@ -19,7 +22,7 @@ public class MPGameModeManager {
 		public string gameModeName;         // 可能重名
 		public string gameModeObjectName;   // 可能重名
 		public List<string> activeTrinkets; // 包含饰品和绑定的名称列表
-		public List<string> activeSettings; // 包含铁人、困难等设置的名称列表
+		public List<string> activeSettings; // 包含铁人, 困难等设置的名称列表
 		public bool needBindSync;           // 是否需要同步绑定数据(如果饰品名称不唯一或包含绑定数据则需要同步绑定数据)
 		public int? seed;
 
@@ -95,7 +98,7 @@ public class MPGameModeManager {
 	}
 
 	/// <summary>
-	/// 通过GameModeData加载游戏模式, 包括游戏模式、难度和种子
+	/// 通过GameModeData加载游戏模式, 包括游戏模式, 难度和种子
 	/// </summary>
 	public static void LoadGameMode(GameModeData data) {
 		// 字典内没有数据时重初始化字典
@@ -135,8 +138,19 @@ public class MPGameModeManager {
 	public static void RestartGameMode() {
 		if (CurrentData != null) {
 			LoadGameMode(CurrentData);
+			MPCore.Instance.StartCoroutine(ExecuteRestartCMD());
 		} else {
 			MPMain.LogWarning(Localization.Get("MPGameModeManager.NoCurrentGameModeData"));
+		}
+
+		IEnumerator ExecuteRestartCMD() {
+			// 等待地图加载完成
+			yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+			// 加载完成后执行加入指令
+			if(MPSteamworks.Instance.LobbyData.TryGetValue(MPKeys.JOIN_COMMAND, out var cmdData) && !string.IsNullOrEmpty(cmdData)) {
+				Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
+			}
+			yield break;
 		}
 	}
 

@@ -27,6 +27,7 @@ public class RPContainer {
 	private RemoteTag _remoteTag;
 	private RemoteEntity[] _remoteEntities;
 	private ObjectTagger[] _objectTaggers;
+	private Collider[] _colliders;
 
 	// 死亡后0.5秒内不接受更新, 避免瞬移和动画冲突
 	private bool _isDead = false;
@@ -36,7 +37,7 @@ public class RPContainer {
 	public string prefabId;
 
 	// 队伍信息, 默认为 "default", 可以通过玩家数据更新
-	public string team = MPKeys.DEFAULT_TEAM;
+	public string team;
 	public FlattenedRule actionRule;
 	#region[RAII函数]
 
@@ -85,6 +86,7 @@ public class RPContainer {
 		_remoteTag = instance.GetComponentInChildren<RemoteTag>();
 		_remoteEntities = instance.GetComponentsInChildren<RemoteEntity>();
 		_objectTaggers = instance.GetComponentsInChildren<ObjectTagger>();
+		_colliders = instance.GetComponentsInChildren<Collider>();
 
 		// 处理左右手:获取所有 RemoteHand,然后通过内部字段区分
 		RemoteHand[] hands = instance.GetComponentsInChildren<RemoteHand>();
@@ -230,12 +232,11 @@ public class RPContainer {
 	/// </summary>
 	public void RefreshRuleReference() {
 		// O(1) 抓取引用
-		actionRule = TeamRuleManager.GetActiveRuleRef(team);
+		actionRule = TeamRuleManager.GetActiveRuleRef(team == "" ? MPKeys.DEFAULT_TEAM : team);
 
 		// 更新名牌显示
-		if (_remoteTag != null) {
+		if (_remoteTag != null)
 			_remoteTag.gameObject.SetActive(actionRule.tagShow);
-		}
 
 		// 更新玩家间交互权限
 		ChangeGrabOrHang(MPCore.IsGrabOrHangState);
@@ -243,6 +244,13 @@ public class RPContainer {
 		// 更新PVP权限
 		foreach (var entity in _remoteEntities)
 			entity.pvpEnabled = actionRule.pvp;
+
+		// 更新碰撞权限
+		foreach (var colliders in _colliders) {
+			if (!colliders.isTrigger) {  // 只处理非触发器的实体碰撞体
+				colliders.enabled = actionRule.collision; // true 开启碰撞，false 关闭碰撞
+			}
+		}
 	}
 
 	/// <summary>
@@ -250,16 +258,16 @@ public class RPContainer {
 	/// </summary>
 	public void ChangeGrabOrHang(ENT_Player.InteractType interactType) {
 		foreach (var tagger in _objectTaggers) {
-			if (interactType == ENT_Player.InteractType.grab && actionRule.grab)
+			if (interactType == ENT_Player.InteractType.grab && actionRule?.grab == true)
 				tagger.AddTag(MPKeys.GRAB_TAGGER);
 			else
 				tagger.RemoveTag(MPKeys.GRAB_TAGGER);
-			if (interactType == ENT_Player.InteractType.hanging && actionRule.hang)
+
+			if (interactType == ENT_Player.InteractType.hanging && actionRule?.hang == true)
 				tagger.AddTag(MPKeys.HANGING_TAGGER);
 			else
 				tagger.RemoveTag(MPKeys.HANGING_TAGGER);
 		}
-
 	}
 
 	#endregion

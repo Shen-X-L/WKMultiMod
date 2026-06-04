@@ -23,7 +23,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	public Lobby lobby;                         // 关联的大厅数据
 	public M_Gamemode? gamemode;                // 关联的游戏模式
 	public bool isOfficialGamemodes;            // 是否为官方游戏模式(影响显示逻辑)
-	public GameModeData? gameModeData;           // 游戏模式数据(仅官方游戏模式有效,包含名称、图标、饰品和设置等信息)
+	public GameModeData? gameModeData;           // 游戏模式数据(仅官方游戏模式有效,包含名称, 图标, 饰品和设置等信息)
 
 	#region[原UI_Gamemode_Button字段]
 	public UI_LerpOpen? runInProgressDisplay;   // 进行中标识的动画组件
@@ -44,7 +44,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	public UnityEngine.UI.Image? lobbyImage;    // 大厅图标
 
 	/// <summary>
-	/// 初始化按钮 - 设置点击事件、图标、标题和统计文本
+	/// 初始化按钮 - 设置点击事件, 图标, 标题和统计文本
 	/// </summary>
 	public void Initialize(Lobby lobby) {
 		// 关联大厅数据

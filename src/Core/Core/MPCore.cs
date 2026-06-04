@@ -1,9 +1,11 @@
-﻿using Newtonsoft.Json;
+﻿using HarmonyLib;
+using Newtonsoft.Json;
 using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -119,6 +121,10 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		// 初始化网络监听器和远程玩家管理器
 		InitializeAllManagers();
+
+		// 初始化切换按键
+		_toggleAction = new InputAction(name: "ToggleAction", binding: $"<Keyboard>/{MPConfig.ToggleKey}");
+		_toggleAction.Enable();
 	}
 
 	void Update() {
@@ -131,6 +137,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		CheckAndRepairPlayers();
 
 		if (_toggleAction.triggered) {
+			MPMain.Debug("MPCore.Update 拖拽/悬挂切换");
 			if (IsGrabOrHangState == ENT_Player.InteractType.grab) {
 				IsGrabOrHangState = ENT_Player.InteractType.hanging;
 				_RPManager.ChangeAllPlayerGrabOrHang(ENT_Player.InteractType.hanging);
@@ -199,10 +206,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 初始化大厅共用数据
 			damageRules = MPConfig.DamageRules;
 			IsAllowCheats = MPConfig.AllowCheats;
-
-			// 初始化切换按键
-			_toggleAction = new InputAction(name: "ToggleAction", binding: $"<Keyboard>/{MPConfig.ToggleKey}");
-			_toggleAction.Enable();
 
 			// Debug
 			MPMain.LogInfo(Localization.Get("MPCore.AllManagersInitialized"));
@@ -416,7 +419,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	/// <summary>
 	/// 发送玩家死亡信息<br/>
-	/// 发送函数: <see cref="Patch_ENT_Player.Prefix"/><br/>
+	/// 发送函数: <see cref="Patch_ENT_Player.Kill_NotifyPlayerDeath"/><br/>
 	/// 发送PacketType.PlayerDeath: 库存物品 Dictionary&lt;string, short&gt;<br/>
 	/// 接受路由函数: <see cref="MPPacketHandlers.HandlePlayerDeath"/><br/>
 	/// 发送PacketType.GameUIMessage: 死因 string,UI类型 byte,持续时间 float,是否在控制台显示 bool<br/>
@@ -472,6 +475,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		RegisterLobbyCommands();
 		RegisterRuleCommands();
 		RegisterPlayerCommands();
+		RegisterRconCommand();
 
 		// 获取大厅全部玩家
 		CommandConsole.BuildCommand("allplayer", (args) => {
@@ -585,6 +589,32 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("lobbylist", GetAllLobby)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.LobbyList"));
+
+		// 设置大厅可见度
+		CommandConsole.BuildCommand("lobbytype", SetLobbyVisibility)
+			.NotCheat()
+			.Description(Localization.Get("CommandHelp.LobbyYype"))
+			.OverValue(() => _MPsteamworks.IsInLobby
+				? (_MPsteamworks.LobbyData?.GetValueOrDefault(MPKeys.LOBBY_VISIBILITY) ?? "unknown value")
+				: "Not In Lobby")
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0)
+					autocomplete.FromArray(new[] { "public", "friends", "private" });
+			})
+			.AutocompleteValidator(validator => {
+				if (validator.activeArg == 1) {
+					string vis = validator.ArgumentAt(1).ToLower();
+					if (vis != "public" && vis != "friends" && vis != "private")
+						validator.Reject(); // 不匹配则高亮红色
+				}
+			});
+
+		// 设置大厅名称
+		CommandConsole.BuildCommand("setlobbyname", (args) => {
+			if (!EnsureHostPrivileges()) return;
+			_MPsteamworks.SetLobbyData(MPKeys.LOBBY_NAME, string.Join(" ", args));
+		}).NotCheat()
+			.Description(Localization.Get("CommandHelp.SetLobbyName"));
 	}
 
 	/// <summary>
@@ -652,32 +682,6 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 			});
 
-		// 设置大厅可见度
-		CommandConsole.BuildCommand("lobbytype", SetLobbyVisibility)
-			.NotCheat()
-			.Description(Localization.Get("CommandHelp.LobbyYype"))
-			.OverValue(() => _MPsteamworks.IsInLobby
-				? (_MPsteamworks.LobbyData?.GetValueOrDefault(MPKeys.LOBBY_VISIBILITY) ?? "unknown value")
-				: "Not In Lobby")
-			.AutocompleteCustom(autocomplete => {
-				if (autocomplete.activeArg == 0)
-					autocomplete.FromArray(new[] { "public", "friends", "private" });
-			})
-			.AutocompleteValidator(validator => {
-				if (validator.activeArg == 1) {
-					string vis = validator.ArgumentAt(1).ToLower();
-					if (vis != "public" && vis != "friends" && vis != "private")
-						validator.Reject(); // 不匹配则高亮红色
-				}
-			});
-
-		// 设置大厅名称
-		CommandConsole.BuildCommand("setlobbyname", (args) => {
-			if (!EnsureHostPrivileges()) return;
-			_MPsteamworks.SetLobbyData(MPKeys.LOBBY_NAME, string.Join(" ", args));
-		}).NotCheat()
-			.Description(Localization.Get("CommandHelp.SetLobbyName"));
-
 		CommandConsole.BuildCommand("teamrule", SetTeamRule)
 			.NotCheat()
 			.Description("设置队伍规则. 格式: setteamrule [队伍A] [队伍B] [规则名] [true|false] , ...")
@@ -694,41 +698,41 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (argIndex == 0 || argIndex == 1) {
 					// 假设你有一个获取当前游戏所有队伍名的列表
 					// 这里加入了默认队伍关键字 MPKeys.DEFAULT_TEAM
-					List<string> teams = TeamRuleManager._activeTeams.ToList();
+					List<string> teams = TeamRuleManager.activeTeams.ToList();
 					if (!teams.Contains(MPKeys.DEFAULT_TEAM)) teams.Insert(0, MPKeys.DEFAULT_TEAM);
 					autocomplete.FromArray(teams);
 					return;
 				}
-				// 从参数 2 开始，由于支持逗号 `,` 连缀，我们需要根据相对位置进行判断
+				// 从参数 2 开始, 由于支持逗号 `,` 连缀, 我们需要根据相对位置进行判断
 				// 判断前一个参数是否为逗号 "," 或者这是新一轮循环的起点
-				// 检查当前是否在输入“规则字段名” (相对位置为偶数，例如 2, 4, 6...)
+				// 检查当前是否在输入“规则字段名” (相对位置为偶数, 例如 2, 4, 6...)
 				// 或者是逗号后面的全新循环起点
 				if (argIndex % 2 == 0) {
 					string prevArg = autocomplete.ArgumentAt(argIndex - 1);
 
-					// 如果前一个参数是逗号，说明在写新数据块的 [队伍A]
+					// 如果前一个参数是逗号, 说明在写新数据块的 [队伍A]
 					if (prevArg == ",") {
-						List<string> teams = TeamRuleManager._activeTeams.ToList();
+						List<string> teams = TeamRuleManager.activeTeams.ToList();
 						if (!teams.Contains(MPKeys.DEFAULT_TEAM)) teams.Insert(0, MPKeys.DEFAULT_TEAM);
 						autocomplete.FromArray(teams);
 					}
-					// 如果前一个参数是值(true/false)，说明可以继续写下一个 [规则名] 或者写个 [,] 开启新数据块
+					// 如果前一个参数是值(true/false), 说明可以继续写下一个 [规则名] 或者写个 [,] 开启新数据块
 					else {
 						autocomplete.FromArray(TeamRule.ruleFieldNames);
 					}
 				}
-				// 检查当前是否在输入“规则的值” (相对位置为奇数，例如 3, 5, 7...)
+				// 检查当前是否在输入“规则的值” (相对位置为奇数, 例如 3, 5, 7...)
 				else {
 					string prevArg2 = autocomplete.ArgumentAt(argIndex - 2);
 					string prevArg1 = autocomplete.ArgumentAt(argIndex - 1);
 
-					// 如果两步前是逗号，说明现在处于新数据块的 [队伍B] 位置
+					// 如果两步前是逗号, 说明现在处于新数据块的 [队伍B] 位置
 					if (prevArg2 == ",") {
-						List<string> teams = TeamRuleManager._activeTeams.ToList();
+						List<string> teams = TeamRuleManager.activeTeams.ToList();
 						if (!teams.Contains(MPKeys.DEFAULT_TEAM)) teams.Insert(0, MPKeys.DEFAULT_TEAM);
 						autocomplete.FromArray(teams);
 					}
-					// 否则，前一个参数必定是具体规则名，现在需要补全 [值]
+					// 否则, 前一个参数必定是具体规则名, 现在需要补全 [值]
 					else {
 						autocomplete.FromArray(new[] { "true", "false", "default" });
 					}
@@ -745,7 +749,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				// 验证队伍名 (参数0, 参数1, 以及逗号之后的相对位置)
 				if (argIndex == 0 || argIndex == 1) {
 					// 如果输入的不是有效队伍且不是默认队伍
-					if (!TeamRuleManager._activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
+					if (!TeamRuleManager.activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
 						validator.Reject();
 					}
 					return;
@@ -755,7 +759,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					string prevArg = validator.ArgumentAt(argIndex - 1);
 					if (prevArg == ",") {
 						// 逗号后紧跟的必须是有效队伍名
-						if (!TeamRuleManager._activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
+						if (!TeamRuleManager.activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
 							validator.Reject();
 						}
 					} else {
@@ -767,12 +771,12 @@ public class MPCore : MonoSingleton<MPCore> {
 				} else {
 					string prevArg2 = validator.ArgumentAt(argIndex - 2);
 					if (prevArg2 == ",") {
-						// 新块的第二个参数，必须是有效队伍名
-						if (!TeamRuleManager._activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
+						// 新块的第二个参数, 必须是有效队伍名
+						if (!TeamRuleManager.activeTeams.Contains(currentVal) && currentVal != MPKeys.DEFAULT_TEAM.ToLower()) {
 							validator.Reject();
 						}
 					} else {
-						// 否则，必须是开关布尔值
+						// 否则, 必须是开关布尔值
 						if (currentVal != "true" && currentVal != "false" && currentVal != "default" && currentVal != "1" && currentVal != "0") {
 							validator.Reject();
 						}
@@ -784,7 +788,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("addteam", AddTeamCommand)
 			.NotCheat()
 			.Description("手动添加一个活跃队伍. 格式: addteam [队伍名]")
-			.OverValue(() => _MPsteamworks.IsInLobby ? (TeamRuleManager._activeTeams) : "Not In Lobby")
+			.OverValue(() => _MPsteamworks.IsInLobby ? (TeamRuleManager.activeTeams) : "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
 				if (!_MPsteamworks.IsHost) autocomplete.FromArray(new[] { "You Are Not Host" });
 			});
@@ -793,14 +797,14 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("removeteam", RemoveTeamCommand)
 			.NotCheat()
 			.Description("手动删除一个活跃队伍及其所有规则(default不可删除). 格式: removeteam [队伍名]")
-			.OverValue(() => _MPsteamworks.IsInLobby ? (TeamRuleManager._activeTeams) : "Not In Lobby")
+			.OverValue(() => _MPsteamworks.IsInLobby ? (TeamRuleManager.activeTeams) : "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
 				if (!_MPsteamworks.IsHost) {
 					autocomplete.FromArray(new[] { "You Are Not Host" });
 					return;
 				}
-				// 只能删除当前存在的队伍，且排除 default
-				autocomplete.FromArray(TeamRuleManager._activeTeams
+				// 只能删除当前存在的队伍, 且排除 default
+				autocomplete.FromArray(TeamRuleManager.activeTeams
 					.Where(t => t != MPKeys.DEFAULT_TEAM.ToLower()).ToList());
 			})
 			.AutocompleteValidator(validator => {
@@ -873,11 +877,30 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("jointeam", JoinTeam)
 			.NotCheat()
 			.Description(Localization.Get("CommandHelp.JoinTeam"))
+			.OverValue(() => _MPsteamworks.IsInLobby ? CurrentTeam : "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
 				if (autocomplete.activeArg == 0) {
-					autocomplete.FromArray(TeamRuleManager._activeTeams.ToList());
+					autocomplete.FromArray(TeamRuleManager.activeTeams.ToList());
 				}
 			});
+	}
+
+	/// <summary>
+	/// 控制执行远程命令相关命令注册
+	/// </summary>
+	public void RegisterRconCommand() {
+		CommandConsole.BuildCommand("pcmd", ExecutePcmd)
+			.Description("远程执行命令。格式: pcmd [all|steamId] [命令1] :: [命令2] ...")
+			.AutocompleteCustom(PcmdAutocomplete)
+			.AutocompleteValidator(validator => NestedCommandEngine.ForwardValidator(validator, defaultStartIndex: 1));
+		CommandConsole.BuildCommand("tcmd", ExecuteTcmd)
+			.Description("远程执行命令。格式: tcmd [teamName] [命令1] :: [命令2] ...")
+			.AutocompleteCustom(TcmdAutocomplete)
+			.AutocompleteValidator(validator => NestedCommandEngine.ForwardValidator(validator, defaultStartIndex: 1));
+		CommandConsole.BuildCommand("acmd", ExecuteAcmd)
+			.Description("远程执行命令。格式: acmd [join|restart] [命令1] :: [命令2] ...")
+			.AutocompleteCustom(AcmdAutocomplete)
+			.AutocompleteValidator(AcmdValidator);
 	}
 
 	#endregion
@@ -957,6 +980,8 @@ public class MPCore : MonoSingleton<MPCore> {
 			MPMain.LogError(Localization.Get("CommandConsole.CriticalErrorDuringCreate", ex.Message));
 		}
 	}
+
+
 
 	/// <summary>
 	/// 加入大厅
@@ -1043,7 +1068,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				MPMain.LogError(Localization.Get("MPCore.JoinLobbyFailed"));
 			}
 		} catch (Exception ex) {
-			// 捕获任何未预料的异常 (网络崩溃、Steam客户端断开等)
+			// 捕获任何未预料的异常 (网络崩溃, Steam客户端断开等)
 			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 			MPMain.LogError(Localization.Get("MPCore.CriticalErrorDuringJoin", ex.Message));
 		}
@@ -1070,7 +1095,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				CommandConsole.LogError(Localization.Get("CommandConsole.JoinLobbyFailed"));
 			}
 		} catch (Exception ex) {
-			// 捕获任何未预料的异常 (网络崩溃、Steam客户端断开等)
+			// 捕获任何未预料的异常 (网络崩溃, Steam客户端断开等)
 			SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
 			MPMain.LogError(Localization.Get("CommandConsole.CriticalErrorDuringJoin", ex.Message));
 		}
@@ -1169,8 +1194,8 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		TeamRuleManager.AddActiveTeam(teamName);
 
-		// 更新大厅中的队伍列表字符串，触发客户端同步
-		_MPsteamworks.SetLobbyData(MPKeys.ACTIVE_TEAMS, string.Join(",", TeamRuleManager._activeTeams));
+		// 更新大厅中的队伍列表字符串, 触发客户端同步
+		_MPsteamworks.SetLobbyData(MPKeys.ACTIVE_TEAMS, string.Join(",", TeamRuleManager.activeTeams));
 		MPMain.Debug($"成功添加活跃队伍: {teamName}");
 	}
 
@@ -1194,7 +1219,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		TeamRuleManager.RemoveActiveTeam(teamName);
 
 		// 网络同步与持久化
-		_MPsteamworks.SetLobbyData(MPKeys.ACTIVE_TEAMS, string.Join(",", TeamRuleManager._activeTeams));
+		_MPsteamworks.SetLobbyData(MPKeys.ACTIVE_TEAMS, string.Join(",", TeamRuleManager.activeTeams));
 		RuleConfigLoader.SaveCurrentRulesToFile();
 		MPMain.Debug($"成功删除活跃队伍及其规则: {teamName}");
 	}
@@ -1230,7 +1255,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			: args[0].Trim().ToLower();
 
 		if (string.IsNullOrEmpty(teamName)) return;
-		if (!TeamRuleManager._activeTeams.Contains(teamName)) {
+		if (!TeamRuleManager.activeTeams.Contains(teamName)) {
 			CommandConsole.LogError(Localization.Get("CommandConsole.TeamNotExist", teamName));
 			return;
 		}
@@ -1238,6 +1263,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		CurrentTeam = teamName;
 		TeamRuleManager.UpdateActiveRules(CurrentTeam);
 		_RPManager.RefreshAllRule();
+		// 使用加入队伍指令
+		if (_MPsteamworks.LobbyData.TryGetValue(MPKeys.JOIN_TEAM_COMMAND + "_" + teamName, out string? joinCmd))
+			Patch_CommandConsole.ExecuteCommandForcefully(joinCmd);
 		// 更新玩家数据, 触发同步
 		_MPsteamworks.SetMemberData(MPKeys.TEAM, teamName);
 		CommandConsole.Log(Localization.Get("CommandConsole.JoinedTeam", teamName));
@@ -1313,6 +1341,204 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+	#region[执行远程命令操作]
+
+	/// <summary>
+	/// 玩家远程命令执行核心逻辑
+	/// </summary>
+	private void ExecutePcmd(string[] args) {
+		if (!EnsureHostPrivileges()) return; // 只有房主能用
+		if (args.Length < 2) {
+			CommandConsole.LogError("参数不足！格式: rcon [all|steamId] [命令1]");
+			return;
+		}
+
+		string targetStr = args[0].ToLower();
+
+		// 1. 将后续所有参数拼接，并将 "::" 替换为原版的 ";"
+		// 例: allowpvp true :: addteam zombie -> allowpvp true ; addteam zombie
+		string payload = string.Join(" ", args.Skip(1)).Replace("::", ";");
+
+		// 2. 发送网络包
+		var writer = MPWriterPool.GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.RemoteCommand);
+		writer.Put(payload);
+
+		if (targetStr == "all") {
+			MPSteamworks.Instance.Broadcast(writer);
+			CommandConsole.Log($"已向所有人发送远程命令: {payload}");
+			Patch_CommandConsole.ExecuteCommandForcefully(payload);
+		} else if (ulong.TryParse(targetStr, out ulong targetId)) {
+			MPSteamworks.Instance.SendToPeer(targetId, writer);
+			CommandConsole.Log($"已向 {targetId} 发送远程命令: {payload}");
+		} else {
+			CommandConsole.LogError("无效的目标！必须是 'all' 或玩家 SteamID。");
+		}
+	}
+
+	/// <summary>
+	/// rcon 专属的嵌套补全代理
+	/// </summary>
+	private void PcmdAutocomplete(CommandConsole.CommandAutocomplete autocomplete) {
+		if (!_MPsteamworks.IsHost)
+			autocomplete.FromArray(new string[] { "You Are Not Host" });
+		// 关照自己的第 0 个参数：玩家列表
+		if (autocomplete.activeArg == 0) {
+			var targets = _RPManager.Players.Values.Select(p => (id: p.PlayerId.ToString(), name: p.PlayerName)).ToList();
+			targets.Insert(0, ("all", "all"));
+			autocomplete.FromArrayWithDesc(targets);
+			return;
+		}
+
+		// 其余的参数,丢给引擎,并明确告诉引擎：如果没有 :: 子命令默认从索引 1 开始
+		NestedCommandEngine.ForwardAutocomplete(autocomplete, defaultStartIndex: 1);
+	}
+
+	/// <summary>
+	/// 队伍远程命令执行核心逻辑
+	/// </summary>
+	private void ExecuteTcmd(string[] args) {
+		if (!EnsureHostPrivileges()) return; // 只有房主能用
+		if (args.Length < 2) {
+			CommandConsole.LogError("参数不足！格式: tcon [teamName] [命令1]");
+			return;
+		}
+
+		string targetStr = args[0].ToLower();
+
+		// 1. 将后续所有参数拼接，并将 "::" 替换为原版的 ";"
+		// 例: allowpvp true :: addteam zombie -> allowpvp true ; addteam zombie
+		string payload = string.Join(" ", args.Skip(1)).Replace("::", ";");
+
+		// 2. 发送网络包
+		var writer = MPWriterPool.GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.RemoteCommand);
+		writer.Put(payload);
+
+		if (TeamRuleManager.activeTeams.TryGetValue(targetStr, out var team)) {
+			foreach (var playerId in _RPManager.GetPlayerInTeam(targetStr)) {
+				MPSteamworks.Instance.SendToPeer(playerId, writer);
+				CommandConsole.Log($"已向 {playerId} 发送远程命令: {payload}");
+			}
+			if (CurrentTeam == team) 
+				Patch_CommandConsole.ExecuteCommandForcefully(payload);
+		} else {
+			CommandConsole.LogError("无效的目标");
+		}
+	}
+
+	/// <summary>
+	/// tcon 专属的嵌套补全代理
+	/// </summary>
+	private void TcmdAutocomplete(CommandConsole.CommandAutocomplete autocomplete) {
+		if (!_MPsteamworks.IsHost)
+			autocomplete.FromArray(new string[] { "You Are Not Host" });
+		// 关照自己的第 0 个参数：玩家列表
+		if (autocomplete.activeArg == 0) {
+			var targets = TeamRuleManager.activeTeams.ToList();
+			autocomplete.FromArray(targets);
+			return;
+		}
+
+		// 其余的参数,丢给引擎,并明确告诉引擎：如果没有 :: 子命令默认从索引 1 开始
+		NestedCommandEngine.ForwardAutocomplete(autocomplete, defaultStartIndex: 1);
+	}
+
+	/// <summary>
+	/// 自动命令执行
+	/// </summary>
+	private void ExecuteAcmd(string[] args) {
+		if (!EnsureHostPrivileges()) return; // 只有房主能用
+		if (args.Length < 2) {
+			CommandConsole.LogError("参数不足！");
+			return;
+		}
+
+		string action = args[0].ToLower();
+		string triggerKey = "";
+		int skipCount = 1; // 默认跳过 action 自身
+
+		// --- 动态分支解析 ---
+		if (action == "jointeam") {
+			if (args.Length < 3) {
+				CommandConsole.LogError("格式错误！格式: acmd jointeam [队伍名] [命令]");
+				return;
+			}
+			string teamName = args[1].ToLower();
+
+			// 动态拼接专属队伍的 Lobby Key (例: MPKeys.JOIN_TEAM_COMMAND + "_red")
+			triggerKey = MPKeys.JOIN_TEAM_COMMAND + "_" + teamName;
+			skipCount = 2; // 跳过 "jointeam" 和 "teamName"
+		} else if (action == "join") {
+			triggerKey = MPKeys.JOIN_COMMAND;
+		} else if (action == "restart") {
+			triggerKey = MPKeys.RESTART_COMMAND;
+		}
+
+		if (string.IsNullOrEmpty(triggerKey)) {
+			CommandConsole.LogError("无效的触发时机! 必须是 'join' 'restart' 'jointeam' ");
+			return;
+		}
+
+		// 动态裁剪出后续的复合指令 payload
+		string payload = string.Join(" ", args.Skip(skipCount)).Replace("::", ";");
+
+		// 写入 Steam LobbyData 广播给所有人
+		_MPsteamworks.SetLobbyData(triggerKey, payload);
+		CommandConsole.Log($"[Automation] 已成功注册事件 [{triggerKey}] 的自动指令: {payload}");
+	}
+
+	/// <summary>
+	/// acmd 专属的嵌套补全代理 (支持动态多级参数)
+	/// </summary>
+	private void AcmdAutocomplete(CommandConsole.CommandAutocomplete autocomplete) {
+		if (!_MPsteamworks.IsHost) {
+			autocomplete.FromArray(new string[] { "You Are Not Host" });
+			return;
+		}
+
+		// 1. 第一层参数：选择触发时机
+		if (autocomplete.activeArg == 0) {
+			autocomplete.FromArray(new[] { "join", "restart", "jointeam" });
+			return;
+		}
+
+		// 获取玩家当前已经输入的第一个参数
+		string firstArg = autocomplete.ArgumentAt(0).ToLower();
+
+		// 2. 第二层参数分支判断
+		if (firstArg == "jointeam") {
+			// 如果正在输入队伍名
+			if (autocomplete.activeArg == 1) {
+				var teams = TeamRuleManager.activeTeams.ToList();
+				autocomplete.FromArray(teams);
+				return;
+			}
+
+			// 队伍名输完之后的所有后续参数，甩给引擎，明确告诉引擎：子命令从索引 2 开始
+			NestedCommandEngine.ForwardAutocomplete(autocomplete, defaultStartIndex: 2);
+		} else {
+			// 常规的 join 和 restart，子命令从索引 1 开始
+			NestedCommandEngine.ForwardAutocomplete(autocomplete, defaultStartIndex: 1);
+		}
+	}
+
+	/// <summary>
+	/// acmd 专属的动态嵌套验证器代理
+	/// </summary>
+	private void AcmdValidator(CommandConsole.CommandValidator validator) {
+		if (Patch_CommandConsole.ValidatorArgsRef == null) return;
+
+		List<string> originalArgs = Patch_CommandConsole.ValidatorArgsRef(validator);
+		if (originalArgs == null || originalArgs.Count == 0) return;
+
+		// 动态识别子命令真正的起点
+		string firstArg = originalArgs[0].ToLower();
+		int dynamicStartIndex = (firstArg == "jointeam") ? 2 : 1;
+
+		// 扔给通用引擎处理
+		NestedCommandEngine.ForwardValidator(validator, defaultStartIndex: dynamicStartIndex);
+	}
+
+	#endregion
 	#region[大厅/连接事件触发函数]
 
 	/// <summary>
@@ -1363,29 +1589,43 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		// 获取游戏模式数据的协程
 		IEnumerator InitGamemodeRoutine() {
-			for (int i = 0; i < 3 && IsInLobby && !IsInitialized && !_MPsteamworks.IsHost; i++) {
+			if (_MPsteamworks.IsHost || IsInitialized || !IsInLobby) yield break;
+
+			for (int i = 0; i < 3; i++) {
+				if (!IsInLobby || IsInitialized) yield break;
+
 				string rawData = lobby.GetData(MPKeys.GAMEMODE_JSON);
+				// 空数据尝试重试, 同时请求一次数据刷新
 				if (string.IsNullOrEmpty(rawData)) {
-					// 尝试获取原始字符串
 					MPMain.LogWarning($"[MP Debug] (尝试 {i + 1}) 大厅的游戏模式数据尚未同步或丢失");
 					_MPsteamworks.RefreshLobbyData();
-				} else {
-					MPMain.LogInfo($"[MP Debug] 游戏模式数据: {rawData}");
-					// 尝试解析 JSON
-					GameModeData data = null;
-					try {
-						data = JsonConvert.DeserializeObject<GameModeData>(rawData);
-
-					} catch (JsonException ex) {
-						MPMain.LogError($"[MP Debug] (尝试 {i + 1}) JSON 格式解析失败,原始数据: {rawData} | 错误: {ex.Message}");
-					}
-					// 解析成功则加载并退出协程
-					if (data != null) {
-						LoadGameMode(data);
-						yield break;
-					}
+					yield return new WaitForSeconds(1.0f);
+					continue; // 提前进入下一次重试
 				}
-				yield return new WaitForSeconds(1.0f);
+
+				MPMain.LogInfo($"[MP Debug] 游戏模式数据: {rawData}");
+				// 尝试解析 JSON
+				GameModeData data = null;
+				try {
+					data = JsonConvert.DeserializeObject<GameModeData>(rawData);
+				} catch (JsonException ex) {
+					MPMain.LogError($"[MP Debug] (尝试 {i + 1}) JSON 格式解析失败,原始数据: {rawData} | 错误: {ex.Message}");
+				}
+				// 解析失败, 等待后重试
+				if (data == null) {
+					yield return new WaitForSeconds(1.0f);
+					continue;
+				}
+
+				// 解析成功则加载并退出协程
+				LoadGameMode(data);
+				// 等待地图加载完成
+				yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+				// 加载完成后执行加入指令
+				string cmdData = lobby.GetData(MPKeys.JOIN_COMMAND);
+				if (!string.IsNullOrEmpty(cmdData))
+					Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
+				yield break;
 			}
 			if (!IsInitialized && !_MPsteamworks.IsHost) {
 				MPMain.LogError("[MP Debug] 初始化握手失败: 重试次数耗尽或已离开大厅.");
@@ -1452,7 +1692,8 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 明确要求关闭作弊
 			if (!IsAllowCheats) {
 				CommandConsole.cheatsEnabled = false;
-				ENT_Player.GetPlayer()?.noclip = false;
+				ENT_Player.GetPlayer().noclip = false;
+				ENT_Player.GetPlayer().SetGodMode(false);
 			}
 		}
 

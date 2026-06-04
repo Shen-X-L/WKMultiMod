@@ -53,7 +53,7 @@ public class RPManager : Singleton<RPManager> {
 		}
 		Players.Clear();
 		joinMessages.Clear();
-		leaveMessages.Clear(); 
+		leaveMessages.Clear();
 		RPFactoryManager.Instance.ClearPrefabCache();
 	}
 
@@ -230,6 +230,7 @@ public class RPManager : Singleton<RPManager> {
 
 		var playerPosition = playerObject.transform.position;
 
+		// 生成物品
 		foreach (var (itemId, count) in remoteItems) {
 			if (itemId == NO_ITEM_NAME)
 				continue;
@@ -265,6 +266,11 @@ public class RPManager : Singleton<RPManager> {
 		}
 
 		container.HandleDeath();
+
+		if (container.actionRule.syncDied && ENT_Player.GetPlayer().IsDead() == false) {
+			ENT_Player.GetPlayer().Kill("syncDied");
+		}
+
 		return;
 	}
 
@@ -350,8 +356,17 @@ public class RPManager : Singleton<RPManager> {
 	/// 刷新所有玩家的规则引用, 以适应规则修改时的即时生效
 	/// </summary>
 	public void RefreshAllRule() {
-		foreach (var (id, container) in Players) 
+		foreach (var (id, container) in Players)
 			container.RefreshRuleReference();
+	}
+
+	public List<IDType> GetPlayerInTeam(string teamName) {
+		var players = new List<IDType>();
+		foreach (var (id, container) in Players) {
+			if (container.team == teamName)
+				players.Add(id);
+		}
+		return players;
 	}
 
 	#endregion

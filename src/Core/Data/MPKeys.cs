@@ -17,18 +17,19 @@ public static partial class MPKeys {
 	public const string VERSION = "version";
 	public const string MOD_VERSION = "mod version";
 
-	public const string OWNER_NAME = "owner";
+	public const string OWNER_NAME = "owner";					// 大厅创建者名字
+	public const string LOBBY_VISIBILITY = "visibility";		// 大厅可见性
+	public const string LOBBY_NAME = "name";					// 大厅名称
 
-	public const string LOBBY_VISIBILITY = "visibility";
-	public const string LOBBY_NAME = "name";
+	public const string GAMEMODE_JSON = "gamemode";				// 游戏模式
+	public const string BIND_SYNC = "bind sync";				// 是否同步饰品/绑定
+	public const string ALLOW_CHEATS = "allow cheats";			// 是否允许作弊
+	public const string DAMAGE_CONFIG = "damage config";		// 伤害规则配置
+	public const string ACTIVE_TEAMS = "active teams";			// 活跃队伍列表键
 
-	public const string GAMEMODE_JSON = "gamemode";
-	public const string BIND_SYNC = "bind sync";
-
-	public const string ALLOW_CHEATS = "allowCheats";
-	public const string DAMAGE_CONFIG = "damage config";
-
-	public const string ACTIVE_TEAMS = "active teams";
+	public const string JOIN_COMMAND = "join command";			// 加入房间执行的命令
+	public const string RESTART_COMMAND = "restart command";    // 重开房间执行的命令
+	public const string JOIN_TEAM_COMMAND = "join team command";// 加入队伍执行的命令
 
 	// 玩家个人数据键
 	public const string ALL_KEYS_INDEX = "__all_keys__";

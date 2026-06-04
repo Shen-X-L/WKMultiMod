@@ -210,7 +210,7 @@ public struct PlayerData : INetworkSerializable {
 	}
 
 	/// <summary>
-	/// 内部工具函数：优化版的旋转相似性检查
+	/// 内部工具函数: 优化版的旋转相似性检查
 	/// </summary>
 	private static bool IsRotationSimilar(Quaternion a, Quaternion b, float thresholdDegrees) {
 		float cosThreshold = Mathf.Cos(thresholdDegrees * Mathf.Deg2Rad * 0.5f);

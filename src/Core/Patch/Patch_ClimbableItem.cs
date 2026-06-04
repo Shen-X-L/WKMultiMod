@@ -91,7 +91,7 @@ public class Patch_HandItem_Piton_PitonHit {
 
 /// <summary>
 /// Patch: 投射物碰撞命中时
-/// - 用于处理由投射物生成的可攀爬对象 (如射钉、钩点等) 
+/// - 用于处理由投射物生成的可攀爬对象 (如射钉, 钩点等) 
 ///
 /// Patch: Projectile collision hit
 /// - Handles climbable objects spawned by projectiles (e.g. shootable pitons)
@@ -170,7 +170,7 @@ public class Patch_CL_Handhold_HammerIn_PitonSync {
 
 /// <summary>
 /// Patch: Handhold FixedUpdate
-/// - 定期同步Handhold状态 (位置、旋转、secure状态等) 
+/// - 定期同步Handhold状态 (位置, 旋转, secure状态等) 
 ///
 /// Patch: Handhold FixedUpdate
 /// - Periodically syncs handhold state (position, rotation, secure state, etc.)

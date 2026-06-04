@@ -18,10 +18,6 @@ public class Patch_ENT_Player {
 		AccessTools.FieldRefAccess<ENT_Player, bool>("camLocked");
 	private static readonly AccessTools.FieldRef<ENT_Player, float> CamSpeedField =
 		AccessTools.FieldRefAccess<ENT_Player, float>("camSpeed");
-	private static readonly Func<ENT_Player, bool> IsFocusModeActiveInvoker =
-		AccessTools.MethodDelegate<Func<ENT_Player, bool>>(
-			AccessTools.Method(typeof(ENT_Player), "IsFocusModeActive")
-		);
 
 	// 死亡信息总线调用
 	[HarmonyPatch(nameof(ENT_Player.Kill))]
@@ -99,11 +95,5 @@ public class Patch_ENT_Player {
 		// 使用访问器重置私有字段
 		CamLockedField(__instance) = false;
 		CamSpeedField(__instance) = 1f;
-	}
-
-	public static bool IsFocusModeActive() {
-		var player = ENT_Player.GetPlayer();
-		if (player == null) return false;
-		return IsFocusModeActiveInvoker(player);
 	}
 }

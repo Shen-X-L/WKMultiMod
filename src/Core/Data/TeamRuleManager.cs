@@ -26,7 +26,7 @@ public class TeamRule {
 	public bool? syncDied;
 	public bool? collision;
 
-	// 【新增】对象拷贝方法：用于在修改前克隆一个旧规则，实现完美增量更新
+	// 【新增】对象拷贝方法: 用于在修改前克隆一个旧规则, 实现完美增量更新
 	public TeamRule Clone() {
 		return new TeamRule {
 			pvp = this.pvp,
@@ -40,7 +40,7 @@ public class TeamRule {
 		};
 	}
 
-	// 动态更新规则方法：将外部传入的 string 转化为内部状态
+	// 动态更新规则方法: 将外部传入的 string 转化为内部状态
 	public void UpdateRule(string ruleName, string valStr) {
 		// 转换为 bool?
 		bool? val = null;
@@ -102,7 +102,7 @@ public class TeamRule {
 		return string.Join(";", parts);
 	}
 
-	// 辅助函数：根据枚举获取字段值
+	// 辅助函数: 根据枚举获取字段值
 	public bool? GetFieldValue(RuleType type) {
 		return type switch {
 			RuleType.Pvp => pvp,
@@ -117,7 +117,7 @@ public class TeamRule {
 		};
 	}
 
-	// 辅助函数：根据枚举获取字段值
+	// 辅助函数: 根据枚举获取字段值
 	public void SetFieldValue(RuleType type, bool? value) {
 		switch (type) {
 			case RuleType.Pvp: pvp = value; break;
@@ -133,7 +133,7 @@ public class TeamRule {
 	}
 }
 
-// 全是明确的 bool，没有 null，供组件每帧高频无开销读取
+// 全是明确的 bool, 没有 null, 供组件每帧高频无开销读取
 public class FlattenedRule {
 	public bool pvp;
 	public bool hang;
@@ -152,7 +152,7 @@ public static class TeamRuleManager {
 	private static Dictionary<string, FlattenedRule> _flatRulesByTarget = new();
 
 	// 活跃队伍列表
-	public static HashSet<string> _activeTeams = new HashSet<string>();
+	public static HashSet<string> activeTeams = new HashSet<string>();
 
 	public static string GetRuleKey(string attackerTeam, string targetTeam) => $"Rule_{attackerTeam}_{targetTeam}";
 
@@ -173,25 +173,25 @@ public static class TeamRuleManager {
 	/// 查询 A 对 B 的某项规则 (支持三级回退)
 	/// </summary>
 	public static bool GetRule(string teamA, string teamB, RuleType type, bool newValue = false) {
-		// 第一级：查询专属规则 Rule_{teamA}_{teamB}
+		// 第一级: 查询专属规则 Rule_{teamA}_{teamB}
 		if (_rulesCache.TryGetValue(GetRuleKey(teamA, teamB), out var specificRule)) {
 			bool? val = specificRule.GetFieldValue(type);
 			if (val.HasValue) return val.Value;
 		}
 
-		// 第二级：查询单边默认规则 Rule_{teamA}_{DEFAULT_TEAM}
+		// 第二级: 查询单边默认规则 Rule_{teamA}_{DEFAULT_TEAM}
 		if (_rulesCache.TryGetValue(GetRuleKey(teamA, MPKeys.DEFAULT_TEAM), out var teamDefaultRule)) {
 			bool? val = teamDefaultRule.GetFieldValue(type);
 			if (val.HasValue) return val.Value;
 		}
 
-		// 第三级：查询全局默认规则 Rule_{DEFAULT_TEAM}_{DEFAULT_TEAM}
+		// 第三级: 查询全局默认规则 Rule_{DEFAULT_TEAM}_{DEFAULT_TEAM}
 		if (_rulesCache.TryGetValue(GetRuleKey(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM), out var globalRule)) {
 			bool? val = globalRule.GetFieldValue(type);
 			if (val.HasValue) return val.Value;
 		}
 
-		// 第四级：如果连全局规则都没配置, 返回程序硬编码的安全默认值
+		// 第四级: 如果连全局规则都没配置, 返回程序硬编码的安全默认值
 		return newValue;
 	}
 
@@ -199,20 +199,22 @@ public static class TeamRuleManager {
 	/// 修改 A 对 B 的某项规则 (返回修改后的序列化字符串, 供发送给 SteamLobby)
 	/// </summary>
 	public static string SetRule(string teamA, string teamB, RuleType type, bool? safeDefault) {
-		if (!_activeTeams.Contains(teamA) || !_activeTeams.Contains(teamB)) return null;
+		if (!activeTeams.Contains(teamA) || !activeTeams.Contains(teamB)) return null;
 		string key = GetRuleKey(teamA, teamB);
 		if (!_rulesCache.TryGetValue(key, out var rule)) return null;
 		rule.SetFieldValue(type, safeDefault);
 		return rule.SerializeTeamRule();
 	}
 
-	// 更新活跃队伍列表 (在解析规则时调用)
+	/// <summary>
+	/// 更新活跃队伍列表 (在解析规则时调用)
+	/// </summary>
 	public static void UpdateActiveTeams(IEnumerable<string> teams) {
-		_activeTeams.Clear();
-		_activeTeams.Add(MPKeys.DEFAULT_TEAM.ToLower());
+		activeTeams.Clear();
+		activeTeams.Add(MPKeys.DEFAULT_TEAM.ToLower());
 		foreach (var team in teams) {
 			if (!string.IsNullOrEmpty(team))
-				_activeTeams.Add(team);
+				activeTeams.Add(team);
 		}
 	}
 
@@ -222,10 +224,10 @@ public static class TeamRuleManager {
 	public static void UpdateActiveRules(string currentTeam) {
 		currentTeam = currentTeam?.ToLower() ?? MPKeys.DEFAULT_TEAM.ToLower();
 
-		foreach (var targetTeam in _activeTeams) {
+		foreach (var targetTeam in activeTeams) {
 			string targetLower = targetTeam.ToLower();
 
-			// 如果字典里还没有这个目标队伍的缓存对象，则创建一个新的
+			// 如果字典里还没有这个目标队伍的缓存对象, 则创建一个新的
 			if (!_flatRulesByTarget.TryGetValue(targetLower, out var flatRule)) {
 				flatRule = new FlattenedRule();
 				_flatRulesByTarget[targetLower] = flatRule;
@@ -257,14 +259,14 @@ public static class TeamRuleManager {
 	// 添加活跃队伍
 	public static void AddActiveTeam(string team) {
 		if (!string.IsNullOrEmpty(team))
-			_activeTeams.Add(team);
+			activeTeams.Add(team);
 	}
 
 	// 删除特定活跃队伍和规则
 	public static void RemoveActiveTeam(string team) {
 		if (string.IsNullOrEmpty(team)) return;
 
-		_activeTeams?.Remove(team);
+		activeTeams?.Remove(team);
 
 		// 删除相关规则
 		var keysToRemove = new List<string>();

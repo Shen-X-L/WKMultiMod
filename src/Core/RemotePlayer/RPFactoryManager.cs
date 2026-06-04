@@ -40,7 +40,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	/// <summary>
-	/// 当彻底断开服务器、大退或重置大厅时, 清空内存中的预制体母本缓存, 释放内存
+	/// 当彻底断开服务器, 大退或重置大厅时, 清空内存中的预制体母本缓存, 释放内存
 	/// </summary>
 	public void ClearPrefabCache() {
 		foreach (var prefab in _cachedPrefabs.Values) {
@@ -149,7 +149,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 				return null;
 			}
 
-			// 执行主框架默认的通用修复 (Shader、影子组件转换等)
+			// 执行主框架默认的通用修复 (Shader, 影子组件转换等)
 			RPPrefabProcessor.RunDefaultPipeline(rawPrefab, modelId);
 
 			// 实例化一个安全的上下文辅助箱, 将当前 Bundle 传进去
@@ -199,7 +199,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	/// <summary>
-	/// 调试API：遍历所有注册的 BundlePath, 打印出对应 AssetBundle 内部的所有资源名称
+	/// 调试API: 遍历所有注册的 BundlePath, 打印出对应 AssetBundle 内部的所有资源名称
 	/// </summary>
 	public void DebugDumpAllBundleContents() {
 		// 获取去重后的所有 AB 包路径
@@ -225,7 +225,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 
 				// 获取内部所有资源的名称 (Unity默认会返回小写全路径, 如 assets/prefabs/capsuleplayerprefab.prefab) 
 				string[] assetNames = bundle.GetAllAssetNames();
-				MPMain.LogWarning($"[成功] 载入成功. 该 AB 包内包含 {assetNames.Length} 个资源：");
+				MPMain.LogWarning($"[成功] 载入成功. 该 AB 包内包含 {assetNames.Length} 个资源: ");
 
 				for (int i = 0; i < assetNames.Length; i++) {
 					MPMain.LogWarning($"   -> 索引 [{i}]: {assetNames[i]}");
@@ -244,7 +244,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	/// <summary>
-	/// 调试API：以一定的时间间隔, 依次创建所有注册的模型预制体实例
+	/// 调试API: 以一定的时间间隔, 依次创建所有注册的模型预制体实例
 	/// </summary>
 	/// <param name="intervalSeconds">创建间隔时间 (秒) </param>
 	public void DebugSpawnAllPrefabsSequentially(float intervalSeconds) {

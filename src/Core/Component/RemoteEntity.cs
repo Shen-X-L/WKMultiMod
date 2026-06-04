@@ -174,8 +174,8 @@ public class DamageRules {
 	public float Other;
 	public float FireTime;
 	public float FireDamage;
-	// 新增：并发伤害允许的窗口期 (秒)
+	// 新增: 并发伤害允许的窗口期 (秒)
 	public float BurstWindow;
-	// 新增：受伤后的完整无敌时间 (秒)
+	// 新增: 受伤后的完整无敌时间 (秒)
 	public float InvincibilityTime;
 }

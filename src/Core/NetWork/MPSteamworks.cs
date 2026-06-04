@@ -933,11 +933,11 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		foreach (var kvp in RuleConfigLoader.LoadRulesAsLobbyData()) {
 			dict[kvp.Key] = kvp.Value;  // 重复键会覆盖
 			var teamNames = kvp.Key.Split('_');
-			TeamRuleManager._activeTeams.Add(teamNames[1]);
-			TeamRuleManager._activeTeams.Add(teamNames[2]);
+			TeamRuleManager.activeTeams.Add(teamNames[1]);
+			TeamRuleManager.activeTeams.Add(teamNames[2]);
 		}
 		// 活动队伍列表
-		dict[MPKeys.ACTIVE_TEAMS] = string.Join(",", TeamRuleManager._activeTeams);
+		dict[MPKeys.ACTIVE_TEAMS] = string.Join(",", TeamRuleManager.activeTeams);
 		return dict;
 	}
 

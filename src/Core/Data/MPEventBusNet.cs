@@ -15,8 +15,7 @@ public enum PacketType {
 	GameUIMessage = 4,      // 客机->主机->客机: 调用游戏本体UI组件显示消息
 	BroadcastMessage = 5,   // 客机->主机->客机: 广播信息
 	WorldStateSync = 6,     // 主机->客机: 世界状态同步, 如Mess高度
-	HostCommand = 7,        // 主机->客机: 主机命令注入, 如切换地图/重置世界/设置队伍
-	PlayerDeath = 9,        // 客机->主机->客机: 玩家死亡, 发送广播
+	RemoteCommand = 7,        // 主机->客机: 主机命令注入, 如切换地图/重置世界/设置队伍
 
 	// 非玩家实体状态同步
 	PitonStateSync = 10,    // 客机->主机->客机: 同步已放置可攀爬物(岩钉/自动岩钉/钢筋/带绳钢筋)的创建/敲入/失效状态
@@ -26,7 +25,8 @@ public enum PacketType {
 	PlayerDataUpdate = 20,   // 客机->主机->客机: 玩家数据更新
 	PlayerDamage = 21,       // 客机->主机->客机: 玩家造成伤害
 	PlayerAddForce = 22,     // 客机->主机->客机: 玩家添加冲击力
-	PlayerStopInteraction = 23,	// 客机->主机->客机: 玩家停止当前交互(如抓取)
+	PlayerStopInteraction = 23, // 客机->主机->客机: 玩家停止当前交互(如抓取)
+	PlayerDeath = 24,        // 客机->主机->客机: 玩家死亡, 发送广播
 
 	// 临时措施
 	PlayerTeleportRequest = 40, // 客机->主机->客机: 请求传送

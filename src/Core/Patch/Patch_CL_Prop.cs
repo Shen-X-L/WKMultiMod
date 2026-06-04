@@ -7,11 +7,11 @@ using WKMPMod.Core;
 
 namespace WKMPMod.Patch;
 
-[HarmonyPatch] // 注意：动态重写不需要在此处指定函数名
+[HarmonyPatch] // 注意: 动态重写不需要在此处指定函数名
 public class Patch_CL_Prop {
 
 	/// <summary>
-	/// 白名单：这些函数 [绝对不拦截], 保持原样执行或走子类的 override 逻辑. 
+	/// 白名单: 这些函数 [绝对不拦截], 保持原样执行或走子类的 override 逻辑. 
 	/// 凡是不在这个列表里的 CL_Prop 函数, 默认全部对 RemoteEntity 拦截并跳过 (返回 false). 
 	/// </summary>
 	private static readonly HashSet<string> Whitelist = new HashSet<string> {
@@ -40,10 +40,10 @@ public class Patch_CL_Prop {
 			// 1. 如果在白名单内, 直接跳过, 不进行补丁
 			if (Whitelist.Contains(method.Name)) continue;
 
-			// 2. 安全过滤：跳过静态函数、构造函数
+			// 2. 安全过滤: 跳过静态函数, 构造函数
 			if (method.IsStatic || method.IsConstructor) continue;
 
-			// 3. 安全过滤：跳过编译器自动生成的底层代码 (如 lambda 匿名函数、携程/异步状态机生成的方法) 
+			// 3. 安全过滤: 跳过编译器自动生成的底层代码 (如 lambda 匿名函数, 携程/异步状态机生成的方法) 
 			if (method.Name.StartsWith("<") || method.Name.Contains("$")) continue;
 
 			// 满足条件的黑名单函数 (如 FixedUpdate, OnCollision*, Initialize, Drop 等), 全部送去补丁

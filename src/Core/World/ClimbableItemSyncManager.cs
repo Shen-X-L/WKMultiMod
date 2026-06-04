@@ -27,7 +27,7 @@ public enum PitonSyncAction : byte {
 
 /// <summary>
 /// Piton/可攀爬物体同步管理器
-/// - 负责本地Piton创建、状态更新和删除同步
+/// - 负责本地Piton创建, 状态更新和删除同步
 /// - 负责接收并应用远程玩家的Piton状态
 /// - 使用NetworkedPiton组件保存网络身份和上次同步状态
 ///
@@ -193,7 +193,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 周期性广播Piton状态变化
-	/// 只有位置、旋转、激活状态或secure状态有明显变化时才发送
+	/// 只有位置, 旋转, 激活状态或secure状态有明显变化时才发送
 	///
 	/// Periodically broadcasts piton state changes
 	/// Only sends when position, rotation, active state or secure state changed meaningfully
@@ -219,7 +219,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 处理收到的Piton同步数据包
-	/// 根据Action类型执行创建、更新或删除
+	/// 根据Action类型执行创建, 更新或删除
 	///
 	/// Handles an incoming piton sync packet
 	/// Applies create, update or remove depending on the action type
@@ -626,7 +626,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 广播Piton同步消息
-	/// 消息包含NetworkId、PrefabKey、Transform、secure状态和active状态
+	/// 消息包含NetworkId, PrefabKey, Transform, secure状态和active状态
 	///
 	/// Broadcasts a piton sync message
 	/// The message includes NetworkId, PrefabKey, transform, secure state and active state

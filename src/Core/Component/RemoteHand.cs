@@ -13,10 +13,10 @@ public class RemoteHand : MonoBehaviour {
 	[SerializeField] public byte handType;
 
 	[Header("平滑移动设置")]
-	[Tooltip("瞬移阈值：超过此距离直接传送")]
+	[Tooltip("瞬移阈值: 超过此距离直接传送")]
 	[SerializeField] public float teleportThreshold = 50f;
 
-	[Tooltip("最大平滑距离：超过此距离使用快速平滑")]
+	[Tooltip("最大平滑距离: 超过此距离使用快速平滑")]
 	[SerializeField] public float fastSmoothDistance = 10f;
 
 	[Header("拖拽设置 (被敌对物体拉拽) ")]

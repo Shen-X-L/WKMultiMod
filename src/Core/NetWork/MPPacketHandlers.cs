@@ -9,16 +9,15 @@ using WKMPMod.Asset;
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.Patch;
 using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
 using static ENT_Player;
-using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
 using static WKMPMod.Util.DictionaryExtensions;
-using Random = UnityEngine.Random;
 
 
 namespace WKMPMod.NetWork;
@@ -278,6 +277,9 @@ public class MPPacketHandlers {
 		ItemSyncManager.HandleItemState(senderId, reader);
 	}
 
+	/// <summary>
+	/// 主机/客户端接收PlayerStopInteraction: 处理远程玩家松开物品或手抓点<br/>
+	/// </summary>
 	[MPPacketHandler(PacketType.PlayerStopInteraction)]
 	private static void HandlePlayerStopInteraction(ulong senderId, DataReader reader) {
 		var hands = ENT_Player.GetPlayer().hands;
@@ -304,5 +306,12 @@ public class MPPacketHandlers {
 			_cachedPlayer.StopInteraction(handIndex);
 			_cachedPlayer.AddForce(-_cachedPlayer.camTransform.forward, "RepelByRemote");
 		}
+	}
+
+	[MPPacketHandler(PacketType.RemoteCommand)]
+	public static void HandleRemoteCommand(ulong senderId, DataReader reader) {
+		string command = reader.GetString();
+		CommandConsole.Log($"[MP Debug] {new Friend(senderId).Name} issued command: {command}");
+		Patch_CommandConsole.ExecuteCommandForcefully(command);
 	}
 }

@@ -119,8 +119,8 @@ public class Patch_WorldLoader {
 			var allColliders = worldRoot.GetComponentsInChildren<MeshCollider>(true);
 			foreach (var col in allColliders) {
 				if (col.gameObject.activeInHierarchy && col.enabled) {
-					// 绝招：通过反复开关一次 sharedMesh, 或者强制触发一次碰撞体边界计算
-					// 这会逼迫 Unity 放弃后台异步烘焙, 必须在主线程 [立刻、当场] 把物理网格撑起来！
+					// 绝招: 通过反复开关一次 sharedMesh, 或者强制触发一次碰撞体边界计算
+					// 这会逼迫 Unity 放弃后台异步烘焙, 必须在主线程 [立刻, 当场] 把物理网格撑起来！
 					var mesh = col.sharedMesh;
 					if (mesh != null) {
 						col.sharedMesh = null;
