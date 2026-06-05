@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace WKMPMod.RemotePlayer;
 
@@ -45,4 +42,11 @@ public interface ICustomModelExtension {
 	/// </summary>
 	/// <param name="playerInstance">被克隆出来的玩家实例克隆体</param>
 	void OnPlayerInstanceCreated(GameObject playerInstance);
+}
+
+public interface IAssetHelper {
+	/// <summary>
+	/// 第三方可以从主Mod帮其加载的专属外部AB包资源里提取非GameObject的资产(如材质, 贴图等)
+	/// </summary>
+	T GetCustomAsset<T>(string assetName) where T : UnityEngine.Object;
 }

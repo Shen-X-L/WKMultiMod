@@ -321,6 +321,11 @@ public static class RuleConfigLoader {
 				victimTeam = MPKeys.DEFAULT_TEAM,
 				rules = new Dictionary<string, bool> { { "pvp", true } }
 			});
+			template.SpecificRules.Add(new SpecificRuleConfig {
+				attackerTeam = "hunter",
+				victimTeam = "hider",
+				rules = new Dictionary<string, bool> { { "pvp", true }, { "tagshow", false } }
+			});
 			File.WriteAllText(configPath, JsonConvert.SerializeObject(template, Formatting.Indented));
 		}
 

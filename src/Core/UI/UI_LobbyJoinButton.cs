@@ -77,7 +77,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		try {
 			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
 		} catch (JsonException ex) {
-			MPMain.LogError($"[MP Debug] JSON 格式解析失败,原始数据: {rawData} 错误: {ex.Message}");
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.GamemodeParseError", rawData, ex.Message));
 		}
 
 		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
@@ -165,7 +165,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		try {
 			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
 		} catch (JsonException ex) {
-			MPMain.LogError($"[MP Debug] JSON 格式解析失败,原始数据: {rawData} 错误: {ex.Message}");
+			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.GamemodeParseError", rawData, ex.Message));
 		}
 
 		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);

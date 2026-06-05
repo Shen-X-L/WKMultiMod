@@ -179,8 +179,8 @@ public class MPPacketRouter {
 		} catch (Exception e) {
 			if (DebugTick.TryTick()) {
 				MPMain.LogError(Localization.Get("MPPacketRouter.HandlerException", packetType, e));
-				MPMain.LogError($"[MP Debug] receive package. connectionId: {connectionId} senderId: {senderId} targetId: {targetId} packetType: {packetType}");
-				MPMain.LogError($"[MP Debug] Hexadecimal data: {BitConverter.ToString(data.Array, data.Offset + 18, data.Count - 18)}");
+				MPMain.LogError(Localization.Get("MPPacketRouter.ReceivePacketDebug", connectionId, senderId, targetId, packetType));
+				MPMain.LogError(Localization.Get("MPPacketRouter.HexadecimalData", BitConverter.ToString(data.Array, data.Offset + 18, data.Count - 18)));
 			}
 		}
 	}

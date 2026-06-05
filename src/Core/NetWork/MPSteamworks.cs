@@ -42,6 +42,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	// 本地缓存已存在的 Key, 避免每次 SetMemberData 都去读取和解析索引字符串
 	private readonly HashSet<string> _knownKeysCache = new HashSet<string>();
+	// 本地玩家数据,用于在steamMemberData失效时正常工作
+	public Dictionary<string, string> MemberData { get; private set; } = new();
 
 	// 获取全部在线玩家
 	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
@@ -136,7 +138,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		// 初始化中继网络(必须调用)
 		SteamNetworkingUtils.InitRelayNetworkAccess();
 
-		//[MP Debug]
+		//没几把用, 控制了棍母
 		DebugTest();
 	}
 
@@ -215,6 +217,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 		// 清空本地缓存
 		_knownKeysCache.Clear();
+		MemberData.Clear();
 
 		// 离开大厅(如果有)
 		if (_currentLobby.Id.IsValid) {
@@ -515,7 +518,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			// await SteamMatchmaking.CreateLobbyAsync
 			Lobby? lobbyResult = await SteamMatchmaking.CreateLobbyAsync(maxPlayers);
 
-			// 只检查结果并返回,移除所有同步大厅设置和 Socket 创建！
+			// 只检查结果并返回,移除所有同步大厅设置和 Socket 创建! 
 			if (!lobbyResult.HasValue) {
 				MPMain.LogError(Localization.Get("MPSteamworks.CreateLobbyFailed"));
 				return false;
@@ -655,7 +658,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	private void HandleLobbyMemberDataChanged(Lobby lobby, Friend friend) {
 		var data = GetAllMemberData(friend);
-		MPEventBusNet.NotifyMemberDataChanged(friend,data);
+		MPEventBusNet.NotifyMemberDataChanged(friend, data);
 	}
 
 	/// <summary>
@@ -918,7 +921,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// 设置大厅默认数据,确保所有玩家都能识别这是同一款游戏的大厅,并且可以进行版本兼容性检查
 	/// </summary>
-	
+
 	private Dictionary<string, string> GetDefaultLobbyData() {
 		var dict = new Dictionary<string, string>();
 		dict[MPKeys.GAME_KEY] = MPKeys.GAME_VALUE;
@@ -977,6 +980,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		if (key == MPKeys.ALL_KEYS_INDEX) return; // 禁止手动修改索引 Key
 
 		try {
+			// 同步到本地自定义字典
+			MemberData[key] = value;
 			// 设置实际数据
 			_currentLobby.SetMemberData(key, value);
 
@@ -992,7 +997,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				_knownKeysCache.Add(key);
 			}
 		} catch (Exception ex) {
-			MPMain.LogError($"[MP Debug] 设置成员数据失败: {ex.Message}");
+			MPMain.LogError(Localization.Get("MPSteamworks.SetMemberDataFailed", ex.Message));
 		}
 	}
 
@@ -1008,6 +1013,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 		foreach (var kvp in memberData) {
 			if (kvp.Key == MPKeys.ALL_KEYS_INDEX) continue;
+
+			// 同步更新本地自定义字典
+			MemberData[kvp.Key] = kvp.Value;
 
 			_currentLobby.SetMemberData(kvp.Key, kvp.Value);
 
@@ -1027,6 +1035,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// 通过索引 Key 获取指定玩家的所有个人数据
 	/// </summary>
 	public Dictionary<string, string> GetAllMemberData(Friend friend) {
+		// 直接返回本地数据
+		if (friend.Id == UserSteamId) return new Dictionary<string, string>(MemberData);
+
 		var result = new Dictionary<string, string>();
 		if (!_currentLobby.Id.IsValid) return result;
 
@@ -1043,7 +1054,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				result[key] = val;
 			}
 		} catch (Exception ex) {
-			MPMain.LogError($"[MP Debug] GetAllMemberData 异常: {ex.Message}");
+			MPMain.LogError(Localization.Get("MPSteamworks.GetAllMemberDataException", ex.Message));
 		}
 
 		return result;
@@ -1057,12 +1068,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			try {
 				return _currentLobby.GetMemberData(new Friend(friendId), key);
 			} catch (Exception ex) {
-				MPMain.LogError($"[MP Debug] 获取成员数据失败: {ex.Message}");
+				MPMain.LogError(Localization.Get("MPSteamworks.GetMemberDataFailed", ex.Message));
 			}
 		}
 		return null;
 	}
 
+	public void SendAllMemberData() {
+		var writer = MPWriterPool.GetWriter(UserSteamId, MPProtocol.BroadcastId, PacketType.ResponseMemberData);
+		writer.Put(MemberData);
+		Broadcast(writer);
+	}
 
 	/// <summary>
 	/// 刷新大厅数据,在加入大厅或创建大厅后调用
@@ -1074,6 +1090,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPEventBusNet.NotifyLobbyDataChanged(LobbyData);
 		}
 	}
+
 	#endregion
 	#region[大厅检索]
 
@@ -1113,8 +1130,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			var combinedLobbies = new List<Lobby>();
 			// 扫描好友大厅
 			foreach (var friend in SteamFriends.GetFriends()) {
-				if (friend.IsPlayingThisGame && friend.GameInfo?.Lobby is Lobby lobby 
-					&& lobbyIds.Add(lobby.Id)){
+				if (friend.IsPlayingThisGame && friend.GameInfo?.Lobby is Lobby lobby
+					&& lobbyIds.Add(lobby.Id)) {
 					// 添加不重复Lobby
 					combinedLobbies.Add(lobby);
 				}

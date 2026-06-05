@@ -119,7 +119,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		try {
 			extension?.OnPlayerInstanceCreated(instance);
 		} catch (Exception ex) {
-			MPMain.LogError($"[MP Debug] 模型 {modelId} 实例构建回调崩溃: {ex.Message}");
+			MPMain.LogError(Localization.Get("RPFactoryManager.ModelInstanceCallbackCrash", modelId, ex.Message));
 		}
 
 		return instance;
@@ -139,13 +139,13 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 			// 绝对安全的物理路径加载
 			bundle = AssetBundle.LoadFromFile(path);
 			if (bundle == null) {
-				MPMain.LogError(Localization.Get("RPBaseFactory.UnableToLoadResources") + $" 路径: {path}");
+				MPMain.LogError(Localization.Get("RPFactoryManager.UnableToLoadResources") + $" 路径: {path}");
 				return null;
 			}
 
 			rawPrefab = bundle.LoadAsset<GameObject>(assetName);
 			if (rawPrefab == null) {
-				MPMain.LogError(Localization.Get("RPBaseFactory.PrefabNotLoaded", assetName));
+				MPMain.LogError(Localization.Get("RPFactoryManager.PrefabNotLoaded", assetName));
 				return null;
 			}
 
@@ -210,7 +210,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		foreach (var path in uniquePaths) {
 			MPMain.LogWarning($"正在检查物理文件路径: {path}");
 			if (!File.Exists(path)) {
-				MPMain.LogError($"[错误] 该路径上的物理文件并不存在！");
+				MPMain.LogError($"[错误] 该路径上的物理文件并不存在! ");
 				continue;
 			}
 
@@ -219,7 +219,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 				// 临时加载包读取信息
 				bundle = AssetBundle.LoadFromFile(path);
 				if (bundle == null) {
-					MPMain.LogError($"[错误] 无法载入该 AssetBundle 物理文件！");
+					MPMain.LogError($"[错误] 无法载入该 AssetBundle 物理文件! ");
 					continue;
 				}
 
@@ -266,7 +266,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 						instance.transform.position = new Vector3(index * 3.0f, 0f, 0f);
 						instance.name = $"Debug_PlayerInstance_{modelId}";
 
-						MPMain.LogWarning($"[成功] 模型 '{modelId}' 实例化成功！世界坐标: {instance.transform.position}");
+						MPMain.LogWarning($"[成功] 模型 '{modelId}' 实例化成功! 世界坐标: {instance.transform.position}");
 					} else {
 						MPMain.LogError($"[失败] 模型 '{modelId}' 创建返回了 null 实例");
 					}

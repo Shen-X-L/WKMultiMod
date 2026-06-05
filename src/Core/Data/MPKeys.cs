@@ -32,7 +32,7 @@ public static partial class MPKeys {
 	public const string JOIN_TEAM_COMMAND = "join team command";// 加入队伍执行的命令
 
 	// 玩家个人数据键
-	public const string ALL_KEYS_INDEX = "__all_keys__";
+	public const string ALL_KEYS_INDEX = "all keys";
 	public const string PREFAB_ID = "prefab id";
 	public const string PLAYER_NAME = "player name";
 	public const string JOIN_MESSAGE = "join message";

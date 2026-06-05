@@ -1,47 +1,10 @@
 {
-  "CommandConsole": {
-    "AllPlayer": "Name: {0} Id: {1} Distance: {2} Position: {3}",
-    "AlreadyInOnlineMode": "You are already in online mode, \nplease use the leave command to leave and then go online",
-    "CheatsNotAllowed": "Cheats are not allowed in the current lobby. Please ask the host to use allowcheats true.",
-    "CreateLobbyFailed": "Fail to create lobby",
-    "FoundLobbyByName": "Found lobby by name: {0}, joining...",
-    "HostUsage": "Usage: host <room_name> [max_players]",
-    "InvalidLobbyNameOrId": "Could not find a lobby with matching name and the input is not a valid ID format",
-    "JoinFormatError": "ForMat error \nUsage: join <lobby_id>",
-    "JoinLobbyFailed": "Fail to join lobby",
-    "JoinUsage": "Usage: join <lobby_id>",
-    "LobbyIdOutput": "Lobby Id: {0}",
-    "LobbyInfo": "Found lobby Id: {0} Name: {1} Owner: {2} GameMode: {3}",
-    "LobbyVisibilitySet": "Lobby visibility set to: {0}",
-    "LobbyVisibilitySetFailed": "Failed to set lobby visibility. Supported options: public, friends, private",
-    "MultipleMatchingIds": "Found multiple matching IDs. Below is the corresponding list:\n{0}",
-    "NeedToBeHost": "This command must be used by the host",
-    "NeedToBeInLobby": "This command must be used in online mode.\nPlease use the host or join command first.",
-    "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
-    "SearchingLobbyByName": "Searching for lobby by name: {0}...",
-    "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
-    "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization."
+  "0_DeathMessage": {
+    "default": [
+      "{0} died due to {1}"
+    ]
   },
-  "CommandHelp": {
-    "AllPlayer": "Get info on all players in the current lobby.",
-    "AllowCheats": "[True|False] Controls whether players can enable cheat mode",
-    "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
-    "BindSync": "[True|False] Controls whether newly joined players will have their Trinkets and Bindings synced. This setting does not affect players who are already in the lobby.",
-    "ChangeModel": "[Model name]: Model switching doesn’t take effect in-game, and the developer doesn’t know how to model — it won’t look good anyway, so just make do.",
-    "CheatsTest": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, and affects game balance.",
-    "Host": "[Lobby Name (Visibility=public|friends|private) (Max Player=8)]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;). Visibility controls whether the lobby can be found by others.",
-    "Invite": "Open the Steam overlay to invite your friends.",
-    "Join": "[Lobby Name|Lobby id]:The name or ID of the lobby to join. It will first try to match by name; if no match is found, it will fall back to matching by ID.",
-    "Leave": "Leave the current lobby.",
-    "LobbyId": "Get the current lobby ID and copy it to the clipboard.",
-    "LobbyList": "Get all available lobbies.",
-    "LobbyYype": "[Visibility=public|friends|private]:Visibility controls whether the lobby can be found by others.",
-    "SetLobbyName": "[Lobby Name]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
-    "Talk": "[Text]: Send a message to other players.",
-    "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
-    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422)."
-  },
-  "DisplayMessage": {
+  "0_DisplayMessage": {
     "EnteredMessages": [
       "Hired into {0} - {1}/{2}\nid: {3}"
     ],
@@ -60,9 +23,79 @@
       "{0} has been mysteriously eaten by substructure",
       "{0} has disappointed Rho"
     ],
-    "PlayerDeath": [
-      "{0} died due to {1}"
+    "WinMessages": [
+      "{0} run out from here to face the MOTHER"
     ]
+  },
+  "CommandConsole": {
+    "AllPlayer": "Name: {0} Id: {1} Distance: {2} Position: {3}",
+    "AlreadyInOnlineMode": "You are already in online mode, \nplease use the leave command to leave and then go online",
+    "AutoCommandInsufficientParams": "Insufficient parameters!",
+    "AutoCommandInvalidFormat": "Format error! Format: acmd [join|restart|jointeam [teamName]] [command] :: [command2]",
+    "AutoCommandInvalidTrigger": "Invalid trigger! Must be 'join', 'restart', or 'jointeam'",
+    "AutoCommandRegisterSuccess": "Successfully registered auto command for event [{0}]: {1}",
+    "CheatsNotAllowed": "Cheats are not allowed in the current lobby. Please ask the host to use allowcheats true.",
+    "CreateLobbyFailed": "Fail to create lobby",
+    "FoundLobbyByName": "Found lobby by name: {0}, joining...",
+    "HostUsage": "Usage: host <room_name> [max_players]",
+    "InvalidLobbyNameOrId": "Could not find a lobby with matching name and the input is not a valid ID format",
+    "JoinFormatError": "ForMat error \nUsage: join <lobby_id>",
+    "JoinLobbyFailed": "Fail to join lobby",
+    "JoinUsage": "Usage: join <lobby_id>",
+    "JoinedTeam": "Joined team: {0}",
+    "LobbyIdOutput": "Lobby Id: {0}",
+    "LobbyInfo": "Found lobby Id: {0} Name: {1} Owner: {2} GameMode: {3}",
+    "LobbyVisibilitySet": "Lobby visibility set to: {0}",
+    "LobbyVisibilitySetFailed": "Failed to set lobby visibility. Supported options: public, friends, private",
+    "MultipleMatchingIds": "Found multiple matching IDs. Below is the corresponding list:\n{0}",
+    "NeedToBeHost": "This command must be used by the host",
+    "NeedToBeInLobby": "This command must be used in online mode.\nPlease use the host or join command first.",
+    "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
+    "PlayerIssuedCommand": "{0} issued command: {1}",
+    "RemoteCommandInsufficientParams": "Insufficient parameters! Format: pcmd [all|steamId] [command1] :: [command2]",
+    "RemoteCommandInvalidTarget": "Invalid target! Must be 'all' or a player SteamID.",
+    "RemoteCommandSentToAll": "Sent remote command to everyone: {0}",
+    "RemoteCommandSentToPlayer": "Sent remote command to {0}: {1}",
+    "SearchingLobbyByName": "Searching for lobby by name: {0}...",
+    "SetPvpInvalidParams": "Invalid parameters! Format: allowpvp [true|false]",
+    "TargetIdNotFound": "Target ID not found. This command uses suffix matching.\nExample: Target ID: 76561198279116422 → tpto 6422.",
+    "TeamNotExist": "Team {0} does not exist",
+    "TeamRemoteCommandInsufficientParams": "Insufficient parameters! Format: tcmd [teamName] [command1] :: [command2]",
+    "TeamRemoteCommandInvalidTarget": "Invalid team",
+    "TeamRemoteCommandSent": "Sent remote command to {0}: {1}",
+    "TeamRuleAddTeamInsufficientParams": "Insufficient parameters! Format: addteam [teamName]",
+    "TeamRuleCannotRemoveDefaultTeam": "Cannot remove the system default team (default)!",
+    "TeamRuleInsufficientParams": "Insufficient parameters for team rule! Format: teamrule [TeamA] [TeamB] [ruleName] [true|false] , ...",
+    "TeamRuleRemoveTeamInsufficientParams": "Insufficient parameters! Format: removeteam [teamName]",
+    "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
+    "YouAreNotHost": "You Are Not Host"
+  },
+  "CommandHelp": {
+    "ACMD": "[join|restart|jointeam TeamName] [command 1] :: [command 2]...: Execute a command for the specified action. (using :: instead of ; e.g., acmd join addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",
+    "AddTeam": "[Team Name]: Add a team with the specified name.",
+    "AllPlayer": "Get info on all players in the current lobby.",
+    "AllowCheats": "[True|False] Controls whether players can enable cheat mode",
+    "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
+    "BindSync": "[True|False] Controls whether newly joined players will have their Trinkets and Bindings synced. This setting does not affect players who are already in the lobby.",
+    "ChangeModel": "[Model name]: Model switching doesn’t take effect in-game, and the developer doesn’t know how to model — it won’t look good anyway, so just make do.",
+    "CheatsTest": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, and affects game balance.",
+    "Host": "[Lobby Name (Visibility=public|friends|private) (Max Player=8)]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;). Visibility controls whether the lobby can be found by others.",
+    "Invite": "Open the Steam overlay to invite your friends.",
+    "Join": "[Lobby Name|Lobby id]:The name or ID of the lobby to join. It will first try to match by name; if no match is found, it will fall back to matching by ID.",
+    "JoinTeam": "[Team Name]: Join the specified team.",
+    "Leave": "Leave the current lobby.",
+    "LobbyId": "Get the current lobby ID and copy it to the clipboard.",
+    "LobbyList": "Get all available lobbies.",
+    "LobbyType": "[Visibility=public|friends|private]:Visibility controls whether the lobby can be found by others.",
+    "PCMD": "[all|steamId] [command 1] :: [command 2]...: Execute a command for all players or a specific player. (using :: instead of ; e.g., pcmd 561198279116422 addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",
+    "RemoveTeam": "[Team Name]: Remove the team with the specified name. (default team cannot be removed)",
+    "SetLobbyName": "[Lobby Name]: Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
+    "SetName": "[Name]: Set the name displayed on your tag to others.",
+    "TCMD": "[teamname] [command 1] :: [command 2]...: Execute a command for all players in the specified team. (using :: instead of ; e.g., tcmd hunter addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",
+    "Talk": "[Text]: Send a message to other players.",
+    "TeamRule": "[Team A] [Team B] [Rule Name] [true|false|default]: Set team rules. (e.g., teamrule A B pvp true , A C hang true grab true)",
+    "Test": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, but does not affect game balance.",
+    "TpTo": "[steamId]: Match using the ID from allplayer (suffix matching, e.g., tpto 22 for target steamId 561198279116422)."
   },
   "LocalPlayer": {
     "DataAcquisitionException": "[MP LP] Local player data acquisition exception.",
@@ -82,6 +115,10 @@
     "Destroy": "[MPCore] MultiplayerCore Destroy",
     "DisconnectedAndCleaned": "[MPCore] All connections have been disconnected, remote players have been cleaned up.",
     "EnteringLobby": "[MPCore] Joining the lobby Id: {0}",
+    "GamemodeDataNotSynced": "[MPCore] (Attempt {0}) Lobby game mode data has not yet been synced or is missing",
+    "GamemodeDataReceived": "[MPCore] Game mode data: {0}",
+    "GamemodeParseError": "[MPCore] Failed to parse game mode. Raw data: {0}, Error: {1}",
+    "HandshakeFailed": "[MPCore] Initialization handshake failed: retries exhausted or already left the lobby.",
     "JoinLobbyException": "[MPCore] Join lobby exception: {0}",
     "JoinLobbyFailed": "[MPCore] Fail to join lobby: {0}",
     "JoiningLobby": "[MPCore] Joining lobby: {0}...",
@@ -94,7 +131,9 @@
     "PlayerJoinedLobby": "[MPCore] New player joined the lobby, Id: {0}",
     "PlayerLeftLobby": "[MPCore] Player left the lobby Id: {0}",
     "RequestedInitData": "[MPCore] Requested initialization data from the host.",
-    "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}"
+    "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}",
+    "SteamIdDataDebug": "[MPCore] steamId: {0} data: {1}",
+    "UpdateDragHangToggle": "[MPCore] Update drag/hang toggle"
   },
   "MPGameModeManager": {
     "FieldNotFound": "[MP GameModeMan] Field not found",
@@ -110,9 +149,11 @@
   "MPPacketRouter": {
     "FailedToBind": "[MP Router] Failed to bind: {0} Message: {1}",
     "HandlerException": "[MP Router] Packet type: {0} data processing exception: {1}",
+    "HexadecimalData": "[MP Router] Hexadecimal data: {0}",
     "NoServiceFound": "[MP Router] No service function found for the corresponding PacketType: {0}",
     "PacketHandlerOverridden": "[MP Router] PacketType {0} already has handler {1}, will be overridden by {2}.",
     "PacketTypeOutOfRange": "[MP Router] PacketType {0} exceeds FastHandlers array range (0-{1})",
+    "ReceivePacketDebug": "[MP Router] Receive package. connectionId: {0} senderId: {1} targetId: {2} packetType: {3}",
     "ShowAllRouteTable": "[MP Router] PacketType: {0} Handler: {1}"
   },
   "MPSteamworks": {
@@ -136,6 +177,8 @@
     "CreateLobbyFailedDefault": "[MPSW] Lobby creation failed, Steam error code: {0} ({1})",
     "DisconnectedDetails": "[MPSW] Disconnected details: {0}",
     "EnteredLobby": "[MPSW] Entered lobby. LobbyId: {0}",
+    "GetAllMemberDataException": "[MPSW] GetAllMemberData exception: {0}",
+    "GetMemberDataFailed": "[MPSW] Failed to get member data: {0}",
     "HostChanged": "[MPSW] Host change: {0} -> {1}",
     "InvalidParam": "[MPSW] Invalid parameter, maxPlayers exceeds limit",
     "JoinLobbyException": "[MPSW] Join lobby exception: {0}",
@@ -157,6 +200,7 @@
     "RateLimitExceeded": "[MPSW] Operation rate limit exceeded by Steam",
     "ReverseConnectionAttempt": "[MPSW] 10-second timeout: starting reverse attempt...",
     "SendingToConnection": "[MPSW] Sending data to connections. SteamId: {0} ConnectionId: {1}",
+    "SetMemberDataFailed": "[MPSW] Failed to set member data: {0}",
     "SocketCreateException": "[MPSW] Create Socket exception: {0}",
     "StartedBroadcasting": "[MPSW] Started broadcasting data, current connections: {0}",
     "SteamClientInvalid": "[MPSW] SteamClient is invalid. Please check your Steam login status.",
@@ -172,6 +216,8 @@
     "CoreInjectionSuccess": "[MP Patch] MPCore object successfully injected into SteamManager.",
     "CoreInstanceExists": "[MP Patch] MPCore instance already exists. GameObjectName: {0}",
     "CorrectionCompleted": "[MP Patch] Correction completed for reference level {0}. Offset: {1}",
+    "ForceExecuteCommandCrash": "[MP Patch] Internal crash while forcefully executing command: {0}",
+    "HarmonyReflectionInitFailed": "[MP Patch] Harmony reflection initialization failed! Error: {0}",
     "LevelDataRetrieved": "[MP Patch] Retrieved level data. Total entries: {0}",
     "NoMatchingLevelDataForCorrection": "[MP Patch] No matching level data found for correction.",
     "PlayerDeath": "[MP Patch] Player death,type: {0}",
@@ -179,16 +225,6 @@
     "StartCorrectingSideRouteCoords": "[MP Patch] Starting to correct side route coordinates...",
     "TargetBranchIsNull": "[MP Patch] targetBranch is null — not a valid branch info.",
     "TranspilerError": "[MP Patch] Transpiler targeting failed for {0}. Please check if the game and mod versions match."
-  },
-  "RPBaseFactory": {
-    "CL_HandholdAddFailed": "[MP RPBaseFactory] Failed to add the CL_Handhold component to prefab",
-    "MaterialShaderInfo": "[MP RPBaseFactory] Material name: {0} Material shader name: {1}",
-    "ObjectTaggerAddFailed": "[MP RPBaseFactory] Failed to add the ObjectTagger component to prefab",
-    "PreFabProcessingError": "[MP RPBaseFactory] Exception Type: {0}\nMessage: {1}\nCall Stack : {2}",
-    "PrefabNotLoaded": "[MP RPBaseFactory] Prefab '{0}' not loaded",
-    "RemoteEntityAddFailed": "[MP RPBaseFactory] Failed to add the RemoteEntity component to prefab",
-    "ShaderNotFoundOnRenderer": "[MP RPBaseFactory] Shader not found: {0}, applied on renderer {1}",
-    "UnableToLoadResources": "[MP RPBaseFactory] Unable to load resources"
   },
   "RPContainer": {
     "MappingFailed": "[MP RPCont] Failed to map remote player ID: {0}, Error: {1}",
@@ -201,7 +237,10 @@
     "FactoryAlreadyRegistered": "[MP RPFactoryMan] {0} already registered",
     "FactoryNotFound": "[MP RPFactoryMan] {0} not found",
     "FactoryNotFoundCleanup": "[MP RPFactoryMan] The destruction factory {0} was not found, and the object was directly destroyed",
-    "FactoryRegistered": "[MP RPFactoryMan] {0} registered successfully"
+    "FactoryRegistered": "[MP RPFactoryMan] {0} registered successfully",
+    "ModelInstanceCallbackCrash": "[MP RPFactoryMan] Model {0} instance build callback crashed: {1}",
+    "PrefabNotLoaded": "[MP RPFactoryMan] Prefab '{0}' not loaded",
+    "UnableToLoadResources": "[MP RPFactoryMan] Unable to load resources"
   },
   "RPManager": {
     "FactoryCreateObjectFailed": "[MP RPMan] Failed to create the remote player object",
@@ -209,11 +248,8 @@
     "PrefabDoesNotExist": "[MP RPMan] Prefab: {0} does not exist",
     "RemotePlayerObjectNotFound": "[MP RPMan] Remote player object not found. ID: {0}"
   },
-  "RPSlugcatFactory": {
-    "FontAssetNotFound": "[MP RPSlugcatFactory] Font asset named {0} not found",
-    "ImplementOverlayViaShader": "[MP RPSlugcatFactory] Implementing Overlay via TMP Shader modification",
-    "SpecializingTMPComponent": "[MP RPSlugcatFactory] Specializing TMP component: {0}",
-    "UnableToLoadMaterial": "[MP RPSlugcatFactory] Unable to load material in bundle: {0}"
+  "RPPrefabProcessor": {
+    "ShaderNotFoundOnRenderer": "[MP RPPrefabProcessor] Shader not found: {0}, applied on renderer {1}"
   },
   "UI_LobbyCreateButton": {
     "CreateLobbyFailed": "[MP UI] failed to create lobby: {0}",
@@ -222,6 +258,7 @@
   "UI_LobbyJoinButton": {
     "FailedToGetOwnerId": "[MP UI] Failed to get host ID, using manually set owner. Lobby ID: {0}",
     "FailedToLoadOwnerAvatar": "[MP UI] Failed to load host avatar. Lobby ID: {0}, OwnerID: {1}, OwnerName: {2}",
+    "GamemodeParseError": "[MPCore] Failed to parse game mode. Raw data: {0}, Error: {1}",
     "JoinLobbyFailed": "[MP UI] failed to join lobby: {0}",
     "OwnerLoadedSuccess": "[MP UI] Successfully loaded host: {0}",
     "RoachCounterNotFound": "[MP UI] Roach Counter object not found. Used for: Host Avatar",
@@ -230,6 +267,7 @@
   "UI_LobbyListPane": {
     "ButtonComponentNotFound": "[MP UI] Button component not found: {0}",
     "ButtonTemplateBuildFailed": "[MP UI] Failed to build button template: {0}",
+    "InitializeLobbyButtonFailed": "[MP UI] Failed to initialize lobby button: {0} Error: {1}",
     "LobbyButtonCloneFailed": "[MP UI] Failed to clone lobby button object",
     "LobbyButtonComponentNotFound": "[MP UI] UI_LobbyButton component not found: {0}",
     "LobbyButtonInstantiateFailed": "[MP UI] Failed to instantiate lobby button: {0}",

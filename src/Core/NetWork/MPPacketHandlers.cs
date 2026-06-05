@@ -31,10 +31,9 @@ public class MPPacketHandlers {
 	/// <summary>
 	/// 主机/客户端接收PlayerDataUpdate: 处理玩家数据更新<br/>
 	/// 发送函数 <see cref="LocalPlayer.TrySendLocalPlayerData"/><br/>
-	/// 发送函数 <see cref="HandlePlayerCreateRequest"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDataUpdate)]
-	private static void HandlePlayerDataUpdate(ulong senderId, DataReader reader) {
+	private static void HandlePlayerDataUpdate(IDType senderId, DataReader reader) {
 		// 如果是从转发给自己的,忽略
 		reader.GetOut<PlayerData>(out var playerData);
 		var playerId = playerData.playId;
@@ -45,10 +44,33 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
-	/// 主机/客户端接收BroadcastMessage: 处理玩家标签更新
+	/// 主机/客户端接收RequestMemberData: 处理玩家本体数据请求<br/>
+	/// 发送ResponseMemberData: 玩家本体数据字典<br/>
+	/// 接受函数 <see cref="HandleResponseMemberData"/><br/>
+	/// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
+	/// </summary>
+	[MPPacketHandler(PacketType.RequestMemberData)]
+	private static void HandleRequestMemberData(IDType senderId, DataReader reader) {
+		var writer = MPWriterPool.GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.ResponseMemberData);
+		writer.Put(MPSteamworks.Instance.MemberData);
+		MPSteamworks.Instance.SendToPeer(senderId, writer);
+	}
+
+	/// <summary>
+	/// 主机/客户端接收ResponseMemberData: 处理远程玩家数据响应<br/>
+	/// 发送函数 <see cref="HandleRequestMemberData"/><br/>
+	/// 发送函数 <see cref="MPSteamworks.SendAllMemberData"/><br/>
+	/// </summary>
+	[MPPacketHandler(PacketType.ResponseMemberData)]
+	private static void HandleResponseMemberData(IDType senderId, DataReader reader) {
+		var data = reader.GetStringStringDict();
+		RPManager.Instance.ProcessMemberData(senderId, data);
+	}
+	/// <summary>
+	/// 主机/客户端接收BroadcastMessage: 处理玩家文字广播
 	/// </summary>
 	[MPPacketHandler(PacketType.BroadcastMessage)]
-	private static void HandlePlayerTagUpdate(ulong senderId, DataReader reader) {
+	private static void HandleBroadcastMessage(IDType senderId, DataReader reader) {
 		string msg = reader.GetString();    // 读取消息
 		string playerName = new Friend(senderId).Name;
 		CommandConsole.Log($"{playerName}: {msg}");
@@ -59,7 +81,7 @@ public class MPPacketHandlers {
 	/// 主机/客户端接收WorldStateSync: 世界状态同步
 	/// </summary>
 	[MPPacketHandler(PacketType.WorldStateSync)]
-	private static void HandleWorldStateSync(ulong senderId, DataReader reader) {
+	private static void HandleWorldStateSync(IDType senderId, DataReader reader) {
 
 	}
 
@@ -67,7 +89,7 @@ public class MPPacketHandlers {
 	/// 主机/客户端接收PitonStateSync: 同步实时放置的piton状态.
 	/// </summary>
 	[MPPacketHandler(PacketType.PitonStateSync)]
-	private static void HandlePitonStateSync(ulong senderId, DataReader reader) {
+	private static void HandlePitonStateSync(IDType senderId, DataReader reader) {
 		ClimbableItemSyncManager.HandlePitonState(senderId, reader);
 	}
 
@@ -76,7 +98,7 @@ public class MPPacketHandlers {
 	/// 发送函数: <see cref="MPCore.HandlePlayerDamage"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDamage)]
-	private static void HandlePlayerDamage(ulong senderId, DataReader reader) {
+	private static void HandlePlayerDamage(IDType senderId, DataReader reader) {
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
 		List<string> tags = reader.GetStringList();
@@ -88,7 +110,7 @@ public class MPPacketHandlers {
 	/// 发送函数: <see cref="MPCore.HandlePlayerAddForce"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerAddForce)]
-	private static void HandlePlayerAddForce(ulong senderId, DataReader reader) {
+	private static void HandlePlayerAddForce(IDType senderId, DataReader reader) {
 		Vector3 force = new Vector3 {
 			x = reader.GetFloat(),
 			y = reader.GetFloat(),
@@ -103,7 +125,7 @@ public class MPPacketHandlers {
 	/// 发送函数: <see cref="MPCore.HandlePlayerDeath"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDeath)]
-	private static void HandlePlayerDeath(ulong senderId, DataReader reader) {
+	private static void HandlePlayerDeath(IDType senderId, DataReader reader) {
 		// 掉落物品
 		Dictionary<string, byte> remoteItems = reader.GetStringByteDict();
 		// 处理玩家死亡
@@ -117,7 +139,7 @@ public class MPPacketHandlers {
 	///// 发送PlayerDataUpdate: 强制同步玩家数据给新玩家,让新玩家更新远程玩家数据<br/>
 	///// </summary>
 	//[MPPacketHandler(PacketType.PlayerCreateRequest)]
-	//private static void HandlePlayerCreateRequest(ulong senderId, DataReader reader) {
+	//private static void HandlePlayerCreateRequest(IDType senderId, DataReader reader) {
 	//	var writer = GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.PlayerCreateResponse);
 	//	writer.Put(LocalPlayer.Instance.FactoryId);
 	//	MPSteamworks.Instance.SendToPeer(senderId, writer);
@@ -142,7 +164,7 @@ public class MPPacketHandlers {
 	///// 发送函数 <see cref="HandlePlayerCreateRequest"/><br/>
 	///// </summary>
 	//[MPPacketHandler(PacketType.PlayerCreateResponse)]
-	//private static void HandlePlayerCreateResponse(ulong senderId, DataReader reader) {
+	//private static void HandlePlayerCreateResponse(IDType senderId, DataReader reader) {
 	//	string factoryId = reader.GetString();
 	//	RPManager.Instance.PlayerCreate(senderId, factoryId);
 	//}
@@ -152,7 +174,7 @@ public class MPPacketHandlers {
 	/// </summary>
 	/// <param name="senderId">发送方ID</param>
 	[MPPacketHandler(PacketType.GameUIMessage)]
-	private static void HandleSystemUIMessage(ulong senderId, DataReader reader) { 
+	private static void HandleSystemUIMessage(IDType senderId, DataReader reader) { 
 		var message = reader.GetString();
 		var displayType = reader.GetByte();
 		var duration = reader.GetFloat();
@@ -166,11 +188,11 @@ public class MPPacketHandlers {
 	/// <summary>
 	/// 主机/客户端接收PlayerTeleportRequest<br/>
 	/// 发送PlayerTeleportRespond: 位置数据, 库存数据, 有Mess环境则携带Mess数据<br/>
-	/// <see cref="HandlePlayerTeleportRespond"/>
+	/// 接受函数 <see cref="HandlePlayerTeleportRespond"/>
 	/// </summary>
 	/// <param name="senderId">发送方ID</param>
 	[MPPacketHandler(PacketType.PlayerTeleportRequest)]
-	private static void HandlePlayerTeleportRequest(ulong senderId, DataReader reader) {
+	private static void HandlePlayerTeleportRequest(IDType senderId, DataReader reader) {
 		// 获取数据
 		var playerPos = ENT_Player.GetPlayer().transform.position;
 		var writer = GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.PlayerTeleportRespond);
@@ -197,11 +219,11 @@ public class MPPacketHandlers {
 
 	/// <summary>
 	/// 主机/客户端接收PlayerTeleportRespond: 位置数据, 库存数据, 有Mess环境则携带Mess数据
-	/// <see cref="HandlePlayerTeleportRequest"/>
+	/// 发送函数 <see cref="HandlePlayerTeleportRequest"/>
 	/// </summary>
 	/// <param name="senderId">发送ID</param>
 	[MPPacketHandler(PacketType.PlayerTeleportRespond)]
-	private static void HandlePlayerTeleportRespond(ulong senderId, DataReader reader) {
+	private static void HandlePlayerTeleportRespond(IDType senderId, DataReader reader) {
 		var posX = reader.GetFloat();
 		var posY = reader.GetFloat();
 		var posZ = reader.GetFloat();
@@ -273,7 +295,7 @@ public class MPPacketHandlers {
 	/// 主机/客户端接收ItemStateSync: 通过物品同步管理器来进行物品同步
 	/// </summary>
 	[MPPacketHandler(PacketType.ItemStateSync)]
-	private static void HandleItemStateSync(ulong senderId, DataReader reader) {
+	private static void HandleItemStateSync(IDType senderId, DataReader reader) {
 		ItemSyncManager.HandleItemState(senderId, reader);
 	}
 
@@ -281,7 +303,7 @@ public class MPPacketHandlers {
 	/// 主机/客户端接收PlayerStopInteraction: 处理远程玩家松开物品或手抓点<br/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerStopInteraction)]
-	private static void HandlePlayerStopInteraction(ulong senderId, DataReader reader) {
+	private static void HandlePlayerStopInteraction(IDType senderId, DataReader reader) {
 		var hands = ENT_Player.GetPlayer().hands;
 		for (int i = 0; i < hands.Length; i++) {
 			var hand = hands[i];
@@ -301,17 +323,19 @@ public class MPPacketHandlers {
 		}
 
 		void DropIt(int handIndex) {
-			MPMain.Debug($"松开手 {handIndex}");
 			var _cachedPlayer = ENT_Player.GetPlayer();
 			_cachedPlayer.StopInteraction(handIndex);
 			_cachedPlayer.AddForce(-_cachedPlayer.camTransform.forward, "RepelByRemote");
 		}
 	}
 
+	/// <summary>
+	/// 客户端接收RemoteCommand: 处理指令远程调用<br/>
+	/// </summary>
 	[MPPacketHandler(PacketType.RemoteCommand)]
-	public static void HandleRemoteCommand(ulong senderId, DataReader reader) {
+	public static void HandleRemoteCommand(IDType senderId, DataReader reader) {
 		string command = reader.GetString();
-		CommandConsole.Log($"[MP Debug] {new Friend(senderId).Name} issued command: {command}");
+		CommandConsole.Log(Localization.Get("CommandConsole.PlayerIssuedCommand", new Friend(senderId).Name, command));
 		Patch_CommandConsole.ExecuteCommandForcefully(command);
 	}
 }

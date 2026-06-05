@@ -218,6 +218,20 @@ public class DataReader {
 		}
 		return data;
 	}
+
+	/// <summary>
+	/// 获取 Dictionary&lt;string, string&gt; 用于(字典)
+	/// </summary>
+	public Dictionary<string, string> GetStringStringDict() {
+		int length = GetInt();
+		var val = new Dictionary<string, string>();
+		for (int i = 0; i < length; i++) {
+			var key = GetString();
+			var value = GetString();
+			val[key] = value;
+		}
+		return val;
+	}
 	#endregion
 	#region[读取泛型类型]
 

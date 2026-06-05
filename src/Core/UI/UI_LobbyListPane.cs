@@ -136,7 +136,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 			try{ 
 				lobbyBtn.Initialize(lobby); 
 			}catch(Exception ex) {
-				MPMain.LogError($"[MP Debug] 初始化大厅按钮失败: {lobby.Id} 错误: {ex.Message}");
+				MPMain.LogError(Localization.Get("UI_LobbyListPane.InitializeLobbyButtonFailed", lobby.Id, ex.Message));
 				Destroy(newButtonObj);
 				return null;
 			}

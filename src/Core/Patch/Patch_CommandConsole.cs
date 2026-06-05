@@ -90,7 +90,7 @@ public class Patch_CommandConsole {
 				SetValidatorActiveArgAction = AccessTools.MethodDelegate<Action<CommandConsole.CommandValidator, int>>(validatorActiveArgSetter);
 			}
 		} catch (Exception ex) {
-			MPMain.Debug($"Harmony 高性能反射初始化失败！错误信息: {ex}");
+			MPMain.LogError(Localization.Get("Patch.HarmonyReflectionInitFailed", ex.Message));
 		}
 	}
 	#endregion
@@ -148,7 +148,7 @@ public class Patch_CommandConsole {
 			// 调用原版引擎执行指令
 			console.ExecuteCommand(command, false);
 		} catch (Exception ex) {
-			MPMain.Debug($"强行执行指令时发生内部崩溃: {ex}");
+			MPMain.LogError(Localization.Get("Patch.ForceExecuteCommandCrash", ex.Message));
 		} finally {
 			// 无论指令执行成功还是抛出异常，都必须将 cheatsEnabled 还原为玩家原有的状态
 			CommandConsole.cheatsEnabled = originalCheatsState;

@@ -46,7 +46,6 @@ public class MPGameModeManager {
 	}
 
 	public static Dictionary<string,M_Gamemode> gameModeDict = new Dictionary<string,M_Gamemode>();
-	//public static GameModeData? CurrentData { get; private set; }[MP Debug]<-搜寻标签
 	public static GameModeData? CurrentData { get; private set; }
 
 	/// <summary>
