@@ -3,6 +3,7 @@ using Steamworks.Ugc;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.XR;
 using WKMPMod.Asset;
@@ -43,29 +44,33 @@ public class MPPacketHandlers {
 		RPManager.Instance.ProcessPlayerData(playerId, ref playerData);
 	}
 
-	/// <summary>
-	/// 主机/客户端接收RequestMemberData: 处理玩家本体数据请求<br/>
-	/// 发送ResponseMemberData: 玩家本体数据字典<br/>
-	/// 接受函数 <see cref="HandleResponseMemberData"/><br/>
-	/// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
-	/// </summary>
-	[MPPacketHandler(PacketType.RequestMemberData)]
-	private static void HandleRequestMemberData(IDType senderId, DataReader reader) {
-		var writer = MPWriterPool.GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.ResponseMemberData);
-		writer.Put(MPSteamworks.Instance.MemberData);
-		MPSteamworks.Instance.SendToPeer(senderId, writer);
-	}
+	///// <summary>
+	///// 主机/客户端接收RequestMemberData: 处理玩家本体数据请求<br/>
+	///// 发送ResponseMemberData: 玩家本体数据字典<br/>
+	///// 接受函数 <see cref="HandleResponseMemberData"/><br/>
+	///// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
+	///// </summary>
+	//[MPPacketHandler(PacketType.RequestMemberData)]
+	//private static void HandleRequestMemberData(IDType senderId, DataReader reader) {
+	//	MPMain.Debug("HandleRequestMemberData");
+	//	var writer = MPWriterPool.GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.ResponseMemberData);
+	//	writer.Put(MPSteamworks.Instance.MemberData);
+	//	MPMain.Debug($"MemberData : {string.Join(",", MPSteamworks.Instance.MemberData.Select(kvp => kvp.Key + ": " + kvp.Value))}");
+	//	MPSteamworks.Instance.SendToPeer(senderId, writer);
+	//}
 
-	/// <summary>
-	/// 主机/客户端接收ResponseMemberData: 处理远程玩家数据响应<br/>
-	/// 发送函数 <see cref="HandleRequestMemberData"/><br/>
-	/// 发送函数 <see cref="MPSteamworks.SendAllMemberData"/><br/>
-	/// </summary>
-	[MPPacketHandler(PacketType.ResponseMemberData)]
-	private static void HandleResponseMemberData(IDType senderId, DataReader reader) {
-		var data = reader.GetStringStringDict();
-		RPManager.Instance.ProcessMemberData(senderId, data);
-	}
+	///// <summary>
+	///// 主机/客户端接收ResponseMemberData: 处理远程玩家数据响应<br/>
+	///// 发送函数 <see cref="HandleRequestMemberData"/><br/>
+	///// 发送函数 <see cref="MPSteamworks.SendAllMemberData"/><br/>
+	///// </summary>
+	//[MPPacketHandler(PacketType.ResponseMemberData)]
+	//private static void HandleResponseMemberData(IDType senderId, DataReader reader) {
+	//	var data = reader.GetStringStringDict();
+	//	MPMain.Debug($"[Handler] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
+	//	RPManager.Instance.ProcessMemberData(senderId, data);
+	//}
+
 	/// <summary>
 	/// 主机/客户端接收BroadcastMessage: 处理玩家文字广播
 	/// </summary>

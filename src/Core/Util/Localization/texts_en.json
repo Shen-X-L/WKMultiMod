@@ -11,7 +11,7 @@
     "InviteReceivedMessages": [
       "{0} has been invited to the facility"
     ],
-    "JoinedMessages": [
+    "JoinMessages": [
       "{0} has been detached from this world due to a Delta anomaly",
       "{0} has been hired at the facility",
       "{0} has emerged from the mass",

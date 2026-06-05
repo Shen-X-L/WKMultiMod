@@ -43,7 +43,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	// 本地缓存已存在的 Key, 避免每次 SetMemberData 都去读取和解析索引字符串
 	private readonly HashSet<string> _knownKeysCache = new HashSet<string>();
 	// 本地玩家数据,用于在steamMemberData失效时正常工作
-	public Dictionary<string, string> MemberData { get; private set; } = new();
+	//public Dictionary<string, string> MemberData { get; private set; } = new();
 
 	// 获取全部在线玩家
 	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
@@ -217,7 +217,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 		// 清空本地缓存
 		_knownKeysCache.Clear();
-		MemberData.Clear();
+		//MemberData.Clear();
 
 		// 离开大厅(如果有)
 		if (_currentLobby.Id.IsValid) {
@@ -981,7 +981,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 		try {
 			// 同步到本地自定义字典
-			MemberData[key] = value;
+			//MemberData[key] = value;
 			// 设置实际数据
 			_currentLobby.SetMemberData(key, value);
 
@@ -1005,6 +1005,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// 批量设置个人数据
 	/// </summary>
 	public void SetMemberData(Dictionary<string, string> memberData) {
+		MPMain.Debug(string.Join(",", memberData.Select(kvp => kvp.Key + ": " + kvp.Value)));
+
 		if (!_currentLobby.Id.IsValid || memberData == null) return;
 
 		// 获取一次当前的索引, 减少循环内的读取开销
@@ -1015,7 +1017,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			if (kvp.Key == MPKeys.ALL_KEYS_INDEX) continue;
 
 			// 同步更新本地自定义字典
-			MemberData[kvp.Key] = kvp.Value;
+			//MemberData[kvp.Key] = kvp.Value;
 
 			_currentLobby.SetMemberData(kvp.Key, kvp.Value);
 
@@ -1036,7 +1038,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	public Dictionary<string, string> GetAllMemberData(Friend friend) {
 		// 直接返回本地数据
-		if (friend.Id == UserSteamId) return new Dictionary<string, string>(MemberData);
+		//if (friend.Id == UserSteamId) return new Dictionary<string, string>(MemberData);
 
 		var result = new Dictionary<string, string>();
 		if (!_currentLobby.Id.IsValid) return result;
@@ -1044,7 +1046,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		try {
 			// 先拿到索引字符串
 			string allKeysRaw = _currentLobby.GetMemberData(friend, MPKeys.ALL_KEYS_INDEX);
-
+			MPMain.Debug(allKeysRaw);
 			if (string.IsNullOrEmpty(allKeysRaw)) return result;
 
 			// 拆分并逐一拉取数据
@@ -1052,6 +1054,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			foreach (var key in keys) {
 				string val = _currentLobby.GetMemberData(friend, key);
 				result[key] = val;
+				MPMain.Debug(key + ": " + val);
 			}
 		} catch (Exception ex) {
 			MPMain.LogError(Localization.Get("MPSteamworks.GetAllMemberDataException", ex.Message));
@@ -1074,11 +1077,11 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		return null;
 	}
 
-	public void SendAllMemberData() {
-		var writer = MPWriterPool.GetWriter(UserSteamId, MPProtocol.BroadcastId, PacketType.ResponseMemberData);
-		writer.Put(MemberData);
-		Broadcast(writer);
-	}
+	//public void SendAllMemberData() {
+	//	var writer = MPWriterPool.GetWriter(UserSteamId, MPProtocol.BroadcastId, PacketType.ResponseMemberData);
+	//	writer.Put(MemberData);
+	//	Broadcast(writer);
+	//}
 
 	/// <summary>
 	/// 刷新大厅数据,在加入大厅或创建大厅后调用

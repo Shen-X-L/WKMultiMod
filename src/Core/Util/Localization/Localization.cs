@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using WKMPMod.Core;
 namespace WKMPMod.Util;
@@ -203,7 +204,7 @@ public static class Localization {
 	/// <summary>
 	/// 避免代码重复
 	/// </summary>
-	private static string SafeFormat(string pattern, object[] args) {
+	public static string SafeFormat(string pattern, params object[] args) {
 		if (args == null || args.Length == 0) return pattern;
 		try {
 			return string.Format(pattern, args);

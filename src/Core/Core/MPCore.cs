@@ -290,12 +290,11 @@ public class MPCore : MonoSingleton<MPCore> {
 				MPMain.LogWarning(Localization.Get("MPCore.PlayerDataMissing", steamId));
 				// 从MemberData获取模型数据
 				var data = _MPSteamworks.GetAllMemberData(new Friend(steamId));
-				MPMain.Debug($"member data: {string.Join(",",data.Select(kvp =>  kvp.Key + ": " + kvp.Value ))}");
-				if (data.Count != 0)
-					_RPManager.ProcessMemberData(steamId, data);
-				else
-					_MPSteamworks.SendToPeer(steamId, 
-						GetWriter(MPSteamworks.UserSteamId, steamId, PacketType.RequestMemberData));
+				MPMain.Debug($"[MPCore] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
+				_RPManager.ProcessMemberData(steamId, data);
+				//if (data.Count == 0)
+				//	_MPSteamworks.SendToPeer(steamId,
+				//	GetWriter(MPSteamworks.UserSteamId, steamId, PacketType.RequestMemberData));
 			}
 		}
 	}
@@ -707,11 +706,11 @@ public class MPCore : MonoSingleton<MPCore> {
 			_LocalPlayer.DefaulFactoryId = args[0];
 			MPConfig.RemotePlayerModel = args[0];
 			_MPSteamworks.SetMemberData(MPKeys.PREFAB_ID, args[0]);
-			_MPSteamworks.SendAllMemberData();
+			//_MPSteamworks.SendAllMemberData();
 		})
 			.NotCheat().Description(Localization.Get("CommandHelp.ChangeModel"))
 			.AutocompleteCustom(autocomplete => {
-				if (autocomplete.activeArg == 0) 
+				if (autocomplete.activeArg == 0)
 					autocomplete.FromArray(RPFactoryManager.ModelIDs);
 			});
 
@@ -726,7 +725,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			string name = string.Join(", ", args);
 			MPConfig.RemotePlayerName = name;
 			_MPSteamworks.SetMemberData(MPKeys.PLAYER_NAME, name);
-			_MPSteamworks.SendAllMemberData();
+			//_MPSteamworks.SendAllMemberData();
 		}).NotCheat().Description(Localization.Get("CommandHelp.SetName"));
 	}
 
@@ -1187,7 +1186,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			Patch_CommandConsole.ExecuteCommandForcefully(joinCmd);
 		// 更新玩家数据, 触发同步
 		_MPSteamworks.SetMemberData(MPKeys.TEAM, teamName);
-		_MPSteamworks.SendAllMemberData();
+		//_MPSteamworks.SendAllMemberData();
 		CommandConsole.Log(Localization.Get("CommandConsole.JoinedTeam", teamName));
 	}
 
@@ -1477,15 +1476,29 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 设置玩家个人数据
 		var joinMsgArray = Localization.GetAll("0_DisplayMessage.JoinMessages");
 		var leaveMsgArray = Localization.GetAll("0_DisplayMessage.LeaveMessages");
+
+		int joinLen = joinMsgArray?.Length ?? 0;
+		int leaveLen = leaveMsgArray?.Length ?? 0;
+		int minLength = Math.Min(joinLen, leaveLen);
+
 		var random = new System.Random();
-		var randomInt = random.Next(Math.Min(joinMsgArray.Length, leaveMsgArray.Length));
+		int randomInt = minLength > 0 ? random.Next(minLength) : -1;
+		// 获取玩家名称
 		var playerName = MPConfig.RemotePlayerName == "" ? SteamClient.Name : MPConfig.RemotePlayerName;
+
+		// 保底格式化
+		string rawJoinTemplate = (randomInt >= 0 && joinMsgArray != null) ? joinMsgArray[randomInt] : "{0} join";
+		string rawLeaveTemplate = (randomInt >= 0 && leaveMsgArray != null) ? leaveMsgArray[randomInt] : "{0} leave";
+
+		string finalJoinMsg = Localization.SafeFormat(rawJoinTemplate, playerName);
+		string finalLeaveMsg = Localization.SafeFormat(rawLeaveTemplate, playerName);
+
 		_MPSteamworks.SetMemberData(new Dictionary<string, string>() {
-				{ MPKeys.PREFAB_ID, _LocalPlayer.FactoryId },
-				{ MPKeys.PLAYER_NAME, playerName },
-				{ MPKeys.JOIN_MESSAGE, string.Format(joinMsgArray[randomInt], playerName)},
-				{ MPKeys.LEAVE_MESSAGE, string.Format(leaveMsgArray[randomInt], SteamClient.Name)},
-				{ MPKeys.TEAM, MPKeys.DEFAULT_TEAM },
+			{ MPKeys.PREFAB_ID, _LocalPlayer != null ? _LocalPlayer.FactoryId : "" },
+			{ MPKeys.PLAYER_NAME, playerName },
+			{ MPKeys.JOIN_MESSAGE, finalJoinMsg },
+			{ MPKeys.LEAVE_MESSAGE, finalLeaveMsg },
+			{ MPKeys.TEAM, MPKeys.DEFAULT_TEAM },
 		});
 
 		// 显示加入大厅信息
@@ -1652,7 +1665,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandleMemberDataChanged(Friend steamId, Dictionary<string, string> data) {
 		if (steamId.Id == MPSteamworks.UserSteamId) return;
-		MPMain.LogInfo(Localization.Get("MPCore.SteamIdDataDebug", 
+		MPMain.LogInfo(Localization.Get("MPCore.SteamIdDataDebug",
 			steamId.Id, string.Join(", ", data.Select(kvp => $"{kvp.Key}={kvp.Value}"))));
 		_RPManager.ProcessMemberData(steamId.Id, data);
 	}

@@ -318,7 +318,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <param name="distanceThreshold">距离阈值</param>
 	/// <param name="farPlayers">输出: 距离 >= 阈值的玩家ID集合</param>
 	/// <param name="nearPlayers">输出: 距离 < 阈值的玩家ID集合</param>
-	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, List<IDType> farPlayers, List<IDType> nearPlayers) {
+	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold,ref List<IDType> farPlayers,ref List<IDType> nearPlayers) {
 		farPlayers.Clear();
 		nearPlayers.Clear();
 

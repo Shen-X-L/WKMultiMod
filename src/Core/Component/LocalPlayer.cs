@@ -16,6 +16,8 @@ namespace WKMPMod.Component;
 //仅获取本地玩家信息并触发事件给其他系统使用
 //仅在联机时创建一个实例
 public class LocalPlayer : MonoSingleton<LocalPlayer> {
+	#region[字段和属性]
+
 	public const float LIMIT_SENDING_DISTANCE = 100.0f;				// 超过该距离时仅保证最小更新频率发送数据
 
 	// 网络发送控制
@@ -44,6 +46,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	private ENT_Player _cachedPlayer;
 	private Hand[] _cachedHands;
 
+	#endregion
 	#region[Unity生命周期函数]
 
 	public void Start() {
@@ -98,11 +101,17 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	#endregion
 	#region[网络事件回调]
 
+	/// <summary>
+	/// 被其他玩家拖拽
+	/// </summary>
 	private void HandleRemoteHangChanged(IDType remoteId, bool isActive) {
 		if (isActive) _playersHangingMe.Add(remoteId);
 		else _playersHangingMe.Remove(remoteId);
 	}
 
+	/// <summary>
+	/// 被其他玩家抓住
+	/// </summary>
 	private void HandleRemoteGrabChanged(IDType remoteId, bool isActive) {
 		if (isActive) _playersGrabbingMe.Add(remoteId);
 		else _playersGrabbingMe.Remove(remoteId);
@@ -146,12 +155,12 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		RPManager.Instance.GetPlayersByDistance(
 			_lastPlayerData.Position,
 			LIMIT_SENDING_DISTANCE,
-			_farPlayersBuffer,
-			_nearPlayersBuffer
+			ref _farPlayersBuffer,
+			ref _nearPlayersBuffer
 		);
 
 		// 发送给近距离玩家 常规频率定时器 && 位置发生了变化, 或者保底更新频率到了
-		if (tickNormal || tickMinFreq) {
+		if (tickNormal) {
 			foreach (ulong targetId in _nearPlayersBuffer) {
 				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
 				writer.Put(_lastPlayerData);
@@ -161,10 +170,15 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 		// 发送给远距离玩家 仅在最小频率定时器(如10秒一次)触发时发送
 		if (tickMinFreq) {
+			foreach (ulong targetId in _nearPlayersBuffer) {
+				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
+				writer.Put(_lastPlayerData);
+				MPSteamworks.Instance.SendToPeer(targetId, writer);
+			}
 			foreach (ulong targetId in _farPlayersBuffer) {
 				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
 				writer.Put(_lastPlayerData);
-				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Unreliable | SendType.NoNagle);
+				MPSteamworks.Instance.SendToPeer(targetId, writer);
 			}
 		}
 	}
