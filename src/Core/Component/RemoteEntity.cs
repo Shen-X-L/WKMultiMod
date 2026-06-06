@@ -72,9 +72,9 @@ public class RemoteEntity : CL_Prop {
 		}
 		// 如果还在无敌倒计时内, 但时间处于并发窗口期 (小于 a)
 		else if (Time.time - _burstStartTime <= MPCore.damageRules.BurstWindow) {
-			// 允许伤害通过! (这是和第一发子弹几乎同时到达的霰弹枪弹丸)
+			// 允许伤害通过
 		}
-		// 处于 (a, b) 之间, 属于真正的无敌保护期
+		// 处于 (a, b) 之间, 属于无敌帧
 		else {
 			return false; // 免疫伤害
 		}

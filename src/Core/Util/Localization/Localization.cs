@@ -56,60 +56,79 @@ public static class Localization {
 	/// 加载本地化文件
 	/// </summary>
 	public static void Load() {
-		// 获取插件路径
 		string pluginDirectory = MPMain.path;
-		// 获取系统语言
-		string language = GetGameLanguage(); 
-		string fileName = $"{FILE_PREFIX}_{language.ToLower()}.json";
-		string filePath = Path.Combine(pluginDirectory, fileName);
+		_table = new Dictionary<string, Dictionary<string, LocalizedValue>>();
 
-		// 如果找不到对应语言文件,使用默认版
-		if (!File.Exists(filePath)) {
-			// 未在: {filePath} 发现文本文件 {fileName}
-			MPMain.LogError($"[Localization] {fileName} file not found at path: {filePath}");
-			// 使用英文版
-			fileName = $"{FILE_PREFIX}_en.json";
-			filePath = Path.Combine(pluginDirectory, fileName);
+		// 强制优先加载英文作为基础
+		string enFileName = $"{FILE_PREFIX}_en.json";
+		string enFilePath = Path.Combine(pluginDirectory, enFileName);
 
-			if (!File.Exists(filePath)) {
-				MPMain.LogError($"[Localization] Localization file not found, please confirm that {FILE_PREFIX}_en.json file exists");
-				return;
+		bool enLoaded = false;
+		if (File.Exists(enFilePath)) {
+			LoadAndMerge(enFilePath);
+			enLoaded = true;
+		} else {
+			MPMain.LogWarning($"[Localization] Base English file not found at: {enFilePath}");
+		}
+
+		// 获取并尝试加载当前系统语言
+		string language = GetGameLanguage();
+		// 如果是英文就不重复加载了
+		if (language != "en") {
+			string localFileName = $"{FILE_PREFIX}_{language.ToLower()}.json";
+			string localFilePath = Path.Combine(pluginDirectory, localFileName);
+
+			if (File.Exists(localFilePath)) {
+				LoadAndMerge(localFilePath);
+				MPMain.LogInfo($"[Localization] Loaded local language file: {localFileName} and merged over English.");
+			} else {
+				MPMain.LogInfo($"[Localization] Local language file {localFileName} not found. Using English fallback.");
 			}
 		}
 
+		// 熔断检查
+		if (_table.Count == 0 && !enLoaded) {
+			MPMain.LogError($"[Localization] CRITICAL: No localization files could be loaded!");
+			return;
+		}
+
+		// 构建扁平化缓存
+		BuildFlatCache();
+
+		int totalEntries = 0;
+		foreach (var category in _table) {
+			totalEntries += category.Value.Count;
+		}
+		MPMain.LogInfo($"[Localization] Successfully loaded {_table.Count} categories with {totalEntries} entries");
+	}
+
+	/// <summary>
+	/// 读取 JSON 并合并到当前字典中 (同名键覆盖, 异名键新增)
+	/// </summary>
+	private static void LoadAndMerge(string filePath) {
 		try {
 			string jsonContent = File.ReadAllText(filePath);
-
 			var rawTable = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, object>>>(jsonContent);
 
-			_table = new Dictionary<string, Dictionary<string, LocalizedValue>>();
+			if (rawTable == null) return;
 
-			// 转换原始表到支持 LocalizedValue 的结构
 			foreach (var category in rawTable) {
-				_table[category.Key] = new Dictionary<string, LocalizedValue>();
+				// 如果大字典里没有这个分类, 先创建一个新的
+				if (!_table.ContainsKey(category.Key)) {
+					_table[category.Key] = new Dictionary<string, LocalizedValue>();
+				}
+
+				// 遍历键值对, 执行插入或覆盖
 				foreach (var kvp in category.Value) {
 					if (kvp.Value is JArray jarr) {
-						// 如果值是数组,转换为 LocalizedValue 包装的字符串数组
 						_table[category.Key][kvp.Key] = new LocalizedValue(jarr.Select(x => x.ToString()).ToArray());
 					} else {
-						// 否则直接转换为字符串
 						_table[category.Key][kvp.Key] = new LocalizedValue(kvp.Value?.ToString());
 					}
 				}
 			}
-
-			// 重置扁平化缓存
-			BuildFlatCache();
-
-			int totalEntries = 0;
-			foreach (var category in _table) {
-				totalEntries += category.Value.Count;
-			}
-			// 已成功加载 {_table.Count} 个类别,共 {totalEntries} 个条目
-			MPMain.LogInfo($"[Localization] Successfully loaded {_table.Count} categories with {totalEntries} entries");
 		} catch (Exception e) {
-			// 无法分析本地化文件
-			MPMain.LogError($"[Localization] Unable to parse localization file: {e.Message}");
+			MPMain.LogError($"[Localization] Unable to parse localization file {Path.GetFileName(filePath)}: {e.Message}");
 		}
 	}
 
@@ -201,16 +220,42 @@ public static class Localization {
 		return val.IsArray ? val.AsArray : new[] { val.AsString };
 	}
 
+
 	/// <summary>
-	/// 避免代码重复
+	/// 高级安全格式化 自动抛弃多余参数, 自动为缺失参数补空字符串
 	/// </summary>
 	public static string SafeFormat(string pattern, params object[] args) {
+		if (string.IsNullOrEmpty(pattern)) return string.Empty;
 		if (args == null || args.Length == 0) return pattern;
+
 		try {
-			return string.Format(pattern, args);
+			// 用正则找出文本里最大的占位符索引 (例如文本里有 {2}, 说明最大索引是 2)
+			var matches = Regex.Matches(pattern, @"\{([0-9]+)\}");
+			int maxIndex = -1;
+			foreach (Match match in matches) {
+				if (int.TryParse(match.Groups[1].Value, out int index) && index > maxIndex) {
+					maxIndex = index;
+				}
+			}
+
+			// 如果根本没有数字占位符, 直接返回原文本
+			if (maxIndex == -1) return pattern;
+
+			// 计算实际需要的参数数量 (最大索引 + 1)
+			int requiredArgsCount = maxIndex + 1;
+
+			// 构建对齐的参数数组
+			object[] paddedArgs = new object[requiredArgsCount];
+			for (int i = 0; i < requiredArgsCount; i++) {
+				// 有传入则用传入的, 不够的话强制补 ""
+				paddedArgs[i] = (i < args.Length && args[i] != null) ? args[i] : "";
+			}
+
+			// 执行原生 Format
+			return string.Format(pattern, paddedArgs);
 		} catch (Exception e) {
-			MPMain.LogError($"[Localization] Format error: {e.Message}");
-			return pattern;
+			MPMain.LogError($"[Localization] Format error: {e.Message} | Pattern: {pattern}");
+			return pattern; // 最差的情况降级返回原文本, 不让游戏崩溃
 		}
 	}
 

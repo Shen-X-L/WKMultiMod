@@ -69,14 +69,17 @@ public class MPPacketHandlers {
 	//}
 
 	/// <summary>
-	/// 主机/客户端接收BroadcastMessage: 处理玩家文字广播
+	/// 主机/客户端接收BroadcastMessage: 处理玩家文字广播<br/>
+	/// 发送函数: <see cref="MPCore.Talk"/>
+	/// 发送函数: <see cref="HandleCheckRequest"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.BroadcastMessage)]
 	private static void HandleBroadcastMessage(IDType senderId, DataReader reader) {
+		bool tagShow = reader.GetBool();	// 是否显示在Tag中
 		string msg = reader.GetString();    // 读取消息
-		string playerName = new Friend(senderId).Name;
-		CommandConsole.Log($"{playerName}: {msg}");
-		RPManager.Instance.ProcessPlayerTag(senderId, msg);
+		CommandConsole.Log(msg);
+		if (tagShow) 
+			RPManager.Instance.ProcessPlayerTag(senderId, msg);
 	}
 
 	/// <summary>
@@ -343,6 +346,8 @@ public class MPPacketHandlers {
 
 	/// <summary>
 	/// 客户端接收PlayerCheckRequest: 检查玩家数据
+	/// 发送BroadcastMessage: 玩家本体数据字典<br/>
+	/// 接受函数 <see cref="HandleBroadcastMessage"/><br/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerCheckRequest)]
 	public static void HandleCheckRequest(IDType senderId, DataReader reader) {
@@ -358,6 +363,7 @@ public class MPPacketHandlers {
 		};
 
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.BroadcastMessage);
+		writer.Put(false);
 		writer.Put(data);
 		MPSteamworks.Instance.SendToPeer(senderId, writer);
 
@@ -372,11 +378,11 @@ public class MPPacketHandlers {
 				// 获取库存中的物品列表
 				var items = inventory.GetItems();
 				foreach (var item in items) {
-					itemsDict.TryAdd(item.itemName, 0);
-					itemsDict[item.itemName]++;
+					itemsDict.TryAdd(item.prefabName, 0);
+					itemsDict[item.prefabName]++;
 				}
 			}
-			return string.Join(",", itemsDict.Select((item, number) => $"{item}: {number.ToString()}, "));
+			return string.Join(",", itemsDict.Select((item, number) => $"{item}"));
 		}
 		// 获取perk函数
 		string GetPerks() {
@@ -395,3 +401,4 @@ public class MPPacketHandlers {
 		}
 	}
 }
+

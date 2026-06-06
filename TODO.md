@@ -1,9 +1,4 @@
 受伤特效会在原点出现另一份
-check inventory检查对方背包所有物品
-check perk已有的天赋
-check stamina手部耐力
-check health血量
-check cheats是否作弊
 
 理解物品同步代码 修复客机放下后立刻抓取导致的物品复制bug
 

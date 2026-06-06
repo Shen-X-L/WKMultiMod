@@ -695,6 +695,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 向大厅广播
 		CommandConsole.BuildCommand("talk", Talk)
 			.NotCheat().Description(Localization.Get("CommandHelp.Talk"));
+		// 向大厅广播到字幕
+		CommandConsole.BuildCommand("subtitle", Subtitle)
+			.NotCheat().Description(Localization.Get("CommandHelp.Subtitle"));
 
 		// tp到某人(同步背包物品)
 		CommandConsole.BuildCommand("tpto", TpToPlayer)
@@ -1229,19 +1232,29 @@ public class MPCore : MonoSingleton<MPCore> {
 	#region[玩家间操作]
 
 	/// <summary>
-	/// 发送信息到他人控制台
+	/// 发送信息到他人控制台<br/>
+	/// 接受函数 <see cref="MPPacketHandlers.HandleBroadcastMessage"/><br/>
 	/// </summary>
 	public void Talk(string[] args) {
 		if (!EnsureInLobby()) return;
-
-		// 将参数数组组合成一个字符串
-		string message = string.Join(" ", args);
-
+		var name = MPConfig.RemotePlayerName == "" ? SteamClient.Name : MPConfig.RemotePlayerName;
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.BroadcastMessage);
-		writer.Put(message); // 自动处理长度和编码
+		writer.Put(true);// 显示在tag中
+		writer.Put(name + ": " + string.Join(" ", args));
 
 		// 发送给所有人
 		_MPSteamworks.Broadcast(writer);
+	}
+
+	/// <summary>
+	/// 发送信息到他人字幕
+	/// </summary>
+	public void Subtitle(string[] args) {
+		if (!EnsureInLobby()) return;
+		var name = MPConfig.RemotePlayerName == "" ? SteamClient.Name : MPConfig.RemotePlayerName;
+		var writerMessage = BuildingMessage(name + ": " + string.Join(" ", args), UIDisplayType.Subtitle, logToConsole: false);
+		if (writerMessage != null)
+			_MPSteamworks.Broadcast(writerMessage);
 	}
 
 	/// <summary>
@@ -1330,7 +1343,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		string targetStr = args[0].ToLower();
 
-		// 1. 将后续所有参数拼接，并将 "::" 替换为原版的 ";"
+		// 1. 将后续所有参数拼接, 并将 "::" 替换为原版的 ";"
 		// 例: allowpvp true :: addteam zombie -> allowpvp true ; addteam zombie
 		string payload = string.Join(" ", args.Skip(1)).Replace("::", ";");
 
@@ -1380,7 +1393,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		string targetStr = args[0].ToLower();
 
-		// 1. 将后续所有参数拼接，并将 "::" 替换为原版的 ";"
+		// 1. 将后续所有参数拼接, 并将 "::" 替换为原版的 ";"
 		// 例: allowpvp true :: addteam zombie -> allowpvp true ; addteam zombie
 		string payload = string.Join(" ", args.Skip(1)).Replace("::", ";");
 
@@ -1488,10 +1501,10 @@ public class MPCore : MonoSingleton<MPCore> {
 				return;
 			}
 
-			// 队伍名输完之后的所有后续参数，甩给引擎，明确告诉引擎：子命令从索引 2 开始
+			// 队伍名输完之后的所有后续参数, 甩给引擎, 明确告诉引擎：子命令从索引 2 开始
 			NestedCommandEngine.ForwardAutocomplete(autocomplete, defaultStartIndex: 2);
 		} else {
-			// 常规的 join 和 restart，子命令从索引 1 开始
+			// 常规的 join 和 restart, 子命令从索引 1 开始
 			NestedCommandEngine.ForwardAutocomplete(autocomplete, defaultStartIndex: 1);
 		}
 	}

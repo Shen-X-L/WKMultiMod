@@ -248,7 +248,7 @@ public class RPContainer {
 		// 更新碰撞权限
 		foreach (var colliders in _colliders) {
 			if (!colliders.isTrigger) {  // 只处理非触发器的实体碰撞体
-				colliders.enabled = actionRule.collision; // true 开启碰撞，false 关闭碰撞
+				colliders.enabled = actionRule.collision; // true 开启碰撞, false 关闭碰撞
 			}
 		}
 	}

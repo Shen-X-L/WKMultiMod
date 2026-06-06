@@ -12,7 +12,7 @@ public static class NestedCommandEngine {
 	/// 通用的子命令嵌套补全外包核心
 	/// </summary>
 	/// <param name="autocomplete">控制台补全对象</param>
-	/// <param name="defaultStartIndex">如果没有输入 :: 时，子命令默认应该在第几个参数（索引从0开始算）</param>
+	/// <param name="defaultStartIndex">如果没有输入 :: 时, 子命令默认应该在第几个参数（索引从0开始算）</param>
 	public static void ForwardAutocomplete(CommandConsole.CommandAutocomplete autocomplete, int defaultStartIndex) {
 		// 熔断安全检查
 		if (Patch_CommandConsole.StatesRef == null || Patch_CommandConsole.CommandsRef == null) return;
@@ -21,7 +21,7 @@ public static class NestedCommandEngine {
 		int subCmdStartIndex = defaultStartIndex;
 		for (int i = defaultStartIndex; i <= autocomplete.activeArg; i++) {
 			if (autocomplete.ArgumentAt(i) == "::") {
-				subCmdStartIndex = i + 1; // 遇到 ::，子命令起点向后移
+				subCmdStartIndex = i + 1; // 遇到 ::, 子命令起点向后移
 			}
 		}
 
@@ -30,7 +30,7 @@ public static class NestedCommandEngine {
 		var currentState = statesStack.Cast<object>().First();
 		var commandsDict = Patch_CommandConsole.CommandsRef(currentState);
 
-		// 情况 A：光标刚好落在子命令的名字上，提示所有可用的命令
+		// 情况 A：光标刚好落在子命令的名字上, 提示所有可用的命令
 		if (autocomplete.activeArg == subCmdStartIndex) {
 			List<string> cmdNames = new List<string>();
 			foreach (var key in commandsDict.Keys) {
@@ -41,7 +41,7 @@ public static class NestedCommandEngine {
 			return;
 		}
 
-		// 情况 B：正在输入子命令的后续参数，执行外包代理
+		// 情况 B：正在输入子命令的后续参数, 执行外包代理
 		if (autocomplete.activeArg > subCmdStartIndex) {
 			string targetCmdName = autocomplete.ArgumentAt(subCmdStartIndex).ToLower();
 			if (commandsDict.Contains(targetCmdName)) {
@@ -76,7 +76,7 @@ public static class NestedCommandEngine {
 		int originalActiveArg = validator.activeArg;
 		List<string> originalArgs = Patch_CommandConsole.ValidatorArgsRef(validator);
 
-		// 如果当前输入的总参数量还没达到默认子命令的起点，直接无需校验子命令
+		// 如果当前输入的总参数量还没达到默认子命令的起点, 直接无需校验子命令
 		if (originalActiveArg < defaultStartIndex) return;
 
 		// --- 动态计算子命令实际起点 ---
@@ -88,7 +88,7 @@ public static class NestedCommandEngine {
 			}
 		}
 
-		// 如果光标在 :: 上或在子命令名字上，无需执行子命令本身的验证器
+		// 如果光标在 :: 上或在子命令名字上, 无需执行子命令本身的验证器
 		if (originalActiveArg <= subCmdStartIndex) return;
 
 		if (subCmdStartIndex < originalArgs.Count) {

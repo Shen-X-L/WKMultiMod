@@ -99,8 +99,10 @@ public class RPManager : Singleton<RPManager> {
 			var playerRotation = container.PlayerObject.transform.rotation;
 
 			var deathParticle = MPAssetManager.GetAssetGameObject(MPAssetManager.DEATH_OBJECT_NAME);
-			if (deathParticle != null)
+			if (deathParticle != null){
+				MPMain.Debug(playerPosition.ToString());
 				GameObject.Instantiate(deathParticle, playerPosition, playerRotation);
+			}
 
 			// 工厂清理
 			RPFactoryManager.Instance.Cleanup(container.PlayerObject);
@@ -249,8 +251,7 @@ public class RPManager : Singleton<RPManager> {
 					Random.Range(-1f, 1f), Random.Range(0.5f, 1f), Random.Range(-1f, 1f));
 
 				// 实例化物品
-				var itemObject = GameObject.Instantiate(
-					itemPrefab, playerPosition + offset, Random.rotation);
+				var itemObject = GameObject.Instantiate(itemPrefab, playerPosition + offset, Random.rotation);
 
 				// 获取Rigidbody并添加随机斜上方动量
 				if (itemObject.TryGetComponent<Rigidbody>(out var rb)) {
@@ -289,7 +290,7 @@ public class RPManager : Singleton<RPManager> {
 		GameObject effectPrefab = MPAssetManager.GetAssetGameObject(effectName)
 						   ?? CL_AssetManager.GetAssetGameObject(effectName);
 		if (effectPrefab != null) {
-			// info.position 是原版 GameEntity 挨打时的精确物理坐标
+			MPMain.Debug(info.position.ToString());
 			GameObject.Instantiate(effectPrefab, info.position, Quaternion.identity);
 		}
 	}

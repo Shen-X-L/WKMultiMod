@@ -143,7 +143,7 @@ public class Patch_CommandConsole {
 		bool originalCheatsState = CommandConsole.cheatsEnabled;
 
 		try {
-			// 强行静默开启作弊权限，从而完美绕过 MayUseCommand 里的 CheatsNotEnabled 检查
+			// 强行静默开启作弊权限, 从而完美绕过 MayUseCommand 里的 CheatsNotEnabled 检查
 			CommandConsole.cheatsEnabled = true;
 
 			// 调用原版引擎执行指令
@@ -151,7 +151,7 @@ public class Patch_CommandConsole {
 		} catch (Exception ex) {
 			MPMain.LogError(Localization.Get("Patch.ForceExecuteCommandCrash", ex.Message));
 		} finally {
-			// 无论指令执行成功还是抛出异常，都必须将 cheatsEnabled 还原为玩家原有的状态
+			// 无论指令执行成功还是抛出异常, 都必须将 cheatsEnabled 还原为玩家原有的状态
 			CommandConsole.cheatsEnabled = originalCheatsState;
 
 			// 遵照需求: 强制将全局 hasCheated 变为 true 
