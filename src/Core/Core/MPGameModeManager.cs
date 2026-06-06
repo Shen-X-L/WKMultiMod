@@ -146,7 +146,7 @@ public class MPGameModeManager {
 			// 等待地图加载完成
 			yield return new WaitUntil(() => WorldLoader.isLoaded == true);
 			// 加载完成后执行加入指令
-			if(MPSteamworks.Instance.LobbyData.TryGetValue(MPKeys.JOIN_COMMAND, out var cmdData) && !string.IsNullOrEmpty(cmdData)) {
+			if(MPSteamworks.Instance.LobbyData.TryGetValue(MPKeys.RESTART_COMMAND, out var cmdData) && !string.IsNullOrEmpty(cmdData)) {
 				Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
 			}
 			yield break;

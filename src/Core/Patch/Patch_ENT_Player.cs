@@ -61,7 +61,7 @@ public class Patch_ENT_Player {
 
 		// 投掷: 按下投掷键, 施加向前力后松开
 		if (InputManager.GetButton(handObj.throwButton).Down) {
-			MPEventBusGame.NotifyPlayerAddForce(remoteEntity.playerId, __instance.camTransform.forward * 150f);
+			MPEventBusGame.NotifyPlayerAddForce(remoteEntity.playerId, __instance.camTransform.forward * 10f);
 			__instance.StopInteraction(hand);
 		}
 		// 松开: 释放抓取键 或 物体距离过远

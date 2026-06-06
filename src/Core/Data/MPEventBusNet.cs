@@ -8,10 +8,10 @@ namespace WKMPMod.Data;
 
 // 数据包类型枚举 - 定义不同类型的网络消息
 public enum PacketType {
-	RequestLobbyData = 0,	// 客机->主机: 请求房间数据
-	ResponseLobbyData = 1,  // 主机->客机: 响应房间数据
-	RequestMemberData = 2,  // 客机->主机->客机: 请求玩家数据
-	ResponseMemberData = 3, // 客机->主机->客机: 响应玩家数据
+	LobbyDataRequest = 0,	// 客机->主机: 请求房间数据
+	LobbyDataResponse = 1,  // 主机->客机: 响应房间数据
+	MemberDataRequest = 2,  // 客机->主机->客机: 请求玩家数据
+	MemberDataResponse = 3, // 客机->主机->客机: 响应玩家数据
 
 	//PlayerCreate = 4,      // 主机->客机: 创建新玩家
 	//PlayerRemove = 5,       // 主机->客机: 移除玩家
@@ -31,9 +31,10 @@ public enum PacketType {
 	PlayerStopInteraction = 35, // 客机->主机->客机: 玩家停止当前交互(如抓取)
 	PlayerDeath = 36,        // 客机->主机->客机: 玩家死亡, 发送广播
 
-	// 临时措施
+	// 杂项
 	PlayerTeleportRequest = 48, // 客机->主机->客机: 请求传送
 	PlayerTeleportRespond = 49, // 客机->主机->客机: 响应传送
+	PlayerCheckRequest = 50,    // 客机->主机->客机: 请求检查数据
 }
 
 public static class MPEventBusNet {

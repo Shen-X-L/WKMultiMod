@@ -60,7 +60,6 @@ public class Patch_CL_Prop {
 	public static bool Prefix_Skip(CL_Prop __instance, MethodBase __originalMethod) {
 		// 如果当前实例是远程玩家傀儡, 直接返回 false, 掐断原版逻辑
 		if (__instance is RemoteEntity) {
-			//MPMain.Debug($"动态拦截并跳过了原版函数: {__originalMethod.Name}");
 			return false;
 		}
 

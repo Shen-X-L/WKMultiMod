@@ -62,56 +62,66 @@ Download the required `.zip` file from the [Releases](https://github.com/Shen-X-
 
 New commands:
 
-* `bindsync [true|false]` - Controls whether trinkets and bindings are synced for players who join later.  
-  * Example: `bindsync true`
-* `teamrule <SourceTeam> <TargetTeam> ([Rule] [true|false|default])*n , ...` - Controls rules between teams.  
-  * Example: `teamrule hunter runner pvp true hang false grab false , runner hunter pvp false tagshow false`
+* `bindsync [true|false]` - Controls whether trinkets and bindings are synced for players who join later.
+   * Example: `bindsync true`
+
+* `teamrule <SourceTeam> <TargetTeam> ([Rule] [true|false|default])*n , ...` - Controls rules between teams.
+   * Example: `teamrule hunter runner pvp true hang false grab false , runner hunter pvp false tagshow false`
+
 * `teamrule` available rules:
-  * `pvp` - Whether players can damage each other
-  * `hang` - Whether players can drag each other (like pulling a crate)
-  * `grab` - Whether players can grab each other (like grabbing a piton)
-  * `tagshow` - Whether name tags are displayed above players
-  * `collision` - Whether collision is enabled
-  * `syncitem` - Whether items are synced (not implemented)
-  * `syncinventory` - Whether inventory is synced (not implemented)
-  * `syncdied` - Death sync (when one player dies, everyone dies)
+   * `pvp` - Whether players can damage each other
+   * `hang` - Whether players can drag each other (like pulling a crate)
+   * `grab` - Whether players can grab each other (like grabbing a piton)
+   * `tagshow` - Whether name tags are displayed above players
+   * `collision` - Whether collision is enabled
+   * `syncitem` - Whether items are synced (not implemented)
+   * `syncinventory` - Whether inventory is synced (not implemented)
+   * `syncdied` - Death sync (when one player dies, everyone dies)
+
 * `addteam <TeamName>` - Adds an active team
 * `removeteam <TeamName>` - Removes an active team and disables its rules
 * `jointeam <TeamName>` - Joins a team
 * `setname <Name>` - Sets an additional name
-* `pcmd <all|steamId> [command1] :: [command2]...` - Makes other remote players execute the commands you input. Use `::` as a substitute for `;`.  
-  * Example: `pcmd 561198279116422 addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
-* `tcmd <TeamName> [command1] :: [command2]...` - Makes all players in the specified team execute the commands you input. Use `::` as a substitute for `;`.  
-  * Example: `tcmd hunter addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
+* `pcmd <all|steamId> [command1] :: [command2]...` - Makes other remote players execute the commands you input. Use `::` as a substitute for `;`.
+   * Example: `pcmd 561198279116422 addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
+
+* `tcmd <TeamName> [command1] :: [command2]...` - Makes all players in the specified team execute the commands you input. Use `::` as a substitute for `;`.
+   * Example: `tcmd hunter addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
+
 * `acmd <join|restart|jointeam TeamName> [command1] :: [command2]...` - Executes the commands you input when a player performs certain actions. Use `::` as a substitute for `;`.
-  * `acmd` trigger conditions:
-    * `join` - Executes the command after a player joins a room and the map has been initialized
-    * `restart` - Executes the command when a player fully dies and restarts, or when the restart button is used
-    * `jointeam TeamName` - Executes the command when a player joins that team (currently not persistent; it needs to be reset every time the game restarts)
-  * Example: `acmd restart addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
+   * `acmd` trigger conditions:
+      * `join` - Executes the command after a player joins a room and the map has been initialized
+      * `restart` - Executes the command when a player fully dies and restarts, or when the restart button is used
+      * `jointeam TeamName` - Executes the command when a player joins that team (currently not persistent; it needs to be reset every time the game restarts)
+
+   * Example: `acmd restart addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
 
 Custom Join/Leave/Death/Win Messages:
 You can add your own custom messages under each section.
 Edit texts_(your language).json as shown above.
-{0} is the player name, {1} is the cause of death — these are optional.
-```
+{1} is the player name, {0} is the cause of death — these are optional.
+
+```json
 "0_DeathMessage": {
   "default": [
     "{0} died due to {1}"
   ],
   "teeth": [
-    "{0} was chomped and chewed by teeth"
+    "{1} was chomped and chewed by teeth"
   ],
   "fan": [
-    "{0} was torn in half by a fan"
+    "{1} was torn in half by a fan"
   ],
   "death information": [
     "Custom death message"
   ]
 },
+
 ```
+
 {0} is the player name
-```
+
+```json
 "0_DisplayMessage": {
   "EnteredMessages": [
     "Joined {0} - {1}/{2}\nid: {3}"
@@ -139,39 +149,46 @@ Edit texts_(your language).json as shown above.
     "Custom win message"
   ]
 }
-```
 
+```
 
 ### 1.5.0
 
 **New Commands:**
 
 * `host <name> [visibility] [max_players]` – Create a lobby. For visibility options, see the `lobbytype` command.
-  * Example: `host abcde` `host aaa friends 3`
+   * Example: `host abcde` `host aaa friends 3`
+
 * `join <name/lobby_code>` – Join a lobby by lobby name or lobby code. The parameter is first matched against lobby names. If multiple lobbies share the same name, joining by name will fail; please use the lobby code instead.
-  * Example: `join abcde` `join 109775241951624817`
+   * Example: `join abcde` `join 109775241951624817`
+
 * `leave` – Leave the current lobby.
 * `lobbyid` – Get the lobby code and copy it to the clipboard.
 * `allplayer` – Get a list of all players and their Steam IDs.
 * `talk <text>` – Speak in chat (text appears above your head and in the console). Currently, the console does not support Chinese characters.
-  * Example: `talk hello` `talk I have the highland`
+   * Example: `talk hello` `talk I have the highland`
+
 * `lobbylist` – Get information about all available lobbies, including lobby codes and current player counts.
 * `setlobbyname <name>` – Change the lobby name. Host only.
-  * Example: `setlobbyname newname`
+   * Example: `setlobbyname newname`
+
 * `changemodel <model_name>` – Change the remote player model (does not take effect mid‑game). Currently supports `default` and `slugcat`.
-  * Example: `changemodel slugcat`
+   * Example: `changemodel slugcat`
+
 * `lobbytype [public/private/friends]` – Change lobby visibility. `public` = anyone can join, `private` = joinable only via lobby code, `friends` = visible and joinable only by friends.
-  * Example: `lobbytype friends`
+   * Example: `lobbytype friends`
+
 * `invite` – Invite a friend to join the lobby. (Thanks to Fugel for the code.)
 * `allowcheats` – Control whether cheat commands can be used in the lobby. If set to `false`, cheat mode and noclip are forcibly disabled.
-  * Example: `allowcheats false` `allowcheats true`
+   * Example: `allowcheats false` `allowcheats true`
+
 * `allowpvp` – Control whether players can damage each other.
-  * Example: `allowpvp false` `allowpvp true`
+   * Example: `allowpvp false` `allowpvp true`
 
 **Commands available after enabling cheat mode (`cheats`) in-game:**
 
 * `tpto <steamId (suffix matching)>` – Teleport to another player. Supports autocompletion.
-  * Example: `tpto 16422` or `tpto 22` (for target Steam ID 561198279116422)
+   * Example: `tpto 16422` or `tpto 22` (for target Steam ID 561198279116422)
 
 ### Version 0.12(No longer updated)
 
@@ -179,10 +196,12 @@ After enabling cheat mode (`cheats`) in-game, use the following commands:
 
 * `host <port> [max_players]` - Host a server.
 
-  * Example: `host 22222`
+   * Example: `host 22222`
+
 * `join <ip_address> <port>` - Join an existing host server.
 
-  * Example: `join 127.0.0.1 22222` or `join [::1] 22222`
+   * Example: `join 127.0.0.1 22222` or `join [::1] 22222`
+
 * `leave` - Leave the current host server.
 
 ## Development Guide
@@ -199,6 +218,7 @@ git clone https://github.com/Shen-X-L/WKMultiMod.git
 # Method A: Open and build WhiteKnuckleMod.sln in Visual Studio
 # Method B: Use the command line
 dotnet build -c Release
+
 
 
 ```
@@ -299,6 +319,7 @@ WhiteKnuckleMod/
 │   └─ LocalPaths.props.example     # Example configuration file for local library reference paths
 ├── WhiteKnuckleMod.sln             # Visual Studio solution file
 └── README_CN.md                    # This document
+
 ```
 
 ### Environment Setup

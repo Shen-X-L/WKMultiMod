@@ -1,11 +1,9 @@
-﻿using HarmonyLib;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -107,6 +105,8 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	private InputAction _toggleAction;
 	public static ENT_Player.InteractType IsGrabOrHangState = ENT_Player.InteractType.hanging;
+
+	public static readonly List<string> checkOptions = new List<string> { "inventory", "perk", "stamina", "health", "cheats" };
 
 	#region[Unity生命周期函数]
 	protected override void Awake() {
@@ -290,7 +290,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				MPMain.LogWarning(Localization.Get("MPCore.PlayerDataMissing", steamId));
 				// 从MemberData获取模型数据
 				var data = _MPSteamworks.GetAllMemberData(new Friend(steamId));
-				MPMain.Debug($"[MPCore] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
+				//MPMain.Debug($"[MPCore] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 				_RPManager.ProcessMemberData(steamId, data);
 				//if (data.Count == 0)
 				//	_MPSteamworks.SendToPeer(steamId,
@@ -433,7 +433,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		var writerDeath = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
 
 		// 库存物品字典
-		writerDeath.Put(GetGetInventoryItems());
+		writerDeath.Put(GetInventoryItems());
 
 		// 发送背包道具
 		_MPSteamworks.Broadcast(writerDeath);
@@ -445,9 +445,13 @@ public class MPCore : MonoSingleton<MPCore> {
 			: Localization.GetRandom("0_DeathMessage.default", type, name);
 
 		var writerMessage = BuildingMessage(message, UIDisplayType.HighscoreHeader, logToConsole: true);
+
 		if (writerMessage != null)
 			// 发送死亡信息
 			_MPSteamworks.Broadcast(writerMessage);
+
+		// 顺便显示在自己的界面
+		SystemMessage(message, UIDisplayType.HighscoreHeader);
 	}
 
 	/// <summary>
@@ -699,6 +703,14 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (autocomplete.activeArg == 0)
 					autocomplete.FromArrayWithDesc(_RPManager.Players.Values.Select(container => (
 								id: container.PlayerId.ToString(), name: container.PlayerName)).ToList());
+			})
+			.AutocompleteValidator(validator => {
+				// 参数0 是 可以转为ulong 是 其他玩家Id不报红
+				if (validator.activeArg == 0
+					&& ulong.TryParse(validator.ArgumentAt(0), out var playerId)
+					&& _RPManager.Players.ContainsKey(playerId))
+					return;
+				validator.Reject();
 			});
 
 		// 修改玩家模型
@@ -714,6 +726,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(RPFactoryManager.ModelIDs);
 			});
 
+		// 加入队伍
 		CommandConsole.BuildCommand("jointeam", JoinTeam)
 			.NotCheat().Description(Localization.Get("CommandHelp.JoinTeam"))
 			.OverValue(() => _MPSteamworks.IsInLobby ? CurrentTeam : "Not In Lobby")
@@ -721,12 +734,34 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (autocomplete.activeArg == 0) autocomplete.FromArray(TeamRuleManager.activeTeams.ToList());
 			});
 
+
+		// 设置名称
 		CommandConsole.BuildCommand("setname", (args) => {
 			string name = string.Join(", ", args);
 			MPConfig.RemotePlayerName = name;
 			_MPSteamworks.SetMemberData(MPKeys.PLAYER_NAME, name);
 			//_MPSteamworks.SendAllMemberData();
 		}).NotCheat().Description(Localization.Get("CommandHelp.SetName"));
+
+		// 检查其他玩家数据
+		CommandConsole.BuildCommand("check", Check)
+			.NotCheat().Description(Localization.Get("CommandHelp.Check"))
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0) autocomplete.FromArray(checkOptions);
+				else autocomplete.FromArrayWithDesc(_RPManager.Players.Values.Select(container => (
+								id: container.PlayerId.ToString(), name: container.PlayerName)).ToList());
+			})
+			.AutocompleteValidator(validator => {
+				// 参数是0 是 选项中的一项
+				if (validator.activeArg == 0 && checkOptions.Contains(validator.ArgumentAt(0).ToLower()))
+					return;
+				// 参数大于0 是 可以转为ulong 是 其他玩家Id不报红
+				if (validator.activeArg > 0
+					&& ulong.TryParse(validator.ArgumentAt(validator.activeArg), out var playerId)
+					&& _RPManager.Players.ContainsKey(playerId))
+					return;
+				validator.Reject();
+			});
 	}
 
 	/// <summary>
@@ -1219,6 +1254,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			CommandConsole.LogError(Localization.Get("CommandConsole.WorldNotInitialized"));
 			return;
 		}
+
 		if (ulong.TryParse(args[0], out ulong playerId)) {
 			var ids = DictionaryExtensions.FindByKeySuffix(_RPManager.Players, playerId);
 			// 未找到对应id
@@ -1256,6 +1292,26 @@ public class MPCore : MonoSingleton<MPCore> {
 			CommandConsole.Log(Localization.Get(
 				"CommandConsole.LobbyInfo", lobby.Id, lobby.GetData(MPKeys.LOBBY_NAME),
 				lobby.GetData(MPKeys.OWNER_NAME), gamemode));
+		}
+	}
+
+	public void Check(string[] args) {
+		if (!EnsureInLobby()) return;
+
+		if (args.Length == 0 || !checkOptions.Contains(args[0].ToLower())) {
+			CommandConsole.LogError("[MP Debug] use parameter");
+			return;
+		}
+
+		for (int i = 1; i < args.Length; ++i) {
+			if (ulong.TryParse(args[i], out ulong playerId)) {
+				// 发送请求检查项目
+				var writer = GetWriter(MPSteamworks.UserSteamId, playerId, PacketType.PlayerCheckRequest);
+				writer.Put(args[0].ToLower());
+				_MPSteamworks.SendToPeer(playerId, writer);
+			} else {
+				CommandConsole.LogError($"[MP Debug] {args[i]} is not a playerId");
+			}
 		}
 	}
 
@@ -1682,7 +1738,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 获取物品清单字典
 	/// </summary>
-	public static Dictionary<string, byte> GetGetInventoryItems() {
+	public static Dictionary<string, byte> GetInventoryItems() {
 		var inventory = Inventory.instance;
 		var itemsDict = new Dictionary<string, byte>();
 

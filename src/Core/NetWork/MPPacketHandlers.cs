@@ -52,10 +52,8 @@ public class MPPacketHandlers {
 	///// </summary>
 	//[MPPacketHandler(PacketType.RequestMemberData)]
 	//private static void HandleRequestMemberData(IDType senderId, DataReader reader) {
-	//	MPMain.Debug("HandleRequestMemberData");
 	//	var writer = MPWriterPool.GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.ResponseMemberData);
 	//	writer.Put(MPSteamworks.Instance.MemberData);
-	//	MPMain.Debug($"MemberData : {string.Join(",", MPSteamworks.Instance.MemberData.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 	//	MPSteamworks.Instance.SendToPeer(senderId, writer);
 	//}
 
@@ -67,7 +65,6 @@ public class MPPacketHandlers {
 	//[MPPacketHandler(PacketType.ResponseMemberData)]
 	//private static void HandleResponseMemberData(IDType senderId, DataReader reader) {
 	//	var data = reader.GetStringStringDict();
-	//	MPMain.Debug($"[Handler] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 	//	RPManager.Instance.ProcessMemberData(senderId, data);
 	//}
 
@@ -179,7 +176,7 @@ public class MPPacketHandlers {
 	/// </summary>
 	/// <param name="senderId">发送方ID</param>
 	[MPPacketHandler(PacketType.GameUIMessage)]
-	private static void HandleSystemUIMessage(IDType senderId, DataReader reader) { 
+	private static void HandleSystemUIMessage(IDType senderId, DataReader reader) {
 		var message = reader.GetString();
 		var displayType = reader.GetByte();
 		var duration = reader.GetFloat();
@@ -206,7 +203,7 @@ public class MPPacketHandlers {
 		writer.Put(playerPos.z);
 
 		// 库存物品字典
-		writer.Put(MPCore.GetGetInventoryItems());
+		writer.Put(MPCore.GetInventoryItems());
 
 		// 没有Mess环境则直接发送位置数据,有则发送位置数据和Mess数据
 		if (DEN_DeathFloor.instance == null) {
@@ -235,7 +232,7 @@ public class MPPacketHandlers {
 
 		// 对方背包物品
 		var remoteItems = reader.GetStringByteDict();
-		var localItems = MPCore.GetGetInventoryItems();
+		var localItems = MPCore.GetInventoryItems();
 		var missingItems = SetDifference(remoteItems, localItems);
 
 		var inventory = Inventory.instance;
@@ -342,5 +339,59 @@ public class MPPacketHandlers {
 		string command = reader.GetString();
 		CommandConsole.Log(Localization.Get("CommandConsole.PlayerIssuedCommand", new Friend(senderId).Name, command));
 		Patch_CommandConsole.ExecuteCommandForcefully(command);
+	}
+
+	/// <summary>
+	/// 客户端接收PlayerCheckRequest: 检查玩家数据
+	/// </summary>
+	[MPPacketHandler(PacketType.PlayerCheckRequest)]
+	public static void HandleCheckRequest(IDType senderId, DataReader reader) {
+		string checkRequest = reader.GetString();
+		var player = ENT_Player.GetPlayer();
+		string data = checkRequest switch {
+			"inventory" => "item: {" + GetInventoryItems() + "}",
+			"perk"=> "perk: {" + GetPerks() + "}",
+			"stamina" => $"left: {player.hands[0].gripStrength} right: {player.hands[1].gripStrength}",
+			"health" => "health: " + player.health,
+			"cheats" => "cheats: " + CommandConsole.cheatsEnabled.ToString(),
+			_ => "",
+		};
+
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.BroadcastMessage);
+		writer.Put(data);
+		MPSteamworks.Instance.SendToPeer(senderId, writer);
+
+		// 获取物品函数
+		string GetInventoryItems() {
+			var inventory = Inventory.instance;
+			var itemsDict = new Dictionary<string, byte>();
+
+			if (inventory == null)
+				return "";
+			else {
+				// 获取库存中的物品列表
+				var items = inventory.GetItems();
+				foreach (var item in items) {
+					itemsDict.TryAdd(item.itemName, 0);
+					itemsDict[item.itemName]++;
+				}
+			}
+			return string.Join(",", itemsDict.Select((item, number) => $"{item}: {number.ToString()}, "));
+		}
+		// 获取perk函数
+		string GetPerks() {
+			var perks = player.perks;
+			var perksDict = new Dictionary<string, byte>();
+			if (perks == null)
+				return "";
+			else {
+				// 获取库存中的物品列表
+				foreach (var perk in perks) {
+					perksDict.TryAdd(perk.id, 0);
+					perksDict[perk.id]++;
+				}
+			}
+			return string.Join(",", perksDict.Select((perk, number) => $"{perk}: {number.ToString()}, "));
+		}
 	}
 }

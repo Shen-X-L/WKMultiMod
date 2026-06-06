@@ -31,7 +31,10 @@ public static class MPEventBusGame {
 	public static void NotifyPlayerAddForce(IDType steamId, Vector3 force, string source = "")
 		=> OnPlayerAddForce?.Invoke(steamId, force, source);
 
-	// 游戏事件: 玩家死亡
+	/// <summary>
+	/// 游戏事件: 玩家死亡 订阅者:<br/>
+	/// <see cref="MPCore.HandlePlayerDeath"/>
+	/// </summary>
 	public static event Action<string> OnPlayerDeath;
 	public static void NotifyPlayerDeath(string type) => OnPlayerDeath?.Invoke(type);
 

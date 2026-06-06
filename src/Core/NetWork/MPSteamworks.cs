@@ -1005,8 +1005,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// 批量设置个人数据
 	/// </summary>
 	public void SetMemberData(Dictionary<string, string> memberData) {
-		MPMain.Debug(string.Join(",", memberData.Select(kvp => kvp.Key + ": " + kvp.Value)));
-
 		if (!_currentLobby.Id.IsValid || memberData == null) return;
 
 		// 获取一次当前的索引, 减少循环内的读取开销
@@ -1046,7 +1044,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		try {
 			// 先拿到索引字符串
 			string allKeysRaw = _currentLobby.GetMemberData(friend, MPKeys.ALL_KEYS_INDEX);
-			MPMain.Debug(allKeysRaw);
 			if (string.IsNullOrEmpty(allKeysRaw)) return result;
 
 			// 拆分并逐一拉取数据
@@ -1054,7 +1051,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			foreach (var key in keys) {
 				string val = _currentLobby.GetMemberData(friend, key);
 				result[key] = val;
-				MPMain.Debug(key + ": " + val);
 			}
 		} catch (Exception ex) {
 			MPMain.LogError(Localization.Get("MPSteamworks.GetAllMemberDataException", ex.Message));

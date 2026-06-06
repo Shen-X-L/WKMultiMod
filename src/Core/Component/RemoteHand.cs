@@ -164,13 +164,6 @@ public class RemoteHand : MonoBehaviour {
 		_isTeleporting = false; // 重置传送标志
 		_targetWorldPosition = handData.Position;  // 使用网络传来的世界位置
 
-		//if (_debugTick.TryTick())
-		//	MPMain.Debug($"UpdateFromHandData: " +
-		//		$"PlayerId={playerId}, HandType={handType}, " +
-		//		$"TargetPlayerId={handData.targetId}, InteractState={handData.interactState}, " +
-		//		$"IsBeGrabbing={handData.IsBeGrabbing(targetPlayerId)}, " +
-		//		$"IsBeHanging={handData.IsBeHanging(targetPlayerId)}");
-
 		if (handData.IsBeGrabbing(targetPlayerId)) {
 			_targetWorldPosition = handData.DesiredPosition;
 			_isBeingGrabbed = true;

@@ -66,6 +66,7 @@ public class Patch_CL_AssetManager_Initialize {
 	}
 }
 
+
 //[HarmonyPatch(typeof(CL_GameManager), nameof(CL_GameManager.Die))]
 //public class  Patch_CL_GameManager_Die {
 //	public static void Prefix(string type) {

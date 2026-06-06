@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using WKMPMod.Core;
+using WKMPMod.NetWork;
 using WKMPMod.Util;
 
 namespace WKMPMod.Patch;
@@ -122,7 +123,7 @@ public class Patch_CommandConsole {
 	[HarmonyPrefix]
 	public static bool EnableCheatsCommand_BlockIfNotAllowed() {
 		// 在大厅且不允许作弊
-		if (MPCore.IsInLobby && !MPCore.IsAllowCheats) {
+		if (MPCore.IsInLobby && !MPCore.IsAllowCheats && !MPSteamworks.Instance.IsHost) {
 			// 当前大厅不允许作弊
 			CommandConsole.LogError(Localization.Get("CommandConsole.CheatsNotAllowed"));
 			return false;

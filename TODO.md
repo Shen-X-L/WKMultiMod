@@ -1,4 +1,11 @@
-理解物品同步代码 修复放下后立刻抓取导致的物品复制bug
+受伤特效会在原点出现另一份
+check inventory检查对方背包所有物品
+check perk已有的天赋
+check stamina手部耐力
+check health血量
+check cheats是否作弊
+
+理解物品同步代码 修复客机放下后立刻抓取导致的物品复制bug
 
 压缩玩家ID ulong->short 创建玩家ID字典类,数据储存在steamLobbyData中
 分配规则??? 时间戳+(steamId hash)去除大部分冲突+LobbyData进行二次校验来进行偏移
