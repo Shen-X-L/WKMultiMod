@@ -45,7 +45,7 @@ public class MPGameModeManager {
 		}
 	}
 
-	public static Dictionary<string,M_Gamemode> gameModeDict = new Dictionary<string,M_Gamemode>();
+	public static Dictionary<string, M_Gamemode> gameModeDict = new Dictionary<string, M_Gamemode>();
 	public static GameModeData? CurrentData { get; private set; }
 
 	/// <summary>
@@ -135,6 +135,7 @@ public class MPGameModeManager {
 	/// 重加载游戏模式
 	/// </summary>
 	public static void RestartGameMode() {
+		MPMain.Debug("MPGameModeManager.RestartGameMode");
 		if (CurrentData != null) {
 			LoadGameMode(CurrentData);
 			MPCore.Instance.StartCoroutine(ExecuteRestartCMD());
@@ -143,10 +144,12 @@ public class MPGameModeManager {
 		}
 
 		IEnumerator ExecuteRestartCMD() {
+			MPMain.Debug("MPGameModeManager.ExecuteRestartCMD");
 			// 等待地图加载完成
 			yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+
 			// 加载完成后执行加入指令
-			if(MPSteamworks.Instance.LobbyData.TryGetValue(MPKeys.RESTART_COMMAND, out var cmdData) && !string.IsNullOrEmpty(cmdData)) {
+			if (MPSteamworks.Instance.LobbyData.TryGetValue(MPKeys.RESTART_COMMAND, out var cmdData) && !string.IsNullOrEmpty(cmdData)) {
 				Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
 			}
 			yield break;

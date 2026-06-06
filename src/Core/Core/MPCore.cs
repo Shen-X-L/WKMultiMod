@@ -1584,6 +1584,11 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 			}
 			yield return new WaitForSecondsRealtime(0.5f);
+			if (WorldLoader.initialized) {
+				while (!WorldLoader.isLoaded) {
+					yield return null;
+				}
+			}
 			var message = Localization.GetRandom("0_DisplayMessage.EnteredMessages",
 				lobby.GetData(MPKeys.LOBBY_NAME), lobby.MemberCount, lobby.MaxMembers, lobby.Id.Value);
 			SystemMessage(message, UIDisplayType.AscentHeader);
@@ -1619,7 +1624,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					continue;
 				}
 
-				// 解析成功则加载并退出协程
+				// 解析成功则加载
 				LoadGameMode(data);
 				// 等待地图加载完成
 				yield return new WaitUntil(() => WorldLoader.isLoaded == true);

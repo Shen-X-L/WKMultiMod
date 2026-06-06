@@ -493,18 +493,21 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	public static void DisplayMessage(string message, UIDisplayType type,float duration = 5.0f) {
 		var showSubtitles = SettingsManager.settings.showSubtitles;
+		var uiMan = CL_GameManager.gMan?.uiMan;
+		if (uiMan == null)
+			return;
 		switch (type) {
 			case UIDisplayType.AscentHeader:
-				CL_GameManager.gMan.uiMan.ascentHeader.ShowText(message);
+				uiMan?.ascentHeader.ShowText(message);
 				break;
 			case UIDisplayType.TipHeader:
-				CL_GameManager.gMan.uiMan.tipHeader.ShowText(message);
+				uiMan?.tipHeader.ShowText(message);
 				break;
 			case UIDisplayType.Header:
-				CL_GameManager.gMan.uiMan.header.ShowText(message);
+				uiMan?.header.ShowText(message);
 				break;
 			case UIDisplayType.HighscoreHeader:
-				CL_GameManager.gMan.uiMan.highscoreHeader.ShowText(message);
+				uiMan?.highscoreHeader.ShowText(message);
 				break;
 			case UIDisplayType.Subtitle: {
 				SettingsManager.settings.showSubtitles = true;

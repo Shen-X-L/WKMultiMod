@@ -64,12 +64,14 @@ public class Patch_WorldLoader {
 		yield return new WaitUntil(() => LoadingField(loader) == true);
 		// 等待生成流程彻底结束 (isLoaded 变为 true) 
 		yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+
 		if (targetBranch == null) {
 			MPMain.LogError(Localization.Get("Patch.TargetBranchIsNull"));
 			yield break;
 		}
 		if (isGenerationBranch) {
 			yield return null;
+
 			MPMain.LogInfo(Localization.Get("Patch.StartCorrectingSideRouteCoords"));
 
 			// 获取核心组件
@@ -115,29 +117,22 @@ public class Patch_WorldLoader {
 
 			// 执行关卡位置修正和同步
 			rootTf.SetPositionAndRotation(finalRootPos, finalRootRot);
-			Physics.SyncTransforms(); // 让传送立刻生效
-
-			// 强制整个世界根节点下所有的 MeshCollider 在主线程立刻完成物理初始化
-			var allColliders = worldRoot.GetComponentsInChildren<MeshCollider>(true);
-			foreach (var col in allColliders) {
-				if (col.gameObject.activeInHierarchy && col.enabled) {
-					// 通过反复开关一次 sharedMesh, 或者强制触发一次碰撞体边界计算
-					// 这会逼迫 Unity 放弃后台异步烘焙, 必须在主线程 把物理网格撑起来! 
-					var mesh = col.sharedMesh;
-					if (mesh != null) {
-						col.sharedMesh = null;
-						col.sharedMesh = mesh; // 触发物理引擎即时同步强刷
-					}
-				}
-			}
-
-			// 再次强制刷新物理世界边界
-			Physics.SyncTransforms();
 
 			// 给低帧率留出至少一个固定的物理帧安全垫, 阻断游戏引擎的动态剔除误判
 			yield return new WaitForFixedUpdate();
-			yield return new WaitForEndOfFrame(); // 等待这一帧渲染完毕, 确保游戏自带的加载脚本全跑完
-			Physics.SyncTransforms(); // 最终兜底同步
+
+			// 等待这一帧渲染完毕, 确保游戏自带的加载脚本全跑完
+			yield return new WaitForEndOfFrame();
+
+			Physics.SyncTransforms(); 
+
+			// 刷新关卡碰撞
+			foreach (var info in targetBranch.levelTracker) {
+				var lv = info.GetLevel();
+				lv.CycleColliders();
+			}
+
+			Physics.SyncTransforms();// 最终兜底同步
 
 			playerTf.SetParent(originalPlayerParent, true);
 			player.UnLock();
