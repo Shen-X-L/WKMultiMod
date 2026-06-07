@@ -152,7 +152,7 @@ public static class TeamRuleManager {
 	private static Dictionary<string, FlattenedRule> _flatRulesByTarget = new();
 
 	// 活跃队伍列表
-	public static HashSet<string> activeTeams = new HashSet<string>();
+	public static HashSet<string> activeTeams = new ();
 
 	public static string GetRuleKey(string attackerTeam, string targetTeam) => $"Rule_{attackerTeam}_{targetTeam}";
 

@@ -515,6 +515,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				return false;
 			}
 
+			MPMain.Debug("MPSW A");
+
 			// await SteamMatchmaking.CreateLobbyAsync
 			Lobby? lobbyResult = await SteamMatchmaking.CreateLobbyAsync(maxPlayers);
 
@@ -524,9 +526,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				return false;
 			}
 
+			MPMain.Debug("MPSW B");
+
 			_currentLobby = lobbyResult.Value;
 
 			MPMain.LogInfo(Localization.Get("MPSteamworks.LobbyCreatedSuccess", _currentLobby.Id.ToString()));
+
+			MPMain.Debug("MPSW C");
 
 			// 设置大厅信息
 			SetLobbyData(GetDefaultLobbyData());
@@ -535,11 +541,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			_currentLobby.SetJoinable(true);
 			_currentLobby.Owner = new Friend(SteamClient.SteamId);
 
+			MPMain.Debug("MPSW D");
+
 			// 获取Socket
 			CreateListeningSocket();
 
+			MPMain.Debug("MPSW E");
+
 			// 刷新大厅数据
 			RefreshLobbyData();
+
+			MPMain.Debug("MPSW F");
 
 			return true; // 成功
 		} catch (Exception ex) {
@@ -556,24 +568,36 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		DisconnectAll();
 
 		try {
+			MPMain.Debug("MPSW A");
+
 			// 核心改变:直接 await 任务
 			RoomEnter result = await lobby.Join();
+
+			MPMain.Debug("MPSW B");
 
 			// 检查 RoomEnter 结果
 			if (result != RoomEnter.Success) {
 				throw new Exception($"Failed to join Steam lobby: {result.ToString()}");
 			}
 
+			MPMain.Debug("MPSW C");
+
 			_currentLobby = lobby;
 			string roomName = LobbyName
 				?? Localization.Get("MPSteamworks.NullLobbyName");
 			MPMain.LogInfo(Localization.Get("MPSteamworks.JoinLobbySuccess", roomName));
 
+			MPMain.Debug("MPSW D");
+
 			// 获取Socket
 			CreateListeningSocket();
 
+			MPMain.Debug("MPSW E");
+
 			// 刷新大厅数据
 			RefreshLobbyData();
+
+			MPMain.Debug("MPSW F");
 
 			return true;
 
@@ -1088,6 +1112,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			LobbyData = _currentLobby.Data.ToDictionary(x => x.Key, x => x.Value);
 			MPEventBusNet.NotifyLobbyDataChanged(LobbyData);
 		}
+	}
+
+
+	/// <summary>
+	/// 移交大厅权限
+	/// </summary>
+	public void SetLobbyHost(IDType playerId) {
+		if (!IsHost)
+			return;
+		var newHost = new Friend(playerId);
+		_currentLobby.Owner = newHost;
 	}
 
 	#endregion
