@@ -107,6 +107,19 @@ public class MPCore : MonoSingleton<MPCore> {
 	public static ENT_Player.InteractType IsGrabOrHangState = ENT_Player.InteractType.hanging;
 
 	public static readonly List<string> checkOptions = new List<string> { "inventory", "perk", "stamina", "health", "cheats" };
+	private static readonly Dictionary<string, Color32> PlayerColorPresets = new(StringComparer.OrdinalIgnoreCase) {
+		{ "default", new Color32(255, 255, 255, 255) },
+		{ "white", new Color32(255, 255, 255, 255) },
+		{ "red", new Color32(255, 80, 80, 255) },
+		{ "orange", new Color32(255, 165, 0, 255) },
+		{ "yellow", new Color32(255, 220, 64, 255) },
+		{ "green", new Color32(80, 220, 120, 255) },
+		{ "cyan", new Color32(64, 220, 255, 255) },
+		{ "blue", new Color32(90, 140, 255, 255) },
+		{ "purple", new Color32(170, 90, 255, 255) },
+		{ "pink", new Color32(255, 110, 180, 255) },
+		{ "black", new Color32(32, 32, 32, 255) },
+	};
 
 	#region[Unity生命周期函数]
 	protected override void Awake() {
@@ -729,6 +742,17 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(RPFactoryManager.ModelIDs);
 			});
 
+		CommandConsole.BuildCommand("playercolor", SetPlayerColorCommand)
+			.NotCheat().Description(Localization.Get("CommandHelp.PlayerColor"))
+			.OverValue(() => {
+				var color = _LocalPlayer != null ? _LocalPlayer.PlayerColor : MPConfig.RemotePlayerColor;
+				return $"{color.r},{color.g},{color.b}";
+			})
+			.AutocompleteCustom(autocomplete => {
+				if (autocomplete.activeArg == 0)
+					autocomplete.FromArray(PlayerColorPresets.Keys.ToList());
+			});
+
 		// 加入队伍
 		CommandConsole.BuildCommand("jointeam", JoinTeam)
 			.NotCheat().Description(Localization.Get("CommandHelp.JoinTeam"))
@@ -1257,6 +1281,23 @@ public class MPCore : MonoSingleton<MPCore> {
 			_MPSteamworks.Broadcast(writerMessage);
 	}
 
+	public void SetPlayerColorCommand(string[] args) {
+		if (args == null || args.Length == 0) {
+			CommandConsole.LogError(Localization.Get("CommandConsole.PlayerColorUsage"));
+			return;
+		}
+
+		if (!TryParsePlayerColor(args, out var color, out var parseError)) {
+			CommandConsole.LogError(parseError);
+			return;
+		}
+
+		_LocalPlayer.SetPlayerColor(color);
+		MPConfig.SetRemotePlayerColor(color);
+		SyncLocalPlayerColor();
+		CommandConsole.Log(Localization.Get("CommandConsole.PlayerColorSet", color.r, color.g, color.b));
+	}
+
 	/// <summary>
 	/// 向某人TP
 	/// </summary>
@@ -1565,6 +1606,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		_MPSteamworks.SetMemberData(new Dictionary<string, string>() {
 			{ MPKeys.PREFAB_ID, _LocalPlayer != null ? _LocalPlayer.FactoryId : "" },
 			{ MPKeys.PLAYER_NAME, playerName },
+			{ MPKeys.PLAYER_COLOR, SerializePlayerColor(_LocalPlayer != null ? _LocalPlayer.PlayerColor : MPConfig.RemotePlayerColor) },
 			{ MPKeys.JOIN_MESSAGE, finalJoinMsg },
 			{ MPKeys.LEAVE_MESSAGE, finalLeaveMsg },
 			{ MPKeys.TEAM, MPKeys.DEFAULT_TEAM },
@@ -1787,6 +1829,54 @@ public class MPCore : MonoSingleton<MPCore> {
 	private static void CopyToClipboard(string text) {
 		GUIUtility.systemCopyBuffer = text;
 	}
+
+	private void SyncLocalPlayerColor() {
+		if (_MPSteamworks.IsInLobby) {
+			_MPSteamworks.SetMemberData(MPKeys.PLAYER_COLOR, SerializePlayerColor(_LocalPlayer.PlayerColor));
+		}
+	}
+
+	private bool TryParsePlayerColor(string[] args, out Color32 color, out string errorMessage) {
+		if (args.Length == 1) {
+			if (PlayerColorPresets.TryGetValue(args[0], out color)) {
+				errorMessage = string.Empty;
+				return true;
+			}
+
+			errorMessage = Localization.Get(
+				"CommandConsole.PlayerColorInvalidPreset",
+				string.Join(", ", PlayerColorPresets.Keys.OrderBy(name => name)));
+			return false;
+		}
+
+		if (args.Length == 3) {
+			if (TryParseColorChannel(args[0], out var r)
+				&& TryParseColorChannel(args[1], out var g)
+				&& TryParseColorChannel(args[2], out var b)) {
+				color = new Color32((byte)r, (byte)g, (byte)b, 255);
+				errorMessage = string.Empty;
+				return true;
+			}
+
+			color = default;
+			errorMessage = Localization.Get("CommandConsole.PlayerColorInvalidRgb");
+			return false;
+		}
+
+		color = default;
+		errorMessage = Localization.Get("CommandConsole.PlayerColorUsage");
+		return false;
+	}
+
+	private static bool TryParseColorChannel(string value, out int channel) {
+		if (int.TryParse(value, out channel)) {
+			return channel >= 0 && channel <= 255;
+		}
+
+		return false;
+	}
+
+	private static string SerializePlayerColor(Color32 color) => $"{color.r},{color.g},{color.b}";
 
 	/// <summary>
 	/// 确保在大厅中使用指令
