@@ -1,5 +1,5 @@
 ﻿using Steamworks;
-using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
@@ -100,7 +100,7 @@ public class RPManager : Singleton<RPManager> {
 			var playerRotation = container.PlayerObject.transform.rotation;
 
 			var deathParticle = MPAssetManager.GetAssetGameObject(MPAssetManager.DEATH_OBJECT_NAME);
-			if (deathParticle != null){
+			if (deathParticle != null) {
 				MPMain.Debug(playerPosition.ToString());
 				GameObject.Instantiate(deathParticle, playerPosition, playerRotation);
 			}
@@ -240,39 +240,7 @@ public class RPManager : Singleton<RPManager> {
 
 		var playerPosition = playerObject.transform.position;
 
-		// 生成物品
-		foreach (var (itemId, count) in remoteItems) {
-			if (itemId == NO_ITEM_NAME)
-				continue;
-			if (itemId == HAMMER_NAME)
-				continue;
-
-			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
-			if (itemPrefab == null) {
-				MPMain.LogError(Localization.Get("RPManager.PrefabDoesNotExist", itemId));
-				continue;
-			}
-
-			for (int i = 0; i < count; i++) {
-				// 随机位置 (-1~1,0.5~1,-1~1)
-				Vector3 offset = new Vector3(
-					Random.Range(-1f, 1f), Random.Range(0.5f, 1f), Random.Range(-1f, 1f));
-
-				// 实例化物品
-				var itemObject = GameObject.Instantiate(itemPrefab, playerPosition + offset, Random.rotation);
-
-				// 获取Rigidbody并添加随机斜上方动量
-				if (itemObject.TryGetComponent<Rigidbody>(out var rb)) {
-					// 随机动量方向: (-1~1,1,-1~1)再归一化
-					Vector3 direction = new Vector3(
-						Random.Range(-1f, 1f), 1f, Random.Range(-1f, 1f)).normalized;
-					// 添加冲量 力度(1-2)
-					rb.AddForce(direction * Random.Range(1f, 2f), ForceMode.Impulse);
-					// 可选: 添加随机旋转扭矩,让物品在空中旋转
-					//rb.AddTorque(Random.insideUnitSphere * Random.Range(1f, 5f), ForceMode.Impulse);
-				}
-			}
-		}
+		MPCore.Instance.StartCoroutine(InstantiateItem());
 
 		container.HandleDeath();
 
@@ -281,6 +249,48 @@ public class RPManager : Singleton<RPManager> {
 		}
 
 		return;
+
+		// 生成物品
+		IEnumerator InstantiateItem() {
+			int index = 0;
+			foreach (var (itemId, count) in remoteItems) {
+				if (!MPCore.IsInLobby)
+					yield break;
+				if (itemId == NO_ITEM_NAME)
+					continue;
+				if (itemId == HAMMER_NAME)
+					continue;
+
+				GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
+				if (itemPrefab == null) {
+					MPMain.LogError(Localization.Get("RPManager.PrefabDoesNotExist", itemId));
+					continue;
+				}
+
+				for (int i = 0; i < count; i++) {
+					// 随机位置 (-1~1,0.5~1,-1~1)
+					Vector3 offset = new Vector3(
+						Random.Range(-1f, 1f), Random.Range(0.5f, 1f), Random.Range(-1f, 1f));
+
+					// 实例化物品
+					var itemObject = GameObject.Instantiate(itemPrefab, playerPosition + offset, Random.rotation);
+
+					// 获取Rigidbody并添加随机斜上方动量
+					if (itemObject.TryGetComponent<Rigidbody>(out var rb)) {
+						// 随机动量方向: (-1~1,1,-1~1)再归一化
+						Vector3 direction = new Vector3(
+							Random.Range(-1f, 1f), 1f, Random.Range(-1f, 1f)).normalized;
+						// 添加冲量 力度(1-2)
+						rb.AddForce(direction * Random.Range(1f + index * 0.05f, 2f + index * 0.1f), ForceMode.Impulse);
+						// 可选: 添加随机旋转扭矩,让物品在空中旋转
+						//rb.AddTorque(Random.insideUnitSphere * Random.Range(1f, 5f), ForceMode.Impulse);
+					}
+					index++;
+					if ((index & 0b11) == 0b11) // index % 4 == 0
+						yield return null;
+				}
+			}
+		}
 	}
 
 	/// <summary>
@@ -299,7 +309,10 @@ public class RPManager : Singleton<RPManager> {
 						   ?? CL_AssetManager.GetAssetGameObject(effectName);
 		if (effectPrefab != null) {
 			MPMain.Debug(info.position.ToString());
-			GameObject.Instantiate(effectPrefab, info.position, Quaternion.identity);
+			if (info.position != new Vector3(0, 0, 0))
+				GameObject.Instantiate(effectPrefab, info.position, Quaternion.identity);
+			else
+				GameObject.Instantiate(effectPrefab, container.PlayerObject.transform);
 		}
 	}
 
@@ -327,7 +340,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <param name="distanceThreshold">距离阈值</param>
 	/// <param name="farPlayers">输出: 距离 >= 阈值的玩家ID集合</param>
 	/// <param name="nearPlayers">输出: 距离 < 阈值的玩家ID集合</param>
-	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold,ref List<IDType> farPlayers,ref List<IDType> nearPlayers) {
+	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, ref List<IDType> farPlayers, ref List<IDType> nearPlayers) {
 		farPlayers.Clear();
 		nearPlayers.Clear();
 

@@ -63,12 +63,15 @@ Download the required `.zip` file from the [Releases](https://github.com/Shen-X-
 New commands:
 
 * `bindsync [true|false]` - Controls whether trinkets and bindings are synced for players who join later.
+
    * Example: `bindsync true`
 
 * `teamrule <SourceTeam> <TargetTeam> ([Rule] [true|false|default])*n , ...` - Controls rules between teams.
+
    * Example: `teamrule hunter runner pvp true hang false grab false , runner hunter pvp false tagshow false`
 
 * `teamrule` available rules:
+
    * `pvp` - Whether players can damage each other
    * `hang` - Whether players can drag each other (like pulling a crate)
    * `grab` - Whether players can grab each other (like grabbing a piton)
@@ -83,13 +86,17 @@ New commands:
 * `jointeam <TeamName>` - Joins a team
 * `setname <Name>` - Sets an additional name
 * `pcmd <all|steamId> [command1] :: [command2]...` - Makes other remote players execute the commands you input. Use `::` as a substitute for `;`.
+
    * Example: `pcmd 561198279116422 addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
 
 * `tcmd <TeamName> [command1] :: [command2]...` - Makes all players in the specified team execute the commands you input. Use `::` as a substitute for `;`.
+
    * Example: `tcmd hunter addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
 
 * `acmd <join|restart|jointeam TeamName> [command1] :: [command2]...` - Executes the commands you input when a player performs certain actions. Use `::` as a substitute for `;`.
+
    * `acmd` trigger conditions:
+
       * `join` - Executes the command after a player joins a room and the map has been initialized
       * `restart` - Executes the command when a player fully dies and restarts, or when the restart button is used
       * `jointeam TeamName` - Executes the command when a player joins that team (currently not persistent; it needs to be reset every time the game restarts)
@@ -99,7 +106,7 @@ New commands:
 Custom Join/Leave/Death/Win Messages:
 You can add your own custom messages under each section.
 Edit texts_(your language).json as shown above.
-{1} is the player name, {0} is the cause of death — these are optional.
+{0} is the player name, {1} is the cause of death — these are optional.
 
 ```json
 "0_DeathMessage": {
@@ -107,10 +114,10 @@ Edit texts_(your language).json as shown above.
     "{0} died due to {1}"
   ],
   "teeth": [
-    "{1} was chomped and chewed by teeth"
+    "{0} was chomped and chewed by teeth"
   ],
   "fan": [
-    "{1} was torn in half by a fan"
+    "{0} was torn in half by a fan"
   ],
   "death information": [
     "Custom death message"
@@ -157,22 +164,27 @@ Edit texts_(your language).json as shown above.
 **New Commands:**
 
 * `host <name> [visibility] [max_players]` – Create a lobby. For visibility options, see the `lobbytype` command.
+
    * Example: `host abcde` `host aaa friends 3`
 
 * `join <name/lobby_code>` – Join a lobby by lobby name or lobby code. The parameter is first matched against lobby names. If multiple lobbies share the same name, joining by name will fail; please use the lobby code instead.
+
    * Example: `join abcde` `join 109775241951624817`
 
 * `leave` – Leave the current lobby.
 * `lobbyid` – Get the lobby code and copy it to the clipboard.
 * `allplayer` – Get a list of all players and their Steam IDs.
 * `talk <text>` – Speak in chat (text appears above your head and in the console). Currently, the console does not support Chinese characters.
+
    * Example: `talk hello` `talk I have the highland`
 
 * `lobbylist` – Get information about all available lobbies, including lobby codes and current player counts.
 * `setlobbyname <name>` – Change the lobby name. Host only.
+
    * Example: `setlobbyname newname`
 
 * `changemodel <model_name>` – Change the remote player model (does not take effect mid‑game). Currently supports `default` and `slugcat`.
+
    * Example: `changemodel slugcat`
 
 * `playercolor <preset>` or `playercolor <r> <g> <b>` – Change the remote player model color. Presets: `default`, `white`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`, `black`.
@@ -180,13 +192,16 @@ Edit texts_(your language).json as shown above.
    * Example: `playercolor 128 200 255`
 
 * `lobbytype [public/private/friends]` – Change lobby visibility. `public` = anyone can join, `private` = joinable only via lobby code, `friends` = visible and joinable only by friends.
+
    * Example: `lobbytype friends`
 
 * `invite` – Invite a friend to join the lobby. (Thanks to Fugel for the code.)
 * `allowcheats` – Control whether cheat commands can be used in the lobby. If set to `false`, cheat mode and noclip are forcibly disabled.
+
    * Example: `allowcheats false` `allowcheats true`
 
 * `allowpvp` – Control whether players can damage each other.
+
    * Example: `allowpvp false` `allowpvp true`
 
 **Commands available after enabling cheat mode (`cheats`) in-game:**
