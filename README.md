@@ -187,6 +187,10 @@ Edit texts_(your language).json as shown above.
 
    * Example: `changemodel slugcat`
 
+* `playercolor <preset>` or `playercolor <r> <g> <b>` – Change the remote player model color. Presets: `default`, `white`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`, `black`.
+   * Example: `playercolor purple`
+   * Example: `playercolor 128 200 255`
+
 * `lobbytype [public/private/friends]` – Change lobby visibility. `public` = anyone can join, `private` = joinable only via lobby code, `friends` = visible and joinable only by friends.
 
    * Example: `lobbytype friends`

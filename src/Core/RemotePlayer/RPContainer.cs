@@ -35,6 +35,7 @@ public class RPContainer {
 
 	// 玩家模型信息数据
 	public string prefabId;
+	public Color32 PlayerColor { get; private set; } = new Color32(255, 255, 255, 255);
 
 	// 队伍信息, 默认为 "default", 可以通过玩家数据更新
 	public string team;
@@ -214,6 +215,11 @@ public class RPContainer {
 	public void UpdatePlayerName(string newName) {
 		PlayerName = newName;
 		_remoteTag.PlayerName = PlayerName;
+	}
+
+	public void ApplyColor(Color32 color) {
+		PlayerColor = new Color32(color.r, color.g, color.b, 255);
+		RPPrefabProcessor.ApplyPlayerColor(PlayerObject, PlayerColor);
 	}
 
 	#endregion
