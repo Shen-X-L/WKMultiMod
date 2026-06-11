@@ -135,7 +135,14 @@ public class RPManager : Singleton<RPManager> {
 			}
 		}
 
-		// 更新玩家名字
+		// 更新玩家颜色
+		if (data.TryGetValue(MPKeys.PLAYER_COLOR, out var playerColorValue)
+			&& TryParsePlayerColor(playerColorValue, out var playerColor)
+			&& Players.TryGetValue(playerId, out var colorContainer)) {
+			colorContainer.ApplyColor(playerColor);
+		}
+
+
 		if (data.TryGetValue(MPKeys.PLAYER_NAME, out var playerName)) {
 			if (Players.TryGetValue(playerId, out var container)) {
 				container.UpdatePlayerName(playerName);
@@ -384,4 +391,35 @@ public class RPManager : Singleton<RPManager> {
 
 	#endregion
 
+	private static bool TryParsePlayerColor(string value, out Color32 color) {
+		color = new Color32(255, 255, 255, 255);
+		if (string.IsNullOrWhiteSpace(value)) {
+			return false;
+		}
+
+		var parts = value.Split(',');
+		if (parts.Length != 3) {
+			return false;
+		}
+
+		if (!TryParseColorChannel(parts[0], out var r)
+			|| !TryParseColorChannel(parts[1], out var g)
+			|| !TryParseColorChannel(parts[2], out var b)) {
+			return false;
+		}
+
+		color = new Color32((byte)r, (byte)g, (byte)b, 255);
+		return true;
+	}
+
+	private static bool TryParseColorChannel(string value, out int channel) {
+		if (int.TryParse(value.Trim(), out channel)) {
+			return channel >= 0 && channel <= 255;
+		}
+
+		return false;
+	}
 }
+
+
+

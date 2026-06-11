@@ -11,6 +11,7 @@ namespace WKMPMod.RemotePlayer;
 /// 负责对所有刚从 AB 包捞出来的预制体母本进行游戏原版兼容性修复
 /// </summary>
 public static class RPPrefabProcessor {
+	private static readonly string[] TintColorProperties = { "_BaseColor", "_Color", "_MainColor" };
 
 	/// <summary>
 	/// 执行主Mod标准修复流水线
@@ -82,6 +83,35 @@ public static class RPPrefabProcessor {
 		// 4. 处理 LookAt
 		foreach (var la in prefab.GetComponentsInChildren<LookAt>(true)) {
 			la.userScale = MPConfig.NameTagScale;
+		}
+	}
+
+	public static void ApplyPlayerColor(GameObject instance, Color32 color) {
+		if (instance == null) {
+			return;
+		}
+
+		foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true)) {
+			if (renderer.GetComponent<TMP_Text>() != null) continue;
+
+			foreach (var material in renderer.materials) {
+				if (material == null) continue;
+
+				foreach (var propertyName in TintColorProperties) {
+					if (!material.HasProperty(propertyName)) {
+						continue;
+					}
+
+					var current = material.GetColor(propertyName);
+					material.SetColor(
+						propertyName,
+						new Color32(
+							color.r,
+							color.g,
+							color.b,
+							(byte)Mathf.Clamp(Mathf.RoundToInt(current.a * 255f), 0, 255)));
+				}
+			}
 		}
 	}
 

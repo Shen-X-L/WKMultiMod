@@ -35,6 +35,7 @@ public static partial class MPKeys {
 	public const string ALL_KEYS_INDEX = "all keys";
 	public const string PREFAB_ID = "prefab id";
 	public const string PLAYER_NAME = "player name";
+	public const string PLAYER_COLOR = "player color";
 	public const string JOIN_MESSAGE = "join message";
 	public const string LEAVE_MESSAGE = "leave message";
 	public const string TEAM = "team";
