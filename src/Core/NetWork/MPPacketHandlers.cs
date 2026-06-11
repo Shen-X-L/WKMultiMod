@@ -24,11 +24,6 @@ using static WKMPMod.Util.DictionaryExtensions;
 namespace WKMPMod.NetWork;
 
 public class MPPacketHandlers {
-	public const string NO_ITEM_NAME = "None";
-	public const string HAMMER_NAME = "Item_Hammer";
-	public const string ARTIFACT_NAME = "Artifact";
-	public const string BLINK_EYE = "Item_BlinkEye";
-
 	/// <summary>
 	/// 主机/客户端接收PlayerDataUpdate: 处理玩家数据更新<br/>
 	/// 发送函数 <see cref="LocalPlayer.TrySendLocalPlayerData"/><br/>
@@ -107,7 +102,15 @@ public class MPPacketHandlers {
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
 		List<string> tags = reader.GetStringList();
-		ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
+		IDType source = reader.GetULong();
+
+		MPMain.Debug($"Receive Damage: type: {type}, tags: {string.Join(",", tags)}");
+
+		if (RPManager.Instance.Players.TryGetValue(source, out var container)
+			&& container?.RemoteEntities?.Length > 0) {
+			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, container.RemoteEntities[0]));
+		} else
+			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
 	}
 
 	/// <summary>
@@ -206,7 +209,8 @@ public class MPPacketHandlers {
 		writer.Put(playerPos.z);
 
 		// 库存物品字典
-		writer.Put(MPCore.GetInventoryItems());
+		writer.Put(InventoryManager.GetBlacklistInventoryItems(
+			InventoryManager.ARTIFACT, InventoryManager.TRINKET));
 
 		// 没有Mess环境则直接发送位置数据,有则发送位置数据和Mess数据
 		if (DEN_DeathFloor.instance == null) {
@@ -235,19 +239,11 @@ public class MPPacketHandlers {
 
 		// 对方背包物品
 		var remoteItems = reader.GetStringByteDict();
-		var localItems = MPCore.GetInventoryItems();
+		var localItems = InventoryManager.GetInventoryItems();
 		var missingItems = SetDifference(remoteItems, localItems);
 
 		var inventory = Inventory.instance;
 		foreach (var (itemId, count) in missingItems) {
-			// 空物品ID或神器不生成
-			if (itemId == NO_ITEM_NAME)
-				continue;
-			if (itemId.Contains(ARTIFACT_NAME))
-				continue;
-			if (itemId.Contains(BLINK_EYE))
-				continue;
-
 			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
 			if (itemPrefab == null) {
 				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));

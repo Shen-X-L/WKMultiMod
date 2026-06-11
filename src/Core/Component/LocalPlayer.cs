@@ -35,7 +35,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	// 状态缓存
 	private PlayerData _lastPlayerData;
 	private List<IDType> _farPlayersBuffer = new List<IDType>(16);
-	private List<IDType> _nearPlayersBuffer = new List<IDType>(16);
+	public List<IDType> _nearPlayersBuffer = new List<IDType>(16);  // 近处玩家,大部分数据可以仅对near发送
 
 	// 定时器
 	private TickTimer _sendDataTimer;//本地玩家数据频率器, 定时发送玩家数据
@@ -159,27 +159,23 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			ref _nearPlayersBuffer
 		);
 
+		
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
+		writer.Put(_lastPlayerData);
+
 		// 发送给近距离玩家 常规频率定时器 && 位置发生了变化, 或者保底更新频率到了
 		if (tickNormal) {
 			foreach (ulong targetId in _nearPlayersBuffer) {
-				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
-				writer.Put(_lastPlayerData);
 				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Unreliable | SendType.NoNagle);
 			}
 		}
 
 		// 发送给远距离玩家 仅在最小频率定时器(如10秒一次)触发时发送
 		if (tickMinFreq) {
-			foreach (ulong targetId in _nearPlayersBuffer) {
-				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
-				writer.Put(_lastPlayerData);
+			foreach (ulong targetId in _nearPlayersBuffer) 
 				MPSteamworks.Instance.SendToPeer(targetId, writer);
-			}
-			foreach (ulong targetId in _farPlayersBuffer) {
-				var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.PlayerDataUpdate);
-				writer.Put(_lastPlayerData);
+			foreach (ulong targetId in _farPlayersBuffer) 
 				MPSteamworks.Instance.SendToPeer(targetId, writer);
-			}
 		}
 	}
 

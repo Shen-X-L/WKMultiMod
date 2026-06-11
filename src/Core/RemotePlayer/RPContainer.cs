@@ -25,7 +25,7 @@ public class RPContainer {
 	private RemoteHand _remoteLeftHand;
 	private RemoteHand _remoteRightHand;
 	private RemoteTag _remoteTag;
-	private RemoteEntity[] _remoteEntities;
+	public RemoteEntity[] RemoteEntities { get; private set; }
 	private ObjectTagger[] _objectTaggers;
 	private Collider[] _colliders;
 
@@ -84,7 +84,7 @@ public class RPContainer {
 	public void InitializeAllComponent(GameObject instance) {
 		_remotePlayer = instance.GetComponentInChildren<Component.RemotePlayer>();
 		_remoteTag = instance.GetComponentInChildren<RemoteTag>();
-		_remoteEntities = instance.GetComponentsInChildren<RemoteEntity>();
+		RemoteEntities = instance.GetComponentsInChildren<RemoteEntity>();
 		_objectTaggers = instance.GetComponentsInChildren<ObjectTagger>();
 		_colliders = instance.GetComponentsInChildren<Collider>();
 
@@ -113,8 +113,8 @@ public class RPContainer {
 		// 标签组件初始化命名
 		_remoteTag.Initialize(PlayerId, PlayerName);
 		// 实体标签赋予玩家Id
-		if (_remoteEntities != null) {
-			foreach (var entity in _remoteEntities) {
+		if (RemoteEntities != null) {
+			foreach (var entity in RemoteEntities) {
 				entity.playerId = PlayerId;
 			}
 		}
@@ -134,7 +134,7 @@ public class RPContainer {
 		_remoteLeftHand = null;
 		_remoteRightHand = null;
 		_remoteTag = null;
-		_remoteEntities = null;
+		RemoteEntities = null;
 	}
 
 	#endregion
@@ -195,7 +195,7 @@ public class RPContainer {
 		ICustomModelExtension extension = RPFactoryManager.GetExtension(this.prefabId);
 		string effectName = extension?.DeathEffectAssetName ?? MPAssetManager.DEATH_OBJECT_NAME;
 
-		GameObject deathParticle = MPAssetManager.GetAssetGameObject(effectName)
+		GameObject deathParticle = MPAssetManager.GetFXPrefab(effectName)
 								?? CL_AssetManager.GetAssetGameObject(effectName);
 
 		if (deathParticle != null) {
@@ -242,7 +242,7 @@ public class RPContainer {
 		ChangeGrabOrHang(MPCore.IsGrabOrHangState);
 
 		// 更新PVP权限
-		foreach (var entity in _remoteEntities)
+		foreach (var entity in RemoteEntities)
 			entity.pvpEnabled = actionRule.pvp;
 
 		// 更新碰撞权限

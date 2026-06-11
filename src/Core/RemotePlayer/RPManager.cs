@@ -99,9 +99,8 @@ public class RPManager : Singleton<RPManager> {
 			var playerPosition = container.PlayerObject.transform.position;
 			var playerRotation = container.PlayerObject.transform.rotation;
 
-			var deathParticle = MPAssetManager.GetAssetGameObject(MPAssetManager.DEATH_OBJECT_NAME);
+			var deathParticle = MPAssetManager.GetFXPrefab(MPAssetManager.DEATH_OBJECT_NAME);
 			if (deathParticle != null) {
-				MPMain.Debug(playerPosition.ToString());
 				GameObject.Instantiate(deathParticle, playerPosition, playerRotation);
 			}
 
@@ -298,14 +297,13 @@ public class RPManager : Singleton<RPManager> {
 
 		// 决定采用什么受击特效资产名字
 		string effectName = extension?.DamageEffectAssetName ?? MPAssetManager.DAMAGE_OBJECT_NAME;
-		GameObject effectPrefab = MPAssetManager.GetAssetGameObject(effectName)
+		GameObject effectPrefab = MPAssetManager.GetFXPrefab(effectName)
 						   ?? CL_AssetManager.GetAssetGameObject(effectName);
 		if (effectPrefab != null) {
-			MPMain.Debug(info.position.ToString());
 			if (info.position != new Vector3(0, 0, 0))
 				GameObject.Instantiate(effectPrefab, info.position, Quaternion.identity);
 			else
-				GameObject.Instantiate(effectPrefab, container.PlayerObject.transform);
+				GameObject.Instantiate(effectPrefab, container.PlayerObject.transform.position, Quaternion.identity);
 		}
 	}
 

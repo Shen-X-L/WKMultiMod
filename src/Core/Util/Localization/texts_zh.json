@@ -2,6 +2,9 @@
   "0_DeathMessage": {
     "default": [
       "{0} died due to {1}"
+    ],
+    "playerKillDefault": [
+      "{2} use {1} kill {0}"
     ]
   },
   "0_DisplayMessage": {

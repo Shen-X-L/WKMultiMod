@@ -23,6 +23,9 @@ namespace WKMPMod.Patch;
 [HarmonyPatch(typeof(HandItem_Piton), nameof(HandItem_Piton.PitonHit))]
 public class Patch_HandItem_Piton_PitonHit {
 
+	/// <summary>
+	/// 通过修改IL代码 调用ClimbableItemSyncManager.SaveCapturedPiton来捕获生成的对象
+	/// </summary>
 	[HarmonyTranspiler]
 	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
 		var codes = new List<CodeInstruction>(instructions);
@@ -62,6 +65,9 @@ public class Patch_HandItem_Piton_PitonHit {
 		return codes;
 	}
 
+	/// <summary>
+	/// 调用ClimbableItemSyncManager.RegisterNewLocalPiton表示物体已经生成
+	/// </summary>
 	public static void Postfix(HandItem_Piton __instance) {
 		ClimbableItemSyncManager.RegisterNewLocalPiton(__instance);
 	}
@@ -148,42 +154,27 @@ public class Patch_Projectile_CreateHitEffect_ClimbableSync {
 	}
 }
 
-/// <summary>
-/// Patch: Handhold被锤击 (加固) 时
-/// - 触发一次强制同步更新
-///
-/// Patch: Handhold hammered (secured)
-/// - Triggers a forced sync update
-/// </summary>
-[HarmonyPatch(typeof(CL_Handhold), nameof(CL_Handhold.HammerIn))]
-public class Patch_CL_Handhold_HammerIn_PitonSync {
+
+[HarmonyPatch(typeof(CL_Handhold))]
+public class Patch_CL_Handhold_PitonSync {
 
 	/// <summary>
-	/// 锤击后广播更新
-	///
-	/// Broadcast update after hammering
+	/// Patch: Handhold被锤击 (加固) 时 - 触发一次强制同步更新
+	/// Patch: Handhold hammered (secured)- Triggers a forced sync update
 	/// </summary>
-	public static void Postfix(CL_Handhold __instance) {
+	[HarmonyPatch(nameof(CL_Handhold.HammerIn))]
+	[HarmonyPostfix]
+	public static void Postfix_HammerIn(CL_Handhold __instance) {
 		ClimbableItemSyncManager.BroadcastHammerUpdate(__instance);
 	}
-}
-
-/// <summary>
-/// Patch: Handhold FixedUpdate
-/// - 定期同步Handhold状态 (位置, 旋转, secure状态等) 
-///
-/// Patch: Handhold FixedUpdate
-/// - Periodically syncs handhold state (position, rotation, secure state, etc.)
-/// </summary>
-[HarmonyPatch(typeof(CL_Handhold), "FixedUpdate")]
-public class Patch_CL_Handhold_FixedUpdate_PitonSync {
 
 	/// <summary>
-	/// 每帧物理更新后尝试同步
-	///
-	/// Attempts to sync after each physics update
+	/// 定期同步Handhold状态 (位置, 旋转, secure状态等) 
+	/// Periodically syncs handhold state (position, rotation, secure state, etc.)
 	/// </summary>
-	public static void Postfix(CL_Handhold __instance) {
+	[HarmonyPatch("FixedUpdate")]
+	[HarmonyPostfix]
+	public static void Postfix_FixedUpdate(CL_Handhold __instance) {
 		ClimbableItemSyncManager.BroadcastPeriodicUpdate(__instance);
 	}
 }

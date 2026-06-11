@@ -2,6 +2,9 @@
   "0_DeathMessage": {
     "default": [
       "{0} died due to {1}"
+    ],
+    "playerKillDefault": [
+      "{2} use {1} kill {0}"
     ]
   },
   "0_DisplayMessage": {
@@ -15,16 +18,21 @@
       "{0} has been detached from this world due to a Delta anomaly",
       "{0} has been hired at the facility",
       "{0} has emerged from the mass",
-      "{0} has been summoned by Rho"
+      "{0} has been summoned by Rho",
+      "{0} has been brought by local slugcats"
     ],
     "LeaveMessages": [
       "{0} has been drawn into this world due to a Delta anomaly",
       "{0} has been fired from the facility",
       "{0} has been mysteriously eaten by substructure",
-      "{0} has disappointed Rho"
+      "{0} has been sacrificed to Rho",
+      "{0} has been eaten by local slugcats "
     ],
     "WinMessages": [
-      "{0} run out from here to face the MOTHER"
+      "{0} has escaped the Delta gang",
+      "{0} has saved the grub family",
+      "{0} has escaped the mass",
+      "{0} escaped back to home"
     ]
   },
   "CommandConsole": {

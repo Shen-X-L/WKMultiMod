@@ -35,8 +35,8 @@ public static class MPEventBusGame {
 	/// 游戏事件: 玩家死亡 订阅者:<br/>
 	/// <see cref="MPCore.HandlePlayerDeath"/>
 	/// </summary>
-	public static event Action<string> OnPlayerDeath;
-	public static void NotifyPlayerDeath(string type) => OnPlayerDeath?.Invoke(type);
+	public static event Action<string, Damageable.DamageInfo> OnPlayerDeath;
+	public static void NotifyPlayerDeath(string type, Damageable.DamageInfo info) => OnPlayerDeath?.Invoke(type, info);
 
 	// 游戏事件: 玩家胜利
 	public static event Action OnPlayerWin;

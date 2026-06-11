@@ -118,13 +118,10 @@ public class Patch_WorldLoader {
 			// 执行关卡位置修正和同步
 			rootTf.SetPositionAndRotation(finalRootPos, finalRootRot);
 
+			Physics.SyncTransforms();
+
 			// 给低帧率留出至少一个固定的物理帧安全垫, 阻断游戏引擎的动态剔除误判
 			yield return new WaitForFixedUpdate();
-
-			// 等待这一帧渲染完毕, 确保游戏自带的加载脚本全跑完
-			yield return new WaitForEndOfFrame();
-
-			Physics.SyncTransforms(); 
 
 			// 刷新关卡碰撞
 			foreach (var info in targetBranch.levelTracker) {
@@ -132,7 +129,11 @@ public class Patch_WorldLoader {
 				lv.CycleColliders();
 			}
 
-			Physics.SyncTransforms();// 最终兜底同步
+			// 最终兜底同步
+			Physics.SyncTransforms();
+
+			// 给低帧率留出至少一个固定的物理帧安全垫, 阻断游戏引擎的动态剔除误判
+			yield return new WaitForFixedUpdate();
 
 			playerTf.SetParent(originalPlayerParent, true);
 			player.UnLock();

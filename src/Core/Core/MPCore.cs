@@ -309,6 +309,10 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 重置偏移高度
 		Patch_CL_GameManager.RestartHeightOffset();
 		IsGrabOrHangState = ENT_Player.InteractType.hanging;
+
+		// 必须在游戏资源加载完成后初始化
+		_MPAssetManager.Initialize();
+
 		switch (scene.name) {
 			case "Game-Main": {
 				// 注册命令和初始化世界数据
@@ -350,15 +354,6 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	#endregion
 	#region[状态设置]
-
-	/// <summary>
-	/// 死亡时延迟退出联机模式
-	/// </summary>
-	private IEnumerator OnDeathSequence() {
-		yield return new WaitForSeconds(0.5f);
-		ResetStateVariables();
-		yield break;
-	}
 
 	/// <summary>
 	/// 退出联机模式时重置设置
@@ -404,6 +399,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		writer.Put(info.amount);
 		writer.Put(info.type);
 		writer.Put(info.tags);
+		writer.Put((IDType)MPSteamworks.UserSteamId);
 
 		_MPSteamworks.SendToPeer(steamId, writer);
 	}
@@ -429,20 +425,32 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 发送PacketType.GameUIMessage: 死因 string,UI类型 byte,持续时间 float,是否在控制台显示 bool<br/>
 	/// 接受路由函数: <see cref="MPPacketHandlers.HandleSystemUIMessage"/><br/>
 	/// </summary>
-	private void HandlePlayerDeath(string type) {
+	private void HandlePlayerDeath(string type, Damageable.DamageInfo info) {
 		var writerDeath = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
 
 		// 库存物品字典
-		writerDeath.Put(GetInventoryItems());
+		writerDeath.Put(InventoryManager.GetDeathInventoryItems());
 
 		// 发送背包道具
 		_MPSteamworks.Broadcast(writerDeath);
 
-		// 死亡信息获取
-		var name = new Friend(MPSteamworks.UserSteamId).Name;
-		var message = Localization.HasKey("0_DeathMessage", type)
-			? Localization.GetRandomSplit("0_DeathMessage", name, type)
-			: Localization.GetRandom("0_DeathMessage.default", name, type);
+		string name = SteamClient.Name;
+		string sourceName;
+		string message;
+
+		if (info?.sourceEntity is RemoteEntity remoteEntity
+			&& _RPManager.Players.TryGetValue(remoteEntity.playerId, out var container)) {
+			sourceName = container.PlayerName;
+
+			// 死亡信息获取
+			message = Localization.HasKey("0_DeathMessage", type)
+				? Localization.GetRandomSplit("0_DeathMessage", name, type, sourceName)
+				: Localization.GetRandom("0_DeathMessage.playerKillDefault", name, type, sourceName);
+		} else {
+			message = Localization.HasKey("0_DeathMessage", type)
+				? Localization.GetRandomSplit("0_DeathMessage", name, type)
+				: Localization.GetRandom("0_DeathMessage.default", name, type);
+		}
 
 		var writerMessage = BuildingMessage(message, UIDisplayType.HighscoreHeader, logToConsole: true);
 
@@ -571,15 +579,15 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("sethost", (args) => {
 			if (!EnsureHostPrivileges()) return;
 			if (args.Length < 1) {
-				MPMain.Debug("Need more argument");
+				CommandConsole.LogError("Need more argument");
 				return;
 			}
 			if (!ulong.TryParse(args[0], out ulong playerid)) {
-				MPMain.Debug("Need argument type is ulong");
+				CommandConsole.LogError("Need argument type is ulong");
 				return;
 			}
 			if (!_MPSteamworks.Members.Select(friend => friend.Id).ToList().Contains(playerid)) {
-				MPMain.Debug("Player does not exist");
+				CommandConsole.LogError("Player does not exist");
 				return;
 			}
 			_MPSteamworks.SetLobbyHost(playerid);
@@ -1771,26 +1779,6 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	#endregion
 	#region[工具函数]
-
-	/// <summary>
-	/// 获取物品清单字典
-	/// </summary>
-	public static Dictionary<string, byte> GetInventoryItems() {
-		var inventory = Inventory.instance;
-		var itemsDict = new Dictionary<string, byte>();
-
-		if (inventory == null)
-			MPMain.LogWarning(Localization.Get("MPCore.InventoryDoesNotExist"));
-		else {
-			// 获取库存中的物品列表
-			var items = inventory.GetItems();
-			foreach (var item in items) {
-				itemsDict.TryAdd(item.prefabName, 0);
-				itemsDict[item.prefabName]++;
-			}
-		}
-		return itemsDict;
-	}
 
 	/// <summary>
 	/// 在主要UI显示系统消息,并在控制台输出

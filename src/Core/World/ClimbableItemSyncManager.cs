@@ -1,3 +1,4 @@
+using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using Steamworks.Data;
 using System;
@@ -5,25 +6,30 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using UnityEngine;
+using WKMPMod.Asset;
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Patch;
+using WKMPMod.Util;
 using static WKMPMod.Data.MPWriterPool;
 using Object = UnityEngine.Object;
 
 namespace WKMPMod.World;
+#region[枚举]
 
 /// <summary>
 /// Piton同步操作类型
 /// Piton sync action type
 /// </summary>
 public enum PitonSyncAction : byte {
-	Create = 0,
-	Update = 1,
-	Remove = 2,
+	Create = 0, // 创建
+	Update = 1, // 更新
+	Remove = 2, // 移除
 }
+
+#endregion
 
 /// <summary>
 /// Piton/可攀爬物体同步管理器
@@ -37,41 +43,36 @@ public enum PitonSyncAction : byte {
 /// - Uses NetworkedPiton to store network identity and last synced state
 /// </summary>
 public static class ClimbableItemSyncManager {
-	private const float PeriodicUpdateInterval = 0.15f;
-	private const float PositionEpsilonSqr = 0.0004f;
-	private const float RotationEpsilon = 0.5f;
-	private const float SecureAmountEpsilon = 0.01f;
-	private const string CLONE_SUFFIX = "(Clone)";
+	#region[常量]
 
-	// MP Debug
-	public static Stopwatch sw = new Stopwatch();
+	private const float PeriodicUpdateInterval = 0.15f;     // 周期性更新间隔 (秒)
+	private const float PositionEpsilonSqr = 0.0004f;       // 位置变化阈值平方
+	private const float RotationEpsilon = 0.5f;             // 旋转变化阈值 (度)
+	private const float SecureAmountEpsilon = 0.01f;        // 加固值变化阈值
+
+	#endregion
+	#region[静态字段 - 捕获与缓存]
 
 	// 关键: 用来接收捕获到的对象
+	// Used to receive captured objects
 	private static List<GameObject> CapturedPitons = new List<GameObject>();
 
-	// List.Add 方法的包装, 供 IL 调用,
-	// 不需要再传入CapturedPitons到栈顶, 直接在方法内访问静态字段即可
-	public static void SaveCapturedPiton(GameObject go) {
-		if (go != null)
-			if (go.GetComponentInChildren<CL_Handhold>(true) != null) {
-				CapturedPitons.Add(go);
-			}
-	}
+	// Projectile.sourceEntity字段缓存, 用于判断投射物是否属于本地玩家
+	// Cached Projectile.sourceEntity field, used to check if a projectile belongs to the local player
+	private static readonly AccessTools.FieldRef<Projectile, GameEntity> _projectileSourceEntityField =
+		AccessTools.FieldRefAccess<Projectile, GameEntity>("sourceEntity");
+	
+	#endregion
+	#region[静态字段 - 同步状态]
 
 	// 已同步的Piton对象表, key为NetworkId
 	// Synced piton lookup, keyed by NetworkId
 	private static readonly Dictionary<string, NetworkedClimableItem> _pitons = new();
 
-	// 预制体查找表, 用于远程创建时根据名称找到对应Prefab
-	// Prefab lookup used to resolve prefabs by name when creating remote objects
-	private static readonly Dictionary<string, GameObject> _prefabLookup = new(StringComparer.OrdinalIgnoreCase);
+	private static ulong _nextLocalId = 1; // 下一个本地ID
 
-	// Projectile.sourceEntity字段缓存, 用于判断投射物是否属于本地玩家
-	// Cached Projectile.sourceEntity field, used to check if a projectile belongs to the local player
-	private static readonly FieldInfo _projectileSourceEntityField =
-		typeof(Projectile).GetField("sourceEntity", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-
-	private static ulong _nextLocalId = 1;
+	#endregion
+	#region[静态属性]
 
 	/// <summary>
 	/// 是否正在应用远程状态
@@ -82,42 +83,23 @@ public static class ClimbableItemSyncManager {
 	/// </summary>
 	public static bool ApplyingRemoteState { get; private set; }
 
+	#endregion
+	#region[公共接口 - 捕获与注册]
+
 	/// <summary>
-	/// 捕获当前场景中已经存在的Handhold根对象ID
-	/// 用于之后判断哪个Handhold是新生成的
-	///
-	/// Captures currently existing handhold root IDs
-	/// Used later to detect which handhold was newly spawned
+	/// List.Add 方法的包装, 供 IL 调用.
+	/// 保存捕获到的Piton对象 (仅当包含CL_Handhold组件时).
 	/// </summary>
-	public static HashSet<int> CaptureExistingHandholds() {
-		var ids = new HashSet<int>();
-		foreach (var handhold in Object.FindObjectsOfType<CL_Handhold>()) {
-			var root = GetClimbableRoot(handhold != null ? handhold.gameObject : null);
-			if (root != null) {
-				ids.Add(root.GetInstanceID());
+	public static void SaveCapturedPiton(GameObject go) {
+		if (go != null)
+			if (go.GetComponentInChildren<CL_Handhold>(true) != null) {
+				CapturedPitons.Add(go);
 			}
-		}
-		return ids;
 	}
 
 	/// <summary>
-	/// 注册本地新放置的Piton
-	/// 根据已知Handhold列表查找新生成的可攀爬物体, 并广播Create消息<br/>
-	///
-	/// Registers a newly placed local piton
-	/// Finds the newly spawned climbable using the known handhold list and broadcasts a Create message
-	/// </summary>
-	public static void RegisterNewLocalPiton(HandItem_Piton source, HashSet<int> knownHandholds) {
-		if (!MPCore.CanSync || ApplyingRemoteState || source == null || knownHandholds == null || source.pitonWorldObject == null) return;
-
-		var prefabKey = CleanCloneName(source.pitonWorldObject.name);
-		var root = FindBestNewClimbable(source.GetAimCircleHit().point, knownHandholds, prefabKey, fallback: null);
-		RegisterLocalClimbable(root, prefabKey);
-	}
-
-	/// <summary>
-	/// 注册本地新放置的Piton
-	/// 通过修改IL代码, 直接返回HandItem_Piton组件, 并广播Create消息<br/>
+	/// 注册本地新放置的Piton (基于IL捕获列表).
+	/// 通过修改IL代码, 直接返回HandItem_Piton组件, 并广播Create消息.
 	///
 	/// Registers a newly placed local piton
 	/// Finds the newly spawned climbable using the known handhold list and broadcasts a Create message
@@ -139,25 +121,8 @@ public static class ClimbableItemSyncManager {
 	}
 
 	/// <summary>
-	/// 注册本地投射物生成的可攀爬物体
-	/// 例如由射击类物品产生的钩点/可攀爬对象
-	///
-	/// Registers a climbable spawned by a local projectile
-	/// For example climbable points created by shoot-type items
-	/// </summary>
-	public static void RegisterNewLocalProjectileClimbable(Projectile source, RaycastHit hit, HashSet<int> knownHandholds) {
-		if (!MPCore.CanSync || ApplyingRemoteState || source == null || knownHandholds == null) return;
-		if (!IsLocalProjectile(source)) return;
-
-		var projectileRoot = GetClimbableRoot(source.gameObject);
-		var fallback = IsNewClimbableRoot(projectileRoot, knownHandholds) ? projectileRoot : null;
-		var root = FindBestNewClimbable(hit.point, knownHandholds, preferredName: null, fallback);
-		RegisterLocalClimbable(root, root != null ? root.name : source.gameObject.name);
-	}
-
-	/// <summary>
-	/// 注册本地投射物生成的可攀爬物体
-	/// 例如由射击类物品产生的钩点/可攀爬对象
+	/// 注册本地投射物生成的可攀爬物体 (基于IL捕获列表).
+	/// 例如由射击类物品产生的钩点/可攀爬对象.
 	///
 	/// Registers a climbable spawned by a local projectile
 	/// For example climbable points created by shoot-type items
@@ -165,7 +130,7 @@ public static class ClimbableItemSyncManager {
 	public static void RegisterNewLocalProjectileClimbable(Projectile source, RaycastHit hit) {
 		if (!MPCore.CanSync || ApplyingRemoteState || source == null || !IsLocalProjectile(source)) {
 			CapturedPitons.Clear();
-			return; 
+			return;
 		}
 
 		foreach (var piton in CapturedPitons) {
@@ -176,6 +141,233 @@ public static class ClimbableItemSyncManager {
 
 		CapturedPitons.Clear();
 	}
+
+	#endregion
+	#region[暂时被替代函数 生成物查询]
+
+	///// <summary>
+	///// 注册本地新放置的Piton(基于已知Handhold列表).
+	///// 根据已知Handhold列表查找新生成的可攀爬物体, 并广播Create消息.
+	/////
+	///// Registers a newly placed local piton
+	///// Finds the newly spawned climbable using the known handhold list and broadcasts a Create message
+	///// </summary>
+	//public static void RegisterNewLocalPiton(HandItem_Piton source, HashSet<int> knownHandholds) {
+	//	if (!MPCore.CanSync || ApplyingRemoteState || source == null || knownHandholds == null || source.pitonWorldObject == null) return;
+
+	//	var prefabKey = MPUtil.CleanCloneName(source.pitonWorldObject.name);
+	//	var root = FindBestNewClimbable(source.GetAimCircleHit().point, knownHandholds, prefabKey, fallback: null);
+	//	RegisterLocalClimbable(root, prefabKey);
+	//}
+
+	///// <summary>
+	///// 注册本地投射物生成的可攀爬物体 (基于已知Handhold列表).
+	///// 例如由射击类物品产生的钩点/可攀爬对象.
+	/////
+	///// Registers a climbable spawned by a local projectile
+	///// For example climbable points created by shoot-type items
+	///// </summary>
+	//public static void RegisterNewLocalProjectileClimbable(Projectile source, RaycastHit hit, HashSet<int> knownHandholds) {
+	//	if (!MPCore.CanSync || ApplyingRemoteState || source == null || knownHandholds == null) return;
+	//	if (!IsLocalProjectile(source)) return;
+
+	//	var projectileRoot = GetClimbableRoot(source.gameObject);
+	//	var fallback = IsNewClimbableRoot(projectileRoot, knownHandholds) ? projectileRoot : null;
+	//	var root = FindBestNewClimbable(hit.point, knownHandholds, preferredName: null, fallback);
+	//	RegisterLocalClimbable(root, root != null ? root.name : source.gameObject.name);
+	//}
+
+	///// <summary>
+	///// 捕获当前场景中已经存在的Handhold根对象ID
+	///// 用于之后判断哪个Handhold是新生成的
+	/////
+	///// Captures currently existing handhold root IDs
+	///// Used later to detect which handhold was newly spawned
+	///// </summary>
+	//public static HashSet<int> CaptureExistingHandholds() {
+	//	var ids = new HashSet<int>();
+	//	foreach (var handhold in Object.FindObjectsOfType<CL_Handhold>()) {
+	//		var root = GetClimbableRoot(handhold != null ? handhold.gameObject : null);
+	//		if (root != null) {
+	//			ids.Add(root.GetInstanceID());
+	//		}
+	//	}
+	//	return ids;
+	//}
+
+
+	///// <summary>
+	///// 查找最适合的新生成可攀爬对象
+	///// 根据距离, 名称匹配和已知Handhold列表进行筛选
+	/////
+	///// Finds the best newly spawned climbable object
+	///// Filters by distance, name match and known handhold list
+	///// </summary>
+	//private static GameObject FindBestNewClimbable(Vector3 anchor, HashSet<int> knownHandholds, string preferredName, GameObject fallback) {
+	//	GameObject best = null;
+	//	var bestDistance = float.MaxValue;
+	//	var seenRoots = new HashSet<int>();
+
+	//	// 优先检查回退对象
+	//	if (IsNewClimbableRoot(fallback, knownHandholds) && NameMatches(fallback.name, preferredName)) {
+	//		best = fallback;
+	//		bestDistance = GetAnchorPosition(fallback, anchor);
+	//		seenRoots.Add(fallback.GetInstanceID());
+	//	}
+
+	//	// 遍历所有Handhold查找新对象
+	//	foreach (var handhold in Object.FindObjectsOfType<CL_Handhold>()) {
+	//		var root = GetClimbableRoot(handhold != null ? handhold.gameObject : null);
+	//		if (!IsNewClimbableRoot(root, knownHandholds)) continue;
+	//		if (!seenRoots.Add(root.GetInstanceID())) continue;
+	//		if (!NameMatches(root.name, preferredName)) continue;
+
+	//		var distance = GetAnchorPosition(root, anchor);
+	//		if (distance < bestDistance) {
+	//			best = root;
+	//			bestDistance = distance;
+	//		}
+	//	}
+
+	//	return best;
+	//}
+
+
+	///// <summary>
+	///// 判断是否为新生成的可攀爬根对象
+	///// 根对象必须不在knownHandholds列表中, 并且包含CL_Handhold组件
+	///// Checks whether this is a newly spawned climbable root object
+	///// </summary>
+	//private static bool IsNewClimbableRoot(GameObject root, HashSet<int> knownHandholds) {
+	//	return root != null &&
+	//		   knownHandholds != null &&
+	//		   !knownHandholds.Contains(root.GetInstanceID()) &&
+	//		   ContainsTrackedHandhold(root);
+	//}
+
+	///// <summary>
+	///// 判断根对象中是否包含可追踪的Handhold
+	/////
+	///// Checks whether the root object contains a tracked handhold
+	///// </summary>
+	//private static bool ContainsTrackedHandhold(GameObject root) {
+	//	return root != null && GetTrackedHandhold(root) != null;
+	//}
+
+
+	///// <summary>
+	///// 获取根对象到锚点的平方距离
+	/////
+	///// Gets the squared distance from the root object to the anchor point
+	///// </summary>
+	//private static float GetAnchorPosition(GameObject root, Vector3 anchor) {
+	//	var trackedHandhold = GetTrackedHandhold(root);
+	//	var target = trackedHandhold != null ? trackedHandhold.transform.position : root.transform.position;
+	//	return (target - anchor).sqrMagnitude;
+	//}
+
+	///// <summary>
+	///// 判断对象名称是否匹配预期Prefab名称
+	/////
+	///// Checks whether the object name matches the expected prefab name
+	///// </summary>
+	//private static bool NameMatches(string name, string preferredName) {
+	//	if (string.IsNullOrEmpty(preferredName)) return true;
+
+	//	var normalizedName = MPUtil.CleanCloneName(name);
+	//	var normalizedPreferredName = MPUtil.CleanCloneName(preferredName);
+	//	if (string.IsNullOrEmpty(normalizedName) || string.IsNullOrEmpty(normalizedPreferredName)) return false;
+
+	//	// 完全匹配或包含关系都算匹配, 忽略大小写
+	//	return normalizedName.Equals(normalizedPreferredName, StringComparison.OrdinalIgnoreCase) ||
+	//		   normalizedName.IndexOf(normalizedPreferredName, StringComparison.OrdinalIgnoreCase) >= 0 ||
+	//		   normalizedPreferredName.IndexOf(normalizedName, StringComparison.OrdinalIgnoreCase) >= 0;
+	//}
+
+	#endregion
+	#region[被替代函数 预制体解析]
+
+	///// <summary>
+	///// 根据PrefabKey解析对应Prefab
+	/////
+	///// Resolves a prefab by prefab key
+	///// </summary>
+	//private static GameObject ResolvePrefab(string prefabKey) {
+	//	var normalizedPrefabKey = MPUtil.CleanCloneName(prefabKey);
+	//	if (string.IsNullOrEmpty(normalizedPrefabKey)) return null;
+
+	//	if (_prefabLookup.TryGetValue(normalizedPrefabKey, out var prefab) && prefab != null) {
+	//		return prefab;
+	//	}
+
+	//	// 缓存未命中则重建查找表
+	//	RebuildPrefabLookup();
+	//	_prefabLookup.TryGetValue(normalizedPrefabKey, out prefab);
+	//	return prefab;
+	//}
+
+	///// <summary>
+	///// 重建Prefab查找表
+	///// 从Piton物品和射击物品中收集可生成的Prefab
+	/////
+	///// Rebuilds the prefab lookup table
+	///// Collects spawnable prefabs from piton items and shoot items
+	///// </summary>
+	//private static void RebuildPrefabLookup() {
+	//	_prefabLookup.Clear();
+
+	//	// 收集Piton物品的预制体
+	//	foreach (var piton in Resources.FindObjectsOfTypeAll<HandItem_Piton>()) {
+	//		if (piton != null) {
+	//			TryRegisterPrefab(piton.pitonWorldObject);
+	//		}
+	//	}
+
+	//	// 收集射击物品的投射物和命中效果预制体
+	//	foreach (var shooter in Resources.FindObjectsOfTypeAll<HandItem_Shoot>()) {
+	//		if (shooter == null) continue;
+
+	//		TryRegisterPrefab(shooter.projectile);
+	//		RegisterProjectileHitPrefabs(shooter.projectile);
+	//	}
+	//}
+
+	///// <summary>
+	///// 注册投射物命中后可能生成的Prefab
+	/////
+	///// Registers prefabs that may be spawned by projectile hit effects
+	///// </summary>
+	//private static void RegisterProjectileHitPrefabs(GameObject projectilePrefab) {
+	//	if (projectilePrefab == null) return;
+
+	//	var projectile = projectilePrefab.GetComponent<Projectile>();
+	//	if (projectile == null) return;
+
+	//	TryRegisterPrefab(projectile.hitEffect);
+
+	//	if (projectile.customHitEffects == null) return;
+	//	foreach (var hitEffect in projectile.customHitEffects) {
+	//		if (hitEffect == null) continue;
+	//		TryRegisterPrefab(hitEffect.hitEffect);
+	//	}
+	//}
+
+	///// <summary>
+	///// 尝试注册Prefab到查找表
+	/////
+	///// Tries to register a prefab into the lookup table
+	///// </summary>
+	//private static void TryRegisterPrefab(GameObject prefab) {
+	//	if (prefab == null) return;
+
+	//	var key = MPUtil.CleanCloneName(prefab.name);
+	//	if (string.IsNullOrEmpty(key) || _prefabLookup.ContainsKey(key)) return;
+
+	//	_prefabLookup[key] = prefab;
+	//}
+
+	#endregion
+	#region[公共接口 - 广播与消息处理]
 
 	/// <summary>
 	/// 广播锤击/加固后的Piton状态
@@ -204,11 +396,13 @@ public static class ClimbableItemSyncManager {
 		var identity = FindIdentity(handhold);
 		if (identity == null || string.IsNullOrEmpty(identity.NetworkId)) return;
 
+		// 非激活状态广播移除
 		if (!identity.gameObject.activeSelf) {
 			Broadcast(identity, PitonSyncAction.Remove, force: true);
 			return;
 		}
 
+		// 检查更新间隔
 		if (Time.time - identity.LastSentTime < PeriodicUpdateInterval) return;
 
 		var trackedHandhold = GetTrackedHandhold(identity.gameObject);
@@ -255,6 +449,9 @@ public static class ClimbableItemSyncManager {
 			ApplyingRemoteState = false;
 		}
 	}
+	
+	#endregion
+	#region[私有方法 - 注册与状态应用]
 
 	/// <summary>
 	/// 注册本地可攀爬对象并广播Create
@@ -264,7 +461,7 @@ public static class ClimbableItemSyncManager {
 	private static void RegisterLocalClimbable(GameObject root, string prefabKey) {
 		if (root == null) return;
 
-		var normalizedPrefabKey = CleanCloneName(prefabKey);
+		var normalizedPrefabKey = MPUtil.CleanCloneName(prefabKey);
 		if (string.IsNullOrEmpty(normalizedPrefabKey)) return;
 
 		var identity = GetOrCreateIdentity(root);
@@ -288,13 +485,15 @@ public static class ClimbableItemSyncManager {
 	/// </summary>
 	private static void ApplyCreate(ulong senderId, string networkId, string prefabKey, Vector3 position, Quaternion rotation,
 									float secureAmount, bool secure, bool active) {
+		// 已存在则更新状态
 		if (_pitons.TryGetValue(networkId, out var existing) && existing != null) {
-			existing.PrefabKey = CleanCloneName(prefabKey);
+			existing.PrefabKey = MPUtil.CleanCloneName(prefabKey);
 			ApplyState(existing, position, rotation, secureAmount, secure, active);
 			return;
 		}
 
-		var prefab = ResolvePrefab(prefabKey);
+		// 解析预制体并实例化
+		var prefab = MPAssetManager.GetHandholdPrefab(prefabKey);
 		if (prefab == null) {
 			MPMain.LogError($"[MP ClimbableSync] Could not resolve prefab '{prefabKey}' for {networkId}.");
 			return;
@@ -310,7 +509,7 @@ public static class ClimbableItemSyncManager {
 
 		var identity = GetOrCreateIdentity(climbableObject);
 		identity.NetworkId = networkId;
-		identity.PrefabKey = CleanCloneName(prefabKey);
+		identity.PrefabKey = MPUtil.CleanCloneName(prefabKey);
 		identity.OwnerId = senderId;
 		identity.IsRemote = true;
 		_pitons[networkId] = identity;
@@ -331,7 +530,7 @@ public static class ClimbableItemSyncManager {
 
 	/// <summary>
 	/// 应用远程Remove消息
-	/// 不直接销毁对象, 而是禁用对象并移除同步记录
+	/// 直接销毁对象
 	///
 	/// Applies a remote Remove message
 	/// Does not destroy the object directly; disables it and removes the sync record
@@ -339,7 +538,7 @@ public static class ClimbableItemSyncManager {
 	private static void ApplyRemove(string networkId) {
 		if (!_pitons.TryGetValue(networkId, out var identity) || identity == null) return;
 		if (identity.gameObject != null) {
-			identity.gameObject.SetActive(false);
+			GameObject.Destroy(identity.gameObject);
 		}
 		_pitons.Remove(networkId);
 	}
@@ -366,51 +565,8 @@ public static class ClimbableItemSyncManager {
 		RecordState(identity, handhold);
 	}
 
-	/// <summary>
-	/// 查找最适合的新生成可攀爬对象
-	/// 根据距离, 名称匹配和已知Handhold列表进行筛选<br/>
-	///
-	/// Finds the best newly spawned climbable object
-	/// Filters by distance, name match and known handhold list
-	/// </summary>
-	private static GameObject FindBestNewClimbable(Vector3 anchor, HashSet<int> knownHandholds, string preferredName, GameObject fallback) {
-		GameObject best = null;
-		var bestDistance = float.MaxValue;
-		var seenRoots = new HashSet<int>();
-
-		if (IsNewClimbableRoot(fallback, knownHandholds) && NameMatches(fallback.name, preferredName)) {
-			best = fallback;
-			bestDistance = GetAnchorPosition(fallback, anchor);
-			seenRoots.Add(fallback.GetInstanceID());
-		}
-
-		foreach (var handhold in Object.FindObjectsOfType<CL_Handhold>()) {
-			var root = GetClimbableRoot(handhold != null ? handhold.gameObject : null);
-			if (!IsNewClimbableRoot(root, knownHandholds)) continue;
-			if (!seenRoots.Add(root.GetInstanceID())) continue;
-			if (!NameMatches(root.name, preferredName)) continue;
-
-			var distance = GetAnchorPosition(root, anchor);
-			if (distance < bestDistance) {
-				best = root;
-				bestDistance = distance;
-			}
-		}
-
-		return best;
-	}
-
-	/// <summary>
-	/// 判断是否为新生成的可攀爬根对象
-	/// 根对象必须不在knownHandholds列表中, 并且包含CL_Handhold组件<br/>
-	/// Checks whether this is a newly spawned climbable root object
-	/// </summary>
-	private static bool IsNewClimbableRoot(GameObject root, HashSet<int> knownHandholds) {
-		return root != null &&
-			   knownHandholds != null &&
-			   !knownHandholds.Contains(root.GetInstanceID()) &&
-			   ContainsTrackedHandhold(root);
-	}
+	#endregion
+	#region[私有方法 - 对象查找与匹配]
 
 	/// <summary>
 	/// 获取可攀爬对象的根节点
@@ -432,16 +588,7 @@ public static class ClimbableItemSyncManager {
 	}
 
 	/// <summary>
-	/// 判断根对象中是否包含可追踪的Handhold<br/>
-	///
-	/// Checks whether the root object contains a tracked handhold
-	/// </summary>
-	private static bool ContainsTrackedHandhold(GameObject root) {
-		return root != null && GetTrackedHandhold(root) != null;
-	}
-
-	/// <summary>
-	/// 获取根对象上的CL_Handhold组件<br/>
+	/// 获取根对象上的CL_Handhold组件
 	///
 	/// Gets the CL_Handhold component from the root object
 	/// </summary>
@@ -459,123 +606,8 @@ public static class ClimbableItemSyncManager {
 		return handhold.GetComponent<NetworkedClimableItem>() ?? handhold.GetComponentInParent<NetworkedClimableItem>();
 	}
 
-	/// <summary>
-	/// 获取根对象到锚点的平方距离
-	///
-	/// Gets the squared distance from the root object to the anchor point
-	/// </summary>
-	private static float GetAnchorPosition(GameObject root, Vector3 anchor) {
-		var trackedHandhold = GetTrackedHandhold(root);
-		var target = trackedHandhold != null ? trackedHandhold.transform.position : root.transform.position;
-		return (target - anchor).sqrMagnitude;
-	}
-
-	/// <summary>
-	/// 判断对象名称是否匹配预期Prefab名称<br/>
-	///
-	/// Checks whether the object name matches the expected prefab name
-	/// </summary>
-	private static bool NameMatches(string name, string preferredName) {
-		if (string.IsNullOrEmpty(preferredName)) return true;
-
-		var normalizedName = CleanCloneName(name);
-		var normalizedPreferredName = CleanCloneName(preferredName);
-		if (string.IsNullOrEmpty(normalizedName) || string.IsNullOrEmpty(normalizedPreferredName)) return false;
-
-		// 完全匹配或包含关系都算匹配, 忽略大小写
-		return normalizedName.Equals(normalizedPreferredName, StringComparison.OrdinalIgnoreCase) ||
-			   normalizedName.IndexOf(normalizedPreferredName, StringComparison.OrdinalIgnoreCase) >= 0 ||
-			   normalizedPreferredName.IndexOf(normalizedName, StringComparison.OrdinalIgnoreCase) >= 0;
-	}
-
-	/// <summary>
-	/// 根据PrefabKey解析对应Prefab
-	///
-	/// Resolves a prefab by prefab key
-	/// </summary>
-	private static GameObject ResolvePrefab(string prefabKey) {
-		var normalizedPrefabKey = CleanCloneName(prefabKey);
-		if (string.IsNullOrEmpty(normalizedPrefabKey)) return null;
-
-		if (_prefabLookup.TryGetValue(normalizedPrefabKey, out var prefab) && prefab != null) {
-			return prefab;
-		}
-
-		RebuildPrefabLookup();
-		_prefabLookup.TryGetValue(normalizedPrefabKey, out prefab);
-		return prefab;
-	}
-
-	/// <summary>
-	/// 重建Prefab查找表
-	/// 从Piton物品和射击物品中收集可生成的Prefab
-	///
-	/// Rebuilds the prefab lookup table
-	/// Collects spawnable prefabs from piton items and shoot items
-	/// </summary>
-	private static void RebuildPrefabLookup() {
-		_prefabLookup.Clear();
-
-		foreach (var piton in Resources.FindObjectsOfTypeAll<HandItem_Piton>()) {
-			if (piton != null) {
-				TryRegisterPrefab(piton.pitonWorldObject);
-			}
-		}
-
-		foreach (var shooter in Resources.FindObjectsOfTypeAll<HandItem_Shoot>()) {
-			if (shooter == null) continue;
-
-			TryRegisterPrefab(shooter.projectile);
-			RegisterProjectileHitPrefabs(shooter.projectile);
-		}
-	}
-
-	/// <summary>
-	/// 注册投射物命中后可能生成的Prefab
-	///
-	/// Registers prefabs that may be spawned by projectile hit effects
-	/// </summary>
-	private static void RegisterProjectileHitPrefabs(GameObject projectilePrefab) {
-		if (projectilePrefab == null) return;
-
-		var projectile = projectilePrefab.GetComponent<Projectile>();
-		if (projectile == null) return;
-
-		TryRegisterPrefab(projectile.hitEffect);
-
-		if (projectile.customHitEffects == null) return;
-		foreach (var hitEffect in projectile.customHitEffects) {
-			if (hitEffect == null) continue;
-			TryRegisterPrefab(hitEffect.hitEffect);
-		}
-	}
-
-	/// <summary>
-	/// 尝试注册Prefab到查找表<br/>
-	///
-	/// Tries to register a prefab into the lookup table
-	/// </summary>
-	private static void TryRegisterPrefab(GameObject prefab) {
-		if (prefab == null) return;
-
-		var key = CleanCloneName(prefab.name);
-		if (string.IsNullOrEmpty(key) || _prefabLookup.ContainsKey(key)) return;
-
-		_prefabLookup[key] = prefab;
-	}
-
-	/// <summary>
-	/// 标准化PrefabKey
-	/// 去除空格和Unity实例化后附加的(Clone)后缀<br/>
-	///
-	/// Normalizes a prefab key
-	/// Removes whitespace and Unity's instantiated "(Clone)" suffix
-	/// </summary>
-	private static string CleanCloneName(string prefabKey) {
-		if (string.IsNullOrEmpty(prefabKey)) return string.Empty;
-
-		return prefabKey.Replace("(Clone)", string.Empty).Trim();
-	}
+	#endregion
+	#region[私有方法 - 工具]
 
 	/// <summary>
 	/// 判断投射物是否由本地玩家发射
@@ -586,7 +618,7 @@ public static class ClimbableItemSyncManager {
 		var localPlayer = ENT_Player.GetPlayer();
 		if (projectile == null || localPlayer == null || _projectileSourceEntityField == null) return false;
 
-		var sourceEntity = _projectileSourceEntityField.GetValue(projectile) as GameEntity;
+		var sourceEntity = _projectileSourceEntityField(projectile);
 		return sourceEntity == localPlayer;
 	}
 
@@ -624,6 +656,9 @@ public static class ClimbableItemSyncManager {
 		return identity;
 	}
 
+	#endregion
+	#region[私有方法 - 广播与状态记录]
+
 	/// <summary>
 	/// 广播Piton同步消息
 	/// 消息包含NetworkId, PrefabKey, Transform, secure状态和active状态
@@ -644,8 +679,12 @@ public static class ClimbableItemSyncManager {
 		writer.Put(handhold != null ? handhold.secureAmount : 0f);
 		writer.Put(handhold != null && handhold.secure);
 		writer.Put(identity.gameObject.activeSelf);
-
-		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+		if (action == PitonSyncAction.Create || action == PitonSyncAction.Remove) {
+			MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+		} else if (action == PitonSyncAction.Update) {
+			foreach (ulong targetId in LocalPlayer.Instance._nearPlayersBuffer)
+				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Unreliable);
+		}
 		RecordState(identity, handhold);
 
 		if (force) {
@@ -682,4 +721,6 @@ public static class ClimbableItemSyncManager {
 			identity.LastSecure = handhold.secure;
 		}
 	}
+
+	#endregion
 }

@@ -10,11 +10,12 @@ using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
 using WKMPMod.Util;
 using static Clickable;
+using static Unity.VisualScripting.Member;
 
 namespace WKMPMod.Component;
 
 public class RemoteEntity : CL_Prop {
-	public ulong playerId;
+	public IDType playerId;
 	// 使用 Harmony 的 FieldRef 高效读写基类 CL_Prop 中的私有变量 rigid 和 initialized
 	private static readonly AccessTools.FieldRef<CL_Prop, Rigidbody> PropRigidRef =
 		AccessTools.FieldRefAccess<CL_Prop, Rigidbody>("rigid");
@@ -28,7 +29,13 @@ public class RemoteEntity : CL_Prop {
 	// 负责记录每次 无敌帧并发窗口 的起始物理时间
 	private float _burstStartTime = -999f;
 	// 是否启用PVP伤害判定, 可通过玩家数据更新
-	public bool pvpEnabled = false;  
+	public bool pvpEnabled = false;
+
+	// 玩家不可以传递的伤害类型
+	private static readonly HashSet<string> blacklistDamage = new HashSet<string>{
+		"lightning","Turret","gasbag","silodoor","fan","grinder","nastywater","sturge",
+		"drone","recycler","crushed","face","steam"
+	};
 
 	#region[Unity生命周期函数]
 
@@ -60,8 +67,10 @@ public class RemoteEntity : CL_Prop {
 
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
-		// 关闭pvp
-		if (!pvpEnabled) return false;
+		// 关闭pvp || 伤害来源非同步因素伤害
+		if (!pvpEnabled || blacklistDamage.Contains(info.type)) return false;
+
+		MPMain.Debug($"{playerId} Cause Damage: type: {info.type}, tags: {string.Join(",", info.tags)}");
 
 		_invincibilityTimer.SetInterval(MPCore.damageRules.InvincibilityTime);
 
@@ -69,14 +78,10 @@ public class RemoteEntity : CL_Prop {
 		if (_invincibilityTimer.IsTickReached) {
 			_invincibilityTimer.Reset();   // 重置 TickTimer
 			_burstStartTime = Time.time;   // 记录本轮第一发子弹打中的时间
-		}
-		// 如果还在无敌倒计时内, 但时间处于并发窗口期 (小于 a)
-		else if (Time.time - _burstStartTime <= MPCore.damageRules.BurstWindow) {
-			// 允许伤害通过
-		}
-		// 处于 (a, b) 之间, 属于无敌帧
-		else {
-			return false; // 免疫伤害
+		} else if (Time.time - _burstStartTime <= MPCore.damageRules.BurstWindow) {
+			// 如果还在无敌倒计时内, 但时间处于并发窗口期 (小于 a) 允许伤害通过
+		} else {
+			return false; // 处于 (a, b) 之间, 属于无敌帧 免疫伤害
 		}
 
 		// 添加屏幕震动
@@ -106,8 +111,8 @@ public class RemoteEntity : CL_Prop {
 
 	// 添加力(基础实现)
 	public override void AddForce(Vector3 v, string source = "") {
-		// 关闭pvp
-		if (!pvpEnabled) return;
+		// 关闭pvp || 不是玩家伤害帧生成的力
+		if (!pvpEnabled || Time.time - _burstStartTime > 0.1f) return;
 		// 发送冲击力通知事件
 		MPEventBusGame.NotifyPlayerAddForce(playerId, v / 10, source);
 	}
@@ -120,6 +125,7 @@ public class RemoteEntity : CL_Prop {
 	// 舌头拉扯
 	public override void TonguePull(Vector3 v) { 
 	}
+
 	#endregion
 	#region[工具函数]
 
@@ -147,17 +153,17 @@ public class RemoteEntity : CL_Prop {
 /*
 锤子		类型:Melee	标签:Melee blunt	 hammer	伤害1-3
 自动钻头	类型:piton		伤害3
-砖头		类型				伤害3
+砖头		类型:			伤害3
 信号枪	类型:flare	标签:flare incendiary-long	伤害4
 钢筋/骨矛		类型:rebar	伤害10
-带绳钢筋		类型			伤害10
+带绳钢筋		类型:		伤害10
 神器长矛(投出/返回)	类型:returnrebar		标签:returnrebar		伤害10
 爆炸钢筋		类型:explosion		标签:explosion	伤害10
 			类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害10 × 3
 爆炸钢筋(自伤)	类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害1
 造冰枪(不蓄力/蓄力)	类型:ice		标签:ice			伤害10
-					类型			标签:explosion explosive	伤害 0 × 3
-造冰枪(自伤)			类型			标签:explosion explosive	伤害 0
+					类型:		标签:explosion explosive	伤害 0 × 3
+造冰枪(自伤)			类型:		标签:explosion explosive	伤害 0
  */
 [Serializable]
 public class DamageRules {

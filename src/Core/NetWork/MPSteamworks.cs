@@ -282,11 +282,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 		foreach (var (steamId, connection) in _allConnections) {
 			try {
-
-				//if (canLog) {
-				//	MPMain.LogInfo(Localization.GetByPath("MPSteamworks.SendingToConnection", steamId.ToString(), connection.Id.ToString()));
-				//}
-
 				connection.SendMessage(data, offset, length, sendType, laneIndex);
 			} catch (Exception ex) {
 				MPMain.LogError(Localization.Get("MPSteamworks.BroadcastingException", ex.Message));
@@ -515,7 +510,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				return false;
 			}
 
-			MPMain.Debug("MPSW A");
+			MPMain.Debug("MPSW CreateRoom A");
 
 			// await SteamMatchmaking.CreateLobbyAsync
 			Lobby? lobbyResult = await SteamMatchmaking.CreateLobbyAsync(maxPlayers);
@@ -526,13 +521,11 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				return false;
 			}
 
-			MPMain.Debug("MPSW B");
+			MPMain.Debug("MPSW CreateRoom B");
 
 			_currentLobby = lobbyResult.Value;
 
 			MPMain.LogInfo(Localization.Get("MPSteamworks.LobbyCreatedSuccess", _currentLobby.Id.ToString()));
-
-			MPMain.Debug("MPSW C");
 
 			// 设置大厅信息
 			SetLobbyData(GetDefaultLobbyData());
@@ -541,17 +534,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			_currentLobby.SetJoinable(true);
 			_currentLobby.Owner = new Friend(SteamClient.SteamId);
 
-			MPMain.Debug("MPSW D");
+			MPMain.Debug("MPSW CreateRoom C");
 
 			// 获取Socket
 			CreateListeningSocket();
 
-			MPMain.Debug("MPSW E");
+			MPMain.Debug("MPSW CreateRoom D");
 
 			// 刷新大厅数据
 			RefreshLobbyData();
 
-			MPMain.Debug("MPSW F");
+			MPMain.Debug("MPSW CreateRoom E");
 
 			return true; // 成功
 		} catch (Exception ex) {
@@ -568,36 +561,34 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		DisconnectAll();
 
 		try {
-			MPMain.Debug("MPSW A");
+			MPMain.Debug("MPSW JoinRoom A");
 
 			// 核心改变:直接 await 任务
 			RoomEnter result = await lobby.Join();
 
-			MPMain.Debug("MPSW B");
+			MPMain.Debug("MPSW JoinRoom B");
 
 			// 检查 RoomEnter 结果
 			if (result != RoomEnter.Success) {
 				throw new Exception($"Failed to join Steam lobby: {result.ToString()}");
 			}
 
-			MPMain.Debug("MPSW C");
-
 			_currentLobby = lobby;
 			string roomName = LobbyName
 				?? Localization.Get("MPSteamworks.NullLobbyName");
 			MPMain.LogInfo(Localization.Get("MPSteamworks.JoinLobbySuccess", roomName));
 
-			MPMain.Debug("MPSW D");
+			MPMain.Debug("MPSW JoinRoom C");
 
 			// 获取Socket
 			CreateListeningSocket();
 
-			MPMain.Debug("MPSW E");
+			MPMain.Debug("MPSW JoinRoom D");
 
 			// 刷新大厅数据
 			RefreshLobbyData();
 
-			MPMain.Debug("MPSW F");
+			MPMain.Debug("MPSW JoinRoom E");
 
 			return true;
 

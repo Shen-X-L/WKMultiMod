@@ -14,21 +14,20 @@ namespace WKMPMod.Patch;
 
 [HarmonyPatch(typeof(ENT_Player))]
 public class Patch_ENT_Player {
-	private static readonly AccessTools.FieldRef<ENT_Player, bool> CamLockedField =
+	private static readonly AccessTools.FieldRef<ENT_Player, bool> _camLockedField =
 		AccessTools.FieldRefAccess<ENT_Player, bool>("camLocked");
-	private static readonly AccessTools.FieldRef<ENT_Player, float> CamSpeedField =
+	private static readonly AccessTools.FieldRef<ENT_Player, float> _camSpeedField =
 		AccessTools.FieldRefAccess<ENT_Player, float>("camSpeed");
+	private static readonly AccessTools.FieldRef<ENT_Player, bool> _godmodeField =
+		AccessTools.FieldRefAccess<ENT_Player, bool>("godmode");
 
 	// 死亡信息总线调用
 	[HarmonyPatch(nameof(ENT_Player.Kill))]
 	[HarmonyPrefix]
 	public static void Kill_NotifyPlayerDeath(ENT_Player __instance, string type, Damageable.DamageInfo damageInfo) {
 		// 死亡切换发生前通知总线
-		// 避免死亡后重复通知
-		FieldInfo field = typeof(ENT_Player).GetField("godmode", BindingFlags.NonPublic | BindingFlags.Instance);
-		var godmode = (bool)field.GetValue(__instance);
-		if (MPCore.IsInLobby && !__instance.dead && !CL_GameManager.gMan.IsReviving() && !godmode) {
-			MPEventBusGame.NotifyPlayerDeath(type);
+		if (MPCore.IsInLobby && !__instance.dead && !CL_GameManager.gMan.IsReviving() && !_godmodeField(__instance)) {
+			MPEventBusGame.NotifyPlayerDeath(type, damageInfo);
 			MPMain.LogInfo(Localization.Get("Patch.PlayerDeath", type));
 		}
 	}
@@ -53,7 +52,7 @@ public class Patch_ENT_Player {
 		if (handObj.interactState != InteractType.grab) return false;
 
 		// 控制相机转速
-		CamSpeedField(__instance) = Mathf.Clamp(1f - remoteEntity.GetRigidbody().mass * 0.25f, 0.1f, 1f);
+		_camSpeedField(__instance) = Mathf.Clamp(1f - remoteEntity.GetRigidbody().mass * 0.25f, 0.1f, 1f);
 
 		// 松开条件检查
 		float distanceToAnchor = Vector3.Distance(__instance.transform.position,
@@ -93,7 +92,7 @@ public class Patch_ENT_Player {
 		__instance.hands[hand].holdTarget = null;
 
 		// 使用访问器重置私有字段
-		CamLockedField(__instance) = false;
-		CamSpeedField(__instance) = 1f;
+		_camLockedField(__instance) = false;
+		_camSpeedField(__instance) = 1f;
 	}
 }

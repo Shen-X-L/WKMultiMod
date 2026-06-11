@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Principal;
 using System.Text;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using WKMPMod.Core;
 using WKMPMod.Util;
 using static Drawing.Palette.Colorbrewer;
@@ -10,7 +11,9 @@ using static Drawing.Palette.Colorbrewer;
 namespace WKMPMod.Asset;
 
 public class MPAssetManager : Singleton<MPAssetManager> {
-	public Dictionary<string, GameObject> assetDictionary = new Dictionary<string, GameObject>();
+	public readonly Dictionary<string, GameObject> FX_PrefabDic = new ();
+	public readonly Dictionary<string, GameObject> handholdPrefabDic = new ();
+	public readonly Dictionary<string, GameObject> projectilePrefabDic = new ();
 
 	public const string DAMAGE_OBJECT_NAME = "Gib_Large";	// 受伤特效预制体名
 	public const string DEATH_OBJECT_NAME = "Gib_Medium";   // 死亡特效预制体名
@@ -19,27 +22,68 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 	public HashSet<string> loadSet =[
 		DAMAGE_OBJECT_NAME,	// 受伤特效预制体名
 		DEATH_OBJECT_NAME	// 死亡特效预制体名
-		];
+	];
+
 	public bool IsInitialized { get; private set; } = false;
+
 	public void Initialize() {
 		if (IsInitialized) return;
 
-		GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-		foreach (GameObject obj in allObjects) {
+		// 获取特效
+		foreach (GameObject obj in Resources.FindObjectsOfTypeAll<GameObject>()) {
 			if (!string.IsNullOrEmpty(obj.scene.name)) continue;// 跳过场景对象
 			if (!loadSet.TryGetValue(obj.name, out var actualValue)) continue;// 不在列表中
-			if (assetDictionary.TryGetValue(obj.name, out var assetObject)) continue;// 已经加载过了
-
+			if (FX_PrefabDic.TryGetValue(obj.name, out var _)) continue;// 已经加载过了
 			if (obj.GetComponentInChildren<ParticleSystem>() == null) continue;// 本身及其子对象没有特效组件
 
 			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset",obj.name, actualValue));
-			assetDictionary[actualValue] = obj;
+			FX_PrefabDic[actualValue] = obj;
 		}
+
+		// 获取玩家生成可抓物
+		foreach (var piton in Resources.FindObjectsOfTypeAll<HandItem_Piton>()) {
+			if (piton == null) continue;
+			var key = MPUtil.CleanCloneName(piton.pitonWorldObject.name);
+			if (string.IsNullOrEmpty(key)) continue;
+			if (handholdPrefabDic.ContainsKey(key)) continue;
+
+			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset", "HandItem_Piton", key));
+			handholdPrefabDic[key] = piton.pitonWorldObject;
+		}
+
+		// 投射物 和 投射物的生成可抓物 
+		foreach (var projectile in Resources.FindObjectsOfTypeAll<Projectile>()) {
+			if (projectile == null) continue;
+			var key1 = MPUtil.CleanCloneName(projectile.name);
+			if (string.IsNullOrEmpty(key1)) continue;
+			if (projectilePrefabDic.ContainsKey(key1)) continue;
+
+			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset", "Projectile", key1));
+			projectilePrefabDic[key1] = projectile.gameObject;
+
+			if (projectile.hitEffect == null) continue;
+			if (!projectile.hitEffect.TryGetComponent<CL_Handhold>(out var _)) continue;
+			var key2 = MPUtil.CleanCloneName(projectile.hitEffect.name);
+			if (string.IsNullOrEmpty(key2)) continue;
+			if (handholdPrefabDic.ContainsKey(key2)) continue;
+
+			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset", "HitEffect", key2));
+			handholdPrefabDic[key2] = projectile.hitEffect;
+		}
+
+
 		IsInitialized = true;
 	}
-	public static GameObject? GetAssetGameObject(string name) { 
+
+	public static GameObject? GetFXPrefab(string name) { 
 		if (!Instance.IsInitialized)
 			Instance.Initialize();
-		return Instance.assetDictionary.TryGetValue(name, out var obj) ? obj : null;
+		return Instance.FX_PrefabDic.TryGetValue(name, out var obj) ? obj : null;
+	}
+
+	public static GameObject? GetHandholdPrefab(string name) {
+		if (!Instance.IsInitialized)
+			Instance.Initialize();
+		return Instance.handholdPrefabDic.TryGetValue(name, out var obj) ? obj : null;
 	}
 }

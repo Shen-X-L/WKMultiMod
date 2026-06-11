@@ -3,17 +3,17 @@
 ```
 锤子		类型:Melee	标签:Melee blunt	 hammer	伤害1-3
 自动钻头	类型:piton		伤害3
-砖头		类型				伤害3
+砖头		类型:			伤害3
 信号枪	类型:flare	标签:flare incendiary-long	伤害4
 钢筋/骨矛		类型:rebar	伤害10
-带绳钢筋		类型			伤害10
+带绳钢筋		类型	:		伤害10
 神器长矛(投出/返回)	类型:returnrebar		标签:returnrebar		伤害10
 爆炸钢筋		类型:explosion		标签:explosion	伤害10
 			类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害10 × 3
 爆炸钢筋(自伤)	类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害1
 造冰枪(不蓄力/蓄力)	类型:ice		标签:ice			伤害10
-					类型			标签:explosion explosive	伤害 0 × 3
-造冰枪(自伤)			类型			标签:explosion explosive	伤害 0
+					类型:		标签:explosion explosive	伤害 0 × 3
+造冰枪(自伤)			类型:		标签:explosion explosive	伤害 0
 
 血虫		类型:denizen		标签:denizen bloodbug slashing	伤害0.3
 藤壶舔中	类型:barnacle	标签:barnacle					伤害0
@@ -47,7 +47,8 @@ face	类型:face		标签:face						伤害1
 血手		类型:ventthing	标签:ventthing					伤害0/1
 闪电		类型:lightning	标签:lightning					伤害10
 再生骨矛	类型:nonlethal	标签:nonlethal					伤害0.1/2
-收音机	类型:d19			类型:d19							伤害0.2
+收音机	类型:d19			标签:d19							伤害0.2
+垃圾		类型:garbage		标签:garbage						伤害1
 ```
 
 ---
