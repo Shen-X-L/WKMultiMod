@@ -53,6 +53,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	#endregion
+
 	#region[静态接口]
 
 	/// <summary>
@@ -85,6 +86,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		return model.Extension;
 	}
 	#endregion
+
 	#region[对象生成/清理]
 
 	/// <summary>
@@ -93,9 +95,9 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	public GameObject Create(string modelId) {
 		// 优先从配置注册表获取整套包裹数据
 		if (!_registry.TryGetValue(modelId, out var registration)) {
-			MPMain.LogWarning($"[RPFactoryManager] 找不到指定的模型注册信息: {modelId}, 将尝试使用 default 模型");
+			MPMain.LogWarning($"[Debug][RPFactoryManager] 找不到指定的模型注册信息: {modelId}, 将尝试使用 default 模型");
 			if (!_registry.TryGetValue("default", out registration)) {
-				MPMain.LogError("[RPFactoryManager] default 模型未注册");
+				MPMain.LogError("[Debug][RPFactoryManager] default 模型未注册");
 				return null;
 			}
 		}
@@ -184,6 +186,26 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	}
 
 	#endregion
+
+	#region[颜色改变]
+
+	public void ApplyPlayerColor(string modelId, GameObject instance, Color32 color) {
+		if (!_registry.TryGetValue(modelId, out var registration)) {
+			MPMain.LogError($"[Debug][RPFactoryManager] 找不到指定的模型注册信息: {modelId}, 将尝试使用 default 模型");
+			return;
+		}
+
+		ICustomModelExtension extension = registration.Extension;
+
+		try {
+			extension?.ApplyPlayerColor(instance, color);
+		} catch (Exception ex) {
+			MPMain.LogError($"[Debug][RPFactoryManager] 修改模型 {modelId} 颜色时出错, 错误: {ex.Message}");
+		}
+	}
+
+	#endregion
+
 	#region[Debug]
 
 	/// <summary>

@@ -7,6 +7,9 @@ using WKMPMod.Util;
 namespace WKMPMod.RemotePlayer;
 
 public class DefaultModelExtension : ICustomModelExtension {
+	// shader主颜色设置
+	private static readonly string[] TintColorProperties = { "_BaseColor", "_Color", "_MainColor" };
+
 	public string ModelId => "default";
 	public string PrefabAssetName => "CapsulePlayerPrefab";
 
@@ -61,4 +64,37 @@ public class DefaultModelExtension : ICustomModelExtension {
 			}
 		}
 	}
+
+	/// <summary>
+	/// 修改玩家颜色
+	/// </summary>
+	public void ApplyPlayerColor(GameObject instance, Color32 color) {
+		if (instance == null) {
+			return;
+		}
+
+		foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true)) {
+			if (renderer.GetComponent<TMP_Text>() != null) continue;
+
+			foreach (var material in renderer.materials) {
+				if (material == null) continue;
+
+				foreach (var propertyName in TintColorProperties) {
+					if (!material.HasProperty(propertyName)) {
+						continue;
+					}
+
+					var current = material.GetColor(propertyName);
+					material.SetColor(
+						propertyName,
+						new Color32(
+							color.r,
+							color.g,
+							color.b,
+							(byte)Mathf.Clamp(Mathf.RoundToInt(current.a * 255f), 0, 255)));
+				}
+			}
+		}
+	}
+
 }

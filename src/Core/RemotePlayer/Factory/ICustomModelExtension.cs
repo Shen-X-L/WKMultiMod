@@ -42,6 +42,11 @@ public interface ICustomModelExtension {
 	/// </summary>
 	/// <param name="playerInstance">被克隆出来的玩家实例克隆体</param>
 	void OnPlayerInstanceCreated(GameObject playerInstance);
+
+	/// <summary>
+	/// 修改玩家颜色
+	/// </summary>
+	void ApplyPlayerColor(GameObject instance, Color32 color);
 }
 
 public interface IAssetHelper {

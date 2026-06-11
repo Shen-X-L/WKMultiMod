@@ -217,9 +217,12 @@ public class RPContainer {
 		_remoteTag.PlayerName = PlayerName;
 	}
 
+	/// <summary>
+	/// 更改玩家颜色
+	/// </summary>
 	public void ApplyColor(Color32 color) {
 		PlayerColor = new Color32(color.r, color.g, color.b, 255);
-		RPPrefabProcessor.ApplyPlayerColor(PlayerObject, PlayerColor);
+		RPFactoryManager.Instance.ApplyPlayerColor(prefabId, PlayerObject, PlayerColor);
 	}
 
 	#endregion

@@ -7,6 +7,7 @@ using WKMPMod.Util;
 namespace WKMPMod.RemotePlayer;
 
 public class SlugcatModelExtension : ICustomModelExtension {
+	private static readonly string[] TintColorProperties = { "_BaseColor", "_Color", "_MainColor" };
 	public string ModelId => "slugcat";
 	public string PrefabAssetName => "SlugcatPlayerPrefab";
 
@@ -60,5 +61,49 @@ public class SlugcatModelExtension : ICustomModelExtension {
 				MPMain.LogError(Localization.Get("RPSlugcatFactory.UnableToLoadMaterial", TMP_DISTANCE_FIELD_OVERLAY_MAT));
 			}
 		}
+	}
+
+	/// <summary>
+	/// 修改玩家颜色
+	/// </summary>
+	public void ApplyPlayerColor(GameObject instance, Color32 color) {
+		if (instance == null)
+			return;
+
+		foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true)) {
+			if (renderer.GetComponent<TMP_Text>() != null) continue;
+
+			Color targetColor = renderer.transform.name.StartsWith("Eyes")
+				? GetContrastColor(color)
+				: (Color)color;
+
+			foreach (var material in renderer.materials) {
+				if (material == null) continue;
+
+				foreach (var propertyName in TintColorProperties) {
+					if (!material.HasProperty(propertyName)) continue;
+					
+					var current = material.GetColor(propertyName);
+					material.SetColor(
+						propertyName,
+						new Color(targetColor.r,targetColor.g,targetColor.b,
+							(byte)Mathf.Clamp(Mathf.RoundToInt(current.a * 255f), 0, 255)));
+				}
+			}
+		}
+	}
+
+	/// <summary>
+	/// 根据亮度计算高对比色
+	/// </summary>
+	private static Color GetContrastColor(Color color) {
+		float luminance =
+			0.299f * color.r +
+			0.587f * color.g +
+			0.114f * color.b;
+
+		return luminance > 0.5f
+			? Color.black
+			: Color.white;
 	}
 }

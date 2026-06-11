@@ -71,7 +71,9 @@
     "TeamRuleInsufficientParams": "设置队伍规则参数不足! 格式: teamrule [队伍A] [队伍B] [规则名] [true|false] , ...",
     "TeamRuleRemoveTeamInsufficientParams": "参数不足! 格式: removeteam [队伍名]",
     "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化.",
-    "YouAreNotHost": "You Are Not Host"
+    "YouAreNotHost": "You Are Not Host",
+
+    "HostSuccess": "大厅创建成功"
   },
   "CommandHelp": {
     "ACMD": "[join|restart|jointeam TeamName] [command 1] :: [command 2]...: Execute a command for the specified action. (using :: instead of ; e.g., acmd join addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",

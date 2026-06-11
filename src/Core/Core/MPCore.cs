@@ -184,6 +184,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[RAII函数]
 
 	/// <summary>
@@ -286,6 +287,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[玩家数量同步]
 
 	private void CheckAndRepairPlayers() {
@@ -313,6 +315,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[场景切换回调]
 
 	/// <summary>
@@ -366,6 +369,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[状态设置]
 
 	/// <summary>
@@ -401,6 +405,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 	}
 	#endregion
+
 	#region[游戏数据收集处理]
 
 	/// <summary>
@@ -494,6 +499,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[命令注册]
 
 	/// <summary>
@@ -740,6 +746,17 @@ public class MPCore : MonoSingleton<MPCore> {
 			.AutocompleteCustom(autocomplete => {
 				if (autocomplete.activeArg == 0)
 					autocomplete.FromArray(PlayerColorPresets.Keys.ToList());
+			})
+			.AutocompleteValidator(validator => {
+				if (validator.ArgumentAt(2) == "" ) {
+					// 小于3个参数,参数0不在字典中
+					if (!PlayerColorPresets.ContainsKey(validator.ArgumentAt(0)))
+						validator.Reject();
+				} else if (validator.activeArg <= 2) {
+					// 大于等于3个参数,是前0,1,2参数,不能转为数字
+					if (!MPUtil.TryParseColorChannel(validator.ArgumentAt(validator.activeArg),out var _))
+						validator.Reject();
+				}
 			});
 
 		// 加入队伍
@@ -815,6 +832,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 	}
 	#endregion
+
 	#region[大厅操作]
 
 	/// <summary>
@@ -879,7 +897,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				}
 				string lobby_id = _MPSteamworks.LobbyId.ToString();
 				CopyToClipboard(lobby_id);
-				CommandConsole.Log(Localization.Get("MPSteamworks.HostSuccess"));
+				CommandConsole.Log(Localization.Get("CommandConsole.HostSuccess"));
 			} else {
 				// 失败处理
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
@@ -1078,6 +1096,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[队伍/规则操作]
 
 	/// <summary>
@@ -1262,6 +1281,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[玩家间操作]
 
 	/// <summary>
@@ -1302,7 +1322,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 
 		_LocalPlayer.SetPlayerColor(color);
-		MPConfig.SetRemotePlayerColor(color);
+		MPConfig.RemotePlayerColor = color;
 		SyncLocalPlayerColor();
 		CommandConsole.Log(Localization.Get("CommandConsole.PlayerColorSet", color.r, color.g, color.b));
 	}
@@ -1379,6 +1399,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[执行远程命令操作]
 
 	/// <summary>
@@ -1595,6 +1616,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	#endregion
+
 	#region[大厅/连接事件触发函数]
 
 	/// <summary>
@@ -1857,9 +1879,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 
 		if (args.Length == 3) {
-			if (TryParseColorChannel(args[0], out var r)
-				&& TryParseColorChannel(args[1], out var g)
-				&& TryParseColorChannel(args[2], out var b)) {
+			if (MPUtil.TryParseColorChannel(args[0], out var r)
+				&& MPUtil.TryParseColorChannel(args[1], out var g)
+				&& MPUtil.TryParseColorChannel(args[2], out var b)) {
 				color = new Color32((byte)r, (byte)g, (byte)b, 255);
 				errorMessage = string.Empty;
 				return true;
@@ -1872,14 +1894,6 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		color = default;
 		errorMessage = Localization.Get("CommandConsole.PlayerColorUsage");
-		return false;
-	}
-
-	private static bool TryParseColorChannel(string value, out int channel) {
-		if (int.TryParse(value, out channel)) {
-			return channel >= 0 && channel <= 255;
-		}
-
 		return false;
 	}
 

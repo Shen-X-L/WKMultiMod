@@ -80,7 +80,8 @@
     "TeamRuleInsufficientParams": "Insufficient parameters for team rule! Format: teamrule [TeamA] [TeamB] [ruleName] [true|false] , ...",
     "TeamRuleRemoveTeamInsufficientParams": "Insufficient parameters! Format: removeteam [teamName]",
     "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
-    "YouAreNotHost": "You Are Not Host"
+    "YouAreNotHost": "You Are Not Host",
+    "HostSuccess": "The lobby has been successfully created"
   },
   "CommandHelp": {
     "ACMD": "[join|restart|jointeam_TeamName] ; [command1] ; [command2]...: Execute a command for the specified action. (using :: instead of ; e.g., acmd join addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",

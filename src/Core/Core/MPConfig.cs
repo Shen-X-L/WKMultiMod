@@ -45,17 +45,21 @@ public class MPConfig {
 	private static ConfigEntry<int> _remotePlayerColorR;
 	private static ConfigEntry<int> _remotePlayerColorG;
 	private static ConfigEntry<int> _remotePlayerColorB;
-	public static Color32 RemotePlayerColor => new(
-		(byte)Mathf.Clamp(_remotePlayerColorR.Value, 0, 255),
-		(byte)Mathf.Clamp(_remotePlayerColorG.Value, 0, 255),
-		(byte)Mathf.Clamp(_remotePlayerColorB.Value, 0, 255),
-		255);
-
-	public static void SetRemotePlayerColor(Color32 color) {
-		_remotePlayerColorR.Value = color.r;
-		_remotePlayerColorG.Value = color.g;
-		_remotePlayerColorB.Value = color.b;
+	public static Color32 RemotePlayerColor {
+		get {
+			return new(
+			(byte)Mathf.Clamp(_remotePlayerColorR.Value, 0, 255),
+			(byte)Mathf.Clamp(_remotePlayerColorG.Value, 0, 255),
+			(byte)Mathf.Clamp(_remotePlayerColorB.Value, 0, 255),
+			255);
+		}
+		set {
+			_remotePlayerColorR.Value = value.r;
+			_remotePlayerColorG.Value = value.g;
+			_remotePlayerColorB.Value = value.b;
+		}
 	}
+
 
 	#endregion
 	#region[PVP相关]
@@ -178,17 +182,17 @@ public class MPConfig {
 		_remotePlayerColorR = config.Bind<int>(
 			"RemotePlayer", "ColorR", 255,
 			"The red channel (0-255) used for your remote player model color.\n" +
-			"你的远程玩家模型颜色红色通道(0-255).");
+			"玩家模型颜色红色通道(0-255).");
 
 		_remotePlayerColorG = config.Bind<int>(
-			"RemotePlayer", "ColorG", 255,
+			"RemotePlayer", "ColorG", 220,
 			"The green channel (0-255) used for your remote player model color.\n" +
-			"你的远程玩家模型颜色绿色通道(0-255).");
+			"玩家模型颜色绿色通道(0-255).");
 
 		_remotePlayerColorB = config.Bind<int>(
-			"RemotePlayer", "ColorB", 255,
+			"RemotePlayer", "ColorB", 64,
 			"The blue channel (0-255) used for your remote player model color.\n" +
-			"你的远程玩家模型颜色蓝色通道(0-255).");
+			"玩家模型颜色蓝色通道(0-255).");
 
 		#endregion
 		#region[PVP相关]
@@ -391,7 +395,7 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 				Other = OtherActive,
 				FireTime = FireTimeMult,
 				FireDamage = FireDamageMult,
-				BurstWindow = BurstWindow, 
+				BurstWindow = BurstWindow,
 				InvincibilityTime = InvincibilityTime
 			};
 		}

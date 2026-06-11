@@ -1,6 +1,7 @@
 ﻿using Steamworks.Data;
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
@@ -27,6 +28,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	public IDType UserId { get; private set; }          // 本地玩家SteamID
 	public string FactoryId { get; set; }   // 预制体工厂ID
 	public string DefaulFactoryId { get; set; } = "default"; // 默认工厂ID,如果没有指定工厂ID则使用这个
+	public Color32 PlayerColor { get; private set; }
 
 	// 状态存储: 谁正在对本地玩家施加交互
 	private readonly HashSet<IDType> _playersGrabbingMe = new();    // 被该Id的玩家拖拽
@@ -301,6 +303,10 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	public static bool IsHoldingMe(IDType targetRemoteId) { 
 		if (Instance._cachedPlayer == null) return false;
 		return Instance._playersGrabbingMe.Contains(targetRemoteId)|| Instance._playersHangingMe.Contains(targetRemoteId);
+	}
+
+	public void SetPlayerColor(Color32 color){
+		PlayerColor = color;
 	}
 
 	#endregion
