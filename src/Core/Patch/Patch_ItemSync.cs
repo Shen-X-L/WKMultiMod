@@ -28,8 +28,12 @@ public class Patch_Item_Object_Pickup_ItemSync {
 // 在任意可访问位置定义标志
 internal static class ItemSyncSuppress {
 	// 用计数器而非 bool，防止 Floppy.Interact 内部多次触发 DropItemIntoWorld 时标志提前归零
-	internal static int FloppyInteractDepth = 0;
+	internal static byte FloppyInteractDepth = 0;
 	internal static bool IsSuppressedByFloppy => FloppyInteractDepth > 0;
+
+	// 用计数器而非 bool，防止 Floppy.Interact 内部多次触发 DropItemIntoWorld 时标志提前归零
+	internal static byte ItemInteractDepth = 0;
+	internal static bool IsSuppressedByItemInteract => ItemInteractDepth > 0;
 }
 
 // 检查是否是软盘交互模块 是则增加标志位
@@ -39,11 +43,20 @@ public class Patch_Floppy_Interact_SuppressItemSync {
 	public static void Postfix() => ItemSyncSuppress.FloppyInteractDepth--;
 }
 
+// 检查是否是通用交互模块 是则增加标志位
+[HarmonyPatch(typeof(UT_ItemInteractor), nameof(UT_ItemInteractor.Interact))]
+public class Patch_UT_ItemInteractor_SuppressItemSync {
+	public static void Prefix() => ItemSyncSuppress.ItemInteractDepth++;
+	public static void Postfix() => ItemSyncSuppress.ItemInteractDepth--;
+}
+
+
 // Harmony 补丁: 物品被丢弃到世界后通知物品同步管理器
 [HarmonyPatch(typeof(Inventory), nameof(Inventory.DropItemIntoWorld))]
 public class Patch_Inventory_DropItemIntoWorld_ItemSync {
 	public static void Postfix(Item item) {
-		if (ItemSyncSuppress.IsSuppressedByFloppy) return; // 被交互模块丢弃时不同步
+		if (ItemSyncSuppress.IsSuppressedByFloppy) return;			// 被软盘交互模块丢弃时不同步
+		if (ItemSyncSuppress.IsSuppressedByItemInteract) return;	// 被交互模块丢弃时不同步
 		ItemSyncManager.NotifyLocalDrop(item);
 	}
 }

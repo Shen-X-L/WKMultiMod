@@ -127,6 +127,8 @@ public class RemoteEntity : CL_Prop {
 	}
 
 	#endregion
+	#region[Clickable重写]
+	#endregion
 	#region[工具函数]
 
 	// 计算伤害
