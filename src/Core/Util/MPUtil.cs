@@ -33,6 +33,8 @@ public static class MPUtil {
 		return prefabKey.Replace("(Clone)", string.Empty).Trim();
 	}
 
+	public static string SerializePlayerColor(Color32 color) => $"{color.r},{color.g},{color.b}";
+
 	public static bool TryParsePlayerColor(string value, out Color32 color) {
 		color = new Color32(255, 255, 255, 255);
 		if (string.IsNullOrWhiteSpace(value)) {

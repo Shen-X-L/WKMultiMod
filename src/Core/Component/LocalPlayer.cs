@@ -26,8 +26,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	// 玩家标识
 	public IDType UserId { get; private set; }          // 本地玩家SteamID
-	public string FactoryId { get; set; }   // 预制体工厂ID
-	public string DefaulFactoryId { get; set; } = "default"; // 默认工厂ID,如果没有指定工厂ID则使用这个
+	public string FactoryId { get; set; }// 预制体工厂ID
 	public Color32 PlayerColor { get; private set; }
 
 	// 状态存储: 谁正在对本地玩家施加交互
@@ -90,10 +89,10 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	}
 
 	// 重置状态缓存
-	public void Initialize(IDType userId,string factoryId) {
+	public void Initialize(IDType userId,string factoryId, Color32 playerColor) {
 		UserId = userId;
-		DefaulFactoryId = factoryId;
 		FactoryId = factoryId;
+		PlayerColor = playerColor;
 		_lastPlayerData = default;
 
 		_playersGrabbingMe.Clear();

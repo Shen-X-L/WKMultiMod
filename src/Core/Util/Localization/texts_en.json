@@ -1,10 +1,159 @@
 {
   "0_DeathMessage": {
+    "barnacle": [
+      "{0} was eaten by a barnacle"
+    ],
+    "periphery": [
+      "{0} ?as l?st i? ?????hery D??ta..."
+    ],
+    "bloodbug": [
+      "{0} was swarmed for invading bloodbug territory"
+    ],
+    "bloodbug-worker": [
+      "{0} was part of management, pushing wages so low that even the worker bloodbugs revolted. Today, {0} was recognized and beaten to death by an angry swarm of worker bloodbugs.",
+      "{0} got turned into kebab for local bloodbugs by bloodbug worker as a revenge for annoying it's fellow co-workers",
+      "Bloodbug worker took a flight with {0} to another Nuclear Failsafe Device instead of SB07",
+      "A team of worker bloodbugs lured {0} into Vern's basement"
+    ],
+    "crushed": [
+      "{0} was crushed into a pulp"
+    ],
+    "d19": [
+      "{0} died in a bizarre, niche, comedic way — killed by Delta-0019",
+      "You heard something funny there, {0}?",
+      "{0} got terminated by Pentagon themselves for listening to their private talks via Delta-0019"
+    ],
+    "deathcoolant": [
+      "{0} was frozen forever in sb12"
+    ],
+    "deathfloor": [
+      "{0} became part of the MASS"
+    ],
     "default": [
       "{0} died due to {1}"
     ],
+    "denizen": [
+      "{0} was rammed to death by a roach"
+    ],
+    "drone": [
+      "{0} was rammed to death by a drone"
+    ],
+    "drowned": [
+      "{0} drowned"
+    ],
+    "engraveddoor": [
+      "{0} may have passed through that door to another world",
+      "Even Delta-0045 couldn't lure {0} into the party like engraved door into the death."
+    ],
+    "entity": [
+      "{0} snuggled with Jack"
+    ],
+    "exploderoach": [
+      "{0} accidentally stepped on an explosive roach",
+      "In today's local news, {0} got bullied to death by exploding roaches."
+    ],
+    "explosion": [
+      "{0} was blown to pieces"
+    ],
+    "face": [
+      "{0} had their P-axis devoured by a face"
+    ],
+    "falling": [
+      "{0} fell to their death"
+    ],
+    "fan": [
+      "{0} was shredded by a fan"
+    ],
+    "fire": [
+      "{0} was burned to ashes"
+    ],
+    "garbage": [
+      "{0} was crushed by a large piece of garbage — damn management"
+    ],
+    "gasbag": [
+      "{0} died in a gasbag explosion",
+      "I have no idea how you enjoy the disgusting fart smell of these gasbags, {0}.",
+      "{0} tried to find intergalactic ganja in gasbags"
+    ],
+    "grinder": [
+      "{0} was ground into meat paste by a crusher"
+    ],
+    "handhold-sharp": [
+      "{0} loved touching electrical sockets as a child, now they've become neutrinos",
+      "{0} decided to try an alternative for Gympie-Gympie."
+    ],
+    "hunger": [
+      "{0}: Please save this child, they've starved to death"
+    ],
+    "laddernightmare": [
+      "{0} was devoured by a nightmare for refusing to climb another ladder",
+      "Someone called it cookie dough, and {0} decided to try and get it for baking cookies in the wrong place."
+    ],
+    "laserfield": [
+      "{0} was incinerated by a laser grid"
+    ],
+    "lightning": [
+      "{0} was struck by a lightning generator"
+    ],
+    "nastywater": [
+      "{0} was corroded by toxic water",
+      "Ew, you're nasty, {0}."
+    ],
+    "phage": [
+      "{0} was paralyzed by neurotoxin"
+    ],
     "playerKillDefault": [
-      "{2} use {1} kill {0}"
+      "{2} killed {0} with {1}"
+    ],
+    "playerKillMelee": [
+      "{1} smashed {0} with a hammer"
+    ],
+    "playerKillexplosion": [
+      "{1} blew {0} to pieces"
+    ],
+    "playerKillflare": [
+      "{1} set {0} on fire with a flare gun"
+    ],
+    "playerKillice": [
+      "{1} turned {0} into an ice sculpture"
+    ],
+    "playerKillpiton": [
+      "{0} was drilled full of holes by {1}"
+    ],
+    "playerKillrebar": [
+      "{1} impaled {0} to death with a rebar"
+    ],
+    "playerKillrebarexplosion": [
+      "{1} blew {0} to pieces with an explosive rebar"
+    ],
+    "playerKillreturnrebar": [
+      "{1} sacrificed {0} with an artifact spear"
+    ],
+    "rebarexplosion": [
+      "{0} blew themselves up with an explosive rebar"
+    ],
+    "recycler": [
+      "{0} recycled themselves, account points +1",
+      "{0} tried to recycle themselves to pay off the debt owed to local management."
+    ],
+    "silodoor": [
+      "{0} was crushed in half by a silo door"
+    ],
+    "steam": [
+      "{0} was scalded to death by steam"
+    ],
+    "sturge": [
+      "{0} was impaled by a sturge"
+    ],
+    "teeth": [
+      "{0} became dinner for teeth",
+      "{0} got dragged into Vern's basement to be never seen again..."
+    ],
+    "turret": [
+      "{0} was riddled with bullets by a turret"
+    ],
+    "ventthing": [
+      "{0} became food for the vent blood hand"
     ]
   },
   "0_DisplayMessage": {
@@ -15,18 +164,28 @@
       "{0} has been invited to the facility"
     ],
     "JoinMessages": [
-      "{0} has been detached from this world due to a Delta anomaly",
+      "{0} has been drawn into this world due to a Delta anomaly",
       "{0} has been hired at the facility",
       "{0} has emerged from the mass",
       "{0} has been summoned by Rho",
-      "{0} has been brought by local slugcats"
+      "{0} has been brought by local slugcats",
+      "{0} has joined the Delta gang",
+      "{0} has joined",
+      "{0} came back from Delta-0004",
+      "{0} came over to say hi",
+      "{0} has joined the grub family"
     ],
     "LeaveMessages": [
-      "{0} has been drawn into this world due to a Delta anomaly",
+      "{0} has been detached from this world due to a Delta anomaly",
       "{0} has been fired from the facility",
       "{0} has been mysteriously eaten by substructure",
       "{0} has been sacrificed to Rho",
-      "{0} has been eaten by local slugcats "
+      "{0} has been eaten by local slugcats",
+      "{0} has left the Delta gang",
+      "{0} has left",
+      "{0} went back to Delta-0004",
+      "{0} came over to say bye",
+      "{0} has left the grub family"
     ],
     "WinMessages": [
       "{0} has escaped the Delta gang",
@@ -45,6 +204,7 @@
     "CheatsNotAllowed": "Cheats are not allowed in the current lobby. Please ask the host to use allowcheats true.",
     "CreateLobbyFailed": "Fail to create lobby",
     "FoundLobbyByName": "Found lobby by name: {0}, joining...",
+    "HostSuccess": "The lobby has been successfully created",
     "HostUsage": "Usage: host <room_name> [max_players]",
     "InvalidLobbyNameOrId": "Could not find a lobby with matching name and the input is not a valid ID format",
     "JoinFormatError": "ForMat error \nUsage: join <lobby_id>",
@@ -59,10 +219,6 @@
     "NeedToBeHost": "This command must be used by the host",
     "NeedToBeInLobby": "This command must be used in online mode.\nPlease use the host or join command first.",
     "NoLobbyByNameTryId": "No lobby found with matching name, attempting to connect via ID...",
-    "PlayerColorInvalidPreset": "Unknown color preset. Available presets: {0}",
-    "PlayerColorInvalidRgb": "RGB values must be integers in the range 0-255.",
-    "PlayerColorSet": "Remote player color set to RGB({0}, {1}, {2}).",
-    "PlayerColorUsage": "Usage: playercolor <preset> or playercolor <r> <g> <b>",
     "PlayerIssuedCommand": "{0} issued command: {1}",
     "RemoteCommandInsufficientParams": "Insufficient parameters! Format: pcmd [all|steamId] ; [command1] ; [command2]",
     "RemoteCommandInvalidTarget": "Invalid target! Must be 'all' or a player SteamID.",
@@ -80,8 +236,7 @@
     "TeamRuleInsufficientParams": "Insufficient parameters for team rule! Format: teamrule [TeamA] [TeamB] [ruleName] [true|false] , ...",
     "TeamRuleRemoveTeamInsufficientParams": "Insufficient parameters! Format: removeteam [teamName]",
     "WorldNotInitialized": "World not initialized yet. \nPlease wait for world initialization.",
-    "YouAreNotHost": "You Are Not Host",
-    "HostSuccess": "The lobby has been successfully created"
+    "YouAreNotHost": "You Are Not Host"
   },
   "CommandHelp": {
     "ACMD": "[join|restart|jointeam_TeamName] ; [command1] ; [command2]...: Execute a command for the specified action. (using :: instead of ; e.g., acmd join addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",
@@ -90,7 +245,7 @@
     "AllowCheats": "[True|False] Controls whether players can enable cheat mode",
     "AllowPVP": "[True|False] Controls whether PvP between players is allowed",
     "BindSync": "[True|False] Controls whether newly joined players will have their Trinkets and Bindings synced. This setting does not affect players who are already in the lobby.",
-    "ChangeModel": "[Model name]: Model switching doesn’t take effect in-game, and the developer doesn’t know how to model — it won’t look good anyway, so just make do.",
+    "ChangeModel": "[Model name]: Model switching doesn`t take effect in-game, and the developer doesn`t know how to model — it won’t look good anyway, so just make do.",
     "CheatsTest": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, and affects game balance.",
     "Host": "[Lobby Name (Visibility=public|friends|private) (Max Player=8)]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;). Visibility controls whether the lobby can be found by others.",
     "Invite": "Open the Steam overlay to invite your friends.",
@@ -100,8 +255,12 @@
     "LobbyId": "Get the current lobby ID and copy it to the clipboard.",
     "LobbyList": "Get all available lobbies.",
     "LobbyType": "[Visibility=public|friends|private]:Visibility controls whether the lobby can be found by others.",
-    "PlayerColor": "[Preset|R G B]: Change the remote player model color. Presets: default, white, red, orange, yellow, green, cyan, blue, purple, pink, black.",
     "PCMD": "[all|steamId] ; [command1] ; [command2]...: Execute a command for all players or a specific player. (using :: instead of ; e.g., pcmd 561198279116422 addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",
+    "PlayerColor": "[Preset|R G B]: Change the remote player model color. Presets: default, white, red, orange, yellow, green, cyan, blue, purple, pink, black.",
+    "PlayerColorInvalidPreset": "Unknown color preset. Available presets: {0}",
+    "PlayerColorInvalidRgb": "RGB values must be integers in the range 0-255.",
+    "PlayerColorSet": "Remote player color set to RGB({0}, {1}, {2}).",
+    "PlayerColorUsage": "Usage: playercolor <preset> or playercolor <r> <g> <b>",
     "RemoveTeam": "[Team Name]: Remove the team with the specified name. (default team cannot be removed)",
     "SetLobbyName": "[Lobby Name]: Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
     "SetName": "[Name]: Set the name displayed on your tag to others.",
@@ -201,6 +360,7 @@
     "LimitedUserAccount": "[MPSW] Account restricted, cannot use social features",
     "LobbyCreatedSuccess": "[MPSW] Lobby created successfully. Lobby ID: {0}",
     "LobbyDataChanged": "[MPSW] Lobby data changed",
+    "LobbySearchException": "[MPSW] Lobby search exception: {0}",
     "MessageQueueException": "[MPSW] Message processing exception: {0}",
     "NoConnection": "[MPSW] No connection to Steam network",
     "NullLobbyName": "Unknown lobby",

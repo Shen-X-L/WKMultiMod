@@ -59,36 +59,43 @@ graph RL
 新增命令:
 
 * `bindsync [true|false]` - 控制之后加入的玩家是否饰品和绑定同步
-
   * 示例: `bindsync true`
+
 * `teamrule <生效队伍名称> <目标队伍名称> ([启用规则] [true|false|default])*n , ...` - 控制队伍间规则
-
   * 示例: `teamrule hunter runner pvp true hang false grab false , runner hunter pvp false tagshow false`
-* `teamrule` 启用规则:
 
+* `teamrule` 启用规则:
   * `pvp` - 是否可以伤害对方,`hang` - 是否可以拖拽对方(像拽箱子一样),`grab` - 是否可以抓取对方(像岩钉一样)
   * `tagshow` - 是否显示头顶标签,`collision` - 是否开启碰撞
   * `syncitem` - 是否同步道具(未实现),`syncinventory` - 是否同步背包(未实现),`syncdied` - 死亡同步(一人死亡所有人死亡)
+
 * `addteam <队伍名称>` - 添加活跃队伍
 * `removeteam <队伍名称>` - 删除活跃队伍并关闭其规则
 * `jointeam <队伍名称>` - 加入一个队伍
-* `setname <名称>` - 设置额外的名称,
-* `pcmd <all|steamId> [命令1] :: [命令2]...` - 让其他远程玩家执行你输入的命令 使用::替代;
+* `setname <名称>` - 设置额外的名称
+* `playercolor <预设>/<RGB 值>` - 设置玩家颜色
+  * 示例: `playercolor white` - 设置为白色 `playercolor 255 255 255` - 通过RGB设置为白色
 
-  * 示例: `pcmd 561198279116422 addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
-* `tcmd <队伍名称> [命令1] :: [命令2]...` - 让队伍内所有玩家执行你输入的命令 使用::替代;
+* `pcmd <all|steamId> ; [命令1] ; [命令2]...` - 让其他远程玩家执行你输入的命令
+  * 示例: `pcmd 561198279116422 12345 ; addperk perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove`
 
-  * 示例: `tcmd hunter addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
-* `acmd <join|restart|jointeam TeamName> [命令1] :: [命令2]...` - 在玩家进行某些操作时执行你输入的命令 使用::替代;
+* `tcmd <队伍名称> ; [命令1] ; [命令2]...` - 让队伍内当前玩家执行你输入的命令
+  * 示例: `tcmd hunter ; addperk perk_u_t3_peripheralbinding ; spawnentity item_artifact_rebar_return`
+  * 示例: `tcmd runner ; addperk perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove`
 
+* `acmd <join|restart|jointeam_TeamName> ; [命令1] ; [命令2]...` - 在玩家进行某些操作时执行你输入的命令
   * `acmd` 注入时机:
-  * `join` - 加入房间并初始化地图后会执行该命令,`restart` - 玩家彻底死亡的重开或restart按钮后会执行该命令
-  * `jointeam TeamName` - 加入该队伍时会执行该命令(目前没有持久化,每次重开需要重新设置)
-  * 示例: `acmd restart addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove`
+    * `join` - 加入房间并初始化地图后会执行该命令,`restart` - 玩家彻底死亡的重开或restart按钮后会执行该命令
+    * `jointeam_TeamName` - 加入该队伍时会执行该命令(目前没有持久化,每次重开需要重新设置)
+    * 示例: `acmd join ; loadlevel xxx ; delay 1s ; deathgoo-height NaN ;`
+    * 示例: `acmd restart ; addperk perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove`
+  * 示例: `acmd jointeam_hunter ; addperk perk_u_t3_peripheralbinding ; spawnitem item_artifact_evaglove`
 
-自定义加入/离开/死亡/胜利信息:
-编辑texts_(本地语言).json中的
-其中{0}是玩家名,{1}是死因,并非必须使用
+**自定义加入/离开/死亡/胜利信息:**
+**死亡信息编辑:**
+编辑`texts_(本地语言).json`中的`0_DeathMessage`
+* 其中由游戏本体造成的伤害中`{0}`是本地玩家名,json键为死因,并非必须使用
+* 由其他远程玩家造成的伤害中`{0}`是本地玩家名,`{1}`是攻击者玩家名,json键为`playerKill`+死因,并非必须使用
 
 ```ini
 "0_DeathMessage": {
@@ -102,12 +109,26 @@ graph RL
     "{0} 被风扇绞成两半了"
   ],
   "死因":[
-    "自定义的死亡信息"
+    "{0}的自定义的死亡信息"
+  ],
+  "playerKillreturnrebar": [
+    "{1}: {0} 你对神矛不够虔诚,我要杀了你"
+  ],
+  "playerKill死因":[
+    "{0}被{1}杀的自定义的死亡信息"
   ]
 },
 
+
 ```
 
+**加入/离开/胜利信息编辑:**
+编辑texts_(本地语言).json中的0_DisplayMessage的
+* `EnteredMessages` – 加入时在本地玩家显示的信息 
+* `InviteReceivedMessages` – 邀请他人时显示的信息 
+* `JoinMessages` – 加入大厅时显示的信息 
+* `LeaveMessages` – 离开大厅时显示的信息 
+* `WinMessages` – 胜利时显示的信息 
 其中{0}是玩家名
 
 ```ini
@@ -139,7 +160,6 @@ graph RL
   ]
 },
 
-
 ```
 
 ### 1.5.x
@@ -148,38 +168,45 @@ graph RL
 
 * `host <名称> [大厅可见性] [最大玩家数]` - 创建大厅.大厅可见性可选值见 `lobbytype`命令
 
-  * 示例:`host abcde` `host aaa friends 3`
+   * 示例:`host abcde` `host aaa friends 3`
+
 * `join <名称|大厅码>` - 通过大厅名称或大厅码加入大厅,优先将参数匹配大厅名,如果有多个同名大厅会无法加入,请使用大厅码加入
 
-  * 示例: `join abcde` `join 109775241951624817`
+   * 示例: `join abcde` `join 109775241951624817`
+
 * `leave` - 离开当前连接的大厅.
 * `lobbyid` - 获取大厅大厅码并复制到剪贴板
 * `allplayer` - 获取全部玩家及其steamId
 * `talk <文字(目前控制台不支持中文)>` - 来在头顶的标签上以及控制台说话
 
-  * 示例: `talk hello` `talk I have the highland`
+   * 示例: `talk hello` `talk I have the highland`
+
 * `lobbylist` - 获取所有大厅信息,包括大厅码和当前玩家数
 * `setlobbyname <名称>` - 修改大厅名称,只能房主使用
 
-  * 示例: `setlobbyname newname`
+   * 示例: `setlobbyname newname`
+
 * `changemodel <模型名称>` - 修改远程玩家模型,目前支持default和slugcat
 
-  * 示例: `changemodel slugcat`
+   * 示例: `changemodel slugcat`
+
 * `lobbytype [public|private|friends]` - 修改大厅可见类型,public为公开,private为私密(只能通过大厅码加入),friends为好友可见(只能被好友看到并加入)
 
-  * 示例: `lobbytype friends`
+   * 示例: `lobbytype friends`
+
 * `invite` - 邀请好友加入大厅 (感谢Fugel提供的代码)
 * `allowcheats [true|false]` - 控制大厅内是否可以使用cheats命令,如果设置为false,强制关闭cheats和noclip状态
 
-  * 示例: `allowcheats false` `allowcheats true`
+   * 示例: `allowcheats false` `allowcheats true`
+
 * `allowpvp [true|false]` - 控制大厅内是否可以互相伤害
 
-  * 示例: `allowpvp false` `allowpvp true`
+   * 示例: `allowpvp false` `allowpvp true`
 
 在游戏中开启作弊模式 (`cheats`) 后, 可使用以下命令:
 
 * `tpto <steamId(后缀匹配)>` - 进行玩家间tp,有自动补全
-  * 示例: `tpto 16422 或 tpto 22(目标steamId 561198279116422)`
+   * 示例: `tpto 16422 或 tpto 22(目标steamId 561198279116422)`
 
 ### 0.12(停止更新)
 
@@ -187,10 +214,12 @@ graph RL
 
 * `host <端口号> [最大玩家数]` - 创建主机.
 
-  * 示例:`host 22222`
+   * 示例:`host 22222`
+
 * `join <IP地址> <端口号>` - 加入一个已创建的主机.
 
-  * 示例:`join 127.0.0.1 22222` 或 `join [::1] 22222`
+   * 示例:`join 127.0.0.1 22222` 或 `join [::1] 22222`
+
 * `leave` - 离开当前连接的主机.
 
 ## 开发指南
@@ -207,6 +236,7 @@ git clone https://github.com/Shen-X-L/WKMultiMod.git
 # 方法A: 使用 Visual Studio 打开并构建 WhiteKnuckleMod.sln
 # 方法B: 使用命令行
 dotnet build -c Release
+
 
 ```
 
@@ -304,6 +334,7 @@ WhiteKnuckleMod/
 │   └─ LocalPaths.props.example     # 配置文件,负责构建项目的库引用地址独立
 ├── WhiteKnuckleMod.sln             # Visual Studio 解决方案文件
 └── README_CN.md                    # 本文档
+
 
 ```
 

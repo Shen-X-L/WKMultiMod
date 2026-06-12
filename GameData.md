@@ -39,6 +39,7 @@
 断腿跳跃	类型:			标签:							伤害0.3
 手臂粉碎性骨折		类型:	标签:							伤害0.1
 烧伤抓握	类型:			标签:							伤害0.1
+流血	类型:bleed		标签:bleed						伤害0.2
 teeth	类型:teeth		标签:teeth						伤害1
 face	类型:face		标签:face						伤害1
 门		类型:engraveddoor	标签:engraveddoor			伤害0.15

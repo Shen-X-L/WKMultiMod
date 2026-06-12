@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -201,7 +202,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 			// 创建本地信息获取发送管理器
 			_LocalPlayer = LocalPlayer.Instance;
-			_LocalPlayer.Initialize(MPSteamworks.UserSteamId, MPConfig.RemotePlayerModel);
+			_LocalPlayer.Initialize(MPSteamworks.UserSteamId, MPConfig.RemotePlayerModel, MPConfig.RemotePlayerColor);
 
 			// 创建UI管理器
 			_UIManager = UI_Manager.Instance;
@@ -461,12 +462,12 @@ public class MPCore : MonoSingleton<MPCore> {
 			sourceName = container.PlayerName;
 
 			// 死亡信息获取
-			message = Localization.HasKey("0_DeathMessage", type)
-				? Localization.GetRandomSplit("0_DeathMessage", name, type, sourceName)
+			message = Localization.HasKey("0_DeathMessage", "playerKill" + type)
+				? Localization.GetRandomSplit("0_DeathMessage", "playerKill" + type, name, sourceName)// {0}为死者 {1}为凶手
 				: Localization.GetRandom("0_DeathMessage.playerKillDefault", name, type, sourceName);
 		} else {
 			message = Localization.HasKey("0_DeathMessage", type)
-				? Localization.GetRandomSplit("0_DeathMessage", name, type)
+				? Localization.GetRandomSplit("0_DeathMessage", type, name)// {0}为死者
 				: Localization.GetRandom("0_DeathMessage.default", name, type);
 		}
 
@@ -516,7 +517,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("allplayer", (args) => {
 			foreach (var friend in _MPSteamworks.Members) {
 				Vector3 position = friend.Id == MPSteamworks.UserSteamId ? Vector3.zero : _RPManager.GetPlayerObject(friend.Id)?.transform.position ?? Vector3.zero;
-				float distance = position == Vector3.zero ? 0 : Vector3.Distance(LocalPlayer.Instance.transform.position, position);
+				float distance = position == Vector3.zero ? 0 : Vector3.Distance(ENT_Player.GetPlayer().transform.position, position);
 				CommandConsole.Log(Localization.Get(
 					"CommandConsole.AllPlayer", friend.Name, friend.Id, distance, position));
 			}
@@ -720,14 +721,15 @@ public class MPCore : MonoSingleton<MPCore> {
 			.Description(Localization.Get("CommandHelp.TpTo"))
 			.AutocompleteCustom(autocomplete => {
 				if (autocomplete.activeArg == 0) {
-					autocomplete.FromArrayWithDesc(_RPManager.Players.Values.Select(container => (
-						id: container.PlayerId.ToString(), name: container.PlayerName)).ToList());
+					autocomplete.FromArrayWithDesc(_RPManager.Players.Values
+						.Select(container => (id: container.PlayerId.ToString(), name: container.PlayerName))
+						.Append((id: MPSteamworks.UserSteamId.ToString(), name: MPConfig.RemotePlayerName))
+						.ToList());
 				}
 			});
 
 		// 修改玩家模型
 		CommandConsole.BuildCommand("changemodel", (args) => {
-			_LocalPlayer.DefaulFactoryId = args[0];
 			MPConfig.RemotePlayerModel = args[0];
 			_MPSteamworks.SetMemberData(MPKeys.PREFAB_ID, args[0]);
 		})
@@ -1655,7 +1657,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		_MPSteamworks.SetMemberData(new Dictionary<string, string>() {
 			{ MPKeys.PREFAB_ID, _LocalPlayer != null ? _LocalPlayer.FactoryId : "" },
 			{ MPKeys.PLAYER_NAME, playerName },
-			{ MPKeys.PLAYER_COLOR, SerializePlayerColor(_LocalPlayer != null ? _LocalPlayer.PlayerColor : MPConfig.RemotePlayerColor) },
+			{ MPKeys.PLAYER_COLOR, MPUtil.SerializePlayerColor(_LocalPlayer != null ? _LocalPlayer.PlayerColor : MPConfig.RemotePlayerColor) },
 			{ MPKeys.JOIN_MESSAGE, finalJoinMsg },
 			{ MPKeys.LEAVE_MESSAGE, finalLeaveMsg },
 			{ MPKeys.TEAM, MPKeys.DEFAULT_TEAM },
@@ -1861,7 +1863,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	private void SyncLocalPlayerColor() {
 		if (_MPSteamworks.IsInLobby) {
-			_MPSteamworks.SetMemberData(MPKeys.PLAYER_COLOR, SerializePlayerColor(_LocalPlayer.PlayerColor));
+			_MPSteamworks.SetMemberData(MPKeys.PLAYER_COLOR, MPUtil.SerializePlayerColor(_LocalPlayer.PlayerColor));
 		}
 	}
 
@@ -1897,7 +1899,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		return false;
 	}
 
-	private static string SerializePlayerColor(Color32 color) => $"{color.r},{color.g},{color.b}";
+	
 
 	/// <summary>
 	/// 确保在大厅中使用指令

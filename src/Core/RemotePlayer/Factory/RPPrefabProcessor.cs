@@ -75,6 +75,7 @@ public static class RPPrefabProcessor {
 				component.activeEvent = mk.activeEvent;
 				component.stopEvent = mk.stopEvent;
 				component.handholdRenderer = mk.handholdRenderer ?? mk.gameObject.GetComponent<Renderer>();
+				component.useSharedHandholdMaterial = false;
 			}
 			Object.DestroyImmediate(mk);
 		}

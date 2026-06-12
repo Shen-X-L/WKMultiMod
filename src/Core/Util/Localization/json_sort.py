@@ -1,5 +1,6 @@
 ﻿import json
 from pathlib import Path
+import pprint
 from deepdiff import DeepDiff
 import sys
 
@@ -77,7 +78,28 @@ def compare_file_structure(input_file1, input_file2):
     with open(input_file2, 'r', encoding='utf-8') as f:
         data2 = json.load(f)
         
-    print(compare_structure(data1,data2))
+    result = compare_structure(data1, data2)
+    
+        # 手动格式化输出
+    print("{")
+    for i, (key, value) in enumerate(result.items()):
+        indent = "  "
+        print(f"{indent}'{key}':")
+        
+        if isinstance(value, dict):
+            for j, (sub_key, sub_val) in enumerate(value.items()):
+                print(f"{indent}{indent}{sub_key}: {sub_val}")
+                if j < len(value) - 1:
+                    print()  # 每项之间加空行
+        elif isinstance(value, list):
+            for item in value:
+                print(f"{indent}{indent}{item}")
+        else:
+            print(f"{indent}{indent}{value}")
+        
+        if i < len(result) - 1:
+            print()  # 顶层每项之间加空行
+    print("}")
 
 # 使用示例
 if __name__ == "__main__":

@@ -421,7 +421,7 @@ public static class ItemSyncManager {
 		if (ApplyingRemoteState || item == null || !MPCore.CanSync) return;
 
 		var itemObject = _dropObjectField(item);
-		if (!IsSyncableDropItem(itemObject)) return;
+		if (!IsSyncableWorldItem(itemObject)) return;
 
 		var prefabKey = GetPrefabKey(itemObject);
 		if (string.IsNullOrEmpty(prefabKey)) return;
@@ -1220,6 +1220,7 @@ public static class ItemSyncManager {
 	private static IEnumerable<Item_Object> EnumerateSceneItems() {
 		foreach (var itemObject in Object.FindObjectsOfType<Item_Object>()) {
 			if (!IsSyncableWorldItem(itemObject)) continue;
+			if (IsBlacklisted(itemObject)) continue;// 在黑名单
 			yield return itemObject;
 		}
 	}
@@ -1497,23 +1498,9 @@ public static class ItemSyncManager {
 		if (!itemObject.gameObject.activeInHierarchy) return false;// 已被隐藏
 		if (string.IsNullOrEmpty(itemObject.gameObject.scene.name)) return false;// 是预制体
 		if (itemObject.itemData == null) return false;// 未关联 Item 数据
-		if (IsBlacklisted(itemObject)) return false;// 在黑名单
 		if (itemObject.itemData.inBag) return false;// 在背包中
 
 		return true; 
-	}
-
-	/// <summary>
-	/// 判断 Item_Object 是否为有效的可同步丢弃物品
-	/// </summary>
-	private static bool IsSyncableDropItem(Item_Object itemObject) {
-		if (itemObject == null || itemObject.gameObject == null) return false;// GameObject 为 null
-		if (!itemObject.gameObject.activeInHierarchy) return false;// 已被隐藏
-		if (string.IsNullOrEmpty(itemObject.gameObject.scene.name)) return false;// 是预制体
-		if (itemObject.itemData == null) return false;// 未关联 Item 数据
-		if (itemObject.itemData.inBag) return false;// 在背包中
-
-		return true;
 	}
 
 	/// <summary>
@@ -1789,25 +1776,12 @@ public static class ItemSyncManager {
 	};
 
 	/// <summary>
-	/// 判定当前物品预制体是否在黑名单中
-	/// </summary>
-	public static bool IsBlacklisted(string prefabName) {
-		if (string.IsNullOrEmpty(prefabName)) return false;
-		return _blacklistedPrefabNames.Contains(MPUtil.CleanCloneName(prefabName));
-	}
-
-	/// <summary>
-	/// 判定当前物品标签是否在黑名单中
-	/// </summary>
-	public static bool IsBlacklisted(List<string> itemTags) {
-		return _blacklistedItemTags.Intersect(itemTags).Any(); ;
-	}
-
-	/// <summary>
 	/// 判定核心数据对象是否在黑名单中
 	/// </summary>
 	public static bool IsBlacklisted(Item item) {
-		return item != null && (IsBlacklisted(item.prefabName)|| IsBlacklisted(item.itemTags));
+		return item != null 
+		&& (_blacklistedPrefabNames.Contains(MPUtil.CleanCloneName(item.prefabName)) 
+			|| _blacklistedItemTags.Intersect(item.itemTags).Any());
 	}
 
 	/// <summary>

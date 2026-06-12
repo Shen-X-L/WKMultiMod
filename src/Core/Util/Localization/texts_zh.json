@@ -1,10 +1,200 @@
 {
   "0_DeathMessage": {
+    "barnacle": [
+      "{0} 被藤壶吃掉了",
+      "{0} 以为藤壶是装饰品"
+    ],
+    "periphery": [
+      "{0} 离???这?维度???"
+    ],
+    "bloodbug": [
+      "{0} 因侵犯了血虫的领地遭到围攻",
+      "血虫给了 {0} 一个无法拒绝的拥抱"
+    ],
+    "bloodbug-worker": [
+      "西蒙: 员工滞留牛逼, MOTHER: 虫虫收养日牛逼, {0}: !?工虫?! "
+    ],
+    "crushed": [
+      "{0} 被压成了肉饼",
+      "{0} 变成了二维生物"
+    ],
+    "d19": [
+      "{0} 奇异搞笑神人小众死法之死于delta0019"
+    ],
+    "deathcoolant": [
+      "{0} 被永远冻在sb12",
+      "{0} 现在是一根人形冰棍",
+      "{0},冻住,不许走!"
+    ],
+    "deathfloor": [
+      "{0} 成为了MASS的一部分",
+      "{0} 被融进了ma山ss海",
+      "{0} 成为了Mass的其中一张脸"
+    ],
     "default": [
-      "{0} died due to {1}"
+      "{0} 死于 {1}"
+    ],
+    "denizen": [
+      "{0} 被蟑螂撞死"
+    ],
+    "drone": [
+      "{0} 被无人机撞死了",
+      "{0} 被无人机判定为障碍物"
+    ],
+    "drowned": [
+      "{0} 淹死了",
+      "{0} 在水里练憋气,但是练过头了",
+      "{0} 水中毒了"
+    ],
+    "engraveddoor": [
+      "{0} 也许通过了那个门去往了另一个世界",
+      "{0} 被门吸进了阴间",
+      "门: {0} 兄弟你好香,想吸你"
+    ],
+    "entity": [
+      "{0} 和 Jack贴贴"
+    ],
+    "exploderoach": [
+      "{0} 不小心踩到了爆炸蟑螂"
+    ],
+    "explosion": [
+      "{0} 被炸的粉身碎骨",
+      "{0} 变成了一团会说话的灰尘",
+      "{0} 撒 由 那 拉",
+      "{0} 爆 发 四 散"
+    ],
+    "face": [
+      "{0} 被FACE吞噬了p轴向",
+      "{0} 跟FACE舌吻了",
+      "泥头FACE一头创死 {0}"
+    ],
+    "falling": [
+      "{0} 摔得粉身碎骨",
+      "{0} 学会了飞行，但来不及学降落",
+      "{0} 以为这是Idols of ash"
+    ],
+    "fan": [
+      "{0} 被风扇卷成零碎",
+      "{0} 想测试风扇的转速",
+      "{0} 风扇削开了脑门，童年阴影成真"
+    ],
+    "fire": [
+      "{0} 被焚烧殆尽"
+    ],
+    "garbage": [
+      "该死的管理层乱丢垃圾,导致 {0} 被大块垃圾砸死",
+      "{0} 被高空抛物害死了"
+    ],
+    "gasbag": [
+      "{0} 死于气囊爆炸",
+      "{0} 随着一声巨响消失了"
+    ],
+    "grinder": [
+      "{0} 被粉碎轮卷成肉末",
+      "{0} 以为粉碎轮是绞肉机，他猜对了",
+      "{0} 现在可以包饺子了"
+    ],
+    "handhold-sharp": [
+      "{0} 从小喜欢摸电门,现在被电成中微子了",
+      "{0} 被高压电搞的满电梯都是"
+    ],
+    "hunger": [
+      "{0}: 救救孩子,孩子饿死了",
+      "{0} 饿到吃掉了自己的影子"
+    ],
+    "laddernightmare": [
+      "{0} 因拒绝再爬梯子而被梦魇吞噬"
+    ],
+    "laserfield": [
+      "{0} 被激光网打成原子",
+      "{0} 被激光网细细地切成了臊子"
+    ],
+    "lightning": [
+      "{0} 被闪电发生器击中"
+    ],
+    "nastywater": [
+      "{0} 试图在脏水里游泳",
+      "{0} 证明了脏水具有腐蚀性"
+    ],
+    "phage": [
+      "{0} 被神经毒素麻痹"
     ],
     "playerKillDefault": [
-      "{2} use {1} kill {0}"
+      "{2} 用 {1} 击杀了 {0}"
+    ],
+    "playerKillMelee": [
+      "{1} 用锤子捶死了 {0}",
+      "{1} 手里有锤子,看 {0} 像钉子"
+    ],
+    "playerKillexplosion": [
+      "{1} 把 {0} 炸的四分五裂"
+    ],
+    "playerKillflare": [
+      "{1} 用信号枪将 {0} 点燃了",
+      "{1} 让 {0} 成为了RMSS中最亮的星",
+      "{0}: 何だこれは {1}: evil·spirit的混蛋, 你生错时代了 {0}: さようなら"
+    ],
+    "playerKillice": [
+      "{1} 把 {0} 做成了冰雕",
+      "{1} 给 {0} 讲了个冷笑话"
+    ],
+    "playerKillpiton": [
+      "{0} 被 {1} 钻的全是是孔",
+      "{1} 把 {0} 当成了瑞士奶酪"
+    ],
+    "playerKillrebar": [
+      "{1} 用钢筋把 {0} 穿刺致死",
+      "{0} 被 {1} 搞得有点透心凉"
+    ],
+    "playerKillrebarexplosion": [
+      "{1} 用 炸矛将 {0} 炸的四分五裂"
+    ],
+    "playerKillreturnrebar": [
+      "{1}: {0} 你对神矛不够虔诚,我要杀了你",
+      "{1}: \n神神神神神神神神神神\n{0}\n矛矛矛矛矛矛矛矛矛矛",
+      "{1}: {0} 你没有用心感悟神矛,我要杀了你",
+      "{1}: 这是神矛对 {0} 的磨练",
+      "{1} 将 {0} 献祭给神矛",
+      "{1}: 神矛和 {0} 融为一体",
+      "{1} 用神矛给 {0} 做了个入教仪式",
+      "{1}: 检测到狠矛小团体 {0}"
+    ],
+    "rebarexplosion": [
+      "{0} 用爆炸钢筋炸死了自己",
+      "{0} 把爆炸钢筋当成了自拍杆"
+    ],
+    "recycler": [
+      "{0} 回收了自己,账户点数+1",
+      "{0} 卖身了",
+      "哦,我的老天爷啊,管理层沉重的债务已经将 {0} 压得抬不起头了,为了还清债务,可怜的老 {0} 只能选择将自己回收了"
+    ],
+    "silodoor": [
+      "{0} 被筒仓门夹成两半",
+      "{0} 脑袋被门夹了(在物理上)"
+    ],
+    "steam": [
+      "{0} 被蒸汽烫死了",
+      "{0} 蒸桑拿有点过头了",
+      "{0} 也许是从epic上买的游戏,被steam弄死了"
+    ],
+    "sturge": [
+      "{0} 被sturge扎成了刺猬",
+      "{0} 现在是一只人形豪猪,可惜是死的"
+    ],
+    "teeth": [
+      "{0} 成为了TEETH的晚餐",
+      "{0} 以为TEETH是牙医",
+      "TEETH嚼呀嚼,嚼的是什么? {0}",
+      "TEETH大口大口嚼嚼嚼,{0}惨遭叮咚寄"
+    ],
+    "turret": [
+      "{0} 被机枪打成了筛子",
+      "{0} 被当成了靶子，十环!"
+    ],
+    "ventthing": [
+      "{0} 成为管道血手的食物",
+      "{0} 跟管道血手掰手腕失败了",
+      "{0} 想和管道里的东西握手，但手太多了"
     ]
   },
   "0_DisplayMessage": {
@@ -12,22 +202,28 @@
       "加入 {0} - {1}/{2}\nid: {3}"
     ],
     "InviteReceivedMessages": [
-      "{0} 已被邀请到设施"
+      "{0} 已被邀请到设施",
+      "{0} 已被骗到此设施",
+      "{0} 签署了ITAA入职协议"
     ],
     "JoinMessages": [
       "{0} 因为Δ异常卷入了这个世界",
       "{0} 以被本设施雇佣",
       "{0} 从mass中逃脱出来",
-      "{0} 被ρ召唤到这里"
+      "{0} 被ρ召唤到这里",
+      "{0} 今天第一次上班"
     ],
     "LeaveMessages": [
       "{0} 因为Δ异常脱离了这个世界",
       "{0} 以被本设施解雇",
       "{0} 被mass重新吞噬了",
-      "{0} 被ρ重新带走了"
+      "{0} 被ρ重新带走了",
+      "{0} 提桶跑路了"
     ],
     "WinMessages": [
-      "{0} 逃出生天"
+      "{0} 逃出生天",
+      "{0} 下班了",
+      "{0} 提前体验nest去了"
     ]
   },
   "CommandConsole": {
@@ -40,6 +236,7 @@
     "CheatsNotAllowed": "当前大厅不允许作弊, 请要求房主使用allowcheats true. ",
     "CreateLobbyFailed": "创建大厅失败",
     "FoundLobbyByName": "通过名称找到了大厅: {0} 正在加入",
+    "HostSuccess": "大厅创建成功",
     "HostUsage": "用法: host <房间名称> [最大玩家数]",
     "InvalidLobbyNameOrId": "无法找到匹配名称的大厅, 且输入不是有效的 ID 格式",
     "JoinFormatError": "格式错误\n用法: join <大厅ID>",
@@ -71,9 +268,7 @@
     "TeamRuleInsufficientParams": "设置队伍规则参数不足! 格式: teamrule [队伍A] [队伍B] [规则名] [true|false] , ...",
     "TeamRuleRemoveTeamInsufficientParams": "参数不足! 格式: removeteam [队伍名]",
     "WorldNotInitialized": "世界尚未初始化完成, \n请等待世界初始化.",
-    "YouAreNotHost": "You Are Not Host",
-
-    "HostSuccess": "大厅创建成功"
+    "YouAreNotHost": "You Are Not Host"
   },
   "CommandHelp": {
     "ACMD": "[join|restart|jointeam TeamName] [command 1] :: [command 2]...: Execute a command for the specified action. (using :: instead of ; e.g., acmd join addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",
@@ -93,6 +288,11 @@
     "LobbyList": "Get all available lobbies.",
     "LobbyType": "[Visibility=public|friends|private]:Visibility controls whether the lobby can be found by others.",
     "PCMD": "[all|steamId] [command 1] :: [command 2]...: Execute a command for all players or a specific player. (using :: instead of ; e.g., pcmd 561198279116422 addperk perk_u_t3_peripheralbinding :: spawnentity item_artifact_evaglove)",
+    "PlayerColor": "[Preset|R G B]: Change the remote player model color. Presets: default, white, red, orange, yellow, green, cyan, blue, purple, pink, black.",
+    "PlayerColorInvalidPreset": "Unknown color preset. Available presets: {0}",
+    "PlayerColorInvalidRgb": "RGB values must be integers in the range 0-255.",
+    "PlayerColorSet": "Remote player color set to RGB({0}, {1}, {2}).",
+    "PlayerColorUsage": "Usage: playercolor <preset> or playercolor <r> <g> <b>",
     "RemoveTeam": "[Team Name]: Remove the team with the specified name. (default team cannot be removed)",
     "SetLobbyName": "[Lobby Name]: Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;).",
     "SetName": "[Name]: Set the name displayed on your tag to others.",
@@ -192,6 +392,7 @@
     "LimitedUserAccount": "[MPSW] 账号受限 无法使用社交功能",
     "LobbyCreatedSuccess": "[MPSW] 大厅创建成功, ID: {0}",
     "LobbyDataChanged": "[MPSW] 大厅数据变更",
+    "LobbySearchException": "[MPSW]大厅搜索异常: {0}",
     "MessageQueueException": "[MPSW] 消息处理异常: {0}",
     "NoConnection": "[MPSW] 没有连接到 Steam 网络",
     "NullLobbyName": "未知大厅",

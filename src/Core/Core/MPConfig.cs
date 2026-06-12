@@ -185,12 +185,12 @@ public class MPConfig {
 			"玩家模型颜色红色通道(0-255).");
 
 		_remotePlayerColorG = config.Bind<int>(
-			"RemotePlayer", "ColorG", 220,
+			"RemotePlayer", "ColorG", 255,
 			"The green channel (0-255) used for your remote player model color.\n" +
 			"玩家模型颜色绿色通道(0-255).");
 
 		_remotePlayerColorB = config.Bind<int>(
-			"RemotePlayer", "ColorB", 64,
+			"RemotePlayer", "ColorB", 255,
 			"The blue channel (0-255) used for your remote player model color.\n" +
 			"玩家模型颜色蓝色通道(0-255).");
 
