@@ -80,7 +80,7 @@ public static class MPEventBusNet {
 	/// <summary>
 	/// 接收事件: 大厅所有权发生变更
 	/// </summary>
-	public static event Action<Friend> OnLobbyHostChanged;
+	public static event Action<Friend,bool> OnLobbyHostChanged;
 	/// <summary>
 	/// 接收事件: 大厅数据(规则)变动 订阅者<see cref="MPCore.HandleLobbyDataChanged"/>
 	/// </summary>
@@ -92,8 +92,8 @@ public static class MPEventBusNet {
 		=> OnLobbyMemberJoined?.Invoke(steamId);
 	public static void NotifyLobbyMemberLeave(Friend steamId)
 		=> OnLobbyMemberLeave?.Invoke(steamId);
-	public static void NotifyLobbyHostChanged(Friend hostId)
-		=> OnLobbyHostChanged?.Invoke(hostId);
+	public static void NotifyLobbyHostChanged(Friend hostId,bool isHost)
+		=> OnLobbyHostChanged?.Invoke(hostId, isHost);
 	public static void NotifyLobbyDataChanged(Dictionary<string, string> delta)
 		=> OnLobbyDataChanged?.Invoke(delta);
 

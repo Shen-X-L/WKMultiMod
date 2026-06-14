@@ -20,6 +20,7 @@ using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
+using static UnityEngine.Rendering.VirtualTexturing.Debugging;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -238,6 +239,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusNet.OnLobbyMemberJoined += HandleLobbyMemberJoined;
 		MPEventBusNet.OnLobbyMemberLeave += HandleLobbyMemberLeft;
 		MPEventBusNet.OnLobbyDataChanged += HandleLobbyDataChanged;
+		MPEventBusNet.OnLobbyHostChanged += HandleLobbyHostChanged;
 
 		// 订阅玩家事件
 		MPEventBusNet.OnPlayerConnected += HandlePlayerConnected;
@@ -267,6 +269,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		MPEventBusNet.OnLobbyMemberJoined -= HandleLobbyMemberJoined;
 		MPEventBusNet.OnLobbyMemberLeave -= HandleLobbyMemberLeft;
 		MPEventBusNet.OnLobbyDataChanged -= HandleLobbyDataChanged;
+		MPEventBusNet.OnLobbyHostChanged -= HandleLobbyHostChanged;
 
 		// 退订玩家连接事件
 		MPEventBusNet.OnPlayerConnected -= HandlePlayerConnected;
@@ -713,8 +716,8 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("talk", Talk)
 			.NotCheat().Description(Localization.Get("CommandHelp.Talk"));
 		// 向大厅广播到字幕
-		CommandConsole.BuildCommand("subtitle", Subtitle)
-			.NotCheat().Description(Localization.Get("CommandHelp.Subtitle"));
+		CommandConsole.BuildCommand("subtitletalk", SubtitleTalk)
+			.NotCheat().Description(Localization.Get("CommandHelp.SubtitleTalk"));
 
 		// tp到某人(同步背包物品)
 		CommandConsole.BuildCommand("tpto", TpToPlayer)
@@ -1174,7 +1177,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		} else {
 			// 奇数位置：规则值。同样加入逗号提示
 			candidates.AddRange(new[] { "true", "false", "default" });
-			candidates.Add(",");
 		}
 
 		// 将列表推送给引擎显示
@@ -1304,7 +1306,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 发送信息到他人字幕
 	/// </summary>
-	public void Subtitle(string[] args) {
+	public void SubtitleTalk(string[] args) {
 		if (!EnsureInLobby()) return;
 		var name = MPConfig.RemotePlayerName == "" ? SteamClient.Name : MPConfig.RemotePlayerName;
 		var writerMessage = BuildingMessage(name + ": " + string.Join(" ", args), UIDisplayType.Subtitle, logToConsole: false);
@@ -1792,8 +1794,8 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 明确要求关闭作弊
 			if (!IsAllowCheats) {
 				CommandConsole.cheatsEnabled = false;
-				ENT_Player.GetPlayer().noclip = false;
-				ENT_Player.GetPlayer().SetGodMode(false);
+				ENT_Player.GetPlayer()?.noclip = false;
+				ENT_Player.GetPlayer()?.SetGodMode(false);
 			}
 		}
 
@@ -1818,7 +1820,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 如果规则对当前玩家有影响, 则更新当前玩家的实际规则
 		if (ruleChange) {
 			TeamRuleManager.UpdateActiveRules(CurrentTeam);
-			_RPManager.RefreshAllRule();
+			_RPManager?.RefreshAllRule();
 		}
 
 		// 伤害规则
@@ -1837,13 +1839,25 @@ public class MPCore : MonoSingleton<MPCore> {
 		_RPManager.ProcessMemberData(steamId.Id, data);
 	}
 
+	/// <summary>
+	/// 处理事件总线 大厅房主变更
+	/// </summary>
+	private void HandleLobbyHostChanged(Friend steamId, bool isHost) {
+		if (isHost) {
+			_MPSteamworks.LobbyData.TryGetValue(MPKeys.ACTIVE_TEAMS,out var teams);
+			TeamRuleManager.AddActiveTeams(teams.Split(','));
+		}
+	}
+
 	#endregion
+
 	#region[联机状态函数]
 	public static void SetStatus(MPStatus mask, MPStatus value) {
 		MultiPlayerStatus.SetField(mask, value);
 	}
 
 	#endregion
+
 	#region[工具函数]
 
 	/// <summary>

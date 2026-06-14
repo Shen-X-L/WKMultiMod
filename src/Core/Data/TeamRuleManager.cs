@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Unity.VisualScripting;
 using WKMPMod.Core;
 
 namespace WKMPMod.Data;
@@ -152,7 +153,7 @@ public static class TeamRuleManager {
 	private static Dictionary<string, FlattenedRule> _flatRulesByTarget = new();
 
 	// 活跃队伍列表
-	public static HashSet<string> activeTeams = new ();
+	public static HashSet<string> activeTeams = new();
 
 	public static string GetRuleKey(string attackerTeam, string targetTeam) => $"Rule_{attackerTeam}_{targetTeam}";
 
@@ -260,6 +261,11 @@ public static class TeamRuleManager {
 	public static void AddActiveTeam(string team) {
 		if (!string.IsNullOrEmpty(team))
 			activeTeams.Add(team);
+	}
+
+	// 添加活跃队伍
+	public static void AddActiveTeams(IEnumerable<string> team) {
+		activeTeams.AddRange(team);
 	}
 
 	// 删除特定活跃队伍和规则

@@ -747,7 +747,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogInfo(Localization.Get("MPSteamworks.HostChanged", HostSteamId.ToString(), currentOwnerId.ToString()));
 
 			// 触发主机变更总线
-			MPEventBusNet.NotifyLobbyHostChanged(new Friend(HostSteamId));
+			MPEventBusNet.NotifyLobbyHostChanged(new Friend(HostSteamId),HostSteamId == UserSteamId);
 
 			HostSteamId = currentOwnerId;
 

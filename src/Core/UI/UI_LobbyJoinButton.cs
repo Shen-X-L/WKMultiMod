@@ -76,6 +76,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		var rawData = lobby.GetData(MPKeys.GAMEMODE_JSON);
 		try {
 			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
+			MPMain.LogInfo($"[MP UI] gameModeName: {gameModeData?.gameModeName ?? ""}");
 		} catch (JsonException ex) {
 			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.GamemodeParseError", rawData, ex.Message));
 		}
