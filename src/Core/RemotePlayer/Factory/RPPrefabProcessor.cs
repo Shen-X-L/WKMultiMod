@@ -51,7 +51,8 @@ public static class RPPrefabProcessor {
 			Object.DestroyImmediate(mk);
 		}
 
-		// 1. 处理受击实体
+		// 1. 处理受击实体 
+		// 优先处理 让Clickable首先寻找到RemoteEntity
 		foreach (var mk in prefab.GetComponentsInChildren<MK_RemoteEntity>(true)) {
 			var component = mk.gameObject.AddComponent<RemoteEntity>();
 			Object.DestroyImmediate(mk);

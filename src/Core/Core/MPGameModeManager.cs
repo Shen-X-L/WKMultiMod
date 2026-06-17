@@ -87,6 +87,7 @@ public class MPGameModeManager {
 			needBindSync = MPConfig.BindSync,
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
+		MPMain.Debug($"GameModeData:{{ Name:{CurrentData.gameModeName}, trinkets: {CurrentData.activeTrinkets}, settings: {CurrentData.activeSettings}}}");
 		return CurrentData;
 	}
 
@@ -111,10 +112,8 @@ public class MPGameModeManager {
 		}
 		// 设置游戏模式
 		CL_GameManager.gMan.SetGamemode(m_Gamemode);
-		// 更改难度
-		foreach (var setting in data.activeSettings) {
-			StatManager.saveData.SetSetting(m_Gamemode.gamemodeName, setting, true);
-		}
+		// 更改难度设置
+		StatManager.saveData.GetGameMode(m_Gamemode.gamemodeName)?.activeSettings = data.activeSettings;
 		// 饰品和绑定数据默认不同步, 只有设置了需要同步绑定数据才同步
 		if (data.needBindSync) {
 			StatManager.saveData.SetGamemodeTrinkets(CL_GameManager.GetGamemodeName(), data.activeTrinkets);

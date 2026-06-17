@@ -30,6 +30,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	// Debug日志输出间隔
 	private TickTimer _debugTick = new TickTimer(5f);
 
+	#region[字段和属性 - 大厅信息]
+
 	// 大厅Id
 	public Lobby _currentLobby;
 
@@ -42,8 +44,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	// 本地缓存已存在的 Key, 避免每次 SetMemberData 都去读取和解析索引字符串
 	private readonly HashSet<string> _knownKeysCache = new HashSet<string>();
-	// 本地玩家数据,用于在steamMemberData失效时正常工作
-	//public Dictionary<string, string> MemberData { get; private set; } = new();
 
 	// 获取全部在线玩家
 	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
@@ -52,6 +52,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	public bool IsInLobby {
 		get { return _currentLobby.Id.IsValid; }
 	}
+
+	#endregion
+
+	#region[字段和属性 - 玩家信息]
 
 	// 本机Id
 	public static ulong UserSteamId { get => SteamClient.SteamId; }
@@ -66,6 +70,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 
+	#endregion
+
+	#region[字段和属性 - steamConnection]
+
 	// 监听socket
 	internal SocketManager _socketManager;
 	// 出站连接池
@@ -79,6 +87,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private ConcurrentQueue<NetworkMessage> _messageQueue = new ConcurrentQueue<NetworkMessage>();
 	// 数据池
 	private static readonly ArrayPool<byte> _messagePool = ArrayPool<byte>.Shared;
+
+	#endregion
+
+	#region[字段和属性 - 大厅检索]
 
 	// 判断玩家是否在大厅
 	public bool IsMemberInLobby(SteamId targetId) {
@@ -95,6 +107,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private const float CACHE_PROTECTION_TIME = 5f;     // 5秒刷新冷却
 	private Task<List<Lobby>> _currentRefreshTask;       // 当前正在执行的刷新任务
 	private readonly object _taskLock = new object();    // 锁
+
+	#endregion
 
 	#region[Unity组件生命周期函数]
 	protected override void Awake() {
@@ -191,6 +205,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[RAII函数]
 
 	/// <summary>
@@ -234,6 +249,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[发送数据函数]
 
 	/// <summary>
@@ -330,6 +346,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 	#endregion
+
 	#region[消息处理函数]
 	/// <summary>
 	/// 接收数据: 任意玩家->消息队列
@@ -376,6 +393,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 	#endregion
+
 	#region[连接/断连 回调函数]
 
 	/// <summary>
@@ -410,6 +428,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[连接器管理函数]
 
 	/// <summary>
@@ -495,6 +514,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[创建/加入大厅函数]
 
 	/// <summary>

@@ -338,7 +338,7 @@
     "RequestedInitData": "[MPCore] 已向主机请求初始化数据",
     "SceneLoadingCompleted": "[MPCore] 场景加载完成: {0}",
     "SteamIdDataDebug": "[MPCore] steamId: {0} data: {1}",
-    "UpdateDragHangToggle": "[MPCore] 拖拽/悬挂切换"
+    "UpdateDragHangToggle": "[MPCore] 拖拽/悬挂切换 状态: {0}"
   },
   "MPGameModeManager": {
     "FieldNotFound": "[MP GameModeMan] 字段未找到",

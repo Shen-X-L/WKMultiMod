@@ -7,6 +7,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
@@ -40,6 +41,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		Subtitle,//最底部字幕
 	}
 
+	#region[常量字段 - 主菜单UI对象路径]
+
 	// 主菜单UI按钮容器路径
 	const string MAIN_MENU_PATH = "Main Menu";
 	const string MAIN_MENU_BUTTONS_PATH = "Main Menu/Main Menu Buttons";
@@ -52,10 +55,9 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// Loading界面路径
 	const string LOADING_SCREEN_PATH = "Screens";
 
-	// 修复Facility Button初始化导致Facility界面返回绑定引用错误的问题
-	// 是否正在克隆 屏幕
-	public static bool IsCloningMultiplayerMenu = false;
+	#endregion
 
+	#region[字段 - UI对象引用]
 	// 主菜单引用
 	Transform? _mainMenu;
 	// 主屏幕引用
@@ -90,6 +92,19 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// 新Loading界面
 	GameObject? newloading;
 
+	#endregion
+
+	#region[字段 - 其他]
+
+	// 修复Facility Button初始化导致Facility界面返回绑定引用错误的问题
+	// 是否正在克隆 屏幕
+	public static bool IsCloningMultiplayerMenu = false;
+
+	private Image _stateImage;
+	private Coroutine _fadeRoutine;// 状态图标变淡协程
+
+	#endregion
+
 	#region[Unity组件生命周期函数]
 
 	protected override void Awake() {
@@ -110,7 +125,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 					// 获取根节点引用
 					if (!CacheRoots()) return;
-					
+
 					// 初始化主菜单按钮
 					CreateMenuButton();
 
@@ -149,6 +164,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
+
 	#region[主菜单UI]
 
 	// 在主菜单创建多人模式按钮
@@ -175,6 +191,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
+
 	#region[多人模式菜单]
 
 	// 创建多人模式大厅屏幕
@@ -401,6 +418,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
+
 	#region[初始化UI关联]
 
 	// 初始化UI关联
@@ -428,6 +446,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
+
 	#region[Loading界面构建]
 
 	public void CreateLoadingScreen() {
@@ -446,6 +465,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
+
 	#region[工具函数]
 
 	// 修复UI_LerpOpen组件可能存在的目标位置和缩放问题
@@ -477,6 +497,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		return false;
 	}
 	#endregion
+
 	#region[API函数]
 
 	public static DataWriter BuildingMessage(string message, UIDisplayType type, ulong senderId = 0, ulong targetId = MPProtocol.BroadcastId, float duration = 5.0f, bool logToConsole = false) {
@@ -489,9 +510,10 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	}
 
 	#endregion
+
 	#region[主游戏屏幕显示]
 
-	public static void DisplayMessage(string message, UIDisplayType type,float duration = 5.0f) {
+	public static void DisplayMessage(string message, UIDisplayType type, float duration = 5.0f) {
 		var showSubtitles = SettingsManager.settings.showSubtitles;
 		var uiMan = CL_GameManager.gMan?.uiMan;
 		if (uiMan == null)
@@ -523,6 +545,82 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 			yield return new WaitForSeconds(1.5f + delay);
 			SettingsManager.settings.showSubtitles = showSubtitles;
 		}
+	}
+
+	#endregion
+
+	#region[玩家抓握/拖拽切换]
+
+	public void ShowStateIcon(ENT_Player.InteractType state) {
+		MPMain.Debug("ShowStateIcon");
+		// 获取准心对象
+		var crosshairGo = CL_UIManager.instance.crosshair?.gameObject;
+		MPMain.Debug("ShowStateIcon A");
+		if (crosshairGo == null)
+			return;
+		MPMain.Debug("ShowStateIcon B");
+		// 获取精灵图
+		Sprite iconSprite;
+
+		if (state == ENT_Player.InteractType.grab)
+			iconSprite = MPAssetManager.grubSprite;
+		else if (state == ENT_Player.InteractType.hanging)
+			iconSprite = MPAssetManager.hangSprite;
+		else
+			return;
+		MPMain.Debug("ShowStateIcon C");
+		// 首次创建
+		if (_stateImage == null) {
+			var go = new GameObject("WKMP_State");
+
+			go.transform.SetParent(crosshairGo.transform, false);
+
+			_stateImage = go.AddComponent<Image>();
+
+			var rect = go.GetComponent<RectTransform>();
+			rect.sizeDelta = new Vector2(32, 32);
+			rect.anchoredPosition = new Vector2(0, -20);
+		}
+		MPMain.Debug("ShowStateIcon D");
+		// 停止旧协程
+		if (_fadeRoutine != null) {
+			StopCoroutine(_fadeRoutine);
+			_fadeRoutine = null;
+		}
+
+		// 切换精灵图
+		_stateImage.sprite = iconSprite;
+		
+		// 设置透明度
+		var color = _stateImage.color;
+		color.a = 1f;
+		_stateImage.color = color;
+
+		// 启用组件
+		_stateImage.enabled = true;
+		MPMain.Debug("ShowStateIcon E");
+		// 启动协程
+		_fadeRoutine = StartCoroutine(FadeStateIcon());
+	}
+
+	// 图标变淡协程
+	private IEnumerator FadeStateIcon() {
+		// 显示时长
+		const float duration = 1.5f;
+		float elapsed = 0f;
+
+		while (elapsed < duration) {
+			elapsed += Time.deltaTime;
+			// 计算透明度并应用
+			var color = _stateImage.color;
+			color.a = 1f - (elapsed / duration);
+			_stateImage.color = color;
+
+			yield return null;
+		}
+		// 协程结束 关闭
+		_stateImage.enabled = false;
+		_fadeRoutine = null;
 	}
 
 	#endregion

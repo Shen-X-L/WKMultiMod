@@ -306,7 +306,7 @@
     "RequestedInitData": "[MPCore] Requested initialization data from the host.",
     "SceneLoadingCompleted": "[MPCore] Scene loading completed: {0}",
     "SteamIdDataDebug": "[MPCore] steamId: {0} data: {1}",
-    "UpdateDragHangToggle": "[MPCore] Update drag/hang toggle"
+    "UpdateDragHangToggle": "[MPCore] Update grub/hang toggle state: {0}"
   },
   "MPGameModeManager": {
     "FieldNotFound": "[MP GameModeMan] Field not found",

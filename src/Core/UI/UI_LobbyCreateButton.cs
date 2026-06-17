@@ -91,6 +91,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 		// 显示Loading弹窗
 		MPEventBusGame.NotifyShowLoading(10f);
 	}
+
 	// 创建失败 - 目前没有额外逻辑
 	public void CreateFailed() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);

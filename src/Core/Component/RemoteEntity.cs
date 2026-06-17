@@ -2,6 +2,7 @@
 using Steamworks.Data;
 using System;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
@@ -14,7 +15,7 @@ using static Unity.VisualScripting.Member;
 
 namespace WKMPMod.Component;
 
-public class RemoteEntity : CL_Prop {
+public class RemoteEntity : CL_Prop ,Clickable{
 	public IDType playerId;
 	// 使用 Harmony 的 FieldRef 高效读写基类 CL_Prop 中的私有变量 rigid 和 initialized
 	private static readonly AccessTools.FieldRef<CL_Prop, Rigidbody> PropRigidRef =
@@ -63,6 +64,7 @@ public class RemoteEntity : CL_Prop {
 	}
 
 	#endregion
+
 	#region[CL_Prop重写]
 
 	// 对方受到伤害时调用
@@ -127,8 +129,30 @@ public class RemoteEntity : CL_Prop {
 	}
 
 	#endregion
+
 	#region[Clickable重写]
+
+	/// <summary>
+	/// 检查是否可以交互
+	/// </summary>
+	bool Clickable.CanInteract(Interaction info) {
+		return canInteract;
+	}
+
+	ObjectTagger Clickable.GetTagger() {
+		return gameObject.GetComponent<ObjectTagger>();
+	}
+
+	Sprite Clickable.GetSprite() {
+		if (MPCore.IsGrabOrHangState == ENT_Player.InteractType.grab)
+			return MPAssetManager.grubSprite;
+		if (MPCore.IsGrabOrHangState == ENT_Player.InteractType.hanging)
+			return MPAssetManager.hangSprite;
+		return null;
+	}
+
 	#endregion
+
 	#region[工具函数]
 
 	// 计算伤害

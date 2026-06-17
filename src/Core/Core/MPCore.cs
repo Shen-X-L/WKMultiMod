@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -20,7 +19,6 @@ using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
-using static UnityEngine.Rendering.VirtualTexturing.Debugging;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -152,14 +150,18 @@ public class MPCore : MonoSingleton<MPCore> {
 		CheckAndRepairPlayers();
 
 		if (_toggleAction.triggered) {
-			MPMain.LogInfo(Localization.Get("MPCore.UpdateDragHangToggle"));
+			MPMain.LogInfo(Localization.Get(
+				"MPCore.UpdateDragHangToggle", 
+				IsGrabOrHangState == ENT_Player.InteractType.grab? "hang" : "grub"));
+
 			if (IsGrabOrHangState == ENT_Player.InteractType.grab) {
 				IsGrabOrHangState = ENT_Player.InteractType.hanging;
-				_RPManager.ChangeAllPlayerGrabOrHang(ENT_Player.InteractType.hanging);
 			} else if (IsGrabOrHangState == ENT_Player.InteractType.hanging) {
 				IsGrabOrHangState = ENT_Player.InteractType.grab;
-				_RPManager.ChangeAllPlayerGrabOrHang(ENT_Player.InteractType.grab);
 			}
+
+			_UIManager.ShowStateIcon(IsGrabOrHangState);
+			_RPManager.ChangeAllPlayerGrabOrHang(IsGrabOrHangState);
 		}
 	}
 

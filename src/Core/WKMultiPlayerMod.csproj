@@ -4,7 +4,7 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>WKMultiPlayerMod</AssemblyName>
 		<Product>WKMultiPlayerMod</Product>
-		<Version>1.7.2</Version>
+		<Version>1.7.3</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>
@@ -36,9 +36,19 @@
 			<SharedOutputFiles Include="$(ProjectDir)Util\Localization\*.json" />
 		</ItemGroup>
 		<!--生成.dll复制到bin\解决方案配置-->
-		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)bin\$(Configuration)\" SkipUnchangedFiles="true" />
-		<!--生成.dll复制到游戏文件夹-->
-		<Copy Condition="'$(GamePath)' != ''" SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(GamePath)\BepInEx\plugins\MP" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(SharedOutputFiles)"
+			  DestinationFolder="$(SolutionDir)bin\$(Configuration)\"
+			  SkipUnchangedFiles="true" />
+
+		<ItemGroup>
+			<AllOutputFiles Include="$(SolutionDir)bin\$(Configuration)\**\*.*" />
+		</ItemGroup>
+
+		<Copy Condition="'$(GamePath)' != ''"
+			  SourceFiles="@(AllOutputFiles)"
+			  DestinationFolder="$(GamePath)\BepInEx\plugins\MP\%(RecursiveDir)"
+			  SkipUnchangedFiles="true" />
+
 	</Target>
 
 	<PropertyGroup>
@@ -53,12 +63,12 @@
 		<Reference Include="$(ManagedPath)\Facepunch.Steamworks.Win64.dll" Private="False" />
 		<Reference Include="$(ManagedPath)\Newtonsoft.Json.dll" Private="False" />
 		<Reference Include="$(ManagedPath)\DOTween.dll" Private="False" />
-		
+
 		<Reference Include="$(BepInExPath)\*.dll" Exclude="$(BepInExPath)\0Harmony20.dll" Private="False" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Shared\WKMultiPlayerMod.Shared.csproj" />
+		<ProjectReference Include="..\Shared\WKMultiPlayerMod.Shared.csproj" />
 	</ItemGroup>
 
 </Project>

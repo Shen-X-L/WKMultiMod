@@ -77,7 +77,8 @@ public class Patch_WorldLoader {
 			// 获取核心组件
 			var worldRoot = GameObject.Find("World_Root(Clone)");
 			var player = ENT_Player.GetPlayer();
-			if (worldRoot == null || player == null) yield break;
+			if (worldRoot == null || player == null)
+				yield break; 
 
 			// 匹配第一个相同的关卡
 			// 提前构建 Dictionary 提升匹配速度 (O(n))
@@ -120,7 +121,6 @@ public class Patch_WorldLoader {
 
 			Physics.SyncTransforms();
 
-			// 给低帧率留出至少一个固定的物理帧安全垫, 阻断游戏引擎的动态剔除误判
 			yield return new WaitForFixedUpdate();
 
 			// 刷新关卡碰撞
@@ -129,14 +129,17 @@ public class Patch_WorldLoader {
 				lv.CycleColliders();
 			}
 
+			Physics.SyncTransforms();
+			yield return new WaitForFixedUpdate();
+
+			playerTf.SetParent(originalPlayerParent, true);
+			player.UnLock();
+
 			// 最终兜底同步
 			Physics.SyncTransforms();
 
 			// 给低帧率留出至少一个固定的物理帧安全垫, 阻断游戏引擎的动态剔除误判
 			yield return new WaitForFixedUpdate();
-
-			playerTf.SetParent(originalPlayerParent, true);
-			player.UnLock();
 
 			// 处理mass
 			if (DEN_DeathFloor.instance != null && DEN_DeathFloor.instance.IsActive()) {

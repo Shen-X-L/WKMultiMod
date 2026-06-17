@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Principal;
 using System.Text;
 using UnityEngine;
@@ -18,6 +19,9 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 	public const string DAMAGE_OBJECT_NAME = "Gib_Large";	// 受伤特效预制体名
 	public const string DEATH_OBJECT_NAME = "Gib_Medium";   // 死亡特效预制体名
 	public const string _ = "Gib_Sturge_Large";             // 备用死亡特效预制体名
+
+	public static Sprite grubSprite = LoadSprite(MPMain.path, "grub.png", true);
+	public static Sprite hangSprite = LoadSprite(MPMain.path, "hang.png", true);
 
 	public HashSet<string> loadSet =[
 		DAMAGE_OBJECT_NAME,	// 受伤特效预制体名
@@ -85,5 +89,45 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 		if (!Instance.IsInitialized)
 			Instance.Initialize();
 		return Instance.handholdPrefabDic.TryGetValue(name, out var obj) ? obj : null;
+	}
+
+	/// <summary>
+	/// 读取png转为
+	/// </summary>
+	public static Sprite LoadSprite(string dir, string filename, bool makePersistent = false) {
+		string fullPath = Path.Combine(dir, filename);
+		if (!File.Exists(fullPath)) {
+			MPMain.Debug($"icon not found: {fullPath}");
+			return null;
+		}
+		try {
+			// 加载图片文件
+			byte[] imageData = File.ReadAllBytes(fullPath);
+
+			// 生成纹理
+			Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+			texture.name = $"{filename}_Texture";
+
+			texture.LoadImage(imageData);
+
+			texture.filterMode = FilterMode.Point;// 过滤模式 线性临近
+			texture.wrapMode = TextureWrapMode.Clamp;// UV 超出时拉伸边缘像素
+
+			// 生成精灵图
+			Sprite sprite = Sprite.Create(texture,new Rect(0, 0, texture.width, texture.height),
+				new Vector2(0.5f, 0.5f), 16f);
+			sprite.name = filename;
+
+			// 持久化
+			if (makePersistent) {
+				GameObject.DontDestroyOnLoad(sprite);
+				GameObject.DontDestroyOnLoad(texture);
+			}
+
+			return sprite;
+		} catch (Exception ex) {
+			MPMain.Debug($"icon load failed for {filename}: {ex.Message}");
+			return null;
+		}
 	}
 }
