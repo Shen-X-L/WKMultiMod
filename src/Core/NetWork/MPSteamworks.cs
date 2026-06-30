@@ -966,7 +966,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		dict[MPKeys.LOBBY_VISIBILITY] = "public";
 		dict[MPKeys.ALLOW_CHEATS] = MPConfig.AllowCheats.ToString();
 		// 伤害倍率
-		dict[MPKeys.DAMAGE_CONFIG] = JsonConvert.SerializeObject(MPCore.damageRules);
+		dict[MPKeys.DAMAGE_CONFIG] = JsonConvert.SerializeObject(MPCore.damageRules.FloatFieldValues);
 		// 队伍规则配置
 		foreach (var kvp in RuleConfigLoader.LoadRulesAsLobbyData()) {
 			dict[kvp.Key] = kvp.Value;  // 重复键会覆盖

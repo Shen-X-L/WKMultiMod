@@ -104,6 +104,10 @@ public class MPConfig {
 	private static ConfigEntry<float> _iceActive;
 	public static float IceActive { get { return _iceActive.Value; } }
 
+	// bullet (手枪子弹)
+	private static ConfigEntry<float> _bulletActive;
+	public static float BulletActive { get { return _bulletActive.Value; } }
+
 	// other (其他伤害类型 信号枪灼烧除外)
 	private static ConfigEntry<float> _otherActive;
 	public static float OtherActive { get { return _otherActive.Value; } }
@@ -300,6 +304,12 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 			"Multiplier for cryo-gun ice spike damage dealt by the player.\n" +
 			"玩家使用造冰枪冰锥造成伤害的伤害倍率");
 
+		// bullet (手枪子弹)
+		_bulletActive = config.Bind<float>(
+			"RemotePlayerPvP", "BulletActive", 4.0f,
+			"Multiplier for 10mm damage dealt by the player.\n" +
+			"玩家使用10mm弹药造成伤害的伤害倍率");
+
 		// other (其他伤害类型)
 		_otherActive = config.Bind<float>(
 			"RemotePlayerPvP", "OtherActive", 1.0f,
@@ -383,7 +393,6 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 		get {
 			return new DamageRules {
 				All = AllActive,
-				Hammer = HammerActive,
 				Melee = MeleeActive,
 				Rebar = RebarActive,
 				ReturnRebar = ReturnRebarActive,
@@ -392,6 +401,7 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 				Piton = PitonActive,
 				Flare = FlareActive,
 				Ice = IceActive,
+				Bullet = BulletActive,
 				Other = OtherActive,
 				FireTime = FireTimeMult,
 				FireDamage = FireDamageMult,

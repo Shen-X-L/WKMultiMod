@@ -99,7 +99,7 @@ public static class NestedCommandEngine {
 	/// 通用的子命令嵌套补全外包核心
 	/// </summary>
 	/// <param name="autocomplete">控制台补全对象</param>
-	/// <param name="defaultStartIndex">如果没有输入 :: 时, 子命令默认应该在第几个参数（索引从0开始算）</param>
+	/// <param name="defaultStartIndex">如果没有输入 :: 时, 子命令默认应该在第几个参数(索引从0开始算)</param>
 	public static void ForwardAutocomplete(CommandConsole.CommandAutocomplete autocomplete, int defaultStartIndex) {
 		// 熔断安全检查
 		if (StatesRef == null || CommandsRef == null) return;

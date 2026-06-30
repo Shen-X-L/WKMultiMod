@@ -1,30 +1,52 @@
+## ObjectTagger作用
+
+Creature	生物-可以被砍出肉
+Handhold	把手-可以被抓握
+Button		按钮-可以被互动
+Damageable	受伤-可被伤害
+Pickupable	实体-可被拖拽
+
 ## 伤害
 
-```
-锤子		类型:Melee	标签:Melee blunt	 hammer	伤害1-3
-自动钻头	类型:piton		伤害3
-砖头		类型:			伤害3
-信号枪	类型:flare	标签:flare incendiary-long	伤害4
-钢筋/骨矛		类型:rebar	伤害10
-带绳钢筋		类型	:		伤害10
-神器长矛(投出/返回)	类型:returnrebar		标签:returnrebar		伤害10
-爆炸钢筋		类型:explosion		标签:explosion	伤害10
-			类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害10 × 3
+```ini
+锤子		类型:Melee		标签:Melee blunt	 hammer	player		伤害1-3
+自动钻头	类型:piton		标签:piton player					伤害3
+砖头		类型:			标签:player							伤害3
+信号枪	类型:flare		标签:flare×3 incendiary-long player	伤害4
+钢筋/骨矛		类型:rebar	标签:rebar player					伤害10
+带绳钢筋		类型	:		标签:player							伤害10
+神器长矛(投出/返回)	类型:returnrebar		标签:returnrebar player incendiary(过热)		伤害10
+爆炸钢筋		类型:explosion		标签:explosion player						伤害10
+			类型:rebarexplosion	标签:rebarexplosion explosion explosive		伤害10×3
 爆炸钢筋(自伤)	类型:rebarexplosion	标签:rebarexplosion explosion explosive	伤害1
-造冰枪(不蓄力/蓄力)	类型:ice		标签:ice			伤害10
-					类型:		标签:explosion explosive	伤害 0 × 3
+造冰枪(不蓄力/蓄力)	类型:ice		标签:ice	player			伤害10
+					类型:		标签:explosion explosive	伤害 0×3
 造冰枪(自伤)			类型:		标签:explosion explosive	伤害 0
+手枪			类型:bullet	标签:bullet piercing bleed handgun player	伤害 2
+刺剑			类型:Melee	标签:Melee piercing slashing player			伤害 蓄力3 不蓄力1.5
+菜刀			类型:Melee	标签:Melee slashing player					伤害 1
 
-血虫		类型:denizen		标签:denizen bloodbug slashing	伤害0.3
-藤壶舔中	类型:barnacle	标签:barnacle					伤害0
-藤壶啃咬	类型:barnacle	标签:barnacle					伤害0.6 
+蟑螂		类型:denizen			标签:denizen piercing		伤害0.7
+tick
+	附身	类型:tick			标签:tick Player				伤害0.5
+	吸血	类型:tick			标签:						伤害0.08
+爆炸蟑螂	
+	冲撞	类型:denizen			标签:denizen Player			伤害0.7
+	自爆	类型:explosion		标签:explosion×2 explosive	伤害2
+血虫		类型:bloodbug		标签:bloodbug slashing		伤害0.3
+小血虫	类型:bloodbug-swarmer	标签:bloodbug-swarmer LightAttack	伤害0.05 
+绿血虫	类型:bloodbug-spitter	标签:bloodbug-spitter	伤害0.2×4~7
+工作血虫	类型:bloodbug-worker		标签:bloodbug-worker		伤害0.3
+moth	类型:moth		标签:moth						伤害0.3
+藤壶
+	舔中	类型:barnacle	标签:barnacle					伤害0
+	啃咬	类型:barnacle	标签:barnacle					伤害0.6 
 风扇		类型:fan			标签:fan							伤害4
 磨床机	类型:grinder		标签:grinder						伤害1
 焚烧		类型:fire		标签:fire						伤害0.5
 蒸汽		类型:steam		标签:steam						伤害0.4
 脏水		类型:nastywater	标签:nastywater					伤害1
 筒仓门	类型:silodoor	标签:silodoor					伤害3-9 ???
-工作血虫	类型:bloodbug-worker		标签:bloodbug-worker		伤害0.3
 水槽那个 类型:sturge		标签:sturge						伤害0.33
 无人机	类型:drone		标签:drone						伤害1
 粉碎机	类型:recycler	标签:recycler					伤害0.5
@@ -32,14 +54,14 @@
 溺水		类型:drowning	标签:drowning					伤害0.25
 碾压死	类型:crushed		标签:crushed						伤害23.00712 ???
 气囊		类型:gasbag		标签:gasbag explosion			伤害1
-爆炸蟑螂 类型:exploderoach	标签:exploderoach explosion explosive 伤害1
+爆炸气囊	类型:gasbag		标签:gasbag explosion			伤害1.5
 机枪		类型:Turret		标签:Turret bullet				伤害0.5
 摔落途中	类型:falling		标签:falling fall-[hand-0|grab]	伤害0.1
 摔落至地	类型:falling		标签:falling fall-land			伤害1-N
 断腿跳跃	类型:			标签:							伤害0.3
 手臂粉碎性骨折		类型:	标签:							伤害0.1
 烧伤抓握	类型:			标签:							伤害0.1
-流血	类型:bleed		标签:bleed						伤害0.2
+流血		类型:bleed		标签:bleed						伤害0.2
 teeth	类型:teeth		标签:teeth						伤害1
 face	类型:face		标签:face						伤害1
 门		类型:engraveddoor	标签:engraveddoor			伤害0.15
@@ -50,13 +72,27 @@ face	类型:face		标签:face						伤害1
 再生骨矛	类型:nonlethal	标签:nonlethal					伤害0.1/2
 收音机	类型:d19			标签:d19							伤害0.2
 垃圾		类型:garbage		标签:garbage						伤害1
+小螃蟹	类型:sprider		标签:sprider						伤害0.2
+大螃蟹	
+	抓伤	类型:ravelin		标签:ravelin	SkipPropDelayedKill MassiveAttack	伤害2.5
+	触电	类型:handhold-sharp	标签:handhold-sharp handhold	伤害0.1 
+	弱点命中	类型:explosion	标签:explosion×2 explosive	伤害0
+被mother吃	类型:eaten	标签:eaten						伤害0.5
+aunt
+	喷射	类型:aunt-spike	标签:aunt-spike					伤害0.6
+	咬	类型:aunt		标签:aunt						伤害1
+僵尸
+	舔中	类型:barnacle	标签:barnacle					伤害0.1
+	啃咬	类型:barnacle	标签:barnacle					伤害0.5
+摸花触电	类型:handhold-sharp	标签:handhold-sharp handhold nonlethal	伤害0.1 
+hunter	类型:hunter		标签:hunter						伤害0.3
 ```
 
 ---
 
 ## 可拾取物
 
-```
+```ini
 笔记 Note	标签:	预制体名称: Item_Note_01
 
 锤子 Hammer	标签:	预制体名称: Item_Hammer 
@@ -109,13 +145,14 @@ Grub虫 SlugGrub		预制体名称: Denizen_SlugGrub
 存档软盘 Floppy Disk		标签: disk	预制体名称: Item_Floppy_T1
 存档软盘 Floppy Disk		标签: disk	预制体名称: Item_Floppy_T3
 存档软盘 Floppy Disk		标签: disk	预制体名称: Item_Floppy_T2
+
 ```
 
 ---
 
 ## 特效
 
-```
+```ini
 Denizen_Barnacle(_Small|_Harpoon|_Small_Icy|_Mechanical):
 	Dripping Blood:	嘴里滴血
 	Flies:	苍蝇
@@ -376,13 +413,14 @@ GlobalFX_Blood_Grub:	Grub死亡
 Rebar_Break:	砖头散开破碎
 Hit_Brick:	砖头方向性破碎
 FX_Artifact_Destroy/Shield Lightning:	神器消散 全方向长拖尾红色波浪辐射粒子
+
 ```
 
 ---
 
 ## 游戏模式
 
-```
+```ini
 holderId:basedatabase databaseName:WK_AssetDatabase databaseId:basedatabase
 
 name:GM_DEV_Organism_Gastric	|Organism-Gastric
@@ -415,6 +453,7 @@ name:GM_CH_03_RoachRun			|Roach Run
 name:GM_CH_04_Comms				|Comms Array
 name:GM_CH_05_Shutterworld		|Shuttered Rift
 name:GM_CH_06_BoostCourse		|Boost Course
+
 ```
 
 ## 饰品/绑定
@@ -440,3 +479,14 @@ PitonAndBeans
 WeakArms
 Survival
 NoShops
+
+
+
+
+
+[Warning:WKTest Mod] [Test]伤害量:0.5 伤害类型:Melee 伤害位置:(-4.77, 0.01, -14.24) 冲击力:(0.00, 0.00, 0.00)
+[Warning:WKTest Mod] [Test]伤害标签:Melee
+[Warning:WKTest Mod] [Test]伤害标签:Melee
+[Warning:WKTest Mod] [Test]伤害标签:blunt
+[Warning:WKTest Mod] [Test]伤害标签:hammer
+[Warning:WKTest Mod] [Test]伤害标签:player

@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
@@ -17,21 +18,18 @@ public class RPManager : Singleton<RPManager> {
 
 	public const string NO_ITEM_NAME = "None";
 	public const string HAMMER_NAME = "Item_Hammer";
-	public const string ARTIFACT_NAME = "Artifact";
-	public const string BLINK_EYE = "Item_BlinkEye";
 
 	// Debug日志输出间隔
 	private TickTimer _debugTick = new TickTimer(5f);
 	// 存储所有远程对象
 	internal Dictionary<IDType, RPContainer> Players = new Dictionary<IDType, RPContainer>();
 	private Dictionary<IDType, float> _lastDeathTime = new Dictionary<IDType, float>();
-	// 同一个玩家 1 秒内只能处理一次死亡信息, 避免重复处理导致的物品重复掉落和动画冲突
-	private const float DEATH_COOLDOWN = 1.0f;
+	// 同一个玩家 2 秒内只能处理一次死亡信息, 避免重复处理导致的物品重复掉落和动画冲突
+	private const float DEATH_COOLDOWN = 2.0f;
 	// 根对象引用
 	private Transform _remotePlayersRoot;
 	// 加入信息和离开信息
-	private HashSet<IDType> joinMessages = new HashSet<IDType>();
-	private Dictionary<IDType, string> leaveMessages = new Dictionary<IDType, string>();
+	private HashSet<IDType> _joinMessageShown = new HashSet<IDType>();
 
 	private RPManager() {
 		_ = RPFactoryManager.Instance;
@@ -53,130 +51,105 @@ public class RPManager : Singleton<RPManager> {
 			container.Destroy();
 		}
 		Players.Clear();
-		joinMessages.Clear();
-		leaveMessages.Clear();
+		_joinMessageShown.Clear();
 		RPFactoryManager.Instance.ClearPrefabCache();
 	}
 
 	#endregion
-	#region[创建/销毁玩家]
+
+	#region[容器创建/销毁]
 
 	/// <summary>
-	/// 根据Id创建玩家
+	/// 获取或创建玩家容器(空壳)。
+	/// 容器本身不包含模型, 调用 EnsureModel 才会真正加载 GameObject。
 	/// </summary>
-	public RPContainer PlayerCreate(IDType playId, string prefab) {
-		if (Players.TryGetValue(playId, out var existing))
-			return existing;
+	private RPContainer GetOrCreateContainer(IDType playerId) {
+		if (!Players.TryGetValue(playerId, out var container)) {
+			container = new RPContainer(playerId);
+			Players[playerId] = container;
+		}
+		return container;
+	}
+	/// <summary>
+	/// 确保容器持有与 prefabId 匹配的模型。
+	/// </summary>
+	private bool EnsureModel(RPContainer container, string prefabId) {
+		// 有旧模型先销毁
+		if (container.PlayerObject != null) {
+			RPFactoryManager.Instance.Cleanup(container.PlayerObject);
+			container.DestroyModel();
+		}
 
-		// 从工厂获取物体
-		GameObject instance = RPFactoryManager.Instance.Create(prefab);
+		// 从工厂拿新实例
+		GameObject instance = RPFactoryManager.Instance.Create(prefabId);
 		if (instance == null) {
 			MPMain.LogError(Localization.Get("RPManager.FactoryCreateObjectFailed"));
-			return null;
+			return false;
 		}
 
-		// 构造对象
-		var container = new RPContainer(playId, prefab);
-
-		// 检查初始化是否成功
-		if (!container.Initialize(instance, _remotePlayersRoot)) {
-			// Initialize 内部已经 Destroy 了 instance, 这里直接返回 null 即可
-			return null;
-		}
-
-		// 成功后才写入缓存
-		Players[playId] = container;
-		return container;
+		// 通知容器接管并触发 FlushPendingData
+		return container.Initialize(instance, _remotePlayersRoot);
 	}
 
 	/// <summary>
-	/// 清除特定玩家
+	/// 移除玩家(触发死亡特效 + 工厂回收 + 容器销毁)
 	/// </summary>
 	public void PlayerRemove(ulong playerId) {
-		if (Players.TryGetValue(playerId, out var container)) {
+		if (!Players.TryGetValue(playerId, out var container)) return;
 
-			// 生成死亡特效
-			var playerPosition = container.PlayerObject.transform.position;
-			var playerRotation = container.PlayerObject.transform.rotation;
-
+		// 生成死亡特效(仅模型存在时)
+		if (container.PlayerObject != null) {
+			var pos = container.PlayerObject.transform.position;
+			var rot = container.PlayerObject.transform.rotation;
 			var deathParticle = MPAssetManager.GetFXPrefab(MPAssetManager.DEATH_OBJECT_NAME);
-			if (deathParticle != null) {
-				GameObject.Instantiate(deathParticle, playerPosition, playerRotation);
-			}
+			if (deathParticle != null)
+				GameObject.Instantiate(deathParticle, pos, rot);
 
-			// 工厂清理
 			RPFactoryManager.Instance.Cleanup(container.PlayerObject);
-
-			// 容器清理引用
-			container.Destroy();
-
-			// 字典删除
-			Players.Remove(playerId);
 		}
+
+		container.Destroy();
+		Players.Remove(playerId);
 	}
 
 	#endregion
+
 	#region[处理消息]
 
 	/// <summary>
 	/// 处理玩家数据字典
 	/// </summary>
 	public void ProcessMemberData(ulong playerId, Dictionary<string, string> data) {
-		// 更新玩家模型
-		if (data.TryGetValue(MPKeys.PREFAB_ID, out var prefabId)) {
-			// 不存在 → 创建
-			if (!Players.TryGetValue(playerId, out var container)) {
-				PlayerCreate(playerId, prefabId);
-			}
-			// 存在但不一致 → 重建
-			else if (container.prefabId != prefabId) {
-				PlayerRemove(playerId);
-				PlayerCreate(playerId, prefabId);
-			}
-		}
+		MPMain.Debug($"[RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 
-		// 更新玩家颜色
-		if (data.TryGetValue(MPKeys.PLAYER_COLOR, out var playerColorValue)
-			&& MPUtil.TryParsePlayerColor(playerColorValue, out var playerColor)
-			&& Players.TryGetValue(playerId, out var colorContainer)) {
-			colorContainer.ApplyColor(playerColor);
-		}
+		RPContainer container = GetOrCreateContainer(playerId);
 
-		// 修改玩家名字
-		if (data.TryGetValue(MPKeys.PLAYER_NAME, out var playerName)) {
-			if (Players.TryGetValue(playerId, out var container)) {
-				container.UpdatePlayerName(playerName);
+		// 数据解析完全交给容器，Manager 只关心"要不要重建模型"
+		bool needModel = container.ApplyMemberData(data);
+		if (needModel)
+			EnsureModel(container, container.prefabId);
+
+		// 加入消息：全局去重状态留在 Manager
+		if (container.IsModelReady && !_joinMessageShown.Contains(playerId)) {
+			var msg = container.ConsumeJoinMessage();
+			if (msg != null) {
+				_joinMessageShown.Add(playerId);
+				MPCore.SystemMessage(msg, UIDisplayType.TipHeader);
 			}
 		}
-
-		// 更新玩家队伍并更新权限
-		if (data.TryGetValue(MPKeys.TEAM, out var teamName)) {
-			if (Players.TryGetValue(playerId, out var container) && container.team != teamName) {
-				container.HandleTeamChanged(teamName);
-			}
-		}
-
-		// 没有加入消息记录 播放加入消息
-		if (data.TryGetValue(MPKeys.JOIN_MESSAGE, out var joinMessage)
-			&& !joinMessages.Contains(playerId)) {
-			joinMessages.Add(playerId);
-			MPCore.SystemMessage(joinMessage, UIDisplayType.TipHeader);
-		}
-
-		// 更新离开信息
-		if (data.TryGetValue(MPKeys.LEAVE_MESSAGE, out var leaveMessage))
-			leaveMessages[playerId] = leaveMessage;
 	}
 
 	/// <summary>
 	/// 处理玩家离开
 	/// </summary>
 	public void ProcessPlayerLeave(ulong playerId) {
+		if (Players.TryGetValue(playerId, out var container)) {
+			var leaveMsg = container.GetLeaveMessage();
+			if (leaveMsg != null)
+				MPCore.SystemMessage(leaveMsg, UIDisplayType.TipHeader);
+		}
 		PlayerRemove(playerId);
-		if (leaveMessages.TryGetValue(playerId, out var leaveMessage))
-			MPCore.SystemMessage(leaveMessage, UIDisplayType.TipHeader);
-		leaveMessages.Remove(playerId);
-		joinMessages.Remove(playerId);
+		_joinMessageShown.Remove(playerId);
 	}
 
 	/// <summary>
@@ -186,22 +159,19 @@ public class RPManager : Singleton<RPManager> {
 		if (!MPCore.IsInitialized || !MPCore.IsInLobby) return;
 
 		// 以后加上时间戳处理
-		if (Players.TryGetValue(playerId, out var RPcontainer)) {
-			RPcontainer.HandlePlayerData(ref playerData);
-			return;
+		if (Players.TryGetValue(playerId, out var container)) {
+			if (!container.IsModelReady) return;
+			container.HandlePlayerData(ref playerData);
 		} else if (_debugTick.TryTick()) {
 			MPMain.LogError(Localization.Get(
 				"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
-			return;
 		}
-		return;
 	}
 
 	/// <summary>
 	/// 处理玩家数据
 	/// </summary>
 	public void ProcessPlayerTag(ulong playerId, string massage) {
-
 		// 以后加上时间戳处理
 		if (Players.TryGetValue(playerId, out var RPcontainer)) {
 			RPcontainer.HandleNameTag(massage);
@@ -209,8 +179,6 @@ public class RPManager : Singleton<RPManager> {
 		}
 		MPMain.LogError(Localization.Get(
 			"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
-		return;
-
 	}
 
 	/// <summary>
@@ -307,10 +275,10 @@ public class RPManager : Singleton<RPManager> {
 		GameObject effectPrefab = MPAssetManager.GetFXPrefab(effectName)
 						   ?? CL_AssetManager.GetAssetGameObject(effectName);
 		if (effectPrefab != null) {
-			if (info.position != new Vector3(0, 0, 0))
-				GameObject.Instantiate(effectPrefab, info.position, Quaternion.identity);
-			else
-				GameObject.Instantiate(effectPrefab, container.PlayerObject.transform.position, Quaternion.identity);
+			Vector3 spawnPos = info.position != Vector3.zero
+				? info.position
+				: container.PlayerObject.transform.position;
+			GameObject.Instantiate(effectPrefab, spawnPos, Quaternion.identity);
 		}
 	}
 
@@ -391,8 +359,4 @@ public class RPManager : Singleton<RPManager> {
 
 	#endregion
 
-
 }
-
-
-

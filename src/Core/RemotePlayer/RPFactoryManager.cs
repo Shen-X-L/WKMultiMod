@@ -178,11 +178,10 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 	/// </summary>
 	public void Cleanup(GameObject instance) {
 		if (instance == null) return;
-
-		// 如果没有池化需求, 直接销毁即可
+		string name = instance.name;
 		Object.Destroy(instance);
-
-		MPMain.Debug($"[RPFactoryManager] 成功清理模型实例, ID: {instance.name}");
+		instance = null;
+		MPMain.Debug($"[RPFactoryManager] 成功清理模型实例, ID: {name}");
 	}
 
 	#endregion

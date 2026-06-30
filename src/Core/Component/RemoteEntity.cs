@@ -2,6 +2,8 @@
 using Steamworks.Data;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using Unity.VisualScripting;
 using UnityEngine;
 using WKMPMod.Asset;
@@ -31,12 +33,6 @@ public class RemoteEntity : CL_Prop ,Clickable{
 	private float _burstStartTime = -999f;
 	// 是否启用PVP伤害判定, 可通过玩家数据更新
 	public bool pvpEnabled = false;
-
-	// 玩家不可以传递的伤害类型
-	private static readonly HashSet<string> blacklistDamage = new HashSet<string>{
-		"lightning","Turret","gasbag","silodoor","fan","grinder","nastywater","sturge",
-		"drone","recycler","crushed","face","steam"
-	};
 
 	#region[Unity生命周期函数]
 
@@ -70,7 +66,8 @@ public class RemoteEntity : CL_Prop ,Clickable{
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
 		// 关闭pvp || 伤害来源非同步因素伤害
-		if (!pvpEnabled || blacklistDamage.Contains(info.type)) return false;
+		if (!pvpEnabled) return false;
+		if (!info.tags.Contains("player")&& !DamageRules.whitelistDamage.Contains(info.type)) return false;
 
 		MPMain.Debug($"{playerId} Cause Damage: type: {info.type}, tags: {string.Join(",", info.tags)}");
 
@@ -159,7 +156,6 @@ public class RemoteEntity : CL_Prop ,Clickable{
 	public static void CalculatedDamage(Damageable.DamageInfo info) {
 		var baseDamage = info.amount * MPCore.damageRules.All;
 		info.amount = info.type switch {
-			"Hammer" => baseDamage * MPCore.damageRules.Hammer,
 			"Melee" => baseDamage * MPCore.damageRules.Melee,
 			"rebar" => baseDamage * MPCore.damageRules.Rebar,
 			"returnrebar" => baseDamage * MPCore.damageRules.ReturnRebar,
@@ -168,6 +164,7 @@ public class RemoteEntity : CL_Prop ,Clickable{
 			"piton" => baseDamage * MPCore.damageRules.Piton,
 			"flare" => baseDamage * MPCore.damageRules.Flare,
 			"ice" => baseDamage * MPCore.damageRules.Ice,
+			"bullet" => baseDamage * MPCore.damageRules.Bullet,
 			_ => baseDamage * MPCore.damageRules.Other
 		};
 		return;
@@ -194,7 +191,6 @@ public class RemoteEntity : CL_Prop ,Clickable{
 [Serializable]
 public class DamageRules {
 	public float All;
-	public float Hammer;
 	public float Melee;
 	public float Rebar;
 	public float ReturnRebar;
@@ -203,11 +199,67 @@ public class DamageRules {
 	public float Piton;
 	public float Flare;
 	public float Ice;
+	public float Bullet;
 	public float Other;
 	public float FireTime;
 	public float FireDamage;
-	// 新增: 并发伤害允许的窗口期 (秒)
-	public float BurstWindow;
-	// 新增: 受伤后的完整无敌时间 (秒)
-	public float InvincibilityTime;
+	public float BurstWindow;// 并发伤害允许的窗口期 (秒)
+	public float InvincibilityTime;// 受伤后的完整无敌时间 (秒)
+
+	// 玩家不可以传递的伤害类型
+	public static readonly HashSet<string> whitelistDamage = new HashSet<string>{
+		"Melee","piton","flare","rebar","returnrebar","explosion","rebarexplosion","ice","bullet"
+	};
+
+	// 字段名集合
+	public static HashSet<string> FloatFieldNames { get; }
+
+	// 字段缓存
+	private static readonly Dictionary<string, FieldInfo> _floatFields;
+
+	// 属性：当前值字典 (每次调用创建新字典，但遍历开销最小)
+	[Newtonsoft.Json.JsonIgnore]
+	public Dictionary<string, float> FloatFieldValues {
+		get {
+			var result = new Dictionary<string, float>(_floatFields.Count,
+				StringComparer.OrdinalIgnoreCase);
+			foreach (var (fieldName,fieldInfo) in _floatFields) {
+				result[fieldName] = (float)fieldInfo.GetValue(this);
+			}
+			return result;
+		}
+	}
+
+	// 静态构造函数 反射public float类型字段名
+	static DamageRules() {
+		// 一次性获取所有 public float 实例字段
+		var fields = typeof(DamageRules)
+			.GetFields(BindingFlags.Public | BindingFlags.Instance)
+			.Where(f => f.FieldType == typeof(float))
+			.ToArray();
+
+		// 缓存为字典 (用于 SetField)
+		_floatFields = new Dictionary<string, FieldInfo>(
+			fields.Length, StringComparer.OrdinalIgnoreCase);
+		foreach (var f in fields)
+			_floatFields[f.Name] = f;
+
+		// 字段名集合 (用于外部查询)
+		FloatFieldNames = new HashSet<string>(
+			fields.Select(f => f.Name.ToLower()), StringComparer.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// 根据字段名设置 float 值(忽略大小写)
+	/// </summary>
+	public bool SetField(string fieldName, float value) {
+		if (string.IsNullOrEmpty(fieldName))
+			return false;
+
+		if (_floatFields.TryGetValue(fieldName, out var field)) {
+			field.SetValue(this, value);
+			return true;
+		}
+		return false;
+	}
 }

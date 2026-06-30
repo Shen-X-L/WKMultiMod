@@ -27,11 +27,11 @@ public class Patch_Item_Object_Pickup_ItemSync {
 #region[丢弃物品同步管理器]
 // 在任意可访问位置定义标志
 internal static class ItemSyncSuppress {
-	// 用计数器而非 bool，防止 Floppy.Interact 内部多次触发 DropItemIntoWorld 时标志提前归零
+	// 用计数器而非 bool, 防止 Floppy.Interact 内部多次触发 DropItemIntoWorld 时标志提前归零
 	internal static byte FloppyInteractDepth = 0;
 	internal static bool IsSuppressedByFloppy => FloppyInteractDepth > 0;
 
-	// 用计数器而非 bool，防止 Floppy.Interact 内部多次触发 DropItemIntoWorld 时标志提前归零
+	// 用计数器而非 bool, 防止 Floppy.Interact 内部多次触发 DropItemIntoWorld 时标志提前归零
 	internal static byte ItemInteractDepth = 0;
 	internal static bool IsSuppressedByItemInteract => ItemInteractDepth > 0;
 }

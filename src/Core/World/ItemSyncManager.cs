@@ -20,8 +20,8 @@ namespace WKMPMod.World;
 /// 多人游戏物品同步操作类型枚举 (网络协议标签)
 /// </summary>
 public enum ItemSyncAction : byte {
-	SnapshotReset = 0,      // 快照重置: 新玩家加入时，清空其本地所有非持久化物品，准备接受房主数据
-	SnapshotFinalize = 1,   // 快照完成: 房主发送完所有世界物品数据，通知客户端解除世界加载锁定
+	SnapshotReset = 0,      // 快照重置: 新玩家加入时, 清空其本地所有非持久化物品, 准备接受房主数据
+	SnapshotFinalize = 1,   // 快照完成: 房主发送完所有世界物品数据, 通知客户端解除世界加载锁定
 	Create = 2,             // 创建物品: 通知其他客户端在指定位置生成一个掉落物
 	PickupRequest = 3,      // 拾取请求: 客户端捡起物品时向网络广播 (或向房主申请验证)
 	DropRequest = 4,        // 丢弃请求: 客户端从背包扔出物品时网络广播
@@ -1767,6 +1767,9 @@ public static class ItemSyncManager {
 		"Item_Flashlight",
 		"Item_Flaregun",
 		"Item_Cryogun",
+		"Item_Handgun",
+		"Item_Handgun_Debug",
+		"Item_10mm_Ammo",
 	};
 
 	// 标签单独处理

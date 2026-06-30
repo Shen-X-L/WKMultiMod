@@ -40,6 +40,7 @@ public static partial class MPKeys {
 	public const string LEAVE_MESSAGE = "leave message";
 	public const string TEAM = "team";
 	public const string DEFAULT_TEAM = "default";
+	public const string PLAYER_SCALE = "player scale";
 
 	// 文件名
 	public const string TEAM_RULES_FILE = "WKMP_TeamRules.json";

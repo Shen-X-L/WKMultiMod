@@ -555,10 +555,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		MPMain.Debug("ShowStateIcon");
 		// 获取准心对象
 		var crosshairGo = CL_UIManager.instance.crosshair?.gameObject;
-		MPMain.Debug("ShowStateIcon A");
 		if (crosshairGo == null)
 			return;
-		MPMain.Debug("ShowStateIcon B");
 		// 获取精灵图
 		Sprite iconSprite;
 
@@ -568,7 +566,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 			iconSprite = MPAssetManager.hangSprite;
 		else
 			return;
-		MPMain.Debug("ShowStateIcon C");
 		// 首次创建
 		if (_stateImage == null) {
 			var go = new GameObject("WKMP_State");
@@ -581,7 +578,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 			rect.sizeDelta = new Vector2(32, 32);
 			rect.anchoredPosition = new Vector2(0, -20);
 		}
-		MPMain.Debug("ShowStateIcon D");
 		// 停止旧协程
 		if (_fadeRoutine != null) {
 			StopCoroutine(_fadeRoutine);
@@ -598,7 +594,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 		// 启用组件
 		_stateImage.enabled = true;
-		MPMain.Debug("ShowStateIcon E");
 		// 启动协程
 		_fadeRoutine = StartCoroutine(FadeStateIcon());
 	}

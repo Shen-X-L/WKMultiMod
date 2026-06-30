@@ -141,11 +141,6 @@ public class Patch_WorldLoader {
 			// 给低帧率留出至少一个固定的物理帧安全垫, 阻断游戏引擎的动态剔除误判
 			yield return new WaitForFixedUpdate();
 
-			// 处理mass
-			if (DEN_DeathFloor.instance != null && DEN_DeathFloor.instance.IsActive()) {
-				DEN_DeathFloor.instance.OffsetEntity(posDelta.y);
-			}
-
 			MPMain.LogInfo(Localization.Get("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
 
 		} else {

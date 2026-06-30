@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using HarmonyLib;
+using Newtonsoft.Json;
 using Steamworks;
 using Steamworks.Data;
 using System;
@@ -9,7 +10,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.SceneManagement;
+using UnityEngine.Splines.ExtrusionShapes;
+using UnityEngine.TextCore.Text;
 using WKMPMod.Asset;
 using WKMPMod.Component;
 using WKMPMod.Data;
@@ -151,8 +155,8 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		if (_toggleAction.triggered) {
 			MPMain.LogInfo(Localization.Get(
-				"MPCore.UpdateDragHangToggle", 
-				IsGrabOrHangState == ENT_Player.InteractType.grab? "hang" : "grub"));
+				"MPCore.UpdateDragHangToggle",
+				IsGrabOrHangState == ENT_Player.InteractType.grab ? "hang" : "grub"));
 
 			if (IsGrabOrHangState == ENT_Player.InteractType.grab) {
 				IsGrabOrHangState = ENT_Player.InteractType.hanging;
@@ -311,7 +315,6 @@ public class MPCore : MonoSingleton<MPCore> {
 				MPMain.LogWarning(Localization.Get("MPCore.PlayerDataMissing", steamId));
 				// 从MemberData获取模型数据
 				var data = _MPSteamworks.GetAllMemberData(new Friend(steamId));
-				//MPMain.Debug($"[MPCore] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 				_RPManager.ProcessMemberData(steamId, data);
 				//if (data.Count == 0)
 				//	_MPSteamworks.SendToPeer(steamId,
@@ -349,6 +352,8 @@ public class MPCore : MonoSingleton<MPCore> {
 					// 以后会在这里广播模式数据,用于房主切换游戏模式
 					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 				}
+				// 设置加载后玩家数据信息
+				loadedMemberData();
 				break;
 			}
 			case "Playground": {
@@ -362,6 +367,8 @@ public class MPCore : MonoSingleton<MPCore> {
 						_MPSteamworks.SetLobbyData(MPKeys.GAMEMODE_JSON, JsonConvert.SerializeObject(currentModeData));
 					}
 				}
+				// 设置加载后玩家数据信息
+				loadedMemberData();
 				break;
 			}
 			case "Main-Menu":
@@ -707,6 +714,10 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(new[] { "true", "false" });
 			});
 
+		CommandConsole.BuildCommand("pvprule", SetDamageRule)
+			.NotCheat().Description(Localization.Get("CommandHelp.PVPRule"))
+			.OverValue(() => damageRules.FloatFieldValues)
+			.AutocompleteCustom(DamageRuleAutocomplete);
 	}
 
 	/// <summary>
@@ -755,13 +766,13 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(PlayerColorPresets.Keys.ToList());
 			})
 			.AutocompleteValidator(validator => {
-				if (validator.ArgumentAt(2) == "" ) {
+				if (validator.ArgumentAt(2) == "") {
 					// 小于3个参数,参数0不在字典中
 					if (!PlayerColorPresets.ContainsKey(validator.ArgumentAt(0)))
 						validator.Reject();
 				} else if (validator.activeArg <= 2) {
 					// 大于等于3个参数,是前0,1,2参数,不能转为数字
-					if (!MPUtil.TryParseColorChannel(validator.ArgumentAt(validator.activeArg),out var _))
+					if (!MPUtil.TryParseColorChannel(validator.ArgumentAt(validator.activeArg), out var _))
 						validator.Reject();
 				}
 			});
@@ -1134,7 +1145,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				: new TeamRule();
 
 			// 循环让规则对象自己更新自己
-			for (int i = 2; i < parts.Length - 1; i += 2) {
+			for (int i = 2; i + 1 < parts.Length; i += 2) {
 				rule.UpdateRule(parts[i].ToLower(), parts[i + 1].ToLower());
 			}
 
@@ -1172,8 +1183,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		if (argIndex == 0 || argIndex == 1) {
 			// 参数 0 和 1：目标队伍
 			candidates.AddRange(TeamRuleManager.activeTeams);
-		} else if (argIndex % 2 == 0) {
-			// 偶数位置：规则名称。这里顺便把逗号也加入菜单提示，引导玩家连写
+		} else if ((argIndex & 0b1) == 0b0) {
+			// argIndex % 2 == 0
+			// 偶数位置：规则名称。这里顺便把逗号也加入菜单提示, 引导玩家连写
 			candidates.AddRange(TeamRule.ruleFieldNames);
 			candidates.Add(",");
 		} else {
@@ -1256,6 +1268,57 @@ public class MPCore : MonoSingleton<MPCore> {
 			TeamRuleManager.GetRuleKey(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM),
 			TeamRuleManager.SetRule(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM, RuleType.Pvp, enabled));
 		RuleConfigLoader.SaveCurrentRulesToFile();
+	}
+
+	/// <summary>
+	/// 设置PVP伤害倍率
+	/// </summary>
+	public void SetDamageRule(string[] args) {
+		if (!EnsureHostPrivileges()) return;
+		// 循环解析
+		for (int i = 0; i + 1 < args.Length; i += 2) {
+			if (DamageRules.FloatFieldNames.Contains(args[i].ToLower())
+				&& float.TryParse(args[i + 1], out var value))
+				damageRules.SetField(args[i].ToLower(), value);
+		}
+
+		_MPSteamworks.SetLobbyData(
+			MPKeys.DAMAGE_CONFIG,
+			JsonConvert.SerializeObject(damageRules.FloatFieldValues));
+	}
+
+	/// <summary>
+	/// TeamRule补全函数
+	/// </summary>
+	public void DamageRuleAutocomplete(CommandConsole.CommandAutocomplete autocomplete) {
+		bool isHost = EnsureHostPrivileges();
+
+		int argIndex = autocomplete.activeArg;
+		// argIndex % 2 == 0
+		if ((argIndex & 0b1) == 0b0) {
+			// 转为键值对
+			var desc = damageRules.FloatFieldValues.Select(field => (
+						name: field.Key, value: field.Value.ToString()));
+			// 添加非Host标识
+			if (!isHost) {
+				desc.Append(("You Are Not Host", "Please call host"));
+				autocomplete.Reject();
+			}
+			autocomplete.FromArrayWithDesc(desc.ToList());
+		} else {
+			string vis = autocomplete.ArgumentAt(argIndex).Trim();
+			var candidates = new List<string> { "0", "0.1", "0.2", "0.5", "1", "2", "5", "10" };
+			if (!float.TryParse(vis, out _))
+				autocomplete.Reject();
+			else if (!string.IsNullOrEmpty(vis) && !candidates.Contains(vis))
+				candidates.Add(vis);
+			// 添加非Host标识
+			if (!isHost) {
+				candidates.Add("You Are Not Host");
+				autocomplete.Reject();
+			}
+			autocomplete.FromArray(candidates);
+		}
 	}
 
 	/// <summary>
@@ -1435,7 +1498,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			string targetStr = arg.ToLower();
 			if (targetStr == "all") {
 				sentToAll = true;
-				break; // 如果有 all，直接中断目标解析，按全员处理
+				break; // 如果有 all, 直接中断目标解析, 按全员处理
 			} else if (ulong.TryParse(targetStr, out ulong targetId)) {
 				targetIds.Add(targetId);
 			} else {
@@ -1475,7 +1538,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 实时输入验证 (输错目标时字体变红)
 		string currentArg = autocomplete.ArgumentAt(autocomplete.activeArg).ToLower();
 		if (!string.IsNullOrEmpty(currentArg)) {
-			// 合法条件：要么是 all，要么是分号，要么是纯数字(SteamID)
+			// 合法条件：要么是 all, 要么是分号, 要么是纯数字(SteamID)
 			bool isValid = currentArg == "all" || currentArg == ";" || ulong.TryParse(currentArg, out _);
 			if (!isValid) autocomplete.Reject();
 		}
@@ -1542,7 +1605,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 实时输入验证
 		string currentArg = autocomplete.ArgumentAt(autocomplete.activeArg).ToLower();
 		if (!string.IsNullOrEmpty(currentArg)) {
-			// 合法条件：要么是分号，要么存在于活动队伍字典中
+			// 合法条件：要么是分号, 要么存在于活动队伍字典中
 			bool isValid = currentArg == ";" || TeamRuleManager.activeTeams.Contains(currentArg);
 			if (!isValid) autocomplete.Reject();
 		}
@@ -1615,7 +1678,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 2. 实时输入验证
 		string currentArg = autocomplete.ArgumentAt(autocomplete.activeArg).ToLower();
 		if (!string.IsNullOrEmpty(currentArg)) {
-			// 合法条件：要么是分号，要么存在于我们刚刚构建的合法列表中
+			// 合法条件：要么是分号, 要么存在于我们刚刚构建的合法列表中
 			bool isValid = currentArg == ";" || targets.Any(t => t.name == currentArg);
 			if (!isValid) autocomplete.Reject();
 		}
@@ -1638,34 +1701,8 @@ public class MPCore : MonoSingleton<MPCore> {
 			StartCoroutine(InitGamemodeRoutine());
 		}
 
-		// 设置玩家个人数据
-		var joinMsgArray = Localization.GetAll("0_DisplayMessage.JoinMessages");
-		var leaveMsgArray = Localization.GetAll("0_DisplayMessage.LeaveMessages");
-
-		int joinLen = joinMsgArray?.Length ?? 0;
-		int leaveLen = leaveMsgArray?.Length ?? 0;
-		int minLength = Math.Min(joinLen, leaveLen);
-
-		var random = new System.Random();
-		int randomInt = minLength > 0 ? random.Next(minLength) : -1;
-		// 获取玩家名称
-		var playerName = MPConfig.RemotePlayerName == "" ? SteamClient.Name : MPConfig.RemotePlayerName;
-
-		// 保底格式化
-		string rawJoinTemplate = (randomInt >= 0 && joinMsgArray != null) ? joinMsgArray[randomInt] : "{0} join";
-		string rawLeaveTemplate = (randomInt >= 0 && leaveMsgArray != null) ? leaveMsgArray[randomInt] : "{0} leave";
-
-		string finalJoinMsg = Localization.SafeFormat(rawJoinTemplate, playerName);
-		string finalLeaveMsg = Localization.SafeFormat(rawLeaveTemplate, playerName);
-
-		_MPSteamworks.SetMemberData(new Dictionary<string, string>() {
-			{ MPKeys.PREFAB_ID, _LocalPlayer != null ? _LocalPlayer.FactoryId : "" },
-			{ MPKeys.PLAYER_NAME, playerName },
-			{ MPKeys.PLAYER_COLOR, MPUtil.SerializePlayerColor(_LocalPlayer != null ? _LocalPlayer.PlayerColor : MPConfig.RemotePlayerColor) },
-			{ MPKeys.JOIN_MESSAGE, finalJoinMsg },
-			{ MPKeys.LEAVE_MESSAGE, finalLeaveMsg },
-			{ MPKeys.TEAM, MPKeys.DEFAULT_TEAM },
-		});
+		// 设置加入时玩家数据信息
+		joinedMemberData();
 
 		// 显示加入大厅信息
 		StartCoroutine(ShowLobbyData());
@@ -1729,12 +1766,75 @@ public class MPCore : MonoSingleton<MPCore> {
 				string cmdData = lobby.GetData(MPKeys.JOIN_COMMAND);
 				if (!string.IsNullOrEmpty(cmdData))
 					Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
+
 				yield break;
 			}
 			if (!IsInitialized && !_MPSteamworks.IsHost) {
 				MPMain.LogError(Localization.Get("MPCore.HandshakeFailed"));
 				Leave(null);
 			}
+		}
+	}
+
+	/// <summary>
+	/// 加入房间完成后设置的玩家数据
+	/// </summary>
+	void joinedMemberData() {
+		// 设置玩家个人数据
+		var joinMsgArray = Localization.GetAll("0_DisplayMessage.JoinMessages");
+		var leaveMsgArray = Localization.GetAll("0_DisplayMessage.LeaveMessages");
+
+		int joinLen = joinMsgArray?.Length ?? 0;
+		int leaveLen = leaveMsgArray?.Length ?? 0;
+		int minLength = Math.Min(joinLen, leaveLen);
+
+		var random = new System.Random();
+		int randomInt = minLength > 0 ? random.Next(minLength) : -1;
+		// 获取玩家名称
+		var playerName = MPConfig.RemotePlayerName == "" ? SteamClient.Name : MPConfig.RemotePlayerName;
+
+		// 保底格式化
+		string rawJoinTemplate = (randomInt >= 0 && joinMsgArray != null) ? joinMsgArray[randomInt] : "{0} join";
+		string rawLeaveTemplate = (randomInt >= 0 && leaveMsgArray != null) ? leaveMsgArray[randomInt] : "{0} leave";
+
+		string finalJoinMsg = Localization.SafeFormat(rawJoinTemplate, playerName);
+		string finalLeaveMsg = Localization.SafeFormat(rawLeaveTemplate, playerName);
+
+		// 获取玩家颜色
+		var playerColor = MPUtil.SerializePlayerColor(_LocalPlayer != null ? _LocalPlayer.PlayerColor : MPConfig.RemotePlayerColor);
+
+		_MPSteamworks.SetMemberData(new Dictionary<string, string>() {
+				{ MPKeys.PREFAB_ID, _LocalPlayer != null ? _LocalPlayer.FactoryId : "" },
+				{ MPKeys.PLAYER_NAME, playerName },
+				{ MPKeys.PLAYER_COLOR, playerColor},
+				{ MPKeys.JOIN_MESSAGE, finalJoinMsg },
+				{ MPKeys.LEAVE_MESSAGE, finalLeaveMsg },
+				{ MPKeys.TEAM, MPKeys.DEFAULT_TEAM },
+			});
+	}
+
+	/// <summary>
+	/// 加载地图完成后设置的玩家数据
+	/// </summary>
+	void loadedMemberData() {
+		StartCoroutine(LoadAll());
+
+		IEnumerator LoadAll() {
+			// 等待地图加载完成
+			yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+			// 等待玩家prek生效
+			yield return new WaitForSeconds(1.0f);
+			if (!IsInLobby) yield break;
+			MPMain.Debug("loadedMemberData A");
+			var player = ENT_Player.GetPlayer().gameObject;
+			if (player == null) yield break;
+			MPMain.Debug("loadedMemberData B");
+			var playerCharacter = player.GetComponent<CharacterController>();
+			var height = player.transform.localScale.y * playerCharacter.height;
+			var radius = Math.Sqrt(playerCharacter.transform.localScale.x * playerCharacter.transform.localScale.z) * playerCharacter.radius;
+			MPMain.Debug("loadedMemberData C");
+			_MPSteamworks.SetMemberData(MPKeys.PLAYER_SCALE, $"{height},{radius}");
+			MPMain.Debug($"{height},{radius}");
 		}
 	}
 
@@ -1846,7 +1946,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandleLobbyHostChanged(Friend steamId, bool isHost) {
 		if (isHost) {
-			_MPSteamworks.LobbyData.TryGetValue(MPKeys.ACTIVE_TEAMS,out var teams);
+			_MPSteamworks.LobbyData.TryGetValue(MPKeys.ACTIVE_TEAMS, out var teams);
 			TeamRuleManager.AddActiveTeams(teams.Split(','));
 		}
 	}
@@ -1915,7 +2015,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		return false;
 	}
 
-	
+
 
 	/// <summary>
 	/// 确保在大厅中使用指令

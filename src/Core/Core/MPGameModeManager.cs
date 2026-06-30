@@ -143,12 +143,15 @@ public class MPGameModeManager {
 		}
 
 		IEnumerator ExecuteRestartCMD() {
-			MPMain.Debug("MPGameModeManager.ExecuteRestartCMD");
+			MPMain.Debug("MPGameModeManager.ExecuteRestartCMD A");
 			// 等待地图加载完成
 			yield return new WaitUntil(() => WorldLoader.isLoaded == true);
 
+			MPMain.Debug("MPGameModeManager.ExecuteRestartCMD B");
+
 			// 加载完成后执行加入指令
 			if (MPSteamworks.Instance.LobbyData.TryGetValue(MPKeys.RESTART_COMMAND, out var cmdData) && !string.IsNullOrEmpty(cmdData)) {
+				MPMain.Debug("MPGameModeManager.ExecuteRestartCMD C");
 				Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
 			}
 			yield break;
