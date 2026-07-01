@@ -76,15 +76,6 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		MPMain.LogInfo(Localization.Get("RPFactoryManager.FactoryRegistered", extension.ModelId));
 	}
 
-	/// <summary>
-	/// 获取指定模型的扩展配置接口
-	/// </summary>
-	public static ICustomModelExtension GetExtension(string modelId) {
-		if (string.IsNullOrEmpty(modelId) || !_registry.TryGetValue(modelId, out var model)) {
-			return null;
-		}
-		return model.Extension;
-	}
 	#endregion
 
 	#region[对象生成/清理]
@@ -182,25 +173,6 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		Object.Destroy(instance);
 		instance = null;
 		MPMain.Debug($"[RPFactoryManager] 成功清理模型实例, ID: {name}");
-	}
-
-	#endregion
-
-	#region[颜色改变]
-
-	public void ApplyPlayerColor(string modelId, GameObject instance, Color32 color) {
-		if (!_registry.TryGetValue(modelId, out var registration)) {
-			MPMain.LogError($"[Debug][RPFactoryManager] 找不到指定的模型注册信息: {modelId}, 将尝试使用 default 模型");
-			return;
-		}
-
-		ICustomModelExtension extension = registration.Extension;
-
-		try {
-			extension?.ApplyPlayerColor(instance, color);
-		} catch (Exception ex) {
-			MPMain.LogError($"[Debug][RPFactoryManager] 修改模型 {modelId} 颜色时出错, 错误: {ex.Message}");
-		}
 	}
 
 	#endregion
@@ -306,6 +278,18 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 
 	#endregion
 
+	#region[API]
+
+	public bool TryGetExtension(string modelId,out ICustomModelExtension extension) {
+		if (_registry.TryGetValue(modelId, out var registration)) {
+			extension = registration.Extension;
+			return true;
+		}
+		extension = null;
+		return false;
+	}
+
+	#endregion
 	private class AssetHelper : IAssetHelper {
 		private readonly AssetBundle _bundle;
 		public AssetHelper(AssetBundle bundle) { _bundle = bundle; }

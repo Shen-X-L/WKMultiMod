@@ -1,6 +1,7 @@
 ﻿using Steamworks;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using Unity.Transforms;
 using UnityEngine;
@@ -41,6 +42,7 @@ public class RPContainer {
 	private TickTimer _deathTick = new TickTimer(0.5f);
 
 	// 玩家模型数据
+	public ICustomModelExtension Extension { get; private set; }
 	public string prefabId => _pending.prefabId;
 	public Color32 PlayerColor { get; private set; } = new Color32(255, 255, 255, 255);
 
@@ -203,11 +205,15 @@ public class RPContainer {
 
 		// prefabId 最后处理，返回"是否需要重建模型"给 Manager 判断
 		if (changes.TryGetValue(MPKeys.PREFAB_ID, out var pid)) {
-			_pending.prefabId = pid;
-			return true;
+			if (RPFactoryManager.Instance.TryGetExtension(pid, out var extension)) {
+				_pending.prefabId = pid;
+				Extension = extension;
+				return true;
+			}
 		}
 		return false;
 	}
+	
 
 	#endregion
 
@@ -227,7 +233,11 @@ public class RPContainer {
 
 	private void ApplyColor(Color32 color) {
 		PlayerColor = new Color32(color.r, color.g, color.b, 255);
-		RPFactoryManager.Instance.ApplyPlayerColor(prefabId, PlayerObject, PlayerColor);
+		try {
+			Extension?.ApplyPlayerColor(PlayerObject, color);
+		} catch (Exception ex) {
+			MPMain.LogError($"[Debug] 修改模型 {prefabId} 颜色时出错, 错误: {ex.Message}");
+		}
 	}
 
 	private void ApplyScale(float height, float radius) {
@@ -345,8 +355,7 @@ public class RPContainer {
 		var playerPosition = PlayerObject.transform.position;
 		var playerRotation = PlayerObject.transform.rotation;
 		// 动态获取当前模型的死亡特效配置
-		ICustomModelExtension extension = RPFactoryManager.GetExtension(prefabId);
-		string effectName = extension?.DeathEffectAssetName ?? MPAssetManager.DEATH_OBJECT_NAME;
+		string effectName = Extension?.DeathEffectAssetName ?? MPAssetManager.DEATH_OBJECT_NAME;
 
 		GameObject deathParticle = MPAssetManager.GetFXPrefab(effectName)
 								?? CL_AssetManager.GetAssetGameObject(effectName);
@@ -361,6 +370,18 @@ public class RPContainer {
 		_deathTick.Reset();
 	}
 
+	public void HandleDamage(Damageable.DamageInfo damageInfo) {
+		// 决定采用什么受击特效资产名字
+		string effectName = Extension?.DamageEffectAssetName ?? MPAssetManager.DAMAGE_OBJECT_NAME;
+		GameObject effectPrefab = MPAssetManager.GetFXPrefab(effectName)
+						   ?? CL_AssetManager.GetAssetGameObject(effectName);
+		if (effectPrefab != null) {
+			Vector3 spawnPos = damageInfo.position != Vector3.zero
+				? damageInfo.position
+				: PlayerObject.transform.position;
+			GameObject.Instantiate(effectPrefab, spawnPos, Quaternion.identity);
+		}
+	}
 	#endregion
 
 	#region[队伍/规则函数]

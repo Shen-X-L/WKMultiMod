@@ -47,6 +47,11 @@ public interface ICustomModelExtension {
 	/// 修改玩家颜色
 	/// </summary>
 	void ApplyPlayerColor(GameObject instance, Color32 color);
+
+	/// <summary>
+	/// 切换玩家下蹲状态
+	/// </summary>
+	void Crouching(bool isCrouching);
 }
 
 public interface IAssetHelper {

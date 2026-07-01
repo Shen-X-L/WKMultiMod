@@ -266,23 +266,11 @@ public class RPManager : Singleton<RPManager> {
 	public void ProcessPlayerDamage(ulong playerId, Damageable.DamageInfo info) {
 		// 获取对应的远程玩家容器
 		if (!Players.TryGetValue(playerId, out var container)) return;
-
-		// 获取对应模型专属的数据配置
-		ICustomModelExtension extension = RPFactoryManager.GetExtension(container.prefabId);
-
-		// 决定采用什么受击特效资产名字
-		string effectName = extension?.DamageEffectAssetName ?? MPAssetManager.DAMAGE_OBJECT_NAME;
-		GameObject effectPrefab = MPAssetManager.GetFXPrefab(effectName)
-						   ?? CL_AssetManager.GetAssetGameObject(effectName);
-		if (effectPrefab != null) {
-			Vector3 spawnPos = info.position != Vector3.zero
-				? info.position
-				: container.PlayerObject.transform.position;
-			GameObject.Instantiate(effectPrefab, spawnPos, Quaternion.identity);
-		}
+		container.HandleDamage(info);
 	}
 
 	#endregion
+
 	#region[获取玩家对象]
 
 	// 返回玩家对象
@@ -296,6 +284,7 @@ public class RPManager : Singleton<RPManager> {
 	}
 
 	#endregion
+
 	#region[工具函数]
 
 	/// <summary>

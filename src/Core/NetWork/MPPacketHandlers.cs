@@ -15,6 +15,7 @@ using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
+using WKMPModTemp.World;
 using static ENT_Player;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -297,7 +298,7 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.ItemStateSync)]
 	private static void HandleItemStateSync(IDType senderId, DataReader reader) {
-		ItemSyncManager.HandleItemState(senderId, reader);
+		WKMPModTemp.World.ItemSyncManager.HandleItemState(senderId, reader);
 	}
 
 	/// <summary>

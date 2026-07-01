@@ -69,12 +69,12 @@ public static class ItemSyncManager {
 
 	#region[常量]
 
-	private const float CandidateMatchDistanceSqr = 0.5f;  // 场景候选匹配距离平方阈值 (约 0.7m 半径): 场景物品不移动, 阈值较紧
-	private const float LocalDropMatchDistanceSqr = 25f;   // 本地丢弃防御匹配距离平方阈值 (约 5m 半径): 物品可能在 RTT 内移动
+	private const float CandidateMatchDistanceSqr = 0.5f;   // 场景候选匹配距离平方阈值 (约 0.7m 半径): 场景物品不移动, 阈值较紧
+	private const float LocalDropMatchDistanceSqr = 25f;    // 本地丢弃防御匹配距离平方阈值 (约 5m 半径): 物品可能在 RTT 内移动
 	private const float LocalDropMaxAge = 3f;               // 本地丢弃记录最大存活时间 (秒), 超期自动清理防止陈旧记录污染
-	private const float VelocityEpsilonSqr = 0.0025f;      // 速度零阈值平方 (约 0.05 m/s), 低于此值视为静止不发送速度
-	private const float StableIdPositionPrecision = 20f;   // 稳定场景 ID 位置量化精度 (×精度后取整, 精度 20 ≈ 0.05m 分辨率)
-	private const float StableIdRotationPrecision = 5f;    // 稳定场景 ID 旋转量化精度 (精度 5 ≈ 0.2° 分辨率)
+	private const float VelocityEpsilonSqr = 0.0025f;       // 速度零阈值平方 (约 0.05 m/s), 低于此值视为静止不发送速度
+	private const float StableIdPositionPrecision = 20f;    // 稳定场景 ID 位置量化精度 (×精度后取整, 精度 20 ≈ 0.05m 分辨率)
+	private const float StableIdRotationPrecision = 5f;     // 稳定场景 ID 旋转量化精度 (精度 5 ≈ 0.2° 分辨率)
 	private const int SnapshotItemsPerFrame = 10;           // 快照协议每帧最多发送/注册物品数量, 防止大批量物品导致帧率下降
 
 	#endregion
@@ -224,6 +224,12 @@ public static class ItemSyncManager {
 
 			_items[identity.NetworkId] = identity;
 			MPMain.Debug($"[P2P ItemSync] SyncAndBroadcast - Created P2P Identity: {itemObject.name} → {identity.NetworkId}");
+		} else {
+			// [关键修复] 防御性修复: 如果它已经有网络 ID，必须确保它存在于追踪字典中！
+			// 否则本地丢出一个携带旧 ID 的物品时，别人申请拾取会报错。
+			if (!_items.ContainsKey(identity.NetworkId)) {
+				_items[identity.NetworkId] = identity;
+			}
 		}
 
 		// 广播 Create, 告知网络中所有对等端生成或注册此物体
@@ -273,9 +279,10 @@ public static class ItemSyncManager {
 		if (string.IsNullOrEmpty(networkId)) return;
 
 		MPMain.Debug($"[P2P ItemSync] ForceCleanup - Double-Destruction: {networkId}");
-
+		MPMain.Debug("ForceCleanupItemPhysicalAndInventory A");
 		// ── 背包清理 ──────────────────────────────────────────────────────
 		var inventory = ENT_Player.GetInventory();
+		// 清理背包内的物品
 		if (inventory?.bagItems != null) {
 			for (int i = inventory.bagItems.Count - 1; i >= 0; i--) {
 				var bagItem = inventory.bagItems[i];
@@ -285,32 +292,57 @@ public static class ItemSyncManager {
 				if (dropObj == null) continue;
 
 				var dropIdentity = dropObj.GetComponent<NetworkedItem>();
+				MPMain.Debug("ForceCleanupItemPhysicalAndInventory AA");
 				if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
-
+				MPMain.Debug("ForceCleanupItemPhysicalAndInventory AB");
 				inventory.bagItems.RemoveAt(i);
 				if (_inHand(bagItem)) inventory.ClearItemFromHand(bagItem);
 				bagItem.hasBeenDestroyed = true;
 
 				MPMain.Debug($"[P2P ItemSync] ForceCleanup - Evicted '{bagItem.itemName}' from inventory.");
 			}
-			inventory.RescanInventory(); // 通知 UI 刷新背包格子
 		}
+		// 清理玩家当前正拿在手里的物品
+		if (inventory?.itemHands != null) {
+			foreach (var handSlot in inventory.itemHands) {
+				if (handSlot == null || handSlot.currentItem == null) continue;
+
+				var handItem = handSlot.currentItem;
+				var dropObj = _dropObjectField(handItem);
+				if (dropObj == null) continue;
+
+				var identity = dropObj.GetComponent<NetworkedItem>();
+				if (identity == null || identity.NetworkId != networkId) continue;
+				inventory.ClearItemFromHand(handItem);
+				handItem.hasBeenDestroyed = true;
+				MPMain.LogWarning($"[P2P ItemSync] API 3 - Removed stale/rejected item '{handItem.itemName}' directly from Player Hands!");
+			}
+
+		}
+		
+		inventory?.RescanInventory(); // 通知 UI 刷新背包格子
 
 		// ── 世界物体清理 ──────────────────────────────────────────────────
-		if (!_items.TryGetValue(networkId, out var networkedItem) || networkedItem == null) return;
+		if (!_items.TryGetValue(networkId, out var networkedItem) || networkedItem == null) {
+			MPMain.Debug("ForceCleanupItemPhysicalAndInventory B");
+			return;
+		}
 
-		var itemObject = networkedItem.GetComponent<Item_Object>();
+		var itemObject = networkedItem.GetComponent<Item_Object >();
 		if (itemObject != null) {
+			MPMain.Debug("ForceCleanupItemPhysicalAndInventory C");
 			RemoveCandidate(itemObject);
 			if (itemObject.itemData != null)
 				_dropObjectField(itemObject.itemData) = null; // 解除反向引用, 防止野指针
 		}
 
 		if (networkedItem.gameObject != null) {
+			MPMain.Debug("ForceCleanupItemPhysicalAndInventory D");
 			networkedItem.gameObject.SetActive(false);
 			Object.Destroy(networkedItem.gameObject); // 强制双向销毁时无论是否为场景原生物品都 Destroy
 		}
 
+		MPMain.Debug("ForceCleanupItemPhysicalAndInventory E");
 		_items.Remove(networkId);
 	}
 
@@ -369,15 +401,16 @@ public static class ItemSyncManager {
 	/// 由 MPPacketHandlers.HandleItemStateSync 调用.
 	/// </summary>
 	public static void HandleItemState(IDType senderId, DataReader reader) {
+		MPMain.Debug("HandleItemState");
 		var action = (ItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
-				case ItemSyncAction.SnapshotReset: HandleSnapshotReset(); break;
-				case ItemSyncAction.SnapshotFinalize: HandleSnapshotFinalize(); break;
-				case ItemSyncAction.Create: HandleCreate(senderId, reader); break;
-				case ItemSyncAction.PickupRequest: HandlePickupRequest(senderId, reader); break;
-				case ItemSyncAction.Remove: HandleRemove(reader); break;
-				case ItemSyncAction.PickupReject: HandlePickupReject(reader); break;
+				case ItemSyncAction.SnapshotReset: MPMain.Debug("HandleSnapshotReset"); HandleSnapshotReset(); break;
+				case ItemSyncAction.SnapshotFinalize: MPMain.Debug("HandleSnapshotFinalize"); HandleSnapshotFinalize(); break;
+				case ItemSyncAction.Create: MPMain.Debug("HandleCreate"); HandleCreate(senderId, reader); break;
+				case ItemSyncAction.PickupRequest: MPMain.Debug("HandlePickupRequest"); HandlePickupRequest(senderId, reader); break;
+				case ItemSyncAction.Remove: MPMain.Debug("HandleRemove"); HandleRemove(reader); break;
+				case ItemSyncAction.PickupReject: MPMain.Debug("HandlePickupReject"); HandlePickupReject(reader); break;
 			}
 		} catch (Exception e) {
 			MPMain.LogError($"[P2P ItemSync] HandleItemState failed for action {action}: {e.Message}");
@@ -462,10 +495,9 @@ public static class ItemSyncManager {
 			if (candidate != null) {
 				wasSnapshotCandidate = _snapshotCandidates.Contains(candidate);
 				RemoveCandidate(candidate);
-			}
+			} else if (candidate == null)
+				candidate = FindClientCandidate(prefabKey, position, out wasSnapshotCandidate);
 		}
-		if (candidate == null)
-			candidate = FindClientCandidate(prefabKey, position, out wasSnapshotCandidate);
 
 		var itemObject = candidate;
 		bool instantiatedBySync = false;
@@ -513,16 +545,25 @@ public static class ItemSyncManager {
 		MPMain.LogInfo($"[P2P ItemSync] PickupRequest from {requesterId} for {networkId}");
 
 		if (!_items.TryGetValue(networkId, out var identity)) {
+			MPMain.Debug("HandlePickupRequest A");
 			// 物品已不在我这里 (已被别人先拿), 拒绝申请
 			SendPickupReject(requesterId, networkId);
 			return;
 		}
 
+		if (IsItemInInventory(identity)) {
+			MPMain.LogWarning($"[P2P ItemSync] PickupRequest denied: Item {networkId} is already in local inventory.");
+			SendPickupReject(requesterId, networkId);
+			return;
+		}
+
 		if (identity.OwnerId == MPSteamworks.UserSteamId) {
+			MPMain.Debug("HandlePickupRequest B");
 			// 批准: 广播 Remove (holderId=申请者) + 本地遗忘
 			BroadcastRemove(requesterId, networkId);
 			Forget(networkId);
 		} else {
+			MPMain.Debug("HandlePickupRequest C");
 			// 所有权异常 (不应发生): 拒绝申请
 			SendPickupReject(requesterId, networkId);
 		}
@@ -544,7 +585,6 @@ public static class ItemSyncManager {
 	/// 收到全局移除消息 (Remove): 执行 API 3 双向清理.
 	/// <para>
 	/// holderId == 我: 我就是发起 Remove 的那方 (批准了别人的 PickupRequest 或自己拾起了自己的物品).
-	/// 本地已在 BroadcastRemove 前调用了 Forget, 此处跳过, 防止重复清理.
 	/// holderId != 我: 他人拾起了物品, 执行 ForceCleanupItemPhysicalAndInventory.
 	/// </para>
 	/// </summary>
@@ -553,7 +593,12 @@ public static class ItemSyncManager {
 		var holderId = reader.GetULong();
 
 		if (string.IsNullOrEmpty(networkId)) return;
-		if (holderId == MPSteamworks.UserSteamId) return; // 我已在发送 Remove 前处理过了
+		if (holderId == MPSteamworks.UserSteamId) {
+			// 物品已经在背包里了,跳过双向清理,但必须调用 Forget 洗白它的网络身份
+			// 否则下次扔出来时,依然附带旧的 OwnerId,导致别人的拾取申请被拒
+			Forget(networkId);
+			return;
+		}
 
 		ForceCleanupItemPhysicalAndInventory(networkId);
 	}
@@ -843,8 +888,27 @@ public static class ItemSyncManager {
 		if (itemObject != null) RemoveCandidate(itemObject);
 
 		if (identity.gameObject != null) {
-			identity.gameObject.SetActive(false);
-			if (identity.WasInstantiatedBySync) Object.Destroy(identity.gameObject);
+			// 判断物品是否已经合法进入了本地玩家的背包或手中
+			bool inInventory = itemObject != null && itemObject.itemData != null &&
+							   (itemObject.itemData.inBag || _inHand(itemObject.itemData));
+
+			if (inInventory) {
+				// 如果在包里：绝对不能摧毁物理实体和 SetActive(false)
+				// 我们只剥夺它的网络身份，让它彻底变回单机物品。
+				identity.NetworkId = string.Empty;
+				identity.StableSceneId = string.Empty;
+				identity.WasInstantiatedBySync = false;
+			} else {
+				// 正常的场景遗忘清理
+				identity.gameObject.SetActive(false);
+				if (identity.WasInstantiatedBySync) {
+					Object.Destroy(identity.gameObject);
+				} else {
+					// 清除旧的 NetworkId！防止带旧 ID 错乱
+					identity.NetworkId = string.Empty;
+					identity.StableSceneId = string.Empty;
+				}
+			}
 		}
 		_items.Remove(networkId);
 	}
@@ -860,8 +924,8 @@ public static class ItemSyncManager {
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
 		if (identity != null && string.IsNullOrEmpty(identity.NetworkId)) {
-			identity.NetworkId = networkId;
-			identity.StableSceneId = networkId;
+			identity.NetworkId = string.Empty;
+			identity.StableSceneId = string.Empty;
 		}
 		RemoveCandidate(itemObject);
 		itemObject.gameObject.SetActive(false);
@@ -1200,19 +1264,42 @@ public static class ItemSyncManager {
 	}
 
 	#endregion
+	#region[安全判断工具]
+
+	/// <summary>
+	/// 检查物品是否已经在本地玩家的背包或手中
+	/// </summary>
+	private static bool IsItemInInventory(NetworkedItem identity) {
+		if (identity == null || identity.gameObject == null) return false;
+
+		var itemObject = identity.GetComponent<Item_Object>();
+		if (itemObject == null || itemObject.itemData == null) return false;
+
+		// 检查 itemData 是否标记为在包内，或通过委托检查是否在手中
+		bool inBag = itemObject.itemData.inBag;
+		bool inHand = _inHand(itemObject.itemData);
+
+		return inBag || inHand;
+	}
+
+	#endregion
 	#endregion
 
 	#region[黑名单判定]
 
 	private static readonly HashSet<string> _blacklistedPrefabNames = new(StringComparer.OrdinalIgnoreCase) {
-		"Item_Flashlight", // 手电筒: 亮度/状态为本地效果, 不同步世界生成
-		"Item_Flaregun",   // 信号枪: 弹药状态复杂, 不同步世界生成
-		"Item_Cryogun",    // 冷冻枪: 蓄力/弹药状态复杂, 不同步世界生成
+		"Item_Flashlight",		// 手电筒: 不同步世界生成
+		"Item_Flaregun",		// 信号枪: 不同步世界生成
+		"Item_Cryogun",			// 冷冻枪: 不同步世界生成
+		"Item_Handgun",			// 手枪: 不同步世界生成
+		"Item_Handgun_Debug",	// 手枪: 不同步世界生成
+		"Item_10mm_Ammo",		// 手枪子弹: 不同步世界生成
 	};
 
 	private static readonly HashSet<string> _blacklistedItemTags = new(StringComparer.OrdinalIgnoreCase) {
 		"artifact", // 神器: 关卡特殊物品, 不同步世界生成, 但丢弃/拾取同步
 		"disk",     // 磁盘: 关卡特殊物品, 不同步世界生成, 但丢弃/拾取同步
+		"trinket"	// 饰品: 关卡特殊物品, 不同步世界生成, 但丢弃/拾取同步
 	};
 
 	/// <summary>检查 Item 数据是否在黑名单 (预制体名称或物品标签命中).</summary>

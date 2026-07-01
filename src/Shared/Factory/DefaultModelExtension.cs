@@ -1,8 +1,5 @@
-﻿using System.Linq;
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
-using WKMPMod.Core;
-using WKMPMod.Util;
 
 namespace WKMPMod.RemotePlayer;
 
@@ -40,14 +37,14 @@ public class DefaultModelExtension : ICustomModelExtension {
 	/// </summary>
 	private void FixTMPComponent(GameObject prefab, IAssetHelper assetHelper) {
 		foreach (var tmpText in prefab.GetComponentsInChildren<TMP_Text>(true)) {
-			MPMain.LogInfo(Localization.Get("RPSlugcatFactory.SpecializingTMPComponent", tmpText.name));
+			Debug.Log("RPSlugcatFactory.SpecializingTMPComponent" + tmpText.name);
 
 			// 获取原版字体
 			TMP_FontAsset gameFont = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
 				.FirstOrDefault(f => f.name == GAME_TMP_FONT_ASSET);
 
 			if (gameFont == null) {
-				MPMain.LogError(Localization.Get("RPSlugcatFactory.FontAssetNotFound", GAME_TMP_FONT_ASSET));
+				Debug.LogError("RPSlugcatFactory.FontAssetNotFound" + GAME_TMP_FONT_ASSET);
 				continue;
 			}
 			tmpText.font = gameFont;
@@ -58,9 +55,9 @@ public class DefaultModelExtension : ICustomModelExtension {
 
 			if (instanceMat != null && bundleMat != null) {
 				instanceMat.shader = bundleMat.shader;
-				MPMain.LogInfo(Localization.Get("RPSlugcatFactory.ImplementOverlayViaShader"));
+				Debug.Log("RPSlugcatFactory.ImplementOverlayViaShader");
 			} else {
-				MPMain.LogError(Localization.Get("RPSlugcatFactory.UnableToLoadMaterial", TMP_DISTANCE_FIELD_OVERLAY_MAT));
+				Debug.LogError("RPSlugcatFactory.UnableToLoadMaterial" + TMP_DISTANCE_FIELD_OVERLAY_MAT);
 			}
 		}
 	}
@@ -109,4 +106,10 @@ public class DefaultModelExtension : ICustomModelExtension {
 			: Color.white;
 	}
 
+	/// <summary>
+	/// 切换玩家下蹲状态
+	/// </summary>
+	public void Crouching(bool isCrouching) { 
+	
+	}
 }

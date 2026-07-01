@@ -25,17 +25,11 @@
 		</ItemGroup>
 
 		<!--生成.dll复制到Unity项目下-->
-		<Copy SourceFiles="@(SharedOutputFiles)" 
-			DestinationFolder="$(UnityProject)\Assets\Plugins" 
-			SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(UnityProject)\Assets\Plugins" SkipUnchangedFiles="true" />
 		<!--生成.dll复制到bin\解决方案配置-->
-		<Copy SourceFiles="@(SharedOutputFiles)"
-			DestinationFolder="$(SolutionDir)bin\$(Configuration)\"
-			SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)bin\$(Configuration)\" SkipUnchangedFiles="true" />
 		<!--生成.dll复制到游戏文件夹-->
-		<Copy SourceFiles="@(SharedOutputFiles)" 
-			DestinationFolder="$(GamePath)\BepInEx\plugins\MP" 
-			SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(GamePath)\BepInEx\plugins\MP" SkipUnchangedFiles="true" />
 
 	</Target>
 

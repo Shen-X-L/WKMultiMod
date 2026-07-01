@@ -3,7 +3,8 @@ using System;
 using System.Diagnostics;
 using Unity.VisualScripting;
 using WKMPMod.Core;
-using WKMPMod.World;
+//using WKMPMod.World;
+using WKMPModTemp.World;
 
 namespace WKMPMod.Patch;
 
@@ -61,18 +62,3 @@ public class Patch_Inventory_DropItemIntoWorld_ItemSync {
 	}
 }
 #endregion
-
-// Harmony 补丁: 物品被放下时0.3秒内不可重复捡起,留给网络同步时间
-[HarmonyPatch(typeof(Item_Object),nameof(Item_Object.OnDrop))]
-public class Patch_Item_Object_OnDrop_ItemSync {
-
-	private static readonly AccessTools.FieldRef<Item_Object, float> _dropTimeField =
-		AccessTools.FieldRefAccess<Item_Object, float>("dropTime");
-
-	private const float DROP_TIME = 0.3f;
-
-	public static void Postfix(Item_Object __instance) {
-		if(MPCore.CanSync)
-			_dropTimeField(__instance) = DROP_TIME;
-	}
-}

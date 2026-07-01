@@ -4,6 +4,8 @@ using WKMPMod.Data;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
 
+namespace WKMPMod.Data;
+
 [Serializable]
 public struct PlayerData : INetworkSerializable {
 	private const float POSITION_CHANGE_THRESHOLD_SQR = 0.0025f;    // 0.05单位的平方
