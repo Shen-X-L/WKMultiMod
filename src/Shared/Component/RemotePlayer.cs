@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using UnityEngine;
+using WKMPMod.Data;
 
 namespace WKMPMod.Component;
 // MultiPlayerComponent: 管理玩家的网络同步位置和旋转

@@ -12,28 +12,23 @@ using WKMPMod.Util;
 
 namespace WKMPMod.Core;
 
-[BepInPlugin(ModGUID, ModName, ModVersion)]
+[BepInPlugin(PLUGIN_GUID, PLUGIN_NAME, PLUGIN_VERSION)]
 public class MPMain : BaseUnityPlugin {
 
-	public const string ModGUID = "shenxl.MultiPlayerMod";
-	public const string ModName = "MultiPlayer Mod";
-	public const string ModVersion = "1.7.4";
+	public const string PLUGIN_GUID = "shenxl.MultiPlayerMod";
+	public const string PLUGIN_NAME = "MultiPlayer Mod";
+	public const string PLUGIN_VERSION = "1.7.6";
 	//Assembly.GetExecutingAssembly().Location -> BepInEx\plugins\MultiPlayer\WKMultiPlayerMod.dll
 	//Path.GetDirectoryName -> BepInEx\plugins\MultiPlayer
 	public static string path = Path.GetDirectoryName(typeof(MPMain).Assembly.Location) ?? string.Empty;
-
 	// 单例实例
 	public static MPMain Instance { get; set; }
-
 	// 日志记录器
 	internal static new ManualLogSource Logger;
-
 	// Harmony上下文
 	private Harmony _harmony;
-
 	// 核心实例访问器
 	public static MPCore Core => MPCore.Instance;
-
 	// 蛞蝓猫手部皮肤ID 和 身体皮肤ID
 	public const string SLUGCAT_HAND_ID = "slugcat hands";
 	public const string SLUGCAT_BODY_FACTORY_ID = "slugcat";
@@ -50,20 +45,10 @@ public class MPMain : BaseUnityPlugin {
 
 		// 日志初始化
 		Logger = base.Logger;
-		Logger.LogInfo($"[MPMain] {ModGUID} {ModVersion} loaded");
-
-		//// 日后生命周期完善时使用这个单例创建
-		//// 1. 创建一个新的, GameObject
-		//GameObject coreGameObject = new GameObject("MultiplayerCore");
-
-		//// 2. 立即保护新对象 (被游戏创建初期销毁了,为什么?)
-		//DontDestroyOnLoad(coreGameObject);
-
-		//// 添加组件
-		//coreGameObject.AddComponent<MPCore>();
+		Logger.LogInfo($"[MPMain] {PLUGIN_GUID} {PLUGIN_VERSION} loaded");
 
 		// 使用Harmony打补丁
-		_harmony = new Harmony($"{ModGUID}");
+		_harmony = new Harmony($"{PLUGIN_GUID}");
 		_harmony.PatchAll();
 
 		// 配置初始化

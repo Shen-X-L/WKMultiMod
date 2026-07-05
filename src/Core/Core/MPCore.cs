@@ -1898,8 +1898,8 @@ public class MPCore : MonoSingleton<MPCore> {
 				CommandConsole.cheatsEnabled = false;
 				ENT_Player.GetPlayer()?.noclip = false;
 				ENT_Player.GetPlayer()?.SetGodMode(false);
+				}
 			}
-		}
 
 		// 处理活跃队伍列表的特殊键, 直接影响规则设置界面和规则应用逻辑
 		if (changedData.TryGetValue(MPKeys.ACTIVE_TEAMS, out var activeTeamsValue)) {

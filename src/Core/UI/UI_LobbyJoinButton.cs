@@ -88,7 +88,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			unlockText?.text = "Unknown gamemode";
 		}
 
-		var v1 = new Version(MPMain.ModVersion);
+		var v1 = new Version(MPMain.PLUGIN_VERSION);
 		if (!Version.TryParse(lobby.GetData(MPKeys.MOD_VERSION), out var v2) ||
 			v1.Major != v2.Major || v1.Minor != v2.Minor) {
 			unlockIcon?.gameObject.SetActive(true);

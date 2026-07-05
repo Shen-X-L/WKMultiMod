@@ -64,6 +64,7 @@ moth	类型:moth		标签:moth						伤害0.3
 流血		类型:bleed		标签:bleed						伤害0.2
 teeth	类型:teeth		标签:teeth						伤害1
 face	类型:face		标签:face						伤害1
+hunter	类型:hunter		标签:hunter						伤害0.3
 门		类型:engraveddoor	标签:engraveddoor			伤害0.15
 饿死		类型:hunger		标签:hunger						伤害0/0.3
 摸电门	类型:handhold-sharp	标签:handhold-sharp			伤害0.5 
@@ -85,7 +86,8 @@ aunt
 	舔中	类型:barnacle	标签:barnacle					伤害0.1
 	啃咬	类型:barnacle	标签:barnacle					伤害0.5
 摸花触电	类型:handhold-sharp	标签:handhold-sharp handhold nonlethal	伤害0.1 
-hunter	类型:hunter		标签:hunter						伤害0.3
+鱼		类型:myzont		标签:myzont Bite					伤害0.5
+
 ```
 
 ---
@@ -455,7 +457,26 @@ name:GM_CH_05_Shutterworld		|Shuttered Rift
 name:GM_CH_06_BoostCourse		|Boost Course
 
 ```
+---
+## BUFF
+```
+[
+"addPocketCapacity","addPocketBigItemCapacity","addCapacity","divideCapacity","slowTime",
+"intoxication","addReach-hand-0","addReach","addPlayerScale","addReach-hand--1","addStamina-hand-0",
+"divideStamina-hand-0","limitGripStrength-hand-0","addStamina","divideStamina","limitGripStrength",
+"grabAnything","pilled","boosted","addStaminaRegen","regenerateGripStrength","addReach-hand-1",
+"addStamina-hand-1","divideStamina-hand-1","limitGripStrength-hand-1","roided","gooped","unbound",
+"bloodied","freezing","warming","poisoned","sway","swaySpeed","addFOV","addPlayerWidth","addGravity",
+"forceCrouchIfGrounded","flight","addAirControl","addSpeed","addSlow","divideSpeed","addDrag",
+"addExtraJumps","addGroundedSpeed","massResist","groundedRegeneration","slowTimeInventory","addLimp",
+"addGroundedJump","addJump","addStaminaAfterJump","addGripStrength","addGripStrength-hand-1",
+"addClimb","addHangSpeed","addHangSpeed-hand-0","addHangSpeed-hand-1","addClimb-hand-1",
+"addSlow-hand-1","divideJumpStrain","addGripStrength-hand-0","addClimb-hand-0","addSlow-hand-0",
+"reduceFallDamageDistance","addJumpBoost","addPitonSecure","buffTimeMult","addThrow","addStrike",
+"damageResist","damageMult","addStaminaAfterExtraJump","addStillGripStrength","addRestingFriction"
+]
 
+```
 ## 饰品/绑定
 
 名称 前缀Trinket_
@@ -479,14 +500,3 @@ PitonAndBeans
 WeakArms
 Survival
 NoShops
-
-
-
-
-
-[Warning:WKTest Mod] [Test]伤害量:0.5 伤害类型:Melee 伤害位置:(-4.77, 0.01, -14.24) 冲击力:(0.00, 0.00, 0.00)
-[Warning:WKTest Mod] [Test]伤害标签:Melee
-[Warning:WKTest Mod] [Test]伤害标签:Melee
-[Warning:WKTest Mod] [Test]伤害标签:blunt
-[Warning:WKTest Mod] [Test]伤害标签:hammer
-[Warning:WKTest Mod] [Test]伤害标签:player

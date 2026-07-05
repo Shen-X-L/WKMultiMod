@@ -154,6 +154,22 @@
     ],
     "ventthing": [
       "{0} became food for the vent blood hand"
+    ],
+    "hunter": [ "{0} got hunted down" ],
+    "mother": [ "{0} tried to test Mother's nerves" ],
+    "playerKillbullet": [ "{0} got headshot from {1}" ],
+    "bloodbug-spitter": [ "{0} got dissolved by acid" ],
+    "tick": [ "{0} became food for the ticks" ],
+    "ravelin": [ "{0} got impaled by Ravelin for kebab" ],
+    "bloodbug-swarmer": [ "{0} got swarmed to death" ],
+    "sprider": [ "{0} haven't played DRG" ],
+    "myzont": [ "{0} was a bait for local fish in infested labs" ],
+    "eaten": [ "{0} was swallowed by Mother", "{0} became Mother's dinner" ],
+    "moth": [
+      "{0} was part of management, pushing wages so low that even the moth revolted. Today, {0} was recognized and beaten to death by an angry swarm of moth.",
+      "{0} got turned into kebab for local bloodbugs by moth as a revenge for annoying it's fellow co-workers",
+      "moth took a flight with {0} to another Nuclear Failsafe Device instead of SB07",
+      "A team of moth lured {0} into Vern's basement"
     ]
   },
   "0_DisplayMessage": {

@@ -159,7 +159,7 @@ public class RPContainer {
 
 	/// <summary>
 	/// 从 MemberData 字典批量写入所有字段。
-	/// 返回是否收到了新的 prefabId（供 RPManager 决定是否重建模型）。
+	/// 返回是否收到了新的 prefabId (供 RPManager 决定是否重建模型) 。
 	/// </summary>
 	public bool ApplyMemberData(Dictionary<string, string> data) {
 		var changes = data

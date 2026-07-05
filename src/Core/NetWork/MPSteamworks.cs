@@ -799,6 +799,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[重连机制]
 
 	/// <summary>
@@ -894,6 +895,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[SocketManager接口实现]
 
 	// 有玩家正在接入
@@ -923,6 +925,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[Steam 连接Connection管理器]
 	internal class SteamConnectionManager : ConnectionManager, IConnectionManager {
 
@@ -951,6 +954,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 	#endregion
+
 	#region[工具/API函数]
 
 	/// <summary>
@@ -961,7 +965,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		var dict = new Dictionary<string, string>();
 		dict[MPKeys.GAME_KEY] = MPKeys.GAME_VALUE;
 		dict[MPKeys.VERSION] = Application.version;
-		dict[MPKeys.MOD_VERSION] = MPMain.ModVersion;
+		dict[MPKeys.MOD_VERSION] = MPMain.PLUGIN_VERSION;
 		dict[MPKeys.OWNER_NAME] = UserSteamId.ToString();
 		dict[MPKeys.LOBBY_VISIBILITY] = "public";
 		dict[MPKeys.ALLOW_CHEATS] = MPConfig.AllowCheats.ToString();
@@ -1137,6 +1141,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[大厅检索]
 
 	/// <summary>
