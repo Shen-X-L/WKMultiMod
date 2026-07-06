@@ -62,18 +62,22 @@ public class MPMain : BaseUnityPlugin {
 		LogInfo(Localization.Get("MPMain.Destroy"));
 	}
 
-	public static void LogInfo(string log) {
+	public static void LogInfo(string log = "") {
 		Logger.LogInfo(log);
 	}
 
-	public static void LogWarning(string log) {
+	public static void LogWarning(string log = "") {
 		Logger.LogWarning(log);
 	}
-	public static void LogError(string log) {
+	public static void LogError(string log = "") {
 		Logger.LogError(log);
 	}
 
-	public static void Debug(string log) {
-		Logger.LogWarning("[MP Debug] "+log);
+	public static void LogDebug(string log = "") {
+		Logger.LogDebug("[MP Debug] "+log);
+	}
+
+	public static void LogTest(string log = "") {
+		Logger.LogWarning("[MP Test] " + log);
 	}
 }

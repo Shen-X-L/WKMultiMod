@@ -69,7 +69,7 @@ public class RemoteEntity : CL_Prop ,Clickable{
 		if (!pvpEnabled) return false;
 		if (!info.tags.Contains("player")&& !DamageRules.whitelistDamage.Contains(info.type)) return false;
 
-		MPMain.Debug($"{playerId} Cause Damage: type: {info.type}, tags: {string.Join(",", info.tags)}");
+		MPMain.LogTest($"{playerId} Cause Damage: type: {info.type}, tags: {string.Join(",", info.tags)}");
 
 		_invincibilityTimer.SetInterval(MPCore.damageRules.InvincibilityTime);
 

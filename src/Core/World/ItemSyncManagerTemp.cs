@@ -223,7 +223,7 @@ public static class ItemSyncManager {
 			identity.WasInstantiatedBySync = false;
 
 			_items[identity.NetworkId] = identity;
-			MPMain.Debug($"[P2P ItemSync] SyncAndBroadcast - Created P2P Identity: {itemObject.name} → {identity.NetworkId}");
+			MPMain.LogTest($"[P2P ItemSync] SyncAndBroadcast - Created P2P Identity: {itemObject.name} → {identity.NetworkId}");
 		} else {
 			// [关键修复] 防御性修复: 如果它已经有网络 ID，必须确保它存在于追踪字典中！
 			// 否则本地丢出一个携带旧 ID 的物品时，别人申请拾取会报错。
@@ -250,7 +250,7 @@ public static class ItemSyncManager {
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
 		if (identity != null && !string.IsNullOrEmpty(identity.NetworkId)) {
-			MPMain.Debug($"[P2P ItemSync] DespawnAndBroadcast - Broadcasting global destruction: {identity.NetworkId}");
+			MPMain.LogTest($"[P2P ItemSync] DespawnAndBroadcast - Broadcasting global destruction: {identity.NetworkId}");
 			BroadcastRemove(MPProtocol.BroadcastId, identity.NetworkId);
 			Forget(identity.NetworkId);
 		} else {
@@ -278,8 +278,8 @@ public static class ItemSyncManager {
 	public static void ForceCleanupItemPhysicalAndInventory(string networkId) {
 		if (string.IsNullOrEmpty(networkId)) return;
 
-		MPMain.Debug($"[P2P ItemSync] ForceCleanup - Double-Destruction: {networkId}");
-		MPMain.Debug("ForceCleanupItemPhysicalAndInventory A");
+		MPMain.LogTest($"[P2P ItemSync] ForceCleanup - Double-Destruction: {networkId}");
+		MPMain.LogTest("ForceCleanupItemPhysicalAndInventory A");
 		// ── 背包清理 ──────────────────────────────────────────────────────
 		var inventory = ENT_Player.GetInventory();
 		// 清理背包内的物品
@@ -292,14 +292,14 @@ public static class ItemSyncManager {
 				if (dropObj == null) continue;
 
 				var dropIdentity = dropObj.GetComponent<NetworkedItem>();
-				MPMain.Debug("ForceCleanupItemPhysicalAndInventory AA");
+				MPMain.LogTest("ForceCleanupItemPhysicalAndInventory AA");
 				if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
-				MPMain.Debug("ForceCleanupItemPhysicalAndInventory AB");
+				MPMain.LogTest("ForceCleanupItemPhysicalAndInventory AB");
 				inventory.bagItems.RemoveAt(i);
 				if (_inHand(bagItem)) inventory.ClearItemFromHand(bagItem);
 				bagItem.hasBeenDestroyed = true;
 
-				MPMain.Debug($"[P2P ItemSync] ForceCleanup - Evicted '{bagItem.itemName}' from inventory.");
+				MPMain.LogTest($"[P2P ItemSync] ForceCleanup - Evicted '{bagItem.itemName}' from inventory.");
 			}
 		}
 		// 清理玩家当前正拿在手里的物品
@@ -324,25 +324,25 @@ public static class ItemSyncManager {
 
 		// ── 世界物体清理 ──────────────────────────────────────────────────
 		if (!_items.TryGetValue(networkId, out var networkedItem) || networkedItem == null) {
-			MPMain.Debug("ForceCleanupItemPhysicalAndInventory B");
+			MPMain.LogTest("ForceCleanupItemPhysicalAndInventory B");
 			return;
 		}
 
 		var itemObject = networkedItem.GetComponent<Item_Object >();
 		if (itemObject != null) {
-			MPMain.Debug("ForceCleanupItemPhysicalAndInventory C");
+			MPMain.LogTest("ForceCleanupItemPhysicalAndInventory C");
 			RemoveCandidate(itemObject);
 			if (itemObject.itemData != null)
 				_dropObjectField(itemObject.itemData) = null; // 解除反向引用, 防止野指针
 		}
 
 		if (networkedItem.gameObject != null) {
-			MPMain.Debug("ForceCleanupItemPhysicalAndInventory D");
+			MPMain.LogTest("ForceCleanupItemPhysicalAndInventory D");
 			networkedItem.gameObject.SetActive(false);
 			Object.Destroy(networkedItem.gameObject); // 强制双向销毁时无论是否为场景原生物品都 Destroy
 		}
 
-		MPMain.Debug("ForceCleanupItemPhysicalAndInventory E");
+		MPMain.LogTest("ForceCleanupItemPhysicalAndInventory E");
 		_items.Remove(networkId);
 	}
 
@@ -401,16 +401,16 @@ public static class ItemSyncManager {
 	/// 由 MPPacketHandlers.HandleItemStateSync 调用.
 	/// </summary>
 	public static void HandleItemState(IDType senderId, DataReader reader) {
-		MPMain.Debug("HandleItemState");
+		MPMain.LogTest("HandleItemState");
 		var action = (ItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
-				case ItemSyncAction.SnapshotReset: MPMain.Debug("HandleSnapshotReset"); HandleSnapshotReset(); break;
-				case ItemSyncAction.SnapshotFinalize: MPMain.Debug("HandleSnapshotFinalize"); HandleSnapshotFinalize(); break;
-				case ItemSyncAction.Create: MPMain.Debug("HandleCreate"); HandleCreate(senderId, reader); break;
-				case ItemSyncAction.PickupRequest: MPMain.Debug("HandlePickupRequest"); HandlePickupRequest(senderId, reader); break;
-				case ItemSyncAction.Remove: MPMain.Debug("HandleRemove"); HandleRemove(reader); break;
-				case ItemSyncAction.PickupReject: MPMain.Debug("HandlePickupReject"); HandlePickupReject(reader); break;
+				case ItemSyncAction.SnapshotReset: MPMain.LogTest("HandleSnapshotReset"); HandleSnapshotReset(); break;
+				case ItemSyncAction.SnapshotFinalize: MPMain.LogTest("HandleSnapshotFinalize"); HandleSnapshotFinalize(); break;
+				case ItemSyncAction.Create: MPMain.LogTest("HandleCreate"); HandleCreate(senderId, reader); break;
+				case ItemSyncAction.PickupRequest: MPMain.LogTest("HandlePickupRequest"); HandlePickupRequest(senderId, reader); break;
+				case ItemSyncAction.Remove: MPMain.LogTest("HandleRemove"); HandleRemove(reader); break;
+				case ItemSyncAction.PickupReject: MPMain.LogTest("HandlePickupReject"); HandlePickupReject(reader); break;
 			}
 		} catch (Exception e) {
 			MPMain.LogError($"[P2P ItemSync] HandleItemState failed for action {action}: {e.Message}");
@@ -545,7 +545,7 @@ public static class ItemSyncManager {
 		MPMain.LogInfo($"[P2P ItemSync] PickupRequest from {requesterId} for {networkId}");
 
 		if (!_items.TryGetValue(networkId, out var identity)) {
-			MPMain.Debug("HandlePickupRequest A");
+			MPMain.LogTest("HandlePickupRequest A");
 			// 物品已不在我这里 (已被别人先拿), 拒绝申请
 			SendPickupReject(requesterId, networkId);
 			return;
@@ -558,12 +558,12 @@ public static class ItemSyncManager {
 		}
 
 		if (identity.OwnerId == MPSteamworks.UserSteamId) {
-			MPMain.Debug("HandlePickupRequest B");
+			MPMain.LogTest("HandlePickupRequest B");
 			// 批准: 广播 Remove (holderId=申请者) + 本地遗忘
 			BroadcastRemove(requesterId, networkId);
 			Forget(networkId);
 		} else {
-			MPMain.Debug("HandlePickupRequest C");
+			MPMain.LogTest("HandlePickupRequest C");
 			// 所有权异常 (不应发生): 拒绝申请
 			SendPickupReject(requesterId, networkId);
 		}

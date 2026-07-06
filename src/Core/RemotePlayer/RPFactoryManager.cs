@@ -49,7 +49,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 			}
 		}
 		_cachedPrefabs.Clear();
-		MPMain.Debug("[RPFactoryManager] 全局预制体母本缓存已清空释放");
+		MPMain.LogTest("[RPFactoryManager] 全局预制体母本缓存已清空释放");
 	}
 
 	#endregion
@@ -172,7 +172,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		string name = instance.name;
 		Object.Destroy(instance);
 		instance = null;
-		MPMain.Debug($"[RPFactoryManager] 成功清理模型实例, ID: {name}");
+		MPMain.LogTest($"[RPFactoryManager] 成功清理模型实例, ID: {name}");
 	}
 
 	#endregion

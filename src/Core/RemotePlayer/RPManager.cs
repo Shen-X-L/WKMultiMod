@@ -120,7 +120,7 @@ public class RPManager : Singleton<RPManager> {
 	/// 处理玩家数据字典
 	/// </summary>
 	public void ProcessMemberData(ulong playerId, Dictionary<string, string> data) {
-		MPMain.Debug($"[RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
+		MPMain.LogTest($"[RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 
 		RPContainer container = GetOrCreateContainer(playerId);
 

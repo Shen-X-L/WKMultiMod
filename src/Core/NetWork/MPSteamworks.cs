@@ -530,7 +530,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				return false;
 			}
 
-			MPMain.Debug("MPSW CreateRoom A");
+			MPMain.LogTest("MPSW CreateRoom A");
 
 			// await SteamMatchmaking.CreateLobbyAsync
 			Lobby? lobbyResult = await SteamMatchmaking.CreateLobbyAsync(maxPlayers);
@@ -541,7 +541,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				return false;
 			}
 
-			MPMain.Debug("MPSW CreateRoom B");
+			MPMain.LogTest("MPSW CreateRoom B");
 
 			_currentLobby = lobbyResult.Value;
 
@@ -554,17 +554,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			_currentLobby.SetJoinable(true);
 			_currentLobby.Owner = new Friend(SteamClient.SteamId);
 
-			MPMain.Debug("MPSW CreateRoom C");
+			MPMain.LogTest("MPSW CreateRoom C");
 
 			// 获取Socket
 			CreateListeningSocket();
 
-			MPMain.Debug("MPSW CreateRoom D");
+			MPMain.LogTest("MPSW CreateRoom D");
 
 			// 刷新大厅数据
 			RefreshLobbyData();
 
-			MPMain.Debug("MPSW CreateRoom E");
+			MPMain.LogTest("MPSW CreateRoom E");
 
 			return true; // 成功
 		} catch (Exception ex) {
@@ -581,12 +581,12 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		DisconnectAll();
 
 		try {
-			MPMain.Debug("MPSW JoinRoom A");
+			MPMain.LogTest("MPSW JoinRoom A");
 
 			// 核心改变:直接 await 任务
 			RoomEnter result = await lobby.Join();
 
-			MPMain.Debug("MPSW JoinRoom B");
+			MPMain.LogTest("MPSW JoinRoom B");
 
 			// 检查 RoomEnter 结果
 			if (result != RoomEnter.Success) {
@@ -598,17 +598,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				?? Localization.Get("MPSteamworks.NullLobbyName");
 			MPMain.LogInfo(Localization.Get("MPSteamworks.JoinLobbySuccess", roomName));
 
-			MPMain.Debug("MPSW JoinRoom C");
+			MPMain.LogTest("MPSW JoinRoom C");
 
 			// 获取Socket
 			CreateListeningSocket();
 
-			MPMain.Debug("MPSW JoinRoom D");
+			MPMain.LogTest("MPSW JoinRoom D");
 
 			// 刷新大厅数据
 			RefreshLobbyData();
 
-			MPMain.Debug("MPSW JoinRoom E");
+			MPMain.LogTest("MPSW JoinRoom E");
 
 			return true;
 

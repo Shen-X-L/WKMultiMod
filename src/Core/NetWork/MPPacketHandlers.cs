@@ -105,7 +105,7 @@ public class MPPacketHandlers {
 		List<string> tags = reader.GetStringList();
 		IDType source = reader.GetULong();
 
-		MPMain.Debug($"Receive Damage: type: {type}, tags: {string.Join(",", tags)}");
+		MPMain.LogTest($"Receive Damage: type: {type}, tags: {string.Join(",", tags)}");
 
 		if (RPManager.Instance.Players.TryGetValue(source, out var container)
 			&& container?.RemoteEntities?.Length > 0) {

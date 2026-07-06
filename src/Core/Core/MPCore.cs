@@ -1825,16 +1825,16 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 等待玩家prek生效
 			yield return new WaitForSeconds(1.0f);
 			if (!IsInLobby) yield break;
-			MPMain.Debug("loadedMemberData A");
+			MPMain.LogTest("loadedMemberData A");
 			var player = ENT_Player.GetPlayer().gameObject;
 			if (player == null) yield break;
-			MPMain.Debug("loadedMemberData B");
+			MPMain.LogTest("loadedMemberData B");
 			var playerCharacter = player.GetComponent<CharacterController>();
 			var height = player.transform.localScale.y * playerCharacter.height;
 			var radius = Math.Sqrt(playerCharacter.transform.localScale.x * playerCharacter.transform.localScale.z) * playerCharacter.radius;
-			MPMain.Debug("loadedMemberData C");
+			MPMain.LogTest("loadedMemberData C");
 			_MPSteamworks.SetMemberData(MPKeys.PLAYER_SCALE, $"{height},{radius}");
-			MPMain.Debug($"{height},{radius}");
+			MPMain.LogTest($"{height},{radius}");
 		}
 	}
 
