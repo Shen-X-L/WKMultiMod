@@ -27,9 +27,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		public DateTime ReceiveTime;
 	}
 
-	// Debug日志输出间隔
-	private TickTimer _debugTick = new TickTimer(5f);
-
 	#region[字段和属性 - 大厅信息]
 
 	// 大厅Id
@@ -111,6 +108,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	#endregion
 
 	#region[Unity组件生命周期函数]
+
 	protected override void Awake() {
 		base.Awake();
 		//SteamClient.Init(3195790u);
@@ -619,6 +617,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[Steam事件处理函数]
 	/// <summary>
 	/// 接收数据: 进入到大厅<br/>
@@ -1210,6 +1209,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	#endregion
+
 	#region[富状态控制]
 
 	public void DebugTest() {

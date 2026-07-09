@@ -893,7 +893,7 @@ public static class ItemSyncManager {
 							   (itemObject.itemData.inBag || _inHand(itemObject.itemData));
 
 			if (inInventory) {
-				// 如果在包里：绝对不能摧毁物理实体和 SetActive(false)
+				// 如果在包里: 绝对不能摧毁物理实体和 SetActive(false)
 				// 我们只剥夺它的网络身份，让它彻底变回单机物品。
 				identity.NetworkId = string.Empty;
 				identity.StableSceneId = string.Empty;

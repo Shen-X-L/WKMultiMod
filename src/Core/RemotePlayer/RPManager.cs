@@ -129,7 +129,7 @@ public class RPManager : Singleton<RPManager> {
 		if (needModel)
 			EnsureModel(container, container.prefabId);
 
-		// 加入消息：全局去重状态留在 Manager
+		// 加入消息: 全局去重状态留在 Manager
 		if (container.IsModelReady && !_joinMessageShown.Contains(playerId)) {
 			var msg = container.ConsumeJoinMessage();
 			if (msg != null) {

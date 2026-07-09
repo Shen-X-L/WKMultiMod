@@ -55,7 +55,7 @@ public static class NestedCommandEngine {
 	public static readonly AccessTools.FieldRef<CommandConsole.CommandValidator, List<string>> ValidatorArgsRef;
 	public static readonly Action<CommandConsole.CommandValidator, int> SetValidatorActiveArgAction;
 
-	// 静态构造函数：游戏启动时一次性预编译所有内存指针
+	// 静态构造函数: 游戏启动时一次性预编译所有内存指针
 	static NestedCommandEngine() {
 		try {
 			var consoleType = typeof(CommandConsole);
@@ -117,7 +117,7 @@ public static class NestedCommandEngine {
 		var currentState = statesStack.Cast<object>().First();
 		var commandsDict = CommandsRef(currentState);
 
-		// 情况 A：光标刚好落在子命令的名字上, 提示所有可用的命令
+		// 情况 A: 光标刚好落在子命令的名字上, 提示所有可用的命令
 		if (autocomplete.activeArg == subCmdStartIndex) {
 			List<string> cmdNames = new List<string>();
 			foreach (var key in commandsDict.Keys) {
@@ -128,7 +128,7 @@ public static class NestedCommandEngine {
 			return;
 		}
 
-		// 情况 B：正在输入子命令的后续参数, 执行外包代理
+		// 情况 B: 正在输入子命令的后续参数, 执行外包代理
 		if (autocomplete.activeArg > subCmdStartIndex) {
 			string targetCmdName = autocomplete.ArgumentAt(subCmdStartIndex).ToLower();
 			if (commandsDict.Contains(targetCmdName)) {
@@ -139,7 +139,7 @@ public static class NestedCommandEngine {
 					int originalActiveArg = autocomplete.activeArg;
 					List<string> originalArgs = AutocompleteArgsRef(autocomplete);
 
-					// 核心欺骗：左移参数索引并裁剪前缀数组
+					// 核心欺骗: 左移参数索引并裁剪前缀数组
 					SetAutocompleteActiveArgAction(autocomplete, originalActiveArg - subCmdStartIndex);
 					AutocompleteArgsRef(autocomplete) = originalArgs.Skip(subCmdStartIndex).ToList();
 

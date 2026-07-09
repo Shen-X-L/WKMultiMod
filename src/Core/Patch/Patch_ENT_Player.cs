@@ -16,15 +16,14 @@ public class Patch_ENT_Player {
 		AccessTools.FieldRefAccess<ENT_Player, float>("camSpeed");
 	private static readonly AccessTools.FieldRef<ENT_Player, bool> _godmodeField =
 		AccessTools.FieldRefAccess<ENT_Player, bool>("godmode");
+	public static Damageable.DamageInfo killDamageInfo = new Damageable.DamageInfo();
 
 	// 死亡信息总线调用
 	[HarmonyPatch(nameof(ENT_Player.Kill))]
 	[HarmonyPrefix]
 	public static void Kill_NotifyPlayerDeath(ENT_Player __instance, string type, Damageable.DamageInfo damageInfo) {
-		// 死亡切换发生前通知总线
-		if (MPCore.IsInLobby && !__instance.dead && !CL_GameManager.gMan.IsReviving() && !_godmodeField(__instance)) {
-			MPEventBusGame.NotifyPlayerDeath(type, damageInfo);
-			MPMain.LogInfo(Localization.Get("Patch.PlayerDeath", type));
+		if (!__instance.dead && !CL_GameManager.gMan.IsReviving() && !_godmodeField(__instance)) {
+			killDamageInfo = damageInfo;
 		}
 	}
 

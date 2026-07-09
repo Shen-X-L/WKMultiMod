@@ -1181,15 +1181,15 @@ public class MPCore : MonoSingleton<MPCore> {
 		List<string> candidates = new List<string>();
 
 		if (argIndex == 0 || argIndex == 1) {
-			// 参数 0 和 1：目标队伍
+			// 参数 0 和 1: 目标队伍
 			candidates.AddRange(TeamRuleManager.activeTeams);
 		} else if ((argIndex & 0b1) == 0b0) {
 			// argIndex % 2 == 0
-			// 偶数位置：规则名称。这里顺便把逗号也加入菜单提示, 引导玩家连写
+			// 偶数位置: 规则名称。这里顺便把逗号也加入菜单提示, 引导玩家连写
 			candidates.AddRange(TeamRule.ruleFieldNames);
 			candidates.Add(",");
 		} else {
-			// 奇数位置：规则值。同样加入逗号提示
+			// 奇数位置: 规则值。同样加入逗号提示
 			candidates.AddRange(new[] { "true", "false", "default" });
 		}
 
@@ -1481,7 +1481,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			return;
 		}
 
-		// 严格约束：命令必须在分号之后。分号后的所有内容由原版 CancelCommandExecution 截获
+		// 严格约束: 命令必须在分号之后。分号后的所有内容由原版 CancelCommandExecution 截获
 		string payload = CommandConsole.instance?.CancelCommandExecution()?.Trim();
 		if (string.IsNullOrEmpty(payload)) {
 			return;
@@ -1538,14 +1538,14 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 实时输入验证 (输错目标时字体变红)
 		string currentArg = autocomplete.ArgumentAt(autocomplete.activeArg).ToLower();
 		if (!string.IsNullOrEmpty(currentArg)) {
-			// 合法条件：要么是 all, 要么是分号, 要么是纯数字(SteamID)
+			// 合法条件: 要么是 all, 要么是分号, 要么是纯数字(SteamID)
 			bool isValid = currentArg == "all" || currentArg == ";" || ulong.TryParse(currentArg, out _);
 			if (!isValid) autocomplete.Reject();
 		}
 	}
 
 	/// <summary>
-	/// 队伍远程命令：tcmd [Team1] [Team2] ; [Cmd1] ; [Cmd2]
+	/// 队伍远程命令: tcmd [Team1] [Team2] ; [Cmd1] ; [Cmd2]
 	/// </summary>
 	private void ExecuteTcmd(string[] args) {
 		if (!EnsureHostPrivileges()) return;
@@ -1605,7 +1605,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 实时输入验证
 		string currentArg = autocomplete.ArgumentAt(autocomplete.activeArg).ToLower();
 		if (!string.IsNullOrEmpty(currentArg)) {
-			// 合法条件：要么是分号, 要么存在于活动队伍字典中
+			// 合法条件: 要么是分号, 要么存在于活动队伍字典中
 			bool isValid = currentArg == ";" || TeamRuleManager.activeTeams.Contains(currentArg);
 			if (!isValid) autocomplete.Reject();
 		}
@@ -1678,7 +1678,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 2. 实时输入验证
 		string currentArg = autocomplete.ArgumentAt(autocomplete.activeArg).ToLower();
 		if (!string.IsNullOrEmpty(currentArg)) {
-			// 合法条件：要么是分号, 要么存在于我们刚刚构建的合法列表中
+			// 合法条件: 要么是分号, 要么存在于我们刚刚构建的合法列表中
 			bool isValid = currentArg == ";" || targets.Any(t => t.name == currentArg);
 			if (!isValid) autocomplete.Reject();
 		}
