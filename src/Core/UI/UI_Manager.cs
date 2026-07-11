@@ -518,27 +518,32 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		var uiMan = CL_GameManager.gMan?.uiMan;
 		if (uiMan == null)
 			return;
-		switch (type) {
-			case UIDisplayType.AscentHeader:
-				uiMan?.ascentHeader.ShowText(message);
-				break;
-			case UIDisplayType.TipHeader:
-				uiMan?.tipHeader.ShowText(message);
-				break;
-			case UIDisplayType.Header:
-				uiMan?.header.ShowText(message);
-				break;
-			case UIDisplayType.HighscoreHeader:
-				uiMan?.highscoreHeader.ShowText(message);
-				break;
-			case UIDisplayType.Subtitle: {
-				SettingsManager.settings.showSubtitles = true;
-				CL_UIManager.ShowSubtitle($"<delay={duration}>{message}");
-				Instance.StartCoroutine(SubtitleDisplay(duration));
-				break;
+		try {
+			switch (type) {
+				case UIDisplayType.AscentHeader:
+					uiMan?.ascentHeader.ShowText(message);
+					break;
+				case UIDisplayType.TipHeader:
+					uiMan?.tipHeader.ShowText(message);
+					break;
+				case UIDisplayType.Header:
+					uiMan?.header.ShowText(message);
+					break;
+				case UIDisplayType.HighscoreHeader:
+					uiMan?.highscoreHeader.ShowText(message);
+					break;
+				case UIDisplayType.Subtitle: {
+					SettingsManager.settings.showSubtitles = true;
+					CL_UIManager.ShowSubtitle($"<delay={duration}>{message}");
+					Instance.StartCoroutine(SubtitleDisplay(duration));
+					break;
+				}
+				default:
+					break;
 			}
-			default:
-				break;
+		} catch (Exception ex) {
+			MPMain.LogError($"[MP UI] {ex.Message}");
+			return;
 		}
 
 		IEnumerator SubtitleDisplay(float delay) {

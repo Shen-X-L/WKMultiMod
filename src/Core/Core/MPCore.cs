@@ -458,39 +458,45 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandlePlayerDeath(string type, Damageable.DamageInfo info) {
 		var writerDeath = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDeath);
-
-		// 库存物品字典
-		writerDeath.Put(InventoryManager.GetDeathInventoryItems());
-
-		// 发送背包道具
-		_MPSteamworks.Broadcast(writerDeath);
-
-		string name = SteamClient.Name;
-		string sourceName;
-		string message;
-
-		if (info?.sourceEntity is RemoteEntity remoteEntity
-			&& _RPManager.Players.TryGetValue(remoteEntity.playerId, out var container)) {
-			sourceName = container.PlayerName;
-
-			// 死亡信息获取
-			message = Localization.HasKey("0_DeathMessage", "playerKill" + type)
-				? Localization.GetRandomSplit("0_DeathMessage", "playerKill" + type, name, sourceName)// {0}为死者 {1}为凶手
-				: Localization.GetRandom("0_DeathMessage.playerKillDefault", name, type, sourceName);
-		} else {
-			message = Localization.HasKey("0_DeathMessage", type)
-				? Localization.GetRandomSplit("0_DeathMessage", type, name)// {0}为死者
-				: Localization.GetRandom("0_DeathMessage.default", name, type);
+		try {
+			// 库存物品字典
+			writerDeath.Put(InventoryManager.GetDeathInventoryItems());
+		} catch (Exception ex) {
+			MPMain.LogError($"[MP Core] Exception in the MPCore.HandlePlayerDeath build PlayerDeath: {ex}");
+		} finally {
+			// 发送背包道具
+			_MPSteamworks.Broadcast(writerDeath);
 		}
 
-		var writerMessage = BuildingMessage(message, UIDisplayType.HighscoreHeader, logToConsole: true);
+			string name = SteamClient.Name;
+			string sourceName;
+			string message;
+		try {
+			if (info?.sourceEntity is RemoteEntity remoteEntity
+				&& _RPManager.Players.TryGetValue(remoteEntity.playerId, out var container)) {
+				sourceName = container.PlayerName;
 
-		if (writerMessage != null)
-			// 发送死亡信息
-			_MPSteamworks.Broadcast(writerMessage);
+				// 死亡信息获取
+				message = Localization.HasKey("0_DeathMessage", "playerKill" + type)
+					? Localization.GetRandomSplit("0_DeathMessage", "playerKill" + type, name, sourceName)// {0}为死者 {1}为凶手
+					: Localization.GetRandom("0_DeathMessage.playerKillDefault", name, type, sourceName);
+			} else {
+				message = Localization.HasKey("0_DeathMessage", type)
+					? Localization.GetRandomSplit("0_DeathMessage", type, name)// {0}为死者
+					: Localization.GetRandom("0_DeathMessage.default", name, type);
+			}
 
-		// 顺便显示在自己的界面
-		SystemMessage(message, UIDisplayType.HighscoreHeader);
+			var writerMessage = BuildingMessage(message, UIDisplayType.HighscoreHeader, logToConsole: true);
+
+			if (writerMessage != null)
+				// 发送死亡信息
+				_MPSteamworks.Broadcast(writerMessage);
+
+			// 顺便显示在自己的界面
+			SystemMessage(message, UIDisplayType.HighscoreHeader);
+		} catch (Exception ex) {
+			MPMain.LogError($"[MP Core] Exception in the MPCore.HandlePlayerDeath build GameUIMessage: {ex}");
+		}
 	}
 
 	/// <summary>

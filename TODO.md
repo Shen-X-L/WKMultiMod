@@ -2,6 +2,8 @@ amcd restart失效
 
 restartlobby指令
 
+蟑螂模式文字框变扁
+
 岩钉被拔掉,和锤入时坐标偏移无法同步
 
 压缩玩家ID ulong->short 创建玩家ID字典类,数据储存在steamLobbyData中
