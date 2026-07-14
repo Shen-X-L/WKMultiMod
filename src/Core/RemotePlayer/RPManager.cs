@@ -207,8 +207,10 @@ public class RPManager : Singleton<RPManager> {
 
 		var playerPosition = playerObject.transform.position;
 
+		// 生成物品
 		MPCore.Instance.StartCoroutine(InstantiateItem());
 
+		// 处理死亡特效
 		container.HandleDeath();
 
 		if (container.actionRule.syncDied && ENT_Player.GetPlayer().IsDead() == false) {

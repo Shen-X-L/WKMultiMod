@@ -22,7 +22,7 @@ using WKMPMod.Patch;
 using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
-using WKMPModTemp.World;
+using WKMPMod.World;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -306,7 +306,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		foreach (var member in _MPSteamworks.Members) {
 			if (member.Id == MPSteamworks.UserSteamId) continue;
 			if (!_MPSteamworks._allConnections.ContainsKey(member.Id)) {
-				_MPSteamworks.ConnectionController(member.Id, true);
+				StartCoroutine(_MPSteamworks.ConnectionController(member.Id, true));
 			}
 		}
 		// 有连接但没有创建对象
@@ -316,9 +316,6 @@ public class MPCore : MonoSingleton<MPCore> {
 				// 从MemberData获取模型数据
 				var data = _MPSteamworks.GetAllMemberData(new Friend(steamId));
 				_RPManager.ProcessMemberData(steamId, data);
-				//if (data.Count == 0)
-				//	_MPSteamworks.SendToPeer(steamId,
-				//	GetWriter(MPSteamworks.UserSteamId, steamId, PacketType.RequestMemberData));
 			}
 		}
 	}

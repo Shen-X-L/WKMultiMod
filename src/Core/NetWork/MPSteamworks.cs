@@ -846,7 +846,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		bool isInitiator = UserSteamId < targetId;
 
 		if (isInitiator) {
-
+			// 反向等待
 			MPMain.LogInfo(Localization.Get("MPSteamworks.ConnectionInitiator", targetId));
 			yield return AttemptAndVerify(3);
 		} else {

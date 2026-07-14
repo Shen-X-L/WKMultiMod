@@ -1,4 +1,4 @@
-amcd restart失效
+amcd restart失效 syncdied失效
 
 restartlobby指令
 
