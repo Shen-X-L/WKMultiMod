@@ -1,3 +1,5 @@
+修复网络连接逻辑
+
 amcd restart失效 syncdied失效
 
 restartlobby指令
