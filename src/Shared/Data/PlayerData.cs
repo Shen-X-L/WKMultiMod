@@ -21,8 +21,10 @@ public struct PlayerData : INetworkSerializable {
 		public float PosX;
 		public float PosY;
 		public float PosZ;
+		// 是否更新手部物品
+		public bool handItemUpdate;
 		// 手部持握物品
-		public string itemName;
+		public string itemPrefabName;
 		// 被抓取/拖拽玩家的ID
 		public ulong targetId;
 		// 拖拽点
@@ -36,6 +38,8 @@ public struct PlayerData : INetworkSerializable {
 				PosX = value.x; PosY = value.y; PosZ = value.z;
 			}
 		}
+
+		// 拖拽吸引点
 		public Vector3 DesiredPosition {
 			get => new Vector3(desiredPosX, desiredPosY, desiredPosZ);
 			set {
@@ -45,12 +49,13 @@ public struct PlayerData : INetworkSerializable {
 
 		public void Serialize(DataWriter writer) {
 			writer.Put(handType);
-			writer.Put((byte)interactState);
 			writer.Put(Position);
+			writer.Put((byte)interactState);
 			switch (interactState) {
 				// none: 无抓取时, 显示手持物
 				case 0: {
-					writer.Put(itemName);
+					writer.Put(handItemUpdate);
+					if (handItemUpdate) writer.Put(itemPrefabName);
 					break;
 				}
 				// grab: 拖拽
@@ -70,11 +75,13 @@ public struct PlayerData : INetworkSerializable {
 		}
 		public void Deserialize(DataReader reader) {
 			handType = reader.GetByte();
-			interactState = reader.GetByte();
 			Position = reader.GetVector3();
+			interactState = reader.GetByte();
 			switch (interactState) {
 				case 0: {
-					itemName = reader.GetString();
+					handItemUpdate = reader.GetBool();
+					if (handItemUpdate) itemPrefabName = reader.GetString();
+					else itemPrefabName = null;
 					break;
 				}
 				case 2: {
@@ -118,7 +125,7 @@ public struct PlayerData : INetworkSerializable {
 			// 3. 根据状态比较特有数据
 			switch (left.interactState) {
 				case 0:
-					return left.itemName == right.itemName;
+					return left.itemPrefabName == right.itemPrefabName;
 
 				case 2:
 					if (left.targetId != right.targetId) return false;

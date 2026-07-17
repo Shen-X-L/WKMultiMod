@@ -47,7 +47,6 @@ public class RPManager : Singleton<RPManager> {
 	/// </summary>
 	public void ResetAll() {
 		foreach (var container in Players.Values) {
-			RPFactoryManager.Instance.Cleanup(container.PlayerObject);
 			container.Destroy();
 		}
 		Players.Clear();
@@ -60,8 +59,8 @@ public class RPManager : Singleton<RPManager> {
 	#region[容器创建/销毁]
 
 	/// <summary>
-	/// 获取或创建玩家容器(空壳)。
-	/// 容器本身不包含模型, 调用 EnsureModel 才会真正加载 GameObject。
+	/// 获取或创建玩家容器(空壳)
+	/// 容器本身不包含模型, 调用 EnsureModel 才会真正加载 GameObject
 	/// </summary>
 	private RPContainer GetOrCreateContainer(IDType playerId) {
 		if (!Players.TryGetValue(playerId, out var container)) {
@@ -70,15 +69,13 @@ public class RPManager : Singleton<RPManager> {
 		}
 		return container;
 	}
+
 	/// <summary>
-	/// 确保容器持有与 prefabId 匹配的模型。
+	/// 确保容器持有与 prefabId 匹配的模型
 	/// </summary>
 	private bool EnsureModel(RPContainer container, string prefabId) {
 		// 有旧模型先销毁
-		if (container.PlayerObject != null) {
-			RPFactoryManager.Instance.Cleanup(container.PlayerObject);
-			container.DestroyModel();
-		}
+		if (container.PlayerObject != null) container.Destroy();
 
 		// 从工厂拿新实例
 		GameObject instance = RPFactoryManager.Instance.Create(prefabId);
@@ -104,8 +101,6 @@ public class RPManager : Singleton<RPManager> {
 			var deathParticle = MPAssetManager.GetFXPrefab(MPAssetManager.DEATH_OBJECT_NAME);
 			if (deathParticle != null)
 				GameObject.Instantiate(deathParticle, pos, rot);
-
-			RPFactoryManager.Instance.Cleanup(container.PlayerObject);
 		}
 
 		container.Destroy();
@@ -119,15 +114,14 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 处理玩家数据字典
 	/// </summary>
-	public void ProcessMemberData(ulong playerId, Dictionary<string, string> data) {
+	public void ProcessMemberData(IDType playerId, Dictionary<string, string> data) {
 		MPMain.LogTest($"[RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 
 		RPContainer container = GetOrCreateContainer(playerId);
 
-		// 数据解析完全交给容器，Manager 只关心"要不要重建模型"
+		// 数据解析完全交给容器, Manager 只关心"要不要重建模型"
 		bool needModel = container.ApplyMemberData(data);
-		if (needModel)
-			EnsureModel(container, container.prefabId);
+		if (needModel) EnsureModel(container, container.prefabId);
 
 		// 加入消息: 全局去重状态留在 Manager
 		if (container.IsModelReady && !_joinMessageShown.Contains(playerId)) {
@@ -142,7 +136,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 处理玩家离开
 	/// </summary>
-	public void ProcessPlayerLeave(ulong playerId) {
+	public void ProcessPlayerLeave(IDType playerId) {
 		if (Players.TryGetValue(playerId, out var container)) {
 			var leaveMsg = container.GetLeaveMessage();
 			if (leaveMsg != null)
@@ -155,7 +149,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 处理玩家位置数据
 	/// </summary>
-	public void ProcessPlayerData(ulong playerId, ref PlayerData playerData) {
+	public void ProcessPlayerData(IDType playerId, ref PlayerData playerData) {
 		if (!MPCore.IsInitialized || !MPCore.IsInLobby) return;
 
 		// 以后加上时间戳处理
@@ -168,10 +162,23 @@ public class RPManager : Singleton<RPManager> {
 		}
 	}
 
+	public void ProcessPlayerDictData(IDType playerId, Dictionary<string, string> playerData) {
+		if (!MPCore.IsInitialized || !MPCore.IsInLobby) return;
+
+		// 以后加上时间戳处理
+		if (Players.TryGetValue(playerId, out var container)) {
+			if (!container.IsModelReady) return;
+			container.HandlePlayerDictData(playerData);
+		} else if (_debugTick.TryTick()) {
+			MPMain.LogError(Localization.Get(
+				"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
+		}
+	}
+
 	/// <summary>
 	/// 处理玩家数据
 	/// </summary>
-	public void ProcessPlayerTag(ulong playerId, string massage) {
+	public void ProcessPlayerTag(IDType playerId, string massage) {
 		// 以后加上时间戳处理
 		if (Players.TryGetValue(playerId, out var RPcontainer)) {
 			RPcontainer.HandleNameTag(massage);
@@ -184,7 +191,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 处理玩家死亡
 	/// </summary>
-	public void ProcessPlayerDeath(ulong playerId, Dictionary<string, byte> remoteItems) {
+	public void ProcessPlayerDeath(IDType playerId, Dictionary<string, byte> remoteItems) {
 		float currentTime = Time.time;
 
 		if (_lastDeathTime.TryGetValue(playerId, out float lastTime)) {
@@ -265,7 +272,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 处理玩家受伤
 	/// </summary>
-	public void ProcessPlayerDamage(ulong playerId, Damageable.DamageInfo info) {
+	public void ProcessPlayerDamage(IDType playerId, Damageable.DamageInfo info) {
 		// 获取对应的远程玩家容器
 		if (!Players.TryGetValue(playerId, out var container)) return;
 		container.HandleDamage(info);

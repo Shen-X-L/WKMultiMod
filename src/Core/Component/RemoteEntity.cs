@@ -217,7 +217,7 @@ public class DamageRules {
 	// 字段缓存
 	private static readonly Dictionary<string, FieldInfo> _floatFields;
 
-	// 属性: 当前值字典 (每次调用创建新字典，但遍历开销最小)
+	// 属性: 当前值字典 (每次调用创建新字典, 但遍历开销最小)
 	[Newtonsoft.Json.JsonIgnore]
 	public Dictionary<string, float> FloatFieldValues {
 		get {

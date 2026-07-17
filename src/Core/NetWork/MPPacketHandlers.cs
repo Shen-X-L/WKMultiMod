@@ -15,7 +15,6 @@ using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
-using WKMPMod.World;
 using static ENT_Player;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -37,7 +36,13 @@ public class MPPacketHandlers {
 		if (playerId == MPSteamworks.UserSteamId) {
 			return;
 		}
+
 		RPManager.Instance.ProcessPlayerData(playerId, ref playerData);
+
+		if (reader.GetBool()) {
+			var playerDictData = reader.GetStringStringDict();
+			RPManager.Instance.ProcessPlayerDictData(playerId, playerDictData);
+		}
 	}
 
 	///// <summary>
@@ -74,8 +79,7 @@ public class MPPacketHandlers {
 		bool tagShow = reader.GetBool();	// 是否显示在Tag中
 		string msg = reader.GetString();    // 读取消息
 		CommandConsole.Log(msg);
-		if (tagShow) 
-			RPManager.Instance.ProcessPlayerTag(senderId, msg);
+		if (tagShow) RPManager.Instance.ProcessPlayerTag(senderId, msg);
 	}
 
 	/// <summary>
@@ -211,7 +215,7 @@ public class MPPacketHandlers {
 
 		// 库存物品字典
 		writer.Put(InventoryManager.GetBlacklistInventoryItems(
-			InventoryManager.ARTIFACT, InventoryManager.TRINKET));
+			new string[]{InventoryManager.ARTIFACT, InventoryManager.TRINKET }));
 
 		// 没有Mess环境则直接发送位置数据,有则发送位置数据和Mess数据
 		if (DEN_DeathFloor.instance == null) {
@@ -244,10 +248,10 @@ public class MPPacketHandlers {
 		var missingItems = SetDifference(remoteItems, localItems);
 
 		var inventory = Inventory.instance;
-		foreach (var (itemId, count) in missingItems) {
-			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
+		foreach (var (itemPrefabName, count) in missingItems) {
+			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemPrefabName);
 			if (itemPrefab == null) {
-				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemId));
+				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemPrefabName));
 				continue;
 			}
 

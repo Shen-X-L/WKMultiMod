@@ -225,8 +225,8 @@ public static class ItemSyncManager {
 			_items[identity.NetworkId] = identity;
 			MPMain.LogTest($"[P2P ItemSync] SyncAndBroadcast - Created P2P Identity: {itemObject.name} → {identity.NetworkId}");
 		} else {
-			// [关键修复] 防御性修复: 如果它已经有网络 ID，必须确保它存在于追踪字典中！
-			// 否则本地丢出一个携带旧 ID 的物品时，别人申请拾取会报错。
+			// [关键修复] 防御性修复: 如果它已经有网络 ID, 必须确保它存在于追踪字典中
+			// 否则本地丢出一个携带旧 ID 的物品时, 别人申请拾取会报错
 			if (!_items.ContainsKey(identity.NetworkId)) {
 				_items[identity.NetworkId] = identity;
 			}
@@ -279,7 +279,6 @@ public static class ItemSyncManager {
 		if (string.IsNullOrEmpty(networkId)) return;
 
 		MPMain.LogTest($"[P2P ItemSync] ForceCleanup - Double-Destruction: {networkId}");
-		MPMain.LogTest("ForceCleanupItemPhysicalAndInventory A");
 		// ── 背包清理 ──────────────────────────────────────────────────────
 		var inventory = ENT_Player.GetInventory();
 		// 清理背包内的物品
@@ -292,9 +291,7 @@ public static class ItemSyncManager {
 				if (dropObj == null) continue;
 
 				var dropIdentity = dropObj.GetComponent<NetworkedItem>();
-				MPMain.LogTest("ForceCleanupItemPhysicalAndInventory AA");
 				if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
-				MPMain.LogTest("ForceCleanupItemPhysicalAndInventory AB");
 				inventory.bagItems.RemoveAt(i);
 				if (_inHand(bagItem)) inventory.ClearItemFromHand(bagItem);
 				bagItem.hasBeenDestroyed = true;
@@ -324,25 +321,21 @@ public static class ItemSyncManager {
 
 		// ── 世界物体清理 ──────────────────────────────────────────────────
 		if (!_items.TryGetValue(networkId, out var networkedItem) || networkedItem == null) {
-			MPMain.LogTest("ForceCleanupItemPhysicalAndInventory B");
 			return;
 		}
 
 		var itemObject = networkedItem.GetComponent<Item_Object >();
 		if (itemObject != null) {
-			MPMain.LogTest("ForceCleanupItemPhysicalAndInventory C");
 			RemoveCandidate(itemObject);
 			if (itemObject.itemData != null)
 				_dropObjectField(itemObject.itemData) = null; // 解除反向引用, 防止野指针
 		}
 
 		if (networkedItem.gameObject != null) {
-			MPMain.LogTest("ForceCleanupItemPhysicalAndInventory D");
 			networkedItem.gameObject.SetActive(false);
 			Object.Destroy(networkedItem.gameObject); // 强制双向销毁时无论是否为场景原生物品都 Destroy
 		}
 
-		MPMain.LogTest("ForceCleanupItemPhysicalAndInventory E");
 		_items.Remove(networkId);
 	}
 
@@ -545,7 +538,6 @@ public static class ItemSyncManager {
 		MPMain.LogInfo($"[P2P ItemSync] PickupRequest from {requesterId} for {networkId}");
 
 		if (!_items.TryGetValue(networkId, out var identity)) {
-			MPMain.LogTest("HandlePickupRequest A");
 			// 物品已不在我这里 (已被别人先拿), 拒绝申请
 			SendPickupReject(requesterId, networkId);
 			return;
@@ -558,12 +550,10 @@ public static class ItemSyncManager {
 		}
 
 		if (identity.OwnerId == MPSteamworks.UserSteamId) {
-			MPMain.LogTest("HandlePickupRequest B");
 			// 批准: 广播 Remove (holderId=申请者) + 本地遗忘
 			BroadcastRemove(requesterId, networkId);
 			Forget(networkId);
 		} else {
-			MPMain.LogTest("HandlePickupRequest C");
 			// 所有权异常 (不应发生): 拒绝申请
 			SendPickupReject(requesterId, networkId);
 		}
@@ -894,7 +884,7 @@ public static class ItemSyncManager {
 
 			if (inInventory) {
 				// 如果在包里: 绝对不能摧毁物理实体和 SetActive(false)
-				// 我们只剥夺它的网络身份，让它彻底变回单机物品。
+				// 我们只剥夺它的网络身份, 让它彻底变回单机物品
 				identity.NetworkId = string.Empty;
 				identity.StableSceneId = string.Empty;
 				identity.WasInstantiatedBySync = false;
@@ -904,7 +894,7 @@ public static class ItemSyncManager {
 				if (identity.WasInstantiatedBySync) {
 					Object.Destroy(identity.gameObject);
 				} else {
-					// 清除旧的 NetworkId！防止带旧 ID 错乱
+					// 清除旧的 NetworkId防止带旧 ID 错乱
 					identity.NetworkId = string.Empty;
 					identity.StableSceneId = string.Empty;
 				}
@@ -1275,7 +1265,7 @@ public static class ItemSyncManager {
 		var itemObject = identity.GetComponent<Item_Object>();
 		if (itemObject == null || itemObject.itemData == null) return false;
 
-		// 检查 itemData 是否标记为在包内，或通过委托检查是否在手中
+		// 检查 itemData 是否标记为在包内, 或通过委托检查是否在手中
 		bool inBag = itemObject.itemData.inBag;
 		bool inHand = _inHand(itemObject.itemData);
 

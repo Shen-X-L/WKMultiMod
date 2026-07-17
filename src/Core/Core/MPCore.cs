@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using Unity.Entities.UniversalDelegates;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.XR;
@@ -23,9 +25,11 @@ using WKMPMod.RemotePlayer;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
+using static StatManager.SaveData;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
+using GameModeData = WKMPMod.Core.MPGameModeManager.GameModeData;
 
 namespace WKMPMod.Core;
 
@@ -69,7 +73,7 @@ public static class MPStatusExtension {
 
 public class MPCore : MonoSingleton<MPCore> {
 	// 玩家数量同步间隔
-	private TickTimer _syncTick = new TickTimer(3f);
+	private TickTimer _syncTick = new TickTimer(3f, true);
 
 	// Steam网络管理器 本地数据获取类
 	private MPSteamworks _MPSteamworks;
@@ -145,9 +149,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	void Update() {
-		// 如果在大厅且已初始化且有连接,允许发送数据
-		LocalPlayer.Instance.ShouldSendData = IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
-
 		if (!IsInitialized || !IsInLobby) return;
 
 		// 定期检查玩家数量和连接状态,修复异常状态
@@ -302,13 +303,6 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	private void CheckAndRepairPlayers() {
 		if (!_syncTick.TryTick()) return;
-		// 在大厅但没有连接
-		foreach (var member in _MPSteamworks.Members) {
-			if (member.Id == MPSteamworks.UserSteamId) continue;
-			if (!_MPSteamworks._allConnections.ContainsKey(member.Id)) {
-				StartCoroutine(_MPSteamworks.ConnectionController(member.Id, true));
-			}
-		}
 		// 有连接但没有创建对象
 		foreach (var (steamId, connection) in _MPSteamworks._allConnections) {
 			if (!_RPManager.Players.ContainsKey(steamId)) {
@@ -349,8 +343,6 @@ public class MPCore : MonoSingleton<MPCore> {
 					// 以后会在这里广播模式数据,用于房主切换游戏模式
 					SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 				}
-				// 设置加载后玩家数据信息
-				loadedMemberData();
 				break;
 			}
 			case "Playground": {
@@ -364,8 +356,6 @@ public class MPCore : MonoSingleton<MPCore> {
 						_MPSteamworks.SetLobbyData(MPKeys.GAMEMODE_JSON, JsonConvert.SerializeObject(currentModeData));
 					}
 				}
-				// 设置加载后玩家数据信息
-				loadedMemberData();
 				break;
 			}
 			case "Main-Menu":
@@ -465,9 +455,9 @@ public class MPCore : MonoSingleton<MPCore> {
 			_MPSteamworks.Broadcast(writerDeath);
 		}
 
-			string name = SteamClient.Name;
-			string sourceName;
-			string message;
+		string name = SteamClient.Name;
+		string sourceName;
+		string message;
 		try {
 			if (info?.sourceEntity is RemoteEntity remoteEntity
 				&& _RPManager.Players.TryGetValue(remoteEntity.playerId, out var container)) {
@@ -1188,11 +1178,11 @@ public class MPCore : MonoSingleton<MPCore> {
 			candidates.AddRange(TeamRuleManager.activeTeams);
 		} else if ((argIndex & 0b1) == 0b0) {
 			// argIndex % 2 == 0
-			// 偶数位置: 规则名称。这里顺便把逗号也加入菜单提示, 引导玩家连写
+			// 偶数位置: 规则名称这里顺便把逗号也加入菜单提示, 引导玩家连写
 			candidates.AddRange(TeamRule.ruleFieldNames);
 			candidates.Add(",");
 		} else {
-			// 奇数位置: 规则值。同样加入逗号提示
+			// 奇数位置: 规则值同样加入逗号提示
 			candidates.AddRange(new[] { "true", "false", "default" });
 		}
 
@@ -1484,7 +1474,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			return;
 		}
 
-		// 严格约束: 命令必须在分号之后。分号后的所有内容由原版 CancelCommandExecution 截获
+		// 严格约束: 命令必须在分号之后分号后的所有内容由原版 CancelCommandExecution 截获
 		string payload = CommandConsole.instance?.CancelCommandExecution()?.Trim();
 		if (string.IsNullOrEmpty(payload)) {
 			return;
@@ -1712,70 +1702,72 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		// 显示加入大厅信息
 		IEnumerator ShowLobbyData() {
-			while (IsInLobby && !IsInitialized) {
-				yield return null;
-			}
-			if (WorldLoader.initialized) {
-				while (!WorldLoader.isLoaded) {
+			// 在大厅未初始化
+			while (IsInLobby && !IsInitialized) yield return null;
+			// 初始地图加载
+			if (WorldLoader.initialized)
+				while (!WorldLoader.isLoaded)
 					yield return null;
-				}
-			}
+
 			yield return new WaitForSecondsRealtime(0.5f);
-			if (WorldLoader.initialized) {
-				while (!WorldLoader.isLoaded) {
+			// 地图重载等待
+			if (WorldLoader.initialized)
+				while (!WorldLoader.isLoaded)
 					yield return null;
-				}
-			}
+
 			var message = Localization.GetRandom("0_DisplayMessage.EnteredMessages",
 				lobby.GetData(MPKeys.LOBBY_NAME), lobby.MemberCount, lobby.MaxMembers, lobby.Id.Value);
 			SystemMessage(message, UIDisplayType.AscentHeader);
 		}
+	}
 
-		// 获取游戏模式数据的协程
-		IEnumerator InitGamemodeRoutine() {
-			if (_MPSteamworks.IsHost || IsInitialized || !IsInLobby) yield break;
+	/// <summary>
+	/// 获取游戏模式数据的协程
+	/// </summary>
+	private IEnumerator InitGamemodeRoutine() {
+		if (_MPSteamworks.IsHost || IsInitialized || !IsInLobby) yield break;
 
-			for (int i = 0; i < 3; i++) {
-				if (!IsInLobby || IsInitialized) yield break;
+		for (int i = 0; i < 3; i++) {
+			if (!IsInLobby || IsInitialized) yield break;
 
-				string rawData = lobby.GetData(MPKeys.GAMEMODE_JSON);
-				// 空数据尝试重试, 同时请求一次数据刷新
-				if (string.IsNullOrEmpty(rawData)) {
-					MPMain.LogWarning(Localization.Get("MPCore.GamemodeDataNotSynced", (i + 1).ToString()));
-					_MPSteamworks.RefreshLobbyData();
-					yield return new WaitForSeconds(1.0f);
-					continue; // 提前进入下一次重试
-				}
-
-				MPMain.LogInfo(Localization.Get("MPCore.GamemodeDataReceived", rawData));
-				// 尝试解析 JSON
-				GameModeData data = null;
-				try {
-					data = JsonConvert.DeserializeObject<GameModeData>(rawData);
-				} catch (JsonException ex) {
-					MPMain.LogError(Localization.Get("MPCore.GamemodeParseError", rawData, ex.Message));
-				}
-				// 解析失败, 等待后重试
-				if (data == null) {
-					yield return new WaitForSeconds(1.0f);
-					continue;
-				}
-
-				// 解析成功则加载
-				LoadGameMode(data);
-				// 等待地图加载完成
-				yield return new WaitUntil(() => WorldLoader.isLoaded == true);
-				// 加载完成后执行加入指令
-				string cmdData = lobby.GetData(MPKeys.JOIN_COMMAND);
-				if (!string.IsNullOrEmpty(cmdData))
-					Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
-
-				yield break;
+			string rawData = _MPSteamworks._currentLobby.GetData(MPKeys.GAMEMODE_JSON);
+			// 空数据尝试重试, 同时请求一次数据刷新
+			if (string.IsNullOrEmpty(rawData)) {
+				MPMain.LogWarning(Localization.Get("MPCore.GamemodeDataNotSynced", (i + 1).ToString()));
+				_MPSteamworks.RefreshLobbyData();
+				yield return new WaitForSeconds(1.0f);
+				continue; // 提前进入下一次重试
 			}
-			if (!IsInitialized && !_MPSteamworks.IsHost) {
-				MPMain.LogError(Localization.Get("MPCore.HandshakeFailed"));
-				Leave(null);
+
+			MPMain.LogInfo(Localization.Get("MPCore.GamemodeDataReceived", rawData));
+			// 尝试解析 JSON
+			GameModeData data = null;
+			try {
+				data = JsonConvert.DeserializeObject<GameModeData>(rawData);
+			} catch (JsonException ex) {
+				MPMain.LogError(Localization.Get("MPCore.GamemodeParseError", rawData, ex.Message));
 			}
+			// 解析失败, 等待后重试
+			if (data == null) {
+				yield return new WaitForSeconds(1.0f);
+				continue;
+			}
+
+			// 解析成功则加载
+			LoadGameMode(data);
+			// 等待地图加载完成
+			yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+			// 加载完成后执行加入指令
+			string cmdData = _MPSteamworks._currentLobby.GetData(MPKeys.JOIN_COMMAND);
+			if (!string.IsNullOrEmpty(cmdData))
+				Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
+
+			yield break;
+		}
+
+		if (!IsInitialized && !_MPSteamworks.IsHost) {
+			MPMain.LogError(Localization.Get("MPCore.HandshakeFailed"));
+			Leave(null);
 		}
 	}
 
@@ -1817,31 +1809,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	}
 
 	/// <summary>
-	/// 加载地图完成后设置的玩家数据
-	/// </summary>
-	void loadedMemberData() {
-		StartCoroutine(LoadAll());
-
-		IEnumerator LoadAll() {
-			// 等待地图加载完成
-			yield return new WaitUntil(() => WorldLoader.isLoaded == true);
-			// 等待玩家prek生效
-			yield return new WaitForSeconds(1.0f);
-			if (!IsInLobby) yield break;
-			MPMain.LogTest("loadedMemberData A");
-			var player = ENT_Player.GetPlayer().gameObject;
-			if (player == null) yield break;
-			MPMain.LogTest("loadedMemberData B");
-			var playerCharacter = player.GetComponent<CharacterController>();
-			var height = player.transform.localScale.y * playerCharacter.height;
-			var radius = Math.Sqrt(playerCharacter.transform.localScale.x * playerCharacter.transform.localScale.z) * playerCharacter.radius;
-			MPMain.LogTest("loadedMemberData C");
-			_MPSteamworks.SetMemberData(MPKeys.PLAYER_SCALE, $"{height},{radius}");
-			MPMain.LogTest($"{height},{radius}");
-		}
-	}
-
-	/// <summary>
 	/// 处理大厅成员加入
 	/// </summary> 
 	private void HandleLobbyMemberJoined(Friend friend) {
@@ -1863,6 +1830,8 @@ public class MPCore : MonoSingleton<MPCore> {
 		if (_MPSteamworks.IsHost) {
 			ItemSyncManager.SendSnapshotToClient(steamId);
 		}
+		// 如果在大厅且已初始化且有连接,允许发送数据
+		LocalPlayer.Instance.ShouldSendData = IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
 	}
 
 	/// <summary>
@@ -1872,6 +1841,8 @@ public class MPCore : MonoSingleton<MPCore> {
 		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore.PlayerDisconnected", steamId.ToString()));
 		_RPManager.ProcessPlayerLeave(steamId);
+		// 如果在大厅且已初始化且有连接,允许发送数据
+		LocalPlayer.Instance.ShouldSendData = IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
 	}
 
 	/// <summary>
@@ -1893,6 +1864,10 @@ public class MPCore : MonoSingleton<MPCore> {
 
 		if (changedData == null) return;
 
+		if (changedData.TryGetValue(MPKeys.GAMEMODE_JSON, out var gameModeValue)) {
+			StartCoroutine(InitGamemodeRoutine());
+		}
+
 		// 处理是否允许作弊的特殊键, 直接影响游戏机制
 		if (changedData.TryGetValue(MPKeys.ALLOW_CHEATS, out var cheatsValue)) {
 			IsAllowCheats = bool.TryParse(cheatsValue, out var parsed) && parsed;
@@ -1901,8 +1876,8 @@ public class MPCore : MonoSingleton<MPCore> {
 				CommandConsole.cheatsEnabled = false;
 				ENT_Player.GetPlayer()?.noclip = false;
 				ENT_Player.GetPlayer()?.SetGodMode(false);
-				}
 			}
+		}
 
 		// 处理活跃队伍列表的特殊键, 直接影响规则设置界面和规则应用逻辑
 		if (changedData.TryGetValue(MPKeys.ACTIVE_TEAMS, out var activeTeamsValue)) {
@@ -1939,6 +1914,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandleMemberDataChanged(Friend steamId, Dictionary<string, string> data) {
 		if (steamId.Id == MPSteamworks.UserSteamId) return;
+		if (!_MPSteamworks._allConnections.ContainsKey(steamId.Id)) return;
 		MPMain.LogInfo(Localization.Get("MPCore.SteamIdDataDebug",
 			steamId.Id, string.Join(", ", data.Select(kvp => $"{kvp.Key}={kvp.Value}"))));
 		_RPManager.ProcessMemberData(steamId.Id, data);

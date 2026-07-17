@@ -108,7 +108,11 @@ public class SlugcatModelExtension : ICustomModelExtension {
 	/// <summary>
 	/// 切换玩家下蹲状态
 	/// </summary>
-	public void Crouching(bool isCrouching) {
+	public void Crouching(GameObject gameObject,bool isCrouching) {
 
+	}
+
+	public void HandlePlayerData(GameObject gameObject,Dictionary<string,string> playerData) { 
+	
 	}
 }

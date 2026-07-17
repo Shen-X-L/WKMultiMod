@@ -269,7 +269,7 @@
     "NoLobbyByNameTryId": "未找到匹配名称的大厅, 尝试使用 ID 连接...",
     "PlayerIssuedCommand": "{0} 发出远程命令: {1}",
     "RemoteCommandInsufficientParams": "参数不足! 格式: pcmd [all|steamId] ; [命令1] ; [命令2]",
-    "RemoteCommandInvalidTarget": "无效的目标! 必须是 'all' 或玩家 SteamID。",
+    "RemoteCommandInvalidTarget": "无效的目标! 必须是 'all' 或玩家 SteamID",
     "RemoteCommandSentToAll": "已向所有人发送远程命令: {0}",
     "RemoteCommandSentToPlayer": "已向 {0} 发送远程命令: {1}",
     "SearchingLobbyByName": "正在按名称搜索大厅: {0}...",

@@ -13,6 +13,7 @@ using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
 using static UI_TabGroup;
+using static UnityEngine.Rendering.PostProcessing.HistogramMonitor;
 using Object = UnityEngine.Object;
 
 namespace WKMPMod.RemotePlayer;
@@ -116,7 +117,6 @@ public class RPContainer {
 		// 把当前已知的非默认状态回存到 pending, 确保重建后仍能恢复
 		if (IsModelReady) {
 			_pending.color = PlayerColor;
-			// scale 无法从 localScale 反推原始语义值, 依赖调用方在换皮前再次传入
 		}
 
 		PlayerObject = null;
@@ -135,6 +135,7 @@ public class RPContainer {
 	/// 模型 + 容器引用全部清空(玩家离开时使用)
 	/// </summary>
 	public void Destroy() {
+		Object.Destroy(PlayerObject);
 		DestroyModel();
 		// 清空 pending, 防止内存泄漏
 		_pending = default;
@@ -142,7 +143,8 @@ public class RPContainer {
 
 	#endregion
 
-	#region[待应用数据写入接口]
+	#region[SteamMember数据写入接口]
+
 	/// <summary>
 	/// 读取并清除缓存的加入消息(RPManager 在合适时机调用)
 	/// </summary>
@@ -158,8 +160,8 @@ public class RPContainer {
 	public string GetLeaveMessage() => _pending.leaveMessage;
 
 	/// <summary>
-	/// 从 MemberData 字典批量写入所有字段。
-	/// 返回是否收到了新的 prefabId (供 RPManager 决定是否重建模型) 。
+	/// 从 MemberData 字典批量写入所有字段
+	/// 返回是否收到了新的 prefabId (供 RPManager 决定是否重建模型) 
 	/// </summary>
 	public bool ApplyMemberData(Dictionary<string, string> data) {
 		var changes = data
@@ -180,18 +182,6 @@ public class RPContainer {
 			if (IsModelReady) ApplyColor(color);
 		}
 
-		if (changes.TryGetValue(MPKeys.PLAYER_SCALE, out var scaleStr)) {
-			var args = scaleStr.Split(',');
-			if (args.Length >= 2
-				&& float.TryParse(args[0], out var height)
-				&& float.TryParse(args[1], out var radius)) {
-
-				_pending.scaleHeight = height;
-				_pending.scaleRadius = radius;
-				if (IsModelReady) ApplyScale(height, radius);
-			}
-		}
-
 		if (changes.TryGetValue(MPKeys.TEAM, out var team)) {
 			_pending.team = team;
 			if (IsModelReady) ApplyTeam(team);
@@ -203,7 +193,7 @@ public class RPContainer {
 		if (changes.TryGetValue(MPKeys.LEAVE_MESSAGE, out var leave))
 			_pending.leaveMessage = leave;
 
-		// prefabId 最后处理，返回"是否需要重建模型"给 Manager 判断
+		// prefabId 最后处理, 返回"是否需要重建模型"给 Manager 判断
 		if (changes.TryGetValue(MPKeys.PREFAB_ID, out var pid)) {
 			if (RPFactoryManager.Instance.TryGetExtension(pid, out var extension)) {
 				_pending.prefabId = pid;
@@ -213,11 +203,11 @@ public class RPContainer {
 		}
 		return false;
 	}
-	
+
 
 	#endregion
 
-	#region[内部数据应用]
+	#region[SteamMember数据应用]
 
 	/// <summary>
 	/// 模型就绪后, 将所有缓存数据一次性刷入
@@ -278,9 +268,9 @@ public class RPContainer {
 			if (hand.handType == 0) _remoteLeftHand = hand;
 			else if (hand.handType == 1) _remoteRightHand = hand;
 		}
-
+		// 获取全部子对象
 		Transform[] allChildren = instance.GetComponentsInChildren<Transform>(true);
-
+		// 添加容器引用组件
 		foreach (Transform child in allChildren) {
 			if (child.TryGetComponent<RPContainerRef>(out var containerRef))
 				containerRef.container = this;
@@ -301,6 +291,9 @@ public class RPContainer {
 		_remotePlayer?.playerId = PlayerId;
 		_remoteLeftHand?.playerId = PlayerId;
 		_remoteRightHand?.playerId = PlayerId;
+		var transform = Extension.HandItemTransform()?? new();
+		_remoteLeftHand?.itemTransform = transform;
+		_remoteRightHand?.itemTransform = transform;
 	}
 
 	#endregion
@@ -331,6 +324,29 @@ public class RPContainer {
 			_remotePlayer.UpdateFromPlayerData(playerData.Position, playerData.Rotation);
 			_remoteLeftHand.UpdateFromHandData(ref playerData.LeftHand, MPSteamworks.UserSteamId);
 			_remoteRightHand.UpdateFromHandData(ref playerData.RightHand, MPSteamworks.UserSteamId);
+		}
+	}
+
+	/// <summary>
+	/// 通过额外字典进行如 背包物品显示等数据更新
+	/// </summary>
+	public void HandlePlayerDictData(Dictionary<string, string> playerData) {
+		if (playerData.TryGetValue(MPKeys.PLAYER_SCALE, out var scaleStr)) {
+			var args = scaleStr.Split(',');
+			if (args.Length >= 2
+				&& float.TryParse(args[0], out var height)
+				&& float.TryParse(args[1], out var radius)) {
+
+				_pending.scaleHeight = height;
+				_pending.scaleRadius = radius;
+				if (IsModelReady) ApplyScale(height, radius);
+			}
+		}
+
+		try {
+			Extension?.HandlePlayerData(PlayerObject, playerData);
+		} catch (Exception ex) {
+			MPMain.LogError($"[Debug] 使用玩家数据时出错, 错误: {ex.Message}");
 		}
 	}
 
@@ -370,6 +386,9 @@ public class RPContainer {
 		_deathTick.Reset();
 	}
 
+	/// <summary>
+	/// 处理玩家造成的伤害
+	/// </summary>
 	public void HandleDamage(Damageable.DamageInfo damageInfo) {
 		// 决定采用什么受击特效资产名字
 		string effectName = Extension?.DamageEffectAssetName ?? MPAssetManager.DAMAGE_OBJECT_NAME;
@@ -382,6 +401,7 @@ public class RPContainer {
 			GameObject.Instantiate(effectPrefab, spawnPos, Quaternion.identity);
 		}
 	}
+
 	#endregion
 
 	#region[队伍/规则函数]

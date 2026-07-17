@@ -1,5 +1,8 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using UnityEngine;
+using UnityEngine.UIElements;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
@@ -48,7 +51,20 @@ public class RemoteHand : MonoBehaviour {
 	// 动态力度
 	private float _currentGrabStrength;
 
-	//private TickTimer _debugTick = new TickTimer(0.5f); // 500ms更新一次位置, 避免过于频繁的更新
+	#region[字段或属性 - 手部物品相关]
+	// 空物品
+	public const string NONE_ITEM_NAME = "None";
+
+	// 手持物品缓存字典
+	private Dictionary<string, GameObject> _itemCache = new();
+	// 目前物品预制体名字
+	private string _itemPrefabName;
+	// 目前物品实例
+	private GameObject _item;
+	// 物品手中的Transform RPContainer负责初始化
+	public Dictionary<string, (Vector3, Quaternion, Vector3)> itemTransform;
+
+	#endregion
 
 	#region[Unity生命周期函数]
 
@@ -99,6 +115,10 @@ public class RemoteHand : MonoBehaviour {
 		if (_isBeingGrabbed) {
 			ApplyPullPhysics();
 		}
+	}
+
+	private void OnDestroy() {
+		_itemCache.Clear();
 	}
 
 	#endregion
@@ -154,15 +174,16 @@ public class RemoteHand : MonoBehaviour {
 		return Mathf.Clamp(distance / 10f, 0.05f, 0.1f);
 	}
 
-	// 从HandData更新手位置(Container调用这个方法)
 	/// <summary>
 	/// 根据网络数据更新手部位置和状态
 	/// </summary>
 	/// <param name="handData">手部数据</param>
 	/// <param name="targetPlayerId">该玩家ID是否被抓取/被拖拽(一般传入本玩家ID)</param>
 	public void UpdateFromHandData(ref PlayerData.HandData handData, IDType targetPlayerId = 0) {
-		_isTeleporting = false; // 重置传送标志
-		_targetWorldPosition = handData.Position;  // 使用网络传来的世界位置
+		// 重置传送标志
+		_isTeleporting = false;
+		// 使用网络传来的世界位置
+		_targetWorldPosition = handData.Position;
 
 		if (handData.IsBeGrabbing(targetPlayerId)) {
 			_targetWorldPosition = handData.DesiredPosition;
@@ -183,6 +204,70 @@ public class RemoteHand : MonoBehaviour {
 			MPEventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
 			_wasBeingGrabbed = _isBeingGrabbed;
 		}
+
+		// 更新手持物品
+		if (handData.handItemUpdate) UpdateHandItem(ref handData);
+	}
+
+	/// <summary>
+	/// 更新手持物品
+	/// </summary>
+	public void UpdateHandItem(ref PlayerData.HandData handData) {
+		// 不在指定的空闲状态 || 传入的预制体名称和当前相同
+		if (handData.interactState != 0 || handData.itemPrefabName == _itemPrefabName) return;
+		// 空物品
+		if (handData.itemPrefabName == NONE_ITEM_NAME) {
+			_itemPrefabName = null;
+			_item?.SetActive(false);
+			return;
+		}
+		// 更新手持物品
+		// 缓存命中
+		if (_itemCache.TryGetValue(handData.itemPrefabName, out var gameObject1)) {
+			_itemPrefabName = handData.itemPrefabName;
+			_item?.SetActive(false);
+			gameObject1.SetActive(true);
+			_item = gameObject1;
+			return;
+		}
+		// 缓存未命中, 生成预制体
+		var itemPrefab = CL_AssetManager.GetAssetGameObject(handData.itemPrefabName);
+		var item = itemPrefab?.GetComponent<Item_Object>()?.itemData;
+		// 未找到预制体 或不是Item_Object 不生成
+		if (itemPrefab == null || item == null) {
+			MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", handData.itemPrefabName));
+			return;
+		}
+		// 克隆
+		var gameObject2 = Instantiate(itemPrefab, transform);
+		// 记录并替换
+		_itemPrefabName = handData.itemPrefabName;
+		_itemCache[_itemPrefabName] = gameObject2;
+		_item?.SetActive(false);
+		gameObject2.SetActive(true);
+		_item = gameObject2;
+		// 删除生物组件 禁用物理受力(仅碰撞)
+		Destroy(gameObject2.GetComponent<Denizen>());
+		gameObject2.GetComponent<Rigidbody>().isKinematic = true;
+		// 修正位置
+		if (itemTransform.TryGetValue(_itemPrefabName, out var value)) {
+			var (position, rotation, scale) = value;
+			// 镜像
+			if (handType == 0) gameObject2.transform.localScale = new Vector3(scale.x, scale.y, -scale.z);
+			else gameObject2.transform.localScale = scale;
+			gameObject2.transform.localRotation = rotation;
+			gameObject2.transform.localPosition = position;
+		} else {
+			if (handType == 0) gameObject2.transform.localScale = new Vector3(1, 1, -1);
+			gameObject2.transform.localRotation = Quaternion.identity;
+			gameObject2.transform.localPosition = Vector3.zero;
+		}
+		// 移除标签
+		var tags = gameObject2.GetComponent<ObjectTagger>();
+		tags.RemoveTag("Item");
+		tags.RemoveTag("Prop");
+
+		return;
 	}
 
 	// 立即传送

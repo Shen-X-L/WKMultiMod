@@ -134,6 +134,7 @@ public class DataWriter : IDisposable {
 	}
 
 	#endregion
+
 	#region[写入可空值类型]
 
 	public DataWriter Put(byte? value) {
@@ -167,6 +168,7 @@ public class DataWriter : IDisposable {
 	}
 
 	#endregion
+
 	#region[写入复合类型]
 
 	// 写入全量数组
@@ -230,6 +232,7 @@ public class DataWriter : IDisposable {
 	}
 
 	#endregion
+
 	#region[写入Unity类型]
 
 	/// <summary>
@@ -266,6 +269,7 @@ public class DataWriter : IDisposable {
 	}
 
 	#endregion
+
 	#region[写入自定义类型]
 
 	/// <summary>
@@ -320,6 +324,7 @@ public class DataWriter : IDisposable {
 		return this;
 	}
 	#endregion
+
 	#region[写入泛型类型]
 	public DataWriter Put<T>(T obj) where T : INetworkSerializable {
 		obj.Serialize(this);
@@ -349,6 +354,7 @@ public class DataWriter : IDisposable {
 	}
 
 	#endregion
+
 	#region[内存管理函数]
 
 	// 确保缓冲区有足够的空间

@@ -29,6 +29,12 @@ public interface ICustomModelExtension {
 	string DamageEffectAssetName { get; }
 
 	/// <summary>
+	/// 默认模型手持物品时的坐标变换
+	/// </summary>
+	/// <returns>return new() {{ "None",(Vector3.zero, Quaternion.identity, Vector3.one)}</returns>
+	public Dictionary<string, (Vector3, Quaternion, Vector3)> HandItemTransform();
+
+	/// <summary>
 	/// 当预制体模板第一次被从AB包加载到内存时调用
 	/// 全局只触发一次
 	/// </summary>
@@ -41,17 +47,22 @@ public interface ICustomModelExtension {
 	/// 每个人进来都会触发一次
 	/// </summary>
 	/// <param name="playerInstance">被克隆出来的玩家实例克隆体</param>
-	void OnPlayerInstanceCreated(GameObject playerInstance);
+	public void OnPlayerInstanceCreated(GameObject playerInstance);
 
 	/// <summary>
 	/// 修改玩家颜色
 	/// </summary>
-	void ApplyPlayerColor(GameObject instance, Color32 color);
+	public void ApplyPlayerColor(GameObject instance, Color32 color) { }
 
 	/// <summary>
 	/// 切换玩家下蹲状态
 	/// </summary>
-	void Crouching(bool isCrouching);
+	public void Crouching(GameObject instance, bool isCrouching) { }
+
+	/// <summary>
+	/// 根据玩家字典数据更新模型相关属性
+	/// </summary>
+	public void HandlePlayerData(GameObject instance, Dictionary<string, string> playerData) { }
 }
 
 public interface IAssetHelper {

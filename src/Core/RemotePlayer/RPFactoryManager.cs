@@ -164,17 +164,6 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		return rawPrefab;
 	}
 
-	/// <summary>
-	/// 统一的对象回收与资源清理
-	/// </summary>
-	public void Cleanup(GameObject instance) {
-		if (instance == null) return;
-		string name = instance.name;
-		Object.Destroy(instance);
-		instance = null;
-		MPMain.LogTest($"[RPFactoryManager] 成功清理模型实例, ID: {name}");
-	}
-
 	#endregion
 
 	#region[Debug]

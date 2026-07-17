@@ -1,5 +1,3 @@
-修复网络连接逻辑
-
 amcd restart失效 syncdied失效
 
 restartlobby指令
@@ -24,3 +22,8 @@ UI_LobbyListPane.RefreshLobbyList换成对象池
 
 他人想法:
 游乐场模式击杀统计排行榜
+
+
+Lua
+API:禁跳 禁移动 召唤生物
+Event:进入新房间  

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
@@ -17,37 +18,61 @@ namespace WKMPMod.Component;
 //仅获取本地玩家信息并触发事件给其他系统使用
 //仅在联机时创建一个实例
 public class LocalPlayer : MonoSingleton<LocalPlayer> {
-	#region[字段和属性]
 
-	public const float LIMIT_SENDING_DISTANCE = 100.0f;				// 超过该距离时仅保证最小更新频率发送数据
 
-	// 网络发送控制
-	public bool ShouldSendData { get; set; } = false;
+	#region[字段和属性 - 更新数据状态缓存]
+
+	// 状态缓存
+	private PlayerData _lastPlayerData;
+	private string[] handItemPrefabNames = new string[2];
+	private List<IDType> _farPlayersBuffer = new List<IDType>(16);
+	public List<IDType> _nearPlayersBuffer = new List<IDType>(16);  // 近处玩家,大部分数据可以仅对near发送
+	public Dictionary<string, string> _playerData = new();  // 玩家额外数据字典(背包状态 perk状态等)
+	public const float LIMIT_SENDING_DISTANCE = 100.0f;             // 超过该距离时仅保证最小更新频率发送数据
+
+	#endregion
+
+	#region[字段和属性 - 本地其他数据]
 
 	// 玩家标识
 	public IDType UserId { get; private set; }          // 本地玩家SteamID
 	public string FactoryId { get; set; }// 预制体工厂ID
 	public Color32 PlayerColor { get; private set; }
 
+	#endregion
+
+	#region[字段和属性 - 玩家间交互]
+
 	// 状态存储: 谁正在对本地玩家施加交互
 	private readonly HashSet<IDType> _playersGrabbingMe = new();    // 被该Id的玩家拖拽
 	private readonly HashSet<IDType> _playersHangingMe = new();   // 被该Id的玩家抓取
 
-	// 状态缓存
-	private PlayerData _lastPlayerData;
-	private List<IDType> _farPlayersBuffer = new List<IDType>(16);
-	public List<IDType> _nearPlayersBuffer = new List<IDType>(16);  // 近处玩家,大部分数据可以仅对near发送
+	#endregion
+
+	#region[字段和属性 - 定时器]
 
 	// 定时器
 	private TickTimer _sendDataTimer;//本地玩家数据频率器, 定时发送玩家数据
 	private TickTimer _teleportCooldownTimer;//传输状态定时器, 期间内传送标记为真
-	private TickTimer _minUpdateFrequencyTimer = new TickTimer(10.0f);//最小更新频率定时器
+	private TickTimer _minUpdateFrequencyTimer = new TickTimer(10.0f, true);//最小更新频率定时器
+
+	#endregion
+
+	#region[字段和属性 - 缓存引用]
 
 	// 缓存引用
 	private ENT_Player _cachedPlayer;
 	private Hand[] _cachedHands;
 
 	#endregion
+
+	#region[字段和属性 - 其他]
+
+	// 网络发送控制
+	public bool ShouldSendData { get; set; } = false;
+
+	#endregion
+
 	#region[Unity生命周期函数]
 
 	public void Start() {
@@ -72,11 +97,12 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		MPEventBusGame.OnRemoteGrabStateChanged -= HandleRemoteGrabChanged;
 	}
 	#endregion
+
 	#region[初始化方法]
 
 	// 初始化定时器
 	private void InitializeTimers() {
-		_sendDataTimer = new TickTimer(MPConfig.DataSendFrequency);  // 20Hz
+		_sendDataTimer = new TickTimer(MPConfig.DataSendFrequency, true);  // 20Hz
 		_teleportCooldownTimer = new TickTimer(1.0f);         // 传送冷却1秒
 	}
 
@@ -89,7 +115,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	}
 
 	// 重置状态缓存
-	public void Initialize(IDType userId,string factoryId, Color32 playerColor) {
+	public void Initialize(IDType userId, string factoryId, Color32 playerColor) {
 		UserId = userId;
 		FactoryId = factoryId;
 		PlayerColor = playerColor;
@@ -100,6 +126,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	}
 
 	#endregion
+
 	#region[网络事件回调]
 
 	/// <summary>
@@ -119,9 +146,13 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	}
 
 	#endregion
-	#region[核心逻辑]
 
-	// 尝试发送本地玩家数据 (结合距离剔除算法)
+	#region[数据发送核心逻辑]
+
+	/// <summary>
+	/// 尝试发送本地玩家数据 (结合距离剔除算法)
+	/// 接收函数: <see cref="MPPacketHandlers.HandlePlayerDataUpdate"/>
+	/// </summary>
 	private void TrySendLocalPlayerData() {
 		bool tickNormal = _sendDataTimer.TryTick();
 		bool tickMinFreq = _minUpdateFrequencyTimer.TryTick();
@@ -160,9 +191,10 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			ref _nearPlayersBuffer
 		);
 
-		
+
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
 		writer.Put(_lastPlayerData);
+		writer.Put(false);
 
 		// 发送给近距离玩家 常规频率定时器 && 位置发生了变化, 或者保底更新频率到了
 		if (tickNormal) {
@@ -171,19 +203,24 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			}
 		}
 
+		var writerFreq = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
+		writerFreq.Put(_lastPlayerData);
+		writerFreq.Put(true);
+		writerFreq.Put(PlayerDataDic());
+
 		// 发送给远距离玩家 仅在最小频率定时器(如10秒一次)触发时发送
 		if (tickMinFreq) {
-			foreach (ulong targetId in _nearPlayersBuffer) 
-				MPSteamworks.Instance.SendToPeer(targetId, writer);
-			foreach (ulong targetId in _farPlayersBuffer) 
-				MPSteamworks.Instance.SendToPeer(targetId, writer);
+			foreach (ulong targetId in _nearPlayersBuffer)
+				MPSteamworks.Instance.SendToPeer(targetId, writerFreq);
+			foreach (ulong targetId in _farPlayersBuffer)
+				MPSteamworks.Instance.SendToPeer(targetId, writerFreq);
 		}
 	}
 
 	// 获取玩家数据, 更新缓存状态, 并返回是否发生了变化
 	public bool CheckLocalPlayerUpdates(bool forceUpdate) {
-		GetHandData(0,out var currentLHand);
-		GetHandData(1, out var currentRHand);
+		GetHandData(0, forceUpdate, out var currentLHand);
+		GetHandData(1, forceUpdate,out var currentRHand);
 
 		var data = new PlayerData {
 			playId = UserId,
@@ -196,18 +233,26 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		};
 
 		// 获取是否改变, 如果改变, 更新旧坐标
-		if (_lastPlayerData.UpdateIfChanged(data, forceUpdate)){
+		if (_lastPlayerData.UpdateIfChanged(data, forceUpdate)) {
 			return true;
 		}
 
 		return false;
 	}
 
-	// 获取手部数据
-	public void GetHandData(int handIndex, out PlayerData.HandData data) {
+	/// <summary>
+	/// 获取手部数据
+	/// </summary>
+	/// <param name="handIndex">手部索引</param>
+	/// <param name="forceUpdate">是否强制更新</param>
+	/// <param name="data">返回数据</param>
+	public void GetHandData(int handIndex, bool forceUpdate, out PlayerData.HandData data) {
 		ENT_Player.Hand hand = handIndex == 0 ? _cachedHands[0] : _cachedHands[1];
+		var psition = hand.inventoryHand.currentItem != null
+			? hand.inventoryHand.handInventoryRoot.position : hand.GetHoldWorldPosition();
+
 		data = new PlayerData.HandData {
-			Position = hand.GetHoldWorldPosition(),
+			Position = psition,
 		};
 
 		IDType targetRemoteId = 0;
@@ -215,7 +260,15 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		switch (hand.interactState) {
 			// 无抓取时, 带有持有物预制体ID
 			case InteractType.none: {
-				data.itemName = hand.inventoryHand.currentItem?.prefabName ?? "None";
+				var itemPrefabName = hand.inventoryHand.currentItem?.prefabName ?? RemoteHand.NONE_ITEM_NAME;
+
+				if (handItemPrefabNames[handIndex] != itemPrefabName || forceUpdate) {
+					data.handItemUpdate = true;
+					data.itemPrefabName = itemPrefabName;
+				} else {
+					data.handItemUpdate = false;
+				}
+
 				data.interactState = (byte)InteractType.none;
 				break;
 			}
@@ -225,7 +278,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 					targetRemoteId = parent.container.PlayerId;
 					if (targetRemoteId != 0 && _playersGrabbingMe.Contains(targetRemoteId)) {
 						data.interactState = (byte)InteractType.none;
-						data.itemName = "None";
+						data.itemPrefabName = "None";
 						ReleaseAndRepelLocalHand(handIndex, targetRemoteId);
 					} else {
 						data.interactState = (byte)InteractType.grab;
@@ -243,7 +296,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 					targetRemoteId = parent.container.PlayerId;
 					if (targetRemoteId != 0 && _playersHangingMe.Contains(targetRemoteId)) {
 						data.interactState = (byte)InteractType.none;
-						data.itemName = "None";
+						data.itemPrefabName = "None";
 						ReleaseAndRepelLocalHand(handIndex, targetRemoteId);
 					} else {
 						data.interactState = (byte)InteractType.hanging;
@@ -261,13 +314,29 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		}
 	}
 
+	// 玩家数据字典(背包物品,是否携带道具等)
+	public Dictionary<string, string> PlayerDataDic() {
+		_playerData.Clear();
+		foreach (var (item, count) in InventoryManager.GetInventoryItems()) {
+			_playerData[item] = count.ToString();
+		}
+
+		var playerCharacter = _cachedPlayer.GetComponent<CharacterController>();
+		var height = _cachedPlayer.transform.localScale.y * playerCharacter.height;
+		var radius = Math.Sqrt(playerCharacter.transform.localScale.x * playerCharacter.transform.localScale.z) * playerCharacter.radius;
+		_playerData[MPKeys.PLAYER_SCALE] = $"{height},{radius}";
+
+		return _playerData;
+	}
+
 	#endregion
+
 	#region[辅助函数]
 
 	// 验证或获取玩家引用
 	private bool ValidatePlayerReferences() {
 		if (_cachedPlayer == null) {
-			_cachedPlayer = ENT_Player.GetPlayer();
+			_cachedPlayer = GetPlayer();
 			if (_cachedPlayer == null) {
 				MPMain.LogError(Localization.Get("LocalPlayer.DataAcquisitionException"));
 				return false;
@@ -284,6 +353,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	}
 
 	#endregion
+
 	#region[工具函数]
 
 	// 触发传送事件
@@ -297,14 +367,15 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		MPEventBusGame.NotifyPlayerStopInteraction(targetRemoteId);
 	}
 	#endregion
+
 	#region[API函数]
 
-	public static bool IsHoldingMe(IDType targetRemoteId) { 
+	public static bool IsHoldingMe(IDType targetRemoteId) {
 		if (Instance._cachedPlayer == null) return false;
-		return Instance._playersGrabbingMe.Contains(targetRemoteId)|| Instance._playersHangingMe.Contains(targetRemoteId);
+		return Instance._playersGrabbingMe.Contains(targetRemoteId) || Instance._playersHangingMe.Contains(targetRemoteId);
 	}
 
-	public void SetPlayerColor(Color32 color){
+	public void SetPlayerColor(Color32 color) {
 		PlayerColor = color;
 	}
 
