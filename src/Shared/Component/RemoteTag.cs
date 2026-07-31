@@ -10,7 +10,7 @@ public class RemoteTag : MonoBehaviour {
 	private Transform? _cameraTransform;
 	private TextMeshPro? _textMeshPro;
 	private float _lastUpdateDistance;
-	private TickTimer updateTick = new TickTimer(1);
+	private TickTimer updateTick;
 
 	[Header("Settings")]
 	public const float MIN_DISTANCE_LABEL = 10.0f; // 超过此距离显示数字
@@ -45,9 +45,9 @@ public class RemoteTag : MonoBehaviour {
 	}
 
 	void Awake() {
+		updateTick = new TickTimer(1);
 		_textMeshPro = GetComponent<TextMeshPro>();
-		if (Camera.main != null) 
-			_cameraTransform = Camera.main.transform;
+		if (Camera.main != null) _cameraTransform = Camera.main.transform;
 	}
 
 	void OnDestroy() {
@@ -58,8 +58,8 @@ public class RemoteTag : MonoBehaviour {
 	}
 
 	private void Update() {
-		if (!updateTick.TryTick())
-			return;
+		if (!updateTick.TryTick()) return;
+
 		if (_cameraTransform == null) {
 			if (Camera.main != null) _cameraTransform = Camera.main.transform;
 			else {
@@ -69,9 +69,8 @@ public class RemoteTag : MonoBehaviour {
 		}
 		float currentDistance = Vector3.Distance(transform.position, _cameraTransform.position);
 
-		if (Mathf.Abs(currentDistance - _lastUpdateDistance) >= DISTANCE_CHANGE_THRESHOLD) {
+		if (Mathf.Abs(currentDistance - _lastUpdateDistance) >= DISTANCE_CHANGE_THRESHOLD) 
 			RefreshName(currentDistance);
-		}
 	}
 
 	/// <summary>

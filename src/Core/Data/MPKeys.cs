@@ -12,6 +12,10 @@ public static partial class MPKeys {
 	// 游戏本体常量
 	public const string GRAB_TAGGER = "Pickupable";
 	public const string HANGING_TAGGER = "Handhold";
+	public const string DAMAGE_TAGGER = "Damageable";
+	public const string CREATURE_TAGGER = "Creature";
+
+
 	// 名称描述用途
 	// 大厅数据键
 	public const string VERSION = "version";

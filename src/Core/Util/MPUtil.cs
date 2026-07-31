@@ -1,11 +1,46 @@
-﻿using System;
+﻿using DG.Tweening.Plugins.Core;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using WKMPMod.Core;
 
 namespace WKMPMod.Util;
 
 public static class MPUtil {
+	/// <summary>
+	/// 通过预制体名称获取物品预制体
+	/// </summary>
+	/// <param name="prefabName">预制体资源名称</param>
+	public static bool TryGetItemPrefab(string prefabName,out Item_Object item) {
+		item = null;
+		// 参数防御校验
+		if (string.IsNullOrEmpty(prefabName)) {
+			MPMain.LogWarning("[MP] prefabName is null or empty.");
+			return false;
+		}
+
+		// 双重检测获取 Item_Object 组件
+		Item_Object itemObject = null;
+		try {
+			itemObject = CL_AssetManager.GetItemObjectPrefab(prefabName);
+		} catch (Exception e) {
+			MPMain.LogError("[MP] " + e.ToString());
+		}
+		// 优先使用专用的 Item_Object 查找机制
+		if (itemObject == null) {
+			// 备用：从通用 GameObject 中获取组件
+			GameObject go = CL_AssetManager.GetAssetGameObject(prefabName);
+			itemObject = go?.GetComponent<Item_Object>();
+		}
+		if (itemObject == null || itemObject.itemData == null) {
+			MPMain.LogError($"[MP] Item_Object or itemData not found for prefab '{prefabName}'");
+			return false;
+		}
+
+		item = itemObject;
+		return true;
+	}
 	public static readonly Dictionary<string, Color32> PlayerColorPresets = new(StringComparer.OrdinalIgnoreCase) {
 		{ "default", new Color32(255, 255, 255, 255) },
 		{ "white", new Color32(255, 255, 255, 255) },

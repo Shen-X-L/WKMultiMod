@@ -11,23 +11,23 @@ public class TickTimer {
 	private bool _useUnscaledTime;
 
 	/// <summary>
-	/// 是否使用不受时间缩放影响的真实时间 (Time.unscaledTime)。
-	/// 可以在运行时动态切换，计时器会自动补偿时间差以确保进度平滑过渡。
+	/// 是否使用不受时间缩放影响的真实时间 (Time.unscaledTime)
+	/// 可以在运行时动态切换, 计时器会自动补偿时间差以确保进度平滑过渡
 	/// </summary>
 	public bool UseUnscaledTime {
 		get => _useUnscaledTime;
 		set {
-			// 如果状态没有改变，直接返回
+			// 如果状态没有改变, 直接返回
 			if (_useUnscaledTime == value) return;
 
-			// 在切换前，计算在旧时间轴上已经流逝的时间
+			// 在切换前, 计算在旧时间轴上已经流逝的时间
 			float elapsed = CurrentTime - _lastTickTime;
 
 			// 切换状态
 			_useUnscaledTime = value;
 
-			// 使用新时间轴当前的时间，减去已经流逝的时间，重新校准 _lastTickTime
-			// 这样可以保证切换瞬间，TimeRemaining 和 Progress 保持不变
+			// 使用新时间轴当前的时间, 减去已经流逝的时间, 重新校准 _lastTickTime
+			// 这样可以保证切换瞬间, TimeRemaining 和 Progress 保持不变
 			_lastTickTime = CurrentTime - elapsed;
 		}
 	}

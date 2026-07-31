@@ -1,8 +1,8 @@
-amcd restart失效 syncdied失效
+Lua GameObject Api
 
-restartlobby指令
+隐藏玩家模型
 
-蟑螂模式文字框变扁
+lobbyrestart指令
 
 岩钉被拔掉,和锤入时坐标偏移无法同步
 
@@ -14,16 +14,16 @@ LP组件使用压缩ID,RP中使用压缩ID+自定义玩家名字
 
 玩家ID TMP组件变为UI显示
 
-记得修补TMP字体文件 按钮组件 UI_Manager.DisplayMessage
-
 换个UI
 
 UI_LobbyListPane.RefreshLobbyList换成对象池
 
+重构NameTag为RPContainer进行挂载
+
 他人想法:
 游乐场模式击杀统计排行榜
 
-
 Lua
-API:禁跳 禁移动 召唤生物
-Event:进入新房间  
+支持PerkModule_Lua跨场景对象可以被序列化 
+API:生成投射物
+

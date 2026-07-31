@@ -48,6 +48,7 @@ public class Patch_CommandConsole {
 
 	public static bool _isCheatsEnabled = false;
 
+
 	public static void PushPrivilege() {
 		_rconCount++;
 		if (_rconCount == 1) {
@@ -60,6 +61,7 @@ public class Patch_CommandConsole {
 			}
 		}
 	}
+
 
 	public static void PopPrivilege() {
 		_rconCount--;

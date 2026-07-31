@@ -12,7 +12,7 @@ public class SimpleArmIK : MonoBehaviour {
 	public float maxScale = 10.0f;     // 最大缩放,防止拉伸过长
 
 	private void Start() {
-		// 如果你没有手动填长度,这里尝试计算手臂到手部初始位置的距离
+		// 如果没有手动填长度,这里尝试计算手臂到手部初始位置的距离
 		if (originalLength <= 0 && target != null) {
 			originalLength = Vector3.Distance(transform.position, target.position);
 		}

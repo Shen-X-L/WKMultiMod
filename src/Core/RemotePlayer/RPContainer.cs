@@ -12,6 +12,8 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
+using WKMultiPlayerMod.Shared.Component;
+using WKMultiPlayerMod.Shared.Data;
 using static UI_TabGroup;
 using static UnityEngine.Rendering.PostProcessing.HistogramMonitor;
 using Object = UnityEngine.Object;
@@ -28,13 +30,14 @@ public class RPContainer {
 	public GameObject PlayerObject { get; private set; }
 
 	// 本体组件
-	private Component.RemotePlayer _remotePlayer;
-	private RemoteHand _remoteLeftHand;
-	private RemoteHand _remoteRightHand;
-	private RemoteTag _remoteTag;
-	public RemoteEntity[] RemoteEntities { get; private set; }
-	private ObjectTagger[] _objectTaggers;
-	private Collider[] _colliders;
+	private Component.RemotePlayer _remotePlayer;   // 本体
+	private RemoteHand _remoteLeftHand;     // 左手
+	private RemoteHand _remoteRightHand;    // 右手
+	private RemoteTag _remoteTag;   // 头顶标签
+	public RemoteEntity[] RemoteEntities { get; private set; }  // 受击组件
+	private ObjectTagger[] _objectTaggers;  // 全部标签 (游戏本体交互判定控制)
+	private Collider[] _colliders;  // 全部碰撞
+	private CustomModelBehaviour _modelBehaviour;// 运行时模型控制器组件
 
 	private Dictionary<string, string> _memberData = new();
 
@@ -54,8 +57,6 @@ public class RPContainer {
 	private struct PendingData {
 		public string prefabId; // 模型数据
 		public Color32? color;  // 主色调
-		public float? scaleHeight;  // 缩放高度
-		public float? scaleRadius;  // 缩放半径
 		public string playerName;   // 自定义名字
 		public string team;         // 所在队伍
 		public string joinMessage;  // 加入信息
@@ -89,11 +90,14 @@ public class RPContainer {
 			// 组件初始化
 			InitializeAllComponent(PlayerObject);
 			InitializeAllComponentData();
-			// 直接送去视野外进行隐藏
-			PlayerObject.transform.position = new Vector3(0, -9999f, 0);
+			// 模型准备完成
 			IsModelReady = true;
 			// 将缓存的待应用数据一次性应用到模型
 			FlushPendingData();
+			// 刷新状态
+			RefreshRuleReference();
+			// 视野外进行隐藏
+			PlayerObject.transform.position = new Vector3(0, -9999f, 0);
 			// Debug
 			MPMain.LogInfo(Localization.Get("RPContainer.MappingSucceeded", PlayerId.ToString()));
 			return true;
@@ -127,6 +131,7 @@ public class RPContainer {
 		RemoteEntities = null;
 		_objectTaggers = null;
 		_colliders = null;
+		_modelBehaviour = null;
 		IsModelReady = false;
 		_isDead = false;
 	}
@@ -170,11 +175,13 @@ public class RPContainer {
 
 		_memberData = data;
 
+		// 更新名称
 		if (changes.TryGetValue(MPKeys.PLAYER_NAME, out var name)) {
 			_pending.playerName = name;
 			if (IsModelReady) ApplyName(name);
 		}
 
+		// 更新颜色
 		if (changes.TryGetValue(MPKeys.PLAYER_COLOR, out var colorStr)
 			&& MPUtil.TryParsePlayerColor(colorStr, out var color)) {
 
@@ -182,14 +189,17 @@ public class RPContainer {
 			if (IsModelReady) ApplyColor(color);
 		}
 
+		// 更新队伍
 		if (changes.TryGetValue(MPKeys.TEAM, out var team)) {
 			_pending.team = team;
 			if (IsModelReady) ApplyTeam(team);
 		}
 
+		// 更新加入信息(目前无用)
 		if (changes.TryGetValue(MPKeys.JOIN_MESSAGE, out var join))
 			_pending.joinMessage = join;
 
+		// 更新离开信息
 		if (changes.TryGetValue(MPKeys.LEAVE_MESSAGE, out var leave))
 			_pending.leaveMessage = leave;
 
@@ -215,16 +225,13 @@ public class RPContainer {
 	private void FlushPendingData() {
 		if (_pending.playerName != null) ApplyName(_pending.playerName);
 		if (_pending.color.HasValue) ApplyColor(_pending.color.Value);
-		if (_pending.scaleHeight.HasValue && _pending.scaleRadius.HasValue)
-			ApplyScale(_pending.scaleHeight.Value, _pending.scaleRadius.Value);
 		if (_pending.team != null) ApplyTeam(_pending.team);
-		// joinMessage / leaveMessage 不在此处消费, 由 RPManager 主动读取
 	}
 
 	private void ApplyColor(Color32 color) {
 		PlayerColor = new Color32(color.r, color.g, color.b, 255);
 		try {
-			Extension?.ApplyPlayerColor(PlayerObject, color);
+			_modelBehaviour?.ApplyPlayerColor(color);
 		} catch (Exception ex) {
 			MPMain.LogError($"[Debug] 修改模型 {prefabId} 颜色时出错, 错误: {ex.Message}");
 		}
@@ -256,6 +263,8 @@ public class RPContainer {
 
 	// 初始化远程实体组件引用
 	public void InitializeAllComponent(GameObject instance) {
+		_modelBehaviour = instance.GetComponent<CustomModelBehaviour>();
+
 		_remotePlayer = instance.GetComponentInChildren<Component.RemotePlayer>();
 		_remoteTag = instance.GetComponentInChildren<RemoteTag>();
 		RemoteEntities = instance.GetComponentsInChildren<RemoteEntity>();
@@ -291,7 +300,7 @@ public class RPContainer {
 		_remotePlayer?.playerId = PlayerId;
 		_remoteLeftHand?.playerId = PlayerId;
 		_remoteRightHand?.playerId = PlayerId;
-		var transform = Extension.HandItemTransform()?? new();
+		var transform = _modelBehaviour?.HandItemTransform ?? new Dictionary<string, ItemPoseData>();
 		_remoteLeftHand?.itemTransform = transform;
 		_remoteRightHand?.itemTransform = transform;
 	}
@@ -335,16 +344,13 @@ public class RPContainer {
 			var args = scaleStr.Split(',');
 			if (args.Length >= 2
 				&& float.TryParse(args[0], out var height)
-				&& float.TryParse(args[1], out var radius)) {
-
-				_pending.scaleHeight = height;
-				_pending.scaleRadius = radius;
-				if (IsModelReady) ApplyScale(height, radius);
-			}
+				&& float.TryParse(args[1], out var radius)
+				&& IsModelReady)
+				ApplyScale(height, radius);
 		}
 
 		try {
-			Extension?.HandlePlayerData(PlayerObject, playerData);
+			_modelBehaviour?.HandlePlayerData(playerData);
 		} catch (Exception ex) {
 			MPMain.LogError($"[Debug] 使用玩家数据时出错, 错误: {ex.Message}");
 		}
@@ -414,21 +420,32 @@ public class RPContainer {
 		actionRule = TeamRuleManager.GetActiveRuleRef(team == "" ? MPKeys.DEFAULT_TEAM : team);
 
 		// 更新名牌显示
-		if (_remoteTag != null)
-			_remoteTag.gameObject.SetActive(actionRule.tagShow);
+		if (_remoteTag != null) _remoteTag.gameObject.SetActive(actionRule.tagShow);
 
 		// 更新玩家间交互权限
 		ChangeGrabOrHang(MPCore.IsGrabOrHangState);
 
 		// 更新PVP权限
-		foreach (var entity in RemoteEntities)
-			entity.pvpEnabled = actionRule.pvp;
+		foreach (var entity in RemoteEntities) entity.pvpEnabled = actionRule.pvp;
+
+		if (actionRule.pvp) {
+			foreach (var tagger in _objectTaggers) {
+				tagger.AddTag(MPKeys.DAMAGE_TAGGER);
+				tagger.AddTag(MPKeys.CREATURE_TAGGER);
+			}
+		} else {
+			foreach (var tagger in _objectTaggers) {
+				tagger.RemoveTag(MPKeys.DAMAGE_TAGGER);
+				tagger.RemoveTag(MPKeys.CREATURE_TAGGER);
+			}
+		}
 
 		// 更新碰撞权限
-		if (_colliders != null)
-			foreach (var col in _colliders)
-				if (!col.isTrigger)// 只处理非触发器的实体碰撞体
-					col.enabled = actionRule.collision;// true 开启碰撞, false 关闭碰撞
+		if (_colliders != null) foreach (var col in _colliders)
+			// 只处理非触发器的实体碰撞体
+			if (!col.isTrigger) col.enabled = actionRule.collision;// true 开启碰撞, false 关闭碰撞
+
+
 	}
 
 	/// <summary>

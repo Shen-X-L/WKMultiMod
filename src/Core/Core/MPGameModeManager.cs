@@ -128,6 +128,7 @@ public class MPGameModeManager {
 		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 		// 手动重载地图
 		SceneManager.LoadScene(m_Gamemode.gamemodeScene);
+		MPMain.LogTest("MPGameModeManager.LoadGameMode");
 	}
 
 	/// <summary>
@@ -144,8 +145,9 @@ public class MPGameModeManager {
 
 		IEnumerator ExecuteRestartCMD() {
 			MPMain.LogTest("MPGameModeManager.ExecuteRestartCMD A");
+
 			// 等待地图加载完成
-			yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+			yield return new WaitUntil(() => WorldLoader.isLoaded == true || WorldLoader.instance == null);
 
 			MPMain.LogTest("MPGameModeManager.ExecuteRestartCMD B");
 

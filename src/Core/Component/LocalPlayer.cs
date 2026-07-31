@@ -1,4 +1,5 @@
-﻿using Steamworks.Data;
+﻿using HarmonyLib;
+using Steamworks.Data;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -18,7 +19,6 @@ namespace WKMPMod.Component;
 //仅获取本地玩家信息并触发事件给其他系统使用
 //仅在联机时创建一个实例
 public class LocalPlayer : MonoSingleton<LocalPlayer> {
-
 
 	#region[字段和属性 - 更新数据状态缓存]
 
@@ -71,6 +71,9 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	// 网络发送控制
 	public bool ShouldSendData { get; set; } = false;
 
+	private static readonly AccessTools.FieldRef<Item, HandItem> _handItemField =
+		AccessTools.FieldRefAccess<Item, HandItem>("handItem");
+
 	#endregion
 
 	#region[Unity生命周期函数]
@@ -84,8 +87,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	public void Update() {
 		// 不需要发送时停止更新, 该值由 联机管理类 控制
-		if (!ShouldSendData)
-			return;
+		if (!ShouldSendData) return;
 		// 发送本地玩家数据
 		TrySendLocalPlayerData();
 	}
@@ -248,11 +250,14 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	/// <param name="data">返回数据</param>
 	public void GetHandData(int handIndex, bool forceUpdate, out PlayerData.HandData data) {
 		ENT_Player.Hand hand = handIndex == 0 ? _cachedHands[0] : _cachedHands[1];
-		var psition = hand.inventoryHand.currentItem != null
-			? hand.inventoryHand.handInventoryRoot.position : hand.GetHoldWorldPosition();
+
+		// 获取坐标
+		var currentItem = hand.inventoryHand.currentItem;
+		Transform itemTransform = currentItem != null ? _handItemField(currentItem)?.transform : null;
+		Vector3 position = itemTransform?.position ?? hand.GetHoldWorldPosition();
 
 		data = new PlayerData.HandData {
-			Position = psition,
+			Position = position,
 		};
 
 		IDType targetRemoteId = 0;
@@ -278,7 +283,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 					targetRemoteId = parent.container.PlayerId;
 					if (targetRemoteId != 0 && _playersGrabbingMe.Contains(targetRemoteId)) {
 						data.interactState = (byte)InteractType.none;
-						data.itemPrefabName = "None";
+						data.itemPrefabName = RemoteHand.NONE_ITEM_NAME;
 						ReleaseAndRepelLocalHand(handIndex, targetRemoteId);
 					} else {
 						data.interactState = (byte)InteractType.grab;
@@ -296,7 +301,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 					targetRemoteId = parent.container.PlayerId;
 					if (targetRemoteId != 0 && _playersHangingMe.Contains(targetRemoteId)) {
 						data.interactState = (byte)InteractType.none;
-						data.itemPrefabName = "None";
+						data.itemPrefabName = RemoteHand.NONE_ITEM_NAME;
 						ReleaseAndRepelLocalHand(handIndex, targetRemoteId);
 					} else {
 						data.interactState = (byte)InteractType.hanging;
@@ -317,7 +322,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	// 玩家数据字典(背包物品,是否携带道具等)
 	public Dictionary<string, string> PlayerDataDic() {
 		_playerData.Clear();
-		foreach (var (item, count) in InventoryManager.GetInventoryItems()) {
+		foreach (var (item, count) in InventoryManager.GetInventoryItems(checkBag:true, checkHands: false, checkPouches: true)) {
 			_playerData[item] = count.ToString();
 		}
 
@@ -366,6 +371,8 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		_cachedPlayer.AddForce(-_cachedPlayer.camTransform.forward, "RepelByRemote");
 		MPEventBusGame.NotifyPlayerStopInteraction(targetRemoteId);
 	}
+
+
 	#endregion
 
 	#region[API函数]

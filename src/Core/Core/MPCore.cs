@@ -72,6 +72,9 @@ public static class MPStatusExtension {
 #endregion
 
 public class MPCore : MonoSingleton<MPCore> {
+
+	#region[字段和属性]
+
 	// 玩家数量同步间隔
 	private TickTimer _syncTick = new TickTimer(3f, true);
 
@@ -128,6 +131,8 @@ public class MPCore : MonoSingleton<MPCore> {
 		{ "pink", new Color32(255, 110, 180, 255) },
 		{ "black", new Color32(32, 32, 32, 255) },
 	};
+
+	#endregion
 
 	#region[Unity生命周期函数]
 	protected override void Awake() {
@@ -376,6 +381,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 退出联机模式时重置设置
 	/// </summary>
 	public void ResetStateVariables() {
+		LocalPlayer.Instance.ShouldSendData = false;
 		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
 		ClearCurrentData();
@@ -594,14 +600,14 @@ public class MPCore : MonoSingleton<MPCore> {
 			});
 
 		// 设置大厅名称
-		CommandConsole.BuildCommand("setlobbyname", (args) => {
+		CommandConsole.BuildCommand("lobbyname", (args) => {
 			if (!EnsureHostPrivileges()) return;
 			_MPSteamworks.SetLobbyData(MPKeys.LOBBY_NAME, string.Join(" ", args));
 		})
 			.NotCheat().Description(Localization.Get("CommandHelp.SetLobbyName"));
 
 		// 移交大厅房主
-		CommandConsole.BuildCommand("sethost", (args) => {
+		CommandConsole.BuildCommand("hostset", (args) => {
 			if (!EnsureHostPrivileges()) return;
 			if (args.Length < 1) {
 				CommandConsole.LogError("Need more argument");
@@ -676,13 +682,13 @@ public class MPCore : MonoSingleton<MPCore> {
 			.AutocompleteCustom(TeamRuleAutocomplete);
 
 		// 注册 addteam 指令
-		CommandConsole.BuildCommand("addteam", AddTeamCommand)
+		CommandConsole.BuildCommand("teamadd", AddTeamCommand)
 			.NotCheat().Description(Localization.Get("CommandHelp.AddTeam"))
 			.OverValue(() => _MPSteamworks.IsInLobby ? (TeamRuleManager.activeTeams) : "Not In Lobby")
 			.AutocompleteCustom(NotHostAutocomplete);
 
 		// 注册 removeteam 指令
-		CommandConsole.BuildCommand("removeteam", RemoveTeamCommand)
+		CommandConsole.BuildCommand("teamremove", RemoveTeamCommand)
 			.NotCheat().Description(Localization.Get("CommandHelp.RemoveTeam"))
 			.OverValue(() => _MPSteamworks.IsInLobby ? (TeamRuleManager.activeTeams) : "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
@@ -738,7 +744,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			});
 
 		// 修改玩家模型
-		CommandConsole.BuildCommand("changemodel", (args) => {
+		CommandConsole.BuildCommand("playermodel", (args) => {
 			MPConfig.RemotePlayerModel = args[0];
 			_MPSteamworks.SetMemberData(MPKeys.PREFAB_ID, args[0]);
 		})
@@ -771,7 +777,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			});
 
 		// 加入队伍
-		CommandConsole.BuildCommand("jointeam", JoinTeam)
+		CommandConsole.BuildCommand("teamjoin", JoinTeam)
 			.NotCheat().Description(Localization.Get("CommandHelp.JoinTeam"))
 			.OverValue(() => _MPSteamworks.IsInLobby ? CurrentTeam : "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
@@ -781,7 +787,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 
 		// 设置名称
-		CommandConsole.BuildCommand("setname", (args) => {
+		CommandConsole.BuildCommand("playername", (args) => {
 			string name = string.Join(", ", args);
 			MPConfig.RemotePlayerName = name;
 			_MPSteamworks.SetMemberData(MPKeys.PLAYER_NAME, name);
@@ -912,6 +918,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			} else {
 				// 失败处理
 				SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+				ResetStateVariables();
 				CommandConsole.LogError(Localization.Get("CommandConsole.CreateLobbyFailed"));
 			}
 		} catch (Exception ex) {
@@ -1820,6 +1827,9 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	/// <param name="friend"></param>
 	private void HandleLobbyMemberLeft(Friend friend) {
+		_RPManager.ProcessPlayerLeave(friend.Id);
+		// 如果在大厅且已初始化且有连接,允许发送数据
+		LocalPlayer.Instance.ShouldSendData = IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
 
 	}
 

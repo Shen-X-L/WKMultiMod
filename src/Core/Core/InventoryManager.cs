@@ -16,7 +16,7 @@ public static class InventoryManager {
 	/// <summary>
 	/// 获取物品清单字典
 	/// </summary>
-	public static Dictionary<string, byte> GetInventoryItems() {
+	public static Dictionary<string, byte> GetInventoryItems(bool checkBag = true, bool checkHands = true, bool checkPouches = true) {
 		var inventory = Inventory.instance;
 		var itemsDict = new Dictionary<string, byte>();
 
@@ -25,7 +25,7 @@ public static class InventoryManager {
 			return itemsDict;
 		}
 		// 获取库存中的物品列表
-		var items = inventory.GetItems();
+		var items = inventory.GetItems(checkBag:checkBag, checkHands:checkHands, checkPouches:checkPouches);
 		foreach (var item in items) {
 			itemsDict.TryAdd(item.prefabName, 0);
 			itemsDict[item.prefabName]++;

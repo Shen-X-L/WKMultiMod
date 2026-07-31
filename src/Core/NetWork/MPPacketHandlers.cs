@@ -17,6 +17,7 @@ using WKMPMod.Util;
 using WKMPMod.World;
 using static ENT_Player;
 using static WKMPMod.Data.MPWriterPool;
+using static WKMPMod.Data.PlayerData;
 using static WKMPMod.UI.UI_Manager;
 using static WKMPMod.Util.DictionaryExtensions;
 
@@ -76,7 +77,7 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.BroadcastMessage)]
 	private static void HandleBroadcastMessage(IDType senderId, DataReader reader) {
-		bool tagShow = reader.GetBool();	// 是否显示在Tag中
+		bool tagShow = reader.GetBool();    // 是否显示在Tag中
 		string msg = reader.GetString();    // 读取消息
 		CommandConsole.Log(msg);
 		if (tagShow) RPManager.Instance.ProcessPlayerTag(senderId, msg);
@@ -215,7 +216,7 @@ public class MPPacketHandlers {
 
 		// 库存物品字典
 		writer.Put(InventoryManager.GetBlacklistInventoryItems(
-			new string[]{InventoryManager.ARTIFACT, InventoryManager.TRINKET }));
+			new string[] { InventoryManager.ARTIFACT, InventoryManager.TRINKET }));
 
 		// 没有Mess环境则直接发送位置数据,有则发送位置数据和Mess数据
 		if (DEN_DeathFloor.instance == null) {
@@ -249,29 +250,20 @@ public class MPPacketHandlers {
 
 		var inventory = Inventory.instance;
 		foreach (var (itemPrefabName, count) in missingItems) {
-			GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemPrefabName);
-			if (itemPrefab == null) {
-				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", itemPrefabName));
-				continue;
-			}
+			// 获取预制体
+			if(!MPUtil.TryGetItemPrefab(itemPrefabName, out var itemObjectPrefab)) continue;
 
 			for (int i = 0; i < count; i++) {
 				// 实例化物品在 0,1,0 
-				var pickupObj = GameObject.Instantiate(itemPrefab, new Vector3(0, 1, 0), Quaternion.identity);
-				var itemObject = pickupObj.GetComponent<Item_Object>();
+				var itemObject = GameObject.Instantiate(itemObjectPrefab, new Vector3(0, 1, 0), Quaternion.identity);
 				var itemData = itemObject.itemData;
-				if (itemObject != null) {
-					// 通过.upDirection属性,摆正为竖直向上
-					itemObject.itemData.bagRotation = Quaternion.LookRotation(itemData.upDirection);
-					// 将物品放入背包
-					inventory.AddItemToInventoryCenter(itemObject.itemData);
-					// 隐藏镜像物品对象,因为它已经被添加到库存中,不需要在场景中显示
-					itemObject.gameObject.SetActive(false);
-				} else {
-					MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabIsNotItem", pickupObj.name));
-					GameObject.Destroy(pickupObj);
-					continue;
-				}
+				// 通过.upDirection属性,摆正为竖直向上
+				itemData.bagRotation = Quaternion.LookRotation(itemData.upDirection);
+				// 将物品放入背包
+				inventory.AddItemToInventoryCenter(itemData);
+				// 隐藏镜像物品对象,因为它已经被添加到库存中,不需要在场景中显示
+				itemObject.gameObject.SetActive(false);
+
 			}
 		}
 
@@ -356,7 +348,7 @@ public class MPPacketHandlers {
 		var player = ENT_Player.GetPlayer();
 		string data = checkRequest switch {
 			"inventory" => "item: {" + GetInventoryItems() + "}",
-			"perk"=> "perk: {" + GetPerks() + "}",
+			"perk" => "perk: {" + GetPerks() + "}",
 			"stamina" => $"left: {player.hands[0].gripStrength} right: {player.hands[1].gripStrength}",
 			"health" => "health: " + player.health,
 			"cheats" => "cheats: " + CommandConsole.cheatsEnabled.ToString(),

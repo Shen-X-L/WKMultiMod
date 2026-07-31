@@ -20,16 +20,24 @@ using static WKMPMod.Core.MPGameModeManager;
 namespace WKMPMod.UI;
 
 public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler {
+
+	#region[非UI相关字段]
+
 	public Lobby lobby;                         // 关联的大厅数据
 	public M_Gamemode? gamemode;                // 关联的游戏模式
 	public bool isOfficialGamemodes;            // 是否为官方游戏模式(影响显示逻辑)
 	public GameModeData? gameModeData;           // 游戏模式数据(仅官方游戏模式有效,包含名称, 图标, 饰品和设置等信息)
 
+	#endregion
+
 	#region[原UI_Gamemode_Button字段]
+
 	public UI_LerpOpen? runInProgressDisplay;   // 进行中标识的动画组件
 	private bool isHovering;                    // 是否正在悬停/选中
 	public TMP_Text? unlockText;                // 锁定原因文本(显示在锁定图标旁边, 解释为什么不可加入)
+
 	#endregion
+
 	#region[原UI_CapsuleButton字段]
 	public float showDelayAnimation;            // 显示动画延迟时间
 	public Selectable? button;                  // 按钮组件引用
@@ -37,11 +45,15 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	public UnityEngine.UI.Image? unlockIcon;    // 未解锁时显示的锁定图标		
 	#endregion
 
+	#region[UI相关字段]
+
 	public TMP_Text? lobbyName;                 // 大厅名称文本
 	public UnityEngine.UI.Image? hostAvatar;    // 房主头像
 	public TMP_Text? hostName;                  // 房主名
 	public Button? btnComp;                      // 按钮引用
 	public UnityEngine.UI.Image? lobbyImage;    // 大厅图标
+
+	#endregion
 
 	/// <summary>
 	/// 初始化按钮 - 设置点击事件, 图标, 标题和统计文本
@@ -80,14 +92,25 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		} catch (JsonException ex) {
 			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.GamemodeParseError", rawData, ex.Message));
 		}
-
 		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
 		// 自定义游戏模式显示锁定图标,显示未知游戏模式文本
 		if (!isOfficialGamemodes) {
 			unlockIcon?.gameObject.SetActive(true);
 			unlockText?.text = "Unknown gamemode";
 		}
+		// 设置按钮交互和透明度
+		if (group != null) {
+			group.interactable = isOfficialGamemodes;
+			group.alpha = isOfficialGamemodes ? 1f : 0.5f;
+		}
+		// 官方游戏模式显示胶囊图标,自定义游戏模式不显示(后续可以考虑添加自定义图标支持)
+		if (isOfficialGamemodes) {
+			this.gamemode = gamemode;
+			// 设置胶囊按钮图标
+			GetComponent<UnityEngine.UI.Image>()?.sprite = gamemode.capsuleArt;
+		}
 
+		// 查看版本是否匹配
 		var v1 = new Version(MPMain.PLUGIN_VERSION);
 		if (!Version.TryParse(lobby.GetData(MPKeys.MOD_VERSION), out var v2) ||
 			v1.Major != v2.Major || v1.Minor != v2.Minor) {
@@ -96,22 +119,13 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			unlockText?.text = $"Incompatible mod version: {(string.IsNullOrEmpty(modVersion) ? "unknown" : modVersion)}";
 		}
 
-		// 设置按钮交互和透明度
-		if (group != null) {
-			group.interactable = isOfficialGamemodes;
-			group.alpha = isOfficialGamemodes ? 1f : 0.5f;
-		}
-
-		// 官方游戏模式显示胶囊图标,自定义游戏模式不显示(后续可以考虑添加自定义图标支持)
-		if (isOfficialGamemodes) {
-			this.gamemode = gamemode;
-			// 设置胶囊按钮图标
-			GetComponent<UnityEngine.UI.Image>()?.sprite = gamemode.capsuleArt;
-		}
-
 		// 设置标题(支持自定义名称)
 		string nameData = lobby.GetData(MPKeys.LOBBY_NAME);
-		lobbyName?.text = !string.IsNullOrEmpty(nameData) ? nameData : lobby.Id.ToString();
+		if (lobbyName != null) {
+			lobbyName.richText = false;    // 关闭Unity富文本
+			string displayName = !string.IsNullOrEmpty(nameData) ? nameData : lobby.Id.ToString();
+			lobbyName.text = $"{displayName} \n({lobby.MemberCount}/{lobby.MaxMembers})";
+		}
 
 		// 加载房主信息(头像和名称)
 		StartCoroutine(TrackAndLoadOwnerInfoCoroutine());
@@ -129,7 +143,8 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			owner = new Friend(ownerId);
 		}
 
-		hostName.text = string.IsNullOrEmpty(owner.Name) ? "Loading Name..." : owner.Name;
+		hostName?.richText = false;
+		hostName?.text = string.IsNullOrEmpty(owner.Name) ? "Loading Name..." : owner.Name;
 
 		// 异步加载头像
 		// 由于 GetMediumAvatarAsync 返回 Task, 我们可以在协程里等待 Task 完成
@@ -245,6 +260,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	}
 
 	#endregion
+
 	#region[大厅加入事件回调]
 	// 加入中 - 目前没有额外逻辑
 	public void Joining() {
@@ -280,6 +296,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	}
 
 	#endregion
+
 	#region[动画相关]
 	/// <summary>
 	/// 显示按钮动画 - 通常在容器启用时调用, 实现按钮逐个出现的效果

@@ -100,7 +100,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	// 接收方等待发起方连接的最大时间 (3次 * 2秒) + 0.5秒 = 6.5秒
 	private const float RECEIVER_WAIT_INITIATOR = (MAX_ATTEMPTS * RETRY_INTERVAL);
 
-	// 接收方最坏情况：清理时间 (1.5秒) + 双方发起方结束时间 (6.5秒 * 2次) = 14.5秒
+	// 接收方最坏情况:清理时间 (1.5秒) + 双方发起方结束时间 (6.5秒 * 2次) = 14.5秒
 	private const float RECEIVER_WCS = CONN_CLEANUP_RECONNECT + RECEIVER_WAIT_INITIATOR * 2;
 
 	// 扫描间隔必须大于最长链路(RECEIVER_WCS) 外加一个安全缓冲 14.5秒 + 3.5秒 = 18秒
@@ -111,7 +111,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private Dictionary<SteamId, Coroutine> _connectionCoroutines = new();
 	// 扫描协程
 	private Coroutine _scanCoroutines = null;
-	// 在协程外部或类初始化时缓存，避免在循环中重复 new 产生 GC
+	// 在协程外部或类初始化时缓存, 避免在循环中重复 new 产生 GC
 	public readonly WaitForSecondsRealtime Wait200ms = new WaitForSecondsRealtime(0.2f);
 	public readonly WaitForSecondsRealtime Wait1000ms = new WaitForSecondsRealtime(1.0f);
 	public readonly WaitForSecondsRealtime Wait500ms = new WaitForSecondsRealtime(0.5f);
@@ -1117,7 +1117,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			_currentLobby.SetMemberData(kvp.Key, kvp.Value);
 
-			// 只要有新 Key 成功加入 Cache，标记变更
+			// 只要有新 Key 成功加入 Cache, 标记变更
 			if (_knownKeysCache.Add(kvp.Key)) {
 				indexChanged = true;
 			}

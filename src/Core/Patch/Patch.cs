@@ -65,17 +65,3 @@ public class Patch_CL_AssetManager_Initialize {
 		MPGameModeManager.Initialize();
 	}
 }
-
-
-//[HarmonyPatch(typeof(CL_GameManager), nameof(CL_GameManager.Die))]
-//public class  Patch_CL_GameManager_Die {
-//	public static void Prefix(string type) {
-//		if (CL_GameManager.isDead()) return;
-//		if (MPCore.IsInLobby) {
-//			MPEventBusGame.NotifyPlayerDeath(type);
-//			MPMain.LogInfo(Localization.Get("Patch.PlayerDeath", type));
-//		}
-//	}
-//}
-
-

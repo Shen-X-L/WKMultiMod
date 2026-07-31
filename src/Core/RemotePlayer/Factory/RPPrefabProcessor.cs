@@ -48,6 +48,8 @@ public static class RPPrefabProcessor {
 			component.teleportThreshold = mk.teleportThreshold;
 			component.fastSmoothDistance = mk.fastSmoothDistance;
 			component.baseGrabStrength = mk.basePullStrength;
+			component.shoulderTransform = mk.shoulderTransform;
+			component.bodyTransform = mk.bodyTransform;
 			Object.DestroyImmediate(mk);
 		}
 

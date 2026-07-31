@@ -99,8 +99,7 @@ public class RPManager : Singleton<RPManager> {
 			var pos = container.PlayerObject.transform.position;
 			var rot = container.PlayerObject.transform.rotation;
 			var deathParticle = MPAssetManager.GetFXPrefab(MPAssetManager.DEATH_OBJECT_NAME);
-			if (deathParticle != null)
-				GameObject.Instantiate(deathParticle, pos, rot);
+			if (deathParticle != null) GameObject.Instantiate(deathParticle, pos, rot);
 		}
 
 		container.Destroy();
@@ -204,14 +203,11 @@ public class RPManager : Singleton<RPManager> {
 
 		// 获取玩家对象
 		GetPlayerObject(playerId);
-		if (!Players.TryGetValue(playerId, out var container)) {
-			return;
-		}
-		var playerObject = container.PlayerObject;
-		if (playerObject == null) {
-			return;
-		}
+		if (!Players.TryGetValue(playerId, out var container)) return;
 
+		var playerObject = container.PlayerObject;
+		if (playerObject == null) return;
+		
 		var playerPosition = playerObject.transform.position;
 
 		// 生成物品
@@ -237,19 +233,15 @@ public class RPManager : Singleton<RPManager> {
 				if (itemId == HAMMER_NAME)
 					continue;
 
-				GameObject itemPrefab = CL_AssetManager.GetAssetGameObject(itemId);
-				if (itemPrefab == null) {
-					MPMain.LogError(Localization.Get("RPManager.PrefabDoesNotExist", itemId));
-					continue;
-				}
+				// 获取预制体
+				if (!MPUtil.TryGetItemPrefab(itemId, out var itemObjectPrefab)) continue;
 
 				for (int i = 0; i < count; i++) {
 					// 随机位置 (-1~1,0.5~1,-1~1)
-					Vector3 offset = new Vector3(
-						Random.Range(-1f, 1f), Random.Range(0.5f, 1f), Random.Range(-1f, 1f));
+					Vector3 offset = new Vector3(Random.Range(-1f, 1f), Random.Range(0.5f, 1f), Random.Range(-1f, 1f));
 
 					// 实例化物品
-					var itemObject = GameObject.Instantiate(itemPrefab, playerPosition + offset, Random.rotation);
+					var itemObject = GameObject.Instantiate(itemObjectPrefab, playerPosition + offset, Random.rotation);
 
 					// 获取Rigidbody并添加随机斜上方动量
 					if (itemObject.TryGetComponent<Rigidbody>(out var rb)) {
@@ -342,8 +334,7 @@ public class RPManager : Singleton<RPManager> {
 	/// 刷新所有玩家的规则引用, 以适应规则修改时的即时生效
 	/// </summary>
 	public void RefreshAllRule() {
-		foreach (var (id, container) in Players)
-			container.RefreshRuleReference();
+		foreach (var (id, container) in Players) container.RefreshRuleReference();
 	}
 
 	public List<IDType> GetPlayerInTeam(string teamName) {

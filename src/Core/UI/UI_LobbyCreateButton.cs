@@ -95,6 +95,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 	// 创建失败 - 目前没有额外逻辑
 	public void CreateFailed() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+		MPCore.Instance.ResetStateVariables();
 		// 恢复同一标签页内按钮点击
 		button?.interactable = true;
 		foreach (var btn in otherButtons) {

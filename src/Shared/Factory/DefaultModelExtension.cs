@@ -1,11 +1,13 @@
 ﻿using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using WKMultiPlayerMod.Shared.Component;
+using WKMultiPlayerMod.Shared.Data;
+using static UnityEngine.InputSystem.OnScreen.OnScreenStick;
 
 namespace WKMPMod.RemotePlayer;
 
 public class DefaultModelExtension : ICustomModelExtension {
-	// shader主颜色设置
-	private static readonly string[] TintColorProperties = { "_BaseColor", "_Color", "_MainColor" };
 
 	public string ModelId => "default";
 	public string PrefabAssetName => "CapsulePlayerPrefab";
@@ -19,10 +21,14 @@ public class DefaultModelExtension : ICustomModelExtension {
 	private const string GAME_TMP_FONT_ASSET = "Ticketing SDF";
 
 	/// <summary>
-	/// 原 SlugcatFactory.OnPrepare 的解构实现
+	/// 预制体加载时进行的操作
 	/// </summary>
 	public void OnPrefabLoaded(GameObject prefabTemplate, IAssetHelper assetHelper) {
 		FixTMPComponent(prefabTemplate, assetHelper);
+
+		// 获取组件
+		var behaviour = prefabTemplate.GetComponent<DefaultModelBehaviour>();
+		if (behaviour != null) behaviour.OnPrefabLoaded();
 	}
 
 	/// <summary>
@@ -37,14 +43,14 @@ public class DefaultModelExtension : ICustomModelExtension {
 	/// </summary>
 	private void FixTMPComponent(GameObject prefab, IAssetHelper assetHelper) {
 		foreach (var tmpText in prefab.GetComponentsInChildren<TMP_Text>(true)) {
-			Debug.Log("RPSlugcatFactory.SpecializingTMPComponent" + tmpText.name);
+			Debug.Log("DefaultFactory.SpecializingTMPComponent" + tmpText.name);
 
 			// 获取原版字体
 			TMP_FontAsset gameFont = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
 				.FirstOrDefault(f => f.name == GAME_TMP_FONT_ASSET);
 
 			if (gameFont == null) {
-				Debug.LogError("RPSlugcatFactory.FontAssetNotFound" + GAME_TMP_FONT_ASSET);
+				Debug.LogError("DefaultFactory.FontAssetNotFound" + GAME_TMP_FONT_ASSET);
 				continue;
 			}
 			tmpText.font = gameFont;
@@ -55,65 +61,10 @@ public class DefaultModelExtension : ICustomModelExtension {
 
 			if (instanceMat != null && bundleMat != null) {
 				instanceMat.shader = bundleMat.shader;
-				Debug.Log("RPSlugcatFactory.ImplementOverlayViaShader");
+				Debug.Log("DefaultFactory.ImplementOverlayViaShader");
 			} else {
-				Debug.LogError("RPSlugcatFactory.UnableToLoadMaterial" + TMP_DISTANCE_FIELD_OVERLAY_MAT);
+				Debug.LogError("DefaultFactory.UnableToLoadMaterial" + TMP_DISTANCE_FIELD_OVERLAY_MAT);
 			}
 		}
-	}
-
-	/// <summary>
-	/// 修改玩家颜色
-	/// </summary>
-	public void ApplyPlayerColor(GameObject instance, Color32 color) {
-		if (instance == null)
-			return;
-
-		foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true)) {
-			if (renderer.GetComponent<TMP_Text>() != null) continue;
-
-			Color targetColor = renderer.transform.name.StartsWith("Eyes")
-				? GetContrastColor(color)
-				: (Color)color;
-
-			foreach (var material in renderer.materials) {
-				if (material == null) continue;
-
-				foreach (var propertyName in TintColorProperties) {
-					if (!material.HasProperty(propertyName)) continue;
-
-					var current = material.GetColor(propertyName);
-					material.SetColor(
-						propertyName,
-						new Color(targetColor.r, targetColor.g, targetColor.b,
-							(byte)Mathf.Clamp(Mathf.RoundToInt(current.a * 255f), 0, 255)));
-				}
-			}
-		}
-	}
-
-	/// <summary>
-	/// 根据亮度计算高对比色
-	/// </summary>
-	private static Color GetContrastColor(Color color) {
-		float luminance =
-			0.299f * color.r +
-			0.587f * color.g +
-			0.114f * color.b;
-
-		return luminance > 0.5f
-			? Color.black
-			: Color.white;
-	}
-
-	/// <summary>
-	/// 切换玩家下蹲状态
-	/// </summary>
-	public void Crouching(GameObject gameObject,bool isCrouching) { 
-	
-	}
-
-	public void HandlePlayerData(GameObject gameObject, Dictionary<string, string> playerData) { 
-	
 	}
 }

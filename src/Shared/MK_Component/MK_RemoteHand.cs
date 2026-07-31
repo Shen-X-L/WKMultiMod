@@ -19,6 +19,11 @@ public class MK_RemoteHand : MonoBehaviour {
 	[Header("拉拽参数")]
 	public float basePullStrength = 0.2f;    // 基础拖拽力
 
+	[Header("肩膀 Transform")]
+	public Transform shoulderTransform; //  若无胳膊可留空
+
+	[Header("身体 Transform")]
+	public Transform bodyTransform;     //  无胳膊时的备用参照
 
 	// 立即传送
 	public void Teleport(Vector3 position) { 

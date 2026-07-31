@@ -129,7 +129,7 @@ public static class ItemSyncManager {
 
 	/// <summary>
 	/// 重置所有状态: 停止协程, 销毁同步创建的物品, 清空所有追踪集合.
-	/// 在断线、地图切换或快照重置时调用.
+	/// 在断线, 地图切换或快照重置时调用.
 	/// </summary>
 	public static void ResetState() {
 		// Step 1: 停止所有相关协程
@@ -204,7 +204,7 @@ public static class ItemSyncManager {
 	/// 若该物体已有 NetworkedItem 组件且 NetworkId 非空 (说明已经在网络中), 直接复用并重新广播.
 	/// 若没有 (本地新物品), 添加组件, 分配 "{UserSteamId}:p2p:{自增ID}", 设置 OwnerId = 我, 广播 Create.
 	/// <br/>
-	/// 适用场景: 玩家丢弃物品、关卡触发器生成、临时联网化黑名单道具等.
+	/// 适用场景: 玩家丢弃物品, 关卡触发器生成, 临时联网化黑名单道具等.
 	/// </para>
 	/// </summary>
 	/// <returns>NetworkedItem 同步组件, 失败返回 null</returns>
@@ -242,7 +242,7 @@ public static class ItemSyncManager {
 	/// <para>
 	/// 若没有 NetworkedItem, 说明物品从未进入同步, 直接 Destroy 即可.
 	/// <br/>
-	/// 适用场景: 垃圾桶吞噬、剧情强制扣除、作弊指令清理等.
+	/// 适用场景: 垃圾桶吞噬, 剧情强制扣除, 作弊指令清理等.
 	/// </para>
 	/// </summary>
 	public static void DespawnAndBroadcast(Item_Object itemObject) {
@@ -797,7 +797,7 @@ public static class ItemSyncManager {
 	}
 
 	/// <summary>
-	/// 检查场景物品是否为新出现且需要注册的 (可同步、有 prefabKey、无有效 NetworkId 或未追踪).
+	/// 检查场景物品是否为新出现且需要注册的 (可同步, 有 prefabKey, 无有效 NetworkId 或未追踪).
 	/// </summary>
 	private static bool TryPrepareNewHostWorldItem(Item_Object itemObject, out string prefabKey) {
 		prefabKey = string.Empty;
@@ -932,12 +932,11 @@ public static class ItemSyncManager {
 	/// </para>
 	/// </summary>
 	private static Item_Object InstantiateWorldItem(string prefabKey, Vector3 position, Quaternion rotation) {
-		var prefab = CL_AssetManager.GetAssetGameObject(prefabKey);
-		if (prefab == null) return null;
+		if(!MPUtil.TryGetItemPrefab(prefabKey, out Item_Object prefab)) return null;
 
 		ApplyingRemoteState = true;
 		try {
-			var instance = Object.Instantiate(prefab, position, rotation);
+			var instance = Object.Instantiate(prefab, position, rotation).gameObject;
 			var levelRoot = WorldLoader.GetCurrentLevelParentRoot();
 			if (levelRoot != null) instance.transform.SetParent(levelRoot);
 
