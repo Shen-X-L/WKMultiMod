@@ -13,6 +13,7 @@ namespace WKMPMod.Patch;
 public class Patch_WorldLoader_Initialize_ItemSync {
 	public static void Postfix() {
 		ItemSyncManager.NotifyWorldInitialized();
+		EnemySyncManager.NotifyWorldInitialized();
 	}
 }
 
