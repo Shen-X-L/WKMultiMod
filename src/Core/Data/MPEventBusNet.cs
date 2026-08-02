@@ -23,6 +23,7 @@ public enum PacketType {
 	// 非玩家实体状态同步
 	PitonStateSync = 16,    // 客机->主机->客机: 同步已放置可攀爬物(岩钉/自动岩钉/钢筋/带绳钢筋)的创建/敲入/失效状态
 	ItemStateSync = 17,     // 客机->主机->客机: 同步物品的扔出/拾取
+	EnemyStateSync = 18,    // 主机权威: 同步敌人位置/生命值/死亡, 客机可向主机请求伤害
 
 	// 玩家间互动
 	PlayerDataUpdate = 32,   // 客机->主机->客机: 玩家数据更新
