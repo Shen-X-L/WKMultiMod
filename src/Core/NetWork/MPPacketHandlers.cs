@@ -298,6 +298,14 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
+	/// 主机/客户端接收EnemyStateSync: 同步敌人位置、生命值、伤害请求和死亡状态
+	/// </summary>
+	[MPPacketHandler(PacketType.EnemyStateSync)]
+	private static void HandleEnemyStateSync(IDType senderId, DataReader reader) {
+		EnemySyncManager.HandleEnemyState(senderId, reader);
+	}
+
+	/// <summary>
 	/// 主机/客户端接收PlayerStopInteraction: 处理远程玩家松开物品或手抓点<br/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerStopInteraction)]

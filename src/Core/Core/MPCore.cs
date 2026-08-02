@@ -389,6 +389,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		_RPManager.ResetAll();
 		TeamRuleManager.ClearCache();
 		ItemSyncManager.ResetState();
+		EnemySyncManager.ResetState();
 		// 是否需要重置饰品/绑定
 		if (NeedResetTrinkets && NeedResetGamemodeName != null) {
 			StatManager.saveData.SetGamemodeTrinkets(NeedResetGamemodeName, new List<string>());
@@ -1839,6 +1840,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	private void HandlePlayerConnected(SteamId steamId) {
 		if (_MPSteamworks.IsHost) {
 			ItemSyncManager.SendSnapshotToClient(steamId);
+			EnemySyncManager.SendSnapshotToClient(steamId);
 		}
 		// 如果在大厅且已初始化且有连接,允许发送数据
 		LocalPlayer.Instance.ShouldSendData = IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
