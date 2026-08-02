@@ -21,6 +21,9 @@ public class MPConfig {
 	private static ConfigEntry<string> _toggleKey;
 	public static string ToggleKey => _toggleKey.Value;
 
+	private static ConfigEntry<bool> _usePiratedMode;
+	public static bool UsePiratedMode => _usePiratedMode.Value;
+
 	#region[自定义相关]
 
 	// 头顶名称标签字体最大值
@@ -357,10 +360,13 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 			"控制由你开启的房间是否默认可以绑定或天赋同步");
 		#endregion
 
-		_toggleKey = config.Bind("Controls", "ToggleKey", "g", "按下此键切换抓取/拖拽状态");
+		_toggleKey = config.Bind("Controls", "ToggleKey", "g", 
+			"Press this key to switch between grab/drag mode\n按下此键切换抓取/拖拽状态");
 
-		if (isConfigOutdated)
-			VersionDetection(config);
+		_usePiratedMode = config.Bind("Network", "UsePiratedMode", false, 
+			"Enable piracy mode and use Spacewar as a disguise to support Steam online\n启用盗版模式,使用Spacewar做伪装来支持steam联机");
+
+		if (isConfigOutdated) VersionDetection(config);
 	}
 
 	/// <summary>

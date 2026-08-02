@@ -41,6 +41,7 @@ public static class MPUtil {
 		item = itemObject;
 		return true;
 	}
+
 	public static readonly Dictionary<string, Color32> PlayerColorPresets = new(StringComparer.OrdinalIgnoreCase) {
 		{ "default", new Color32(255, 255, 255, 255) },
 		{ "white", new Color32(255, 255, 255, 255) },

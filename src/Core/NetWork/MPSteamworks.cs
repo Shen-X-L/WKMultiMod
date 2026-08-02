@@ -95,15 +95,15 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private const float CONN_CLEANUP_FIRST = 0.2f;
 	// 最大尝试次数
 	private const int MAX_ATTEMPTS = 3;
-	// 每次重试最大等待 2 秒
-	private const float RETRY_INTERVAL = 2.0f;
-	// 接收方等待发起方连接的最大时间 (3次 * 2秒) + 0.5秒 = 6.5秒
+	// 每次重试最大等待 1 秒
+	private const float RETRY_INTERVAL = 1.0f;
+	// 接收方等待发起方连接的最大时间 (3次 * 1秒) + 0.5秒 = 3.5秒
 	private const float RECEIVER_WAIT_INITIATOR = (MAX_ATTEMPTS * RETRY_INTERVAL);
 
-	// 接收方最坏情况:清理时间 (1.5秒) + 双方发起方结束时间 (6.5秒 * 2次) = 14.5秒
+	// 接收方最坏情况:清理时间 (1.5秒) + 双方发起方结束时间 (3.5秒 * 2次) = 8.5秒
 	private const float RECEIVER_WCS = CONN_CLEANUP_RECONNECT + RECEIVER_WAIT_INITIATOR * 2;
 
-	// 扫描间隔必须大于最长链路(RECEIVER_WCS) 外加一个安全缓冲 14.5秒 + 3.5秒 = 18秒
+	// 扫描间隔必须大于最长链路(RECEIVER_WCS) 外加一个安全缓冲 8.5秒 + 3.5秒 = 12秒
 	// 这样可以确保在上一次对端超时放弃前, 绝对不会触发下一轮扫描
 	private static readonly float SCAN_INTERVAL = RECEIVER_WCS + 3.5f;
 
@@ -879,8 +879,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			for (int i = 0; i < maxAttempts; i++) {
 				// 检查现有连接(可能在循环开始前已连上)
 				if (_allConnections.ContainsKey(targetId)) {
-					// 等待 1秒确定连接正常
-					yield return Wait1000ms;
+					// 等待 0.5秒确定连接正常
+					yield return Wait500ms;
 					// 连接正常 退出协程
 					if (_allConnections.ContainsKey(targetId)) {
 						HasConnections = true;
@@ -891,11 +891,12 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				// 清理连接并重连玩家
 				ExecuteConnection(targetId);
 				// 等待重试间隔,期间持续检查状态
-				float timer = 0;
-				while (timer < retryInterval) { // 重试间隔
+				float endTime = Time.unscaledTime + retryInterval;
+				// 重试间隔
+				while (Time.unscaledTime < endTime) { 
 					if (_allConnections.ContainsKey(targetId)) {
-						// 等待 1秒确定连接正常
-						yield return Wait1000ms;
+						// 等待 0.5秒确定连接正常
+						yield return Wait500ms;
 						// 连接正常 退出协程
 						if (_allConnections.ContainsKey(targetId)) {
 							HasConnections = true;
@@ -904,7 +905,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 						}
 					}
 					yield return Wait200ms;
-					timer += 0.2f;
 				}
 				MPMain.LogWarning(Localization.Get("MPSteamworks.ConnectionAttemptFailed", i + 1, targetId));
 			}
@@ -920,13 +920,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			yield return AttemptAndVerify(MAX_ATTEMPTS, RETRY_INTERVAL);
 		} else {
 			MPMain.LogInfo(Localization.Get("MPSteamworks.ConnectionEeceiver", targetId));
-			float waitTimer = 0;
 			bool alreadyConnected = false;
 			// 等待对方的主动连接
-			while (waitTimer < RECEIVER_WAIT_INITIATOR) {
+			float endTime = Time.unscaledTime + RECEIVER_WAIT_INITIATOR;
+			while (Time.unscaledTime < endTime) {
 				if (_allConnections.ContainsKey(targetId)) {
-					// 等待 1秒确定连接正常
-					yield return Wait1000ms;
+					// 等待 0.5秒确定连接正常
+					yield return Wait500ms;
 					if (_allConnections.ContainsKey(targetId)) {
 						HasConnections = true;
 						MPEventBusNet.NotifyPlayerConnected(targetId);
@@ -935,7 +935,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 					}
 				}
 				yield return Wait200ms;
-				waitTimer += 0.2f;
 			}
 
 			// 未能被动监听连接 开始主动连接

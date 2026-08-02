@@ -4,7 +4,7 @@ namespace WKMPMod.Component;
 
 public class SimpleArmIK : MonoBehaviour {
 	[Header("目标设置")]
-	public Transform? target;          // 这里拖入挂有 RemoteHand 的物体
+	public Transform? target;          // 目标物体
 	public float originalLength = 1f; // 骨骼在 Scale Y = 1 时的原始长度(单位:米)
 
 	[Header("限制")]
@@ -18,29 +18,29 @@ public class SimpleArmIK : MonoBehaviour {
 		}
 	}
 
-	// 使用 LateUpdate 确保在 RemoteHand 的 Update 更新位置后执行
 	private void LateUpdate() {
 		if (target == null) return;
 
-		// 1. 获取指向目标的向量
-		Vector3 direction = target.position - transform.position;
-		float currentDistance = direction.magnitude;
+		// 1. 将起点和终点转换到 父节点本地空间 下计算
+		Vector3 localStart = transform.parent.InverseTransformPoint(transform.position);
+		Vector3 localTarget = transform.parent.InverseTransformPoint(target.position);
 
-		if (currentDistance < 0.0001f) return;
+		// 2. 获取父节点本地空间下的指向向量与距离
+		Vector3 localDirection = localTarget - localStart;
+		float localDistance = localDirection.magnitude;
 
-		// 2. 旋转:让骨骼的 Y 轴指向目标
-		// 注意:Unity 默认 LookRotation 是让 Z 轴指向目标
-		// 我们通过从 Vector3.up (Y) 旋转到 direction 来实现 Y 轴指向
-		transform.rotation = Quaternion.FromToRotation(Vector3.up, direction);
+		if (localDistance < 0.0001f) return;
 
-		// 3. 缩放:计算需要的 Y 轴缩放值
-		// 公式:当前距离 / 原始长度 = 应有的缩放比例
-		float targetScaleY = currentDistance / originalLength;
+		// 3. 局部旋转：让骨骼的局部 Y 轴指向本地空间的目标方向
+		transform.localRotation = Quaternion.FromToRotation(Vector3.up, localDirection);
+
+		// 4. 局部缩放：计算局部 Y 轴所需的缩放比例
+		float targetScaleY = localDistance / originalLength;
 
 		// 应用限制
 		targetScaleY = Mathf.Clamp(targetScaleY, minScale, maxScale);
 
-		// 保持 X 和 Z 轴比例为 1,只缩放 Y
+		// 保持 X 和 Z 轴比例为 1，只缩放局部 Y
 		transform.localScale = new Vector3(1, targetScaleY, 1);
 	}
 }

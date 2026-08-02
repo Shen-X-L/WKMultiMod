@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using Steamworks;
 using WKMPMod.Core;
 using WKMPMod.Util;
 using Object = UnityEngine.Object;
@@ -24,5 +25,15 @@ public class Patch_SteamManager {
 		} catch (System.Exception e) {
 			MPMain.LogError(Localization.Get("Patch.CoreInjectionFailed",e.Message));
 		}
+	}
+}
+
+[HarmonyPatch(typeof(SteamClient))]
+public class Patch_SteamClient {
+	[HarmonyPatch(nameof(SteamClient.Init))]
+	[HarmonyPrefix]
+	public static void Patch_Init(ref uint appid) {
+		if (MPConfig.UsePiratedMode == true) appid = 480; 
+		return;
 	}
 }

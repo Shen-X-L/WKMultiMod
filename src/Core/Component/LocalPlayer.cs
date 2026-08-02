@@ -28,7 +28,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	private List<IDType> _farPlayersBuffer = new List<IDType>(16);
 	public List<IDType> _nearPlayersBuffer = new List<IDType>(16);  // 近处玩家,大部分数据可以仅对near发送
 	public Dictionary<string, string> _playerData = new();  // 玩家额外数据字典(背包状态 perk状态等)
-	public const float LIMIT_SENDING_DISTANCE = 100.0f;             // 超过该距离时仅保证最小更新频率发送数据
+	public const float LIMIT_SENDING_DISTANCE = 2400.0f;             // 超过该距离时仅保证最小更新频率发送数据
 
 	#endregion
 
@@ -160,14 +160,11 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		bool tickMinFreq = _minUpdateFrequencyTimer.TryTick();
 
 		// 如果没有任何定时器触发, 返回
-		if (!tickNormal && !tickMinFreq)
-			return;
+		if (!tickNormal && !tickMinFreq) return;
 
-		if (!ValidatePlayerReferences())
-			return;
+		if (!ValidatePlayerReferences()) return;
 
-		if (_cachedPlayer.IsDead())
-			return;
+		if (_cachedPlayer.IsDead()) return;
 
 		// 瞬移补偿判定
 		float dx = _cachedPlayer.transform.position.x - _lastPlayerData.PosX;
@@ -186,9 +183,10 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			return;
 
 		// 获取距离分层列表 (将本地玩家当前位置作为中心点)
+		// 2400m/玩家数量, 最小100m, 远距离玩家仅保证最小频率发送数据
 		RPManager.Instance.GetPlayersByDistance(
 			_lastPlayerData.Position,
-			LIMIT_SENDING_DISTANCE,
+			Math.Max(LIMIT_SENDING_DISTANCE/RPManager.Instance.Players.Count,100.0f),
 			ref _farPlayersBuffer,
 			ref _nearPlayersBuffer
 		);

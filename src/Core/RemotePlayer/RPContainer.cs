@@ -1,11 +1,8 @@
 ﻿using Steamworks;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using Unity.Transforms;
 using UnityEngine;
-using UnityEngine.Events;
 using WKMPMod.Asset;
 using WKMPMod.Component;
 using WKMPMod.Core;
@@ -14,22 +11,29 @@ using WKMPMod.NetWork;
 using WKMPMod.Util;
 using WKMultiPlayerMod.Shared.Component;
 using WKMultiPlayerMod.Shared.Data;
-using static UI_TabGroup;
-using static UnityEngine.Rendering.PostProcessing.HistogramMonitor;
 using Object = UnityEngine.Object;
 
 namespace WKMPMod.RemotePlayer;
 
 // 单个玩家的容器类
 public class RPContainer {
+	#region[玩家数据常量]
+
 	public const float PLAYER_CHARACTER_CONTROLLER_HEIGHT = 2.25f;// 玩家本体胶囊高度
 	public const float PLAYER_CHARACTER_CONTROLLER_RADIUS = 0.45f;// 玩家本体胶囊半径
+
+	#endregion
+
+	#region[玩家数据]
 
 	public ulong PlayerId { get; set; }
 	public string PlayerName { get; set; }
 	public GameObject PlayerObject { get; private set; }
 
-	// 本体组件
+	#endregion
+
+	#region[本体组件引用]
+
 	private Component.RemotePlayer _remotePlayer;   // 本体
 	private RemoteHand _remoteLeftHand;     // 左手
 	private RemoteHand _remoteRightHand;    // 右手
@@ -39,20 +43,25 @@ public class RPContainer {
 	private Collider[] _colliders;  // 全部碰撞
 	private CustomModelBehaviour _modelBehaviour;// 运行时模型控制器组件
 
-	private Dictionary<string, string> _memberData = new();
+	#endregion
 
 	// 死亡后0.5秒内不接受更新, 避免瞬移和动画冲突
 	private bool _isDead = false;
 	private TickTimer _deathTick = new TickTimer(0.5f);
 
+	#region[TeamRule相关]
+
+	public string team="";     // 队伍信息, 默认为 "default", 可以通过玩家数据更新
+	public FlattenedRule actionRule;    // 相关规则引用
+
+	#endregion
+
+	#region[MemberData相关]
+
 	// 玩家模型数据
 	public ICustomModelExtension Extension { get; private set; }
 	public string prefabId => _pending.prefabId;
-	public Color32 PlayerColor { get; private set; } = new Color32(255, 255, 255, 255);
-
-	public string team;     // 队伍信息, 默认为 "default", 可以通过玩家数据更新
-	public FlattenedRule actionRule;    // 相关规则引用
-
+	private Dictionary<string, string> _memberData = new();
 	// 待应用数据 —— 在模型尚未加载时先缓存起来, 模型就绪后统一应用
 	private struct PendingData {
 		public string prefabId; // 模型数据
@@ -63,6 +72,8 @@ public class RPContainer {
 		public string leaveMessage; // 离开信息
 	}
 	private PendingData _pending;
+
+	#endregion
 
 	// 标记模型是否已经就绪(Initialize 成功)
 	public bool IsModelReady { get; private set; } = false;
@@ -94,10 +105,15 @@ public class RPContainer {
 			IsModelReady = true;
 			// 将缓存的待应用数据一次性应用到模型
 			FlushPendingData();
-			// 刷新状态
+			// 刷新Team Rule状态
 			RefreshRuleReference();
-			// 视野外进行隐藏
-			PlayerObject.transform.position = new Vector3(0, -9999f, 0);
+			// 暂时关闭对象
+			_isDead = true;
+			PlayerObject.SetActive(false);
+			// 传输到远方
+			//_remotePlayer.Teleport(new Vector3(0,-10000,0), Quaternion.identity);
+			//_remoteLeftHand.TeleportToPosition(new Vector3(0, -10000, 1));
+			//_remoteRightHand.TeleportToPosition(new Vector3(0, -10000, -1));
 			// Debug
 			MPMain.LogInfo(Localization.Get("RPContainer.MappingSucceeded", PlayerId.ToString()));
 			return true;
@@ -119,9 +135,7 @@ public class RPContainer {
 	/// </summary>
 	public void DestroyModel() {
 		// 把当前已知的非默认状态回存到 pending, 确保重建后仍能恢复
-		if (IsModelReady) {
-			_pending.color = PlayerColor;
-		}
+		if (IsModelReady) { }
 
 		PlayerObject = null;
 		_remotePlayer = null;
@@ -153,11 +167,7 @@ public class RPContainer {
 	/// <summary>
 	/// 读取并清除缓存的加入消息(RPManager 在合适时机调用)
 	/// </summary>
-	public string ConsumeJoinMessage() {
-		var msg = _pending.joinMessage;
-		_pending.joinMessage = null;
-		return msg;
-	}
+	public string GetJoinMessage() => _pending.joinMessage;
 
 	/// <summary>
 	/// 读取离开消息(不清除, 玩家离线时 RPManager 读取后连同容器一起销毁)
@@ -214,7 +224,6 @@ public class RPContainer {
 		return false;
 	}
 
-
 	#endregion
 
 	#region[SteamMember数据应用]
@@ -229,7 +238,6 @@ public class RPContainer {
 	}
 
 	private void ApplyColor(Color32 color) {
-		PlayerColor = new Color32(color.r, color.g, color.b, 255);
 		try {
 			_modelBehaviour?.ApplyPlayerColor(color);
 		} catch (Exception ex) {
@@ -301,6 +309,8 @@ public class RPContainer {
 		_remoteLeftHand?.playerId = PlayerId;
 		_remoteRightHand?.playerId = PlayerId;
 		var transform = _modelBehaviour?.HandItemTransform ?? new Dictionary<string, ItemPoseData>();
+		_remoteLeftHand?.Initialize();
+		_remoteRightHand?.Initialize();
 		_remoteLeftHand?.itemTransform = transform;
 		_remoteRightHand?.itemTransform = transform;
 	}
@@ -314,9 +324,7 @@ public class RPContainer {
 	/// </summary>
 	public void HandlePlayerData(ref PlayerData playerData) {
 		// 死亡后0.5秒内不接受更新, 避免瞬移和动画冲突
-		if (_isDead && !_deathTick.IsTickReached || PlayerObject == null || _remotePlayer == null) {
-			return;
-		}
+		if (_isDead && !_deathTick.IsTickReached || PlayerObject == null || _remotePlayer == null) return;
 
 		if (_isDead && _deathTick.IsTickReached) {
 			PlayerObject.SetActive(true);

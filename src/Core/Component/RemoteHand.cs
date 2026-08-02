@@ -42,13 +42,13 @@ public class RemoteHand : MonoBehaviour {
 	private Vector3 _targetWorldPosition;  // 目标世界坐标
 	private Vector3 _smoothVelocity;       // 平滑移动速度
 
-	
-	private float _currentGrabStrength;	// 动态力度
+
+	private float _currentGrabStrength; // 动态力度
 
 	#endregion
 
 	#region[手部物品相关]
-	
+
 	public const string NONE_ITEM_NAME = "None";// 空物品
 	private Dictionary<string, GameObject> _itemCache = new();// 手持物品缓存字典
 	private string _itemPrefabName;// 目前物品预制体名字
@@ -158,9 +158,15 @@ public class RemoteHand : MonoBehaviour {
 		_itemCache.Clear();
 	}
 
+	public void Initialize() {
+		_renderer = GetComponent<MeshRenderer>();
+	}
+
 	#endregion
 
-	// 施加拖拽吸引力
+	/// <summary>
+	/// 施加拖拽吸引力
+	/// </summary>
 	private void ApplyPullPhysics() {
 		var player = ENT_Player.GetPlayer();
 		if (player == null) return;
@@ -199,7 +205,9 @@ public class RemoteHand : MonoBehaviour {
 		player.TonguePull(finalVelocity);
 	}
 
-	// 根据距离计算平滑时间
+	/// <summary>
+	/// 根据距离计算平滑时间
+	/// </summary>
 	private float CalculateDynamicSmoothTime(float distance) {
 		// 如果距离很远,使用更快的平滑
 		if (distance > fastSmoothDistance) {
@@ -250,110 +258,140 @@ public class RemoteHand : MonoBehaviour {
 	/// 更新手持物品
 	/// </summary>
 	public void UpdateHandItem(ref PlayerData.HandData handData) {
-		// 不在指定的空闲状态 || 传入的预制体名称和当前相同
+		// 非抓取模式 (!=0) || 物品未变化
 		if (handData.interactState != 0 || handData.itemPrefabName == _itemPrefabName) return;
+		// 当前引用已经失效
+		if (_item == null) _item = null;
 		// 空物品
 		if (handData.itemPrefabName == NONE_ITEM_NAME) {
 			_itemPrefabName = null;
-			_item?.SetActive(false);
+			if (_item != null) _item.SetActive(false);
 			_renderer.enabled = true;
 			return;
 		}
+		// 是否是手套 (关闭手模型)
+		_renderer.enabled = handData.itemPrefabName != "Item_Artifact_EVAGlove";
+		// 获取或创建物品实例
+		GameObject? item = GetOrCreateItem(handData.itemPrefabName);
+		if (item == null) return;
+		// 切换物品显示
+		if (_item != null && _item != item) _item.SetActive(false);
+		item.SetActive(true);
+		// 更新缓存
+		_item = item;
+		_itemPrefabName = handData.itemPrefabName;
+	}
 
-		// 带手套则隐藏手部
-		if (handData.itemPrefabName == "Item_Artifact_EVAGlove") _renderer.enabled = false;
-		else _renderer.enabled = true;
+	/// <summary>
+	/// 获取或创建手持物品实例
+	/// </summary>
+	/// <param name="prefabName"></param>
+	/// <returns></returns>
+	private GameObject? GetOrCreateItem(string prefabName) {
+		if (_itemCache.TryGetValue(prefabName, out var obj)) {
+			if (obj != null) return obj;
+			// Unity 对象已 Destroy
+			_itemCache.Remove(prefabName);
+		}
+		// 重新构建物品实例
+		obj = BuildItem(prefabName);
+		if (obj != null) _itemCache[prefabName] = obj;
+		return obj;
+	}
 
-		// 更新手持物品
-		// 缓存命中
-		if (_itemCache.TryGetValue(handData.itemPrefabName, out var gameObject1)) {
-			_itemPrefabName = handData.itemPrefabName;
-			_item?.SetActive(false);
-			gameObject1.SetActive(true);
-			_item = gameObject1;
-			return;
+	/// <summary>
+	/// 构建手持物品实例
+	/// </summary>
+	private GameObject? BuildItem(string prefabName) {
+		if (!MPUtil.TryGetItemPrefab(prefabName, out var itemPrefab)) {
+			MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", prefabName));
+			return null;
 		}
 
-		// 缓存未命中, 获取预制体
-		if (!MPUtil.TryGetItemPrefab(handData.itemPrefabName, out var itemPrefab)) {
-			MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", handData.itemPrefabName));
-			return;
-		}
+		// 构建物品实例
+		var obj = GameObject.Instantiate(itemPrefab, transform).gameObject;
 
-		var gameObject2 = GameObject.Instantiate(itemPrefab, transform).gameObject;
-
-		// 移除所有 MeshCollider(镜像后失效)
+		// 移除所有 MeshCollider(镜像后会失效)
 		bool needBuildCollider = false;
-		foreach (var meshCol in gameObject2.GetComponentsInChildren<MeshCollider>(true)) {
-			meshCol.enabled = false; // 切断物理关联
-			Destroy(meshCol); // 移除组件
+		foreach (var meshCol in obj.GetComponentsInChildren<MeshCollider>(true)) {
+			meshCol.enabled = false;
+			Destroy(meshCol);
 			needBuildCollider = true;
 		}
-		var meshFilter = gameObject2.GetComponentInChildren<MeshFilter>();
+		// 构建BoxCollider
+		var meshFilter = obj.GetComponentInChildren<MeshFilter>();
 		if (needBuildCollider && meshFilter != null) {
-			var box = gameObject2.AddComponent<BoxCollider>();
+			var box = obj.AddComponent<BoxCollider>();
 			box.isTrigger = true;
+
 			Bounds meshBounds = meshFilter.sharedMesh.bounds;
 			// MeshFilter 就挂在 gameObject 本身节点上
-			if (meshFilter.gameObject == gameObject2) {
+			if (meshFilter.gameObject == obj) {
 				box.center = meshBounds.center;
 				box.size = meshBounds.size;
 			} else {
 				// MeshFilter 挂在 gameObject 的子节点上
 				Transform childT = meshFilter.transform;
 				// 将子节点的本地 center 转换到 parent(gameObject) 的本地空间
-				box.center = gameObject2.transform.InverseTransformPoint(childT.TransformPoint(meshBounds.center));
+				box.center = obj.transform.InverseTransformPoint(childT.TransformPoint(meshBounds.center));
 				// 考虑子节点自身的相对 localScale
 				box.size = Vector3.Scale(meshBounds.size, childT.localScale);
 			}
 		}
 		// 删除生物组件 
-		var denizen = gameObject2.GetComponent<Denizen>();
+		var denizen = obj.GetComponent<Denizen>();
 		if (denizen != null) {
 			denizen.enabled = false;
 			Destroy(denizen);
 		}
 		// 禁用物理受力(仅碰撞)
-		gameObject2.GetComponent<Rigidbody>().isKinematic = true;
-		// 记录并替换
-		_itemPrefabName = handData.itemPrefabName;
-		_itemCache[_itemPrefabName] = gameObject2;
-		_item?.SetActive(false);
-		gameObject2.SetActive(true);
-		_item = gameObject2;
+		var rb = obj.GetComponent<Rigidbody>();
+		if (rb != null)
+			rb.isKinematic = true;
 		// 修正位置
-		if (itemTransform.TryGetValue(_itemPrefabName, out var poseData)) {
-			// 镜像
+		if (itemTransform.TryGetValue(prefabName, out var poseData)) {
+			// 沿x轴对称
 			if (handType == 0) {
-				gameObject2.transform.localScale = new Vector3(
-						-poseData.itemScale.x, 
-						poseData.itemScale.y, 
-						poseData.itemScale.z);
-				var tempEuler = poseData.itemRotation.eulerAngles;
-				gameObject2.transform.localRotation = Quaternion.Euler(tempEuler.x, -tempEuler.y, -tempEuler.z);
-				gameObject2.transform.localPosition = new Vector3(
-						-poseData.itemPosition.x,
-						poseData.itemPosition.y, 
-						poseData.itemPosition.z);
+				obj.transform.localScale = new Vector3(
+					-poseData.itemScale.x,
+					poseData.itemScale.y,
+					poseData.itemScale.z);
+
+				Vector3 euler = poseData.itemRotation.eulerAngles;
+				obj.transform.localRotation =
+					Quaternion.Euler(euler.x, -euler.y, -euler.z);
+
+				obj.transform.localPosition = new Vector3(
+					-poseData.itemPosition.x,
+					poseData.itemPosition.y,
+					poseData.itemPosition.z);
 			} else {
-				gameObject2.transform.localScale = poseData.itemScale;
-				gameObject2.transform.localRotation = poseData.itemRotation;
-				gameObject2.transform.localPosition = poseData.itemPosition;
+				obj.transform.localScale = poseData.itemScale;
+				obj.transform.localRotation = poseData.itemRotation;
+				obj.transform.localPosition = poseData.itemPosition;
 			}
 		} else {
-			gameObject2.transform.localScale = handType == 0 ? new Vector3(1, -1, 1) : Vector3.one;
-			gameObject2.transform.localRotation = Quaternion.identity;
-			gameObject2.transform.localPosition = Vector3.zero;
+			obj.transform.localScale =
+				handType == 0 ? new Vector3(1, -1, 1) : Vector3.one;
+			obj.transform.localRotation = Quaternion.identity;
+			obj.transform.localPosition = Vector3.zero;
 		}
 		// 移除标签
-		var tags = gameObject2.GetComponent<ObjectTagger>();
-		tags.RemoveTag("Item");
-		tags.RemoveTag("Prop");
+		var tags = obj.GetComponent<ObjectTagger>();
+		if (tags != null) {
+			tags.RemoveTag("Item");
+			tags.RemoveTag("Prop");
+		}
 
-		return;
+		obj.SetActive(false);
+
+		return obj;
 	}
 
-	// 立即传送
+	/// <summary>
+	/// 立即传送
+	/// </summary>
+	/// <param name="worldPosition"></param>
 	public void TeleportToPosition(Vector3 worldPosition) {
 		_isTeleporting = true;
 
@@ -364,12 +402,14 @@ public class RemoteHand : MonoBehaviour {
 
 		// 传送完成后重置状态(延迟一帧确保不会立即开始平滑)
 		StartCoroutine(ResetTeleportFlag());
-	}
 
-	// 传送结束后等待一帧
-	private IEnumerator ResetTeleportFlag() {
-		yield return null;
-		_isTeleporting = false;
+		/// <summary>
+		/// 传送结束后等待一帧
+		/// </summary>
+		IEnumerator ResetTeleportFlag() {
+			yield return null;
+			_isTeleporting = false;
+		}
 	}
 
 }

@@ -122,9 +122,9 @@ public class RPManager : Singleton<RPManager> {
 		bool needModel = container.ApplyMemberData(data);
 		if (needModel) EnsureModel(container, container.prefabId);
 
-		// 加入消息: 全局去重状态留在 Manager
+		// 模型已生成 && 没有显示过加入信息
 		if (container.IsModelReady && !_joinMessageShown.Contains(playerId)) {
-			var msg = container.ConsumeJoinMessage();
+			var msg = container.GetJoinMessage();
 			if (msg != null) {
 				_joinMessageShown.Add(playerId);
 				MPCore.SystemMessage(msg, UIDisplayType.TipHeader);
