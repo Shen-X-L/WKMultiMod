@@ -1,12 +1,22 @@
+修改实体同步 1. 扫描换成增量扫描 2. NetworkId缩短为关卡Id+生物Id 3. 组件搜寻减少ObjectTagger使用
+
+寻找网络链接流程失败原因
+
+restart指令不修改种子
+
 lobbyrestart指令
 
 岩钉被拔掉,和锤入时坐标偏移无法同步
+
+玩家离开时 所属物品销毁同步
 
 玩家手持物品销毁同步
 
 压缩玩家ID ulong->short 创建玩家ID字典类,数据储存在steamLobbyData中
 分配规则??? 时间戳+(steamId hash)去除大部分冲突+LobbyData进行二次校验来进行偏移
 LP组件使用压缩ID,RP中使用压缩ID+自定义玩家名字
+
+修复捷径碰撞网格丢失
 
 使用WKLib构建部分UI
 
@@ -22,5 +32,14 @@ UI_LobbyListPane.RefreshLobbyList换成对象池
 游乐场模式击杀统计排行榜
 
 Lua
+修改mod标准格式为
+Main.lua
+PerkModule/
+ItemModule/
+Script/
+
+PerkModule ItemModule变成不可读
+
+可以修改AI队伍
 API:生成投射物
 

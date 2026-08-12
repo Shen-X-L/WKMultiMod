@@ -46,7 +46,6 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 	// 创建大厅的异步方法
 	public async void CreateLobby() {
 		var name = SteamClient.Name;
-		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore.CreatingLobby", name));
 
 		// 预设置大厅数据

@@ -8,15 +8,6 @@ using WKMPMod.World;
 
 namespace WKMPMod.Patch;
 
-// Harmony 补丁: 世界初始化完成后通知物品同步管理器
-[HarmonyPatch(typeof(WorldLoader), nameof(WorldLoader.Initialize))]
-public class Patch_WorldLoader_Initialize_ItemSync {
-	public static void Postfix() {
-		ItemSyncManager.NotifyWorldInitialized();
-		EnemySyncManager.NotifyWorldInitialized();
-	}
-}
-
 // Harmony 补丁: 物品被拾取后通知物品同步管理器
 [HarmonyPatch(typeof(Item_Object), nameof(Item_Object.Pickup))]
 public class Patch_Item_Object_Pickup_ItemSync {

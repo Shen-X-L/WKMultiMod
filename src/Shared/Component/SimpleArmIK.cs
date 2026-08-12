@@ -40,7 +40,7 @@ public class SimpleArmIK : MonoBehaviour {
 		// 应用限制
 		targetScaleY = Mathf.Clamp(targetScaleY, minScale, maxScale);
 
-		// 保持 X 和 Z 轴比例为 1，只缩放局部 Y
+		// 保持 X 和 Z 轴比例为 1,只缩放局部 Y
 		transform.localScale = new Vector3(1, targetScaleY, 1);
 	}
 }

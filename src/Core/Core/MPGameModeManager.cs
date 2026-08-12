@@ -87,7 +87,6 @@ public class MPGameModeManager {
 			needBindSync = MPConfig.BindSync,
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
-		MPMain.LogTest($"GameModeData:{{ Name:{CurrentData.gameModeName}, trinkets: {CurrentData.activeTrinkets}, settings: {CurrentData.activeSettings}}}");
 		return CurrentData;
 	}
 
@@ -128,14 +127,12 @@ public class MPGameModeManager {
 		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 		// 手动重载地图
 		SceneManager.LoadScene(m_Gamemode.gamemodeScene);
-		MPMain.LogTest("MPGameModeManager.LoadGameMode");
 	}
 
 	/// <summary>
 	/// 重加载游戏模式
 	/// </summary>
 	public static void RestartGameMode() {
-		MPMain.LogTest("MPGameModeManager.RestartGameMode");
 		if (CurrentData != null) {
 			LoadGameMode(CurrentData);
 			MPCore.Instance.StartCoroutine(ExecuteRestartCMD());
@@ -144,16 +141,11 @@ public class MPGameModeManager {
 		}
 
 		IEnumerator ExecuteRestartCMD() {
-			MPMain.LogTest("MPGameModeManager.ExecuteRestartCMD A");
-
-			// 等待地图加载完成
-			yield return new WaitUntil(() => WorldLoader.isLoaded == true || WorldLoader.instance == null);
-
-			MPMain.LogTest("MPGameModeManager.ExecuteRestartCMD B");
+			// 等待地图加载完成 || WorldLoader.instance 为空(游乐场)
+			yield return new WaitUntil(() => WorldLoader.isLoaded || WorldLoader.instance == null);
 
 			// 加载完成后执行加入指令
 			if (MPSteamworks.Instance.LobbyData.TryGetValue(MPKeys.RESTART_COMMAND, out var cmdData) && !string.IsNullOrEmpty(cmdData)) {
-				MPMain.LogTest("MPGameModeManager.ExecuteRestartCMD C");
 				Patch_CommandConsole.ExecuteCommandForcefully(cmdData);
 			}
 			yield break;

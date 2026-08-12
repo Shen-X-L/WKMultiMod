@@ -62,7 +62,7 @@ public static class MPEventBusNet {
 	public static void NotifyPlayerDisconnected(SteamId steamId)
 		=> OnPlayerDisconnected?.Invoke(steamId);
 	public static void NotifyMemberDataChanged(Friend steamId, Dictionary<string, string> data)
-	=> OnMemberDataChanged?.Invoke(steamId, data);
+		=> OnMemberDataChanged?.Invoke(steamId, data);
 
 	#region[大厅事件]
 

@@ -6,6 +6,7 @@ using System.Linq;
 using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.Util;
+using WKMPMod.World;
 using static Unity.Collections.AllocatorManager;
 using static WorldLoader;
 
@@ -29,11 +30,13 @@ public class Patch_WorldLoader {
 	public static List<LevelTransformData> levelWorldTransformDatas = new List<LevelTransformData>();
 
 	// 补丁类: 在联机模式下默认是固定种子,不上传成绩
+	// 初始化物品同步和生物同步
 	[HarmonyPatch(nameof(WorldLoader.Initialize))]
 	[HarmonyPostfix]
 	public static void Initialize_UseCustomSeed() {
-		if (MPCore.IsInLobby)
-			customSeed = true;
+		if (MPCore.IsInLobby) customSeed = true;
+		ItemSyncManager.NotifyWorldInitialized();
+		EnemySyncManager.NotifyWorldInitialized();
 	}
 
 	// 补丁类: 关闭种子偏移, 使复活时种子同步

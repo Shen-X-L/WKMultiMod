@@ -15,7 +15,7 @@ public class SlugcatModelExtension : ICustomModelExtension {
 	public string DeathEffectAssetName => null;
 	public string DamageEffectAssetName => null;
 
-	private const string TMP_DISTANCE_FIELD_OVERLAY_MAT = "assets/projects/materials/textmeshpro_distance field overlay.mat";
+	private const string DISTANCE_FIELD_OVERLAY_SHADER = "assets/textmesh pro/shaders/tmp_sdf overlay.shader"; 
 	private const string GAME_TMP_FONT_ASSET = "Ticketing SDF";
 
 	/// <summary>
@@ -40,28 +40,40 @@ public class SlugcatModelExtension : ICustomModelExtension {
 	/// 修复TMP组件字体问题
 	/// </summary>
 	private void FixTMPComponent(GameObject prefab, IAssetHelper assetHelper) {
-		foreach (var tmpText in prefab.GetComponentsInChildren<TMP_Text>(true)) {
-			Debug.Log("SlugcatFactory.SpecializingTMPComponent" + tmpText.name);
+		if (prefab == null) return;
 
-			// 获取原版字体
-			TMP_FontAsset gameFont = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
-				.FirstOrDefault(f => f.name == GAME_TMP_FONT_ASSET);
+		// 获取原版字体
+		TMP_FontAsset gameFont = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
+			.FirstOrDefault(f => f.name == GAME_TMP_FONT_ASSET);
 
-			if (gameFont == null) {
-				Debug.LogError("SlugcatFactory.FontAssetNotFound" + GAME_TMP_FONT_ASSET);
-				continue;
-			}
+		if (gameFont == null) {
+			Debug.LogError($"SlugcatFactory.FontAssetNotFound: {GAME_TMP_FONT_ASSET}");
+			return;
+		}
+
+		// Shader 从 AB 包只加载一次
+		Shader overlayShader = assetHelper.GetCustomAsset<Shader>(DISTANCE_FIELD_OVERLAY_SHADER);
+		if (overlayShader == null) Debug.LogError($"SlugcatFactory.UnableToLoadShader: {DISTANCE_FIELD_OVERLAY_SHADER}");
+		
+		// 获取 Prefab 下所有的 TMP 组件
+		var tmpComponents = prefab.GetComponentsInChildren<TMP_Text>(true);
+
+		foreach (var tmpText in tmpComponents) {
+			Debug.Log($"SlugcatFactory.SpecializingTMPComponent: {tmpText.name}");
+
+			// 赋予原版字体
 			tmpText.font = gameFont;
 
-			// 利用 assetHelper 代替直接去调原版 bundle.LoadAsset
-			Material bundleMat = assetHelper.GetCustomAsset<Material>(TMP_DISTANCE_FIELD_OVERLAY_MAT);
-			Material instanceMat = tmpText.fontMaterial;
+			if (overlayShader != null) {
+				// 基于原版字体材质实例化一个副本
+				// 必须 new Material() 复制一份, 否则改 shader 会直接影响游戏里所有使用该字体的 UI
+				Material overlayMat = new Material(gameFont.material);
+				overlayMat.shader = overlayShader;
 
-			if (instanceMat != null && bundleMat != null) {
-				instanceMat.shader = bundleMat.shader;
-				Debug.Log("SlugcatFactory.ImplementOverlayViaShader");
-			} else {
-				Debug.LogError("SlugcatFactory.UnableToLoadMaterial" + TMP_DISTANCE_FIELD_OVERLAY_MAT);
+				// 将带有 Overlay Shader 的新材质副本赋值给 TMP
+				tmpText.fontSharedMaterial = overlayMat;
+
+				Debug.Log($"SlugcatFactory.ImplementOverlayViaShader: {tmpText.name}");
 			}
 		}
 	}

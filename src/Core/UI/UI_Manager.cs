@@ -557,7 +557,6 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	#region[玩家抓握/拖拽切换]
 
 	public void ShowStateIcon(ENT_Player.InteractType state) {
-		MPMain.LogTest("ShowStateIcon");
 		// 获取准心对象
 		var crosshairGo = CL_UIManager.instance.crosshair?.gameObject;
 		if (crosshairGo == null)

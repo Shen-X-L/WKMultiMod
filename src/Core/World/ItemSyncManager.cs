@@ -4,12 +4,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using UnityEngine;
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
+using static Inventory;
 using static WKMPMod.Data.MPWriterPool;
 using Object = UnityEngine.Object;
 
@@ -84,15 +86,12 @@ public static class ItemSyncManager {
 	// ── 反射绑定 ──────────────────────────────────────────────────────────────
 	// Item.dropObject 是私有字段: 持有对应 Item_Object 的引用, 必须通过反射读写.
 	// Item.InHand 是私有方法: 检查物品是否正在被玩家手持, 供 ForceCleanupItemPhysicalAndInventory 使用.
-	private static readonly AccessTools.FieldRef<Item, Item_Object> _dropObjectField =
-		AccessTools.FieldRefAccess<Item, Item_Object>("dropObject");
 	private static readonly Func<Item, bool> _inHand =
 		AccessTools.MethodDelegate<Func<Item, bool>>(AccessTools.Method(typeof(Item), "InHand"));
 
 	// ── 追踪状态 ──────────────────────────────────────────────────────────────
 	private static readonly Dictionary<string, NetworkedItem> _items = new();      // 全局物品追踪字典: NetworkId → NetworkedItem
 	private static readonly List<Item_Object> _clientCandidates = new();           // 候选物品列表: 本地已存在但尚未匹配到任何 Create 的物品
-	private static readonly List<PendingLocalDrop> _pendingLocalDrops = new();     // 待处理本地丢弃: 防御性机制, 应对潜在的自环投递
 	private static readonly List<Item_Object> _snapshotCandidates = new();         // 快照候选子集: SnapshotFinalize 后对未匹配者执行隐藏对齐
 	private static readonly Dictionary<ulong, Coroutine> _snapshotRoutines = new(); // 快照发送协程字典: clientId → 协程引用, 防止重复发送
 
@@ -158,7 +157,6 @@ public static class ItemSyncManager {
 		// Step 3: 清空所有集合与标志
 		_items.Clear();
 		_clientCandidates.Clear();
-		_pendingLocalDrops.Clear();
 		_snapshotCandidates.Clear();
 
 		_hostSceneItemsRegistered = false;
@@ -214,7 +212,7 @@ public static class ItemSyncManager {
 		var identity = itemObject.GetComponent<NetworkedItem>();
 
 		// 如果没有同步组件 (或 ID 为空), 当场进行 P2P 注册
-		if (identity == null || string.IsNullOrEmpty(identity.NetworkId)) {
+		if (identity == null || string.IsNullOrEmpty(identity.NetworkId) || identity.OwnerId == default) {
 			identity = GetOrCreateIdentity(itemObject.gameObject);
 			identity.NetworkId = $"{MPSteamworks.UserSteamId}:p2p:{_nextLocalItemId++}"; // SteamId 命名空间 + 本地自增 = 全局唯一
 			identity.PrefabKey = GetPrefabKey(itemObject);
@@ -233,7 +231,7 @@ public static class ItemSyncManager {
 		}
 
 		// 广播 Create, 告知网络中所有对等端生成或注册此物体
-		BroadcastCreate(identity, itemObject, GetVelocity(itemObject), isDropSpawn: false);
+		BroadcastCreate(identity, itemObject, GetVelocity(itemObject));
 		return identity;
 	}
 
@@ -279,33 +277,15 @@ public static class ItemSyncManager {
 		if (string.IsNullOrEmpty(networkId)) return;
 
 		MPMain.LogTest($"[P2P ItemSync] ForceCleanup - Double-Destruction: {networkId}");
-		// ── 背包清理 ──────────────────────────────────────────────────────
+		// 背包清理
 		var inventory = ENT_Player.GetInventory();
-		// 清理背包内的物品
-		if (inventory?.bagItems != null) {
-			for (int i = inventory.bagItems.Count - 1; i >= 0; i--) {
-				var bagItem = inventory.bagItems[i];
-				if (bagItem == null) continue;
-
-				var dropObj = _dropObjectField(bagItem);
-				if (dropObj == null) continue;
-
-				var dropIdentity = dropObj.GetComponent<NetworkedItem>();
-				if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
-				inventory.bagItems.RemoveAt(i);
-				if (_inHand(bagItem)) inventory.ClearItemFromHand(bagItem);
-				bagItem.hasBeenDestroyed = true;
-
-				MPMain.LogTest($"[P2P ItemSync] ForceCleanup - Evicted '{bagItem.itemName}' from inventory.");
-			}
-		}
 		// 清理玩家当前正拿在手里的物品
 		if (inventory?.itemHands != null) {
 			foreach (var handSlot in inventory.itemHands) {
 				if (handSlot == null || handSlot.currentItem == null) continue;
 
 				var handItem = handSlot.currentItem;
-				var dropObj = _dropObjectField(handItem);
+				var dropObj = handItem.GetDropObject(false);
 				if (dropObj == null) continue;
 
 				var identity = dropObj.GetComponent<NetworkedItem>();
@@ -314,26 +294,80 @@ public static class ItemSyncManager {
 				handItem.hasBeenDestroyed = true;
 				MPMain.LogWarning($"[P2P ItemSync] API 3 - Removed stale/rejected item '{handItem.itemName}' directly from Player Hands!");
 			}
-
 		}
-		
+		// 清理背包内的物品
+		if (inventory?.bagItems != null) {
+			for (int i = inventory.bagItems.Count - 1; i >= 0; i--) {
+				var bagItem = inventory.bagItems[i];
+				if (bagItem == null) continue;
+
+				var dropObj = bagItem.GetDropObject(false);
+				if (dropObj == null) continue;
+
+				var dropIdentity = dropObj.GetComponent<NetworkedItem>();
+				if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
+				inventory.bagItems.RemoveAt(i);
+				bagItem.hasBeenDestroyed = true;
+
+				MPMain.LogTest($"[P2P ItemSync] ForceCleanup - Evicted '{bagItem.itemName}' from inventory.");
+			}
+		}
+		// 清理额外的背包袋子 (Pouch) 内的物品
+		if (inventory?.extraPouches != null) {
+			foreach (Pouch pouch in inventory.extraPouches) {
+				if (pouch == null) continue;
+				for (int i = pouch.pouchItems.Count - 1; i >= 0; i--) {
+					var pouchItem = pouch.pouchItems[i];
+					if (pouchItem == null) continue;
+
+					var dropObj = pouchItem.GetDropObject(false);
+					if (dropObj == null) continue;
+
+					var dropIdentity = dropObj.GetComponent<NetworkedItem>();
+					if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
+					pouch.pouchItems.RemoveAt(i);
+					pouchItem.hasBeenDestroyed = true;
+
+					MPMain.LogTest($"[P2P ItemSync] ForceCleanup - Evicted '{pouchItem.itemName}' from inventory.");
+				}
+			}
+		}
+		// 清理额外的背包口袋 (Pocket) 内的物品
+		if (inventory?.pockets != null) {
+			foreach (Pocket pocket in inventory.pockets) {
+				if (pocket == null||pocket.pouch == null) continue;
+				for (int i = pocket.pouch.pouchItems.Count - 1; i >= 0; i--) {
+					var pouchItem = pocket.pouch.pouchItems[i];
+					if (pouchItem == null) continue;
+
+					var dropObj = pouchItem.GetDropObject(false);
+					if (dropObj == null) continue;
+
+					var dropIdentity = dropObj.GetComponent<NetworkedItem>();
+					if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
+					pocket.pouch.pouchItems.RemoveAt(i);
+					pouchItem.hasBeenDestroyed = true;
+
+					MPMain.LogTest($"[P2P ItemSync] ForceCleanup - Evicted '{pouchItem.itemName}' from inventory.");
+				}
+			}
+		}
+
 		inventory?.RescanInventory(); // 通知 UI 刷新背包格子
 
-		// ── 世界物体清理 ──────────────────────────────────────────────────
+		// 世界物体清理
 		if (!_items.TryGetValue(networkId, out var networkedItem) || networkedItem == null) {
 			return;
 		}
 
-		var itemObject = networkedItem.GetComponent<Item_Object >();
+		var itemObject = networkedItem.GetComponent<Item_Object>();
 		if (itemObject != null) {
 			RemoveCandidate(itemObject);
-			if (itemObject.itemData != null)
-				_dropObjectField(itemObject.itemData) = null; // 解除反向引用, 防止野指针
-		}
-
-		if (networkedItem.gameObject != null) {
-			networkedItem.gameObject.SetActive(false);
-			Object.Destroy(networkedItem.gameObject); // 强制双向销毁时无论是否为场景原生物品都 Destroy
+			// 直接调用销毁
+			if (itemObject.gameObject != null) {
+				itemObject.gameObject.SetActive(false);
+				Object.Destroy(itemObject.gameObject);
+			}
 		}
 
 		_items.Remove(networkId);
@@ -352,7 +386,6 @@ public static class ItemSyncManager {
 	/// </summary>
 	public static void NotifyLocalPickup(Item_Object itemObject) {
 		if (ApplyingRemoteState || itemObject == null || !MPCore.CanSync) return;
-		if (IsPendingLocalDrop(itemObject)) return; // 刚丢弃还未完成广播流程, 跳过
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
 		if (identity == null || string.IsNullOrEmpty(identity.NetworkId)) return; // 无网络身份, 纯本地物品
@@ -379,8 +412,9 @@ public static class ItemSyncManager {
 	public static void NotifyLocalDrop(Item item) {
 		if (ApplyingRemoteState || item == null || !MPCore.CanSync) return;
 
-		var itemObject = _dropObjectField(item);
+		var itemObject = item.GetDropObject();
 		if (!IsSyncableDropItem(itemObject)) return;
+		if (itemObject.TryGetComponent<ObjectTagger>(out var tagger) && IsBlacklisted(tagger)) return;
 
 		SyncAndBroadcast(itemObject);
 	}
@@ -394,16 +428,15 @@ public static class ItemSyncManager {
 	/// 由 MPPacketHandlers.HandleItemStateSync 调用.
 	/// </summary>
 	public static void HandleItemState(IDType senderId, DataReader reader) {
-		MPMain.LogTest("HandleItemState");
 		var action = (ItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
-				case ItemSyncAction.SnapshotReset: MPMain.LogTest("HandleSnapshotReset"); HandleSnapshotReset(); break;
-				case ItemSyncAction.SnapshotFinalize: MPMain.LogTest("HandleSnapshotFinalize"); HandleSnapshotFinalize(); break;
-				case ItemSyncAction.Create: MPMain.LogTest("HandleCreate"); HandleCreate(senderId, reader); break;
-				case ItemSyncAction.PickupRequest: MPMain.LogTest("HandlePickupRequest"); HandlePickupRequest(senderId, reader); break;
-				case ItemSyncAction.Remove: MPMain.LogTest("HandleRemove"); HandleRemove(reader); break;
-				case ItemSyncAction.PickupReject: MPMain.LogTest("HandlePickupReject"); HandlePickupReject(reader); break;
+				case ItemSyncAction.SnapshotReset: MPMain.LogDebug("[MP ItemSync] HandleSnapshotReset"); HandleSnapshotReset(); break;
+				case ItemSyncAction.SnapshotFinalize: MPMain.LogDebug("[MP ItemSync] HandleSnapshotFinalize"); HandleSnapshotFinalize(); break;
+				case ItemSyncAction.Create: MPMain.LogDebug("[MP ItemSync] HandleCreate"); HandleCreate(senderId, reader); break;
+				case ItemSyncAction.PickupRequest: MPMain.LogDebug("[MP ItemSync] HandlePickupRequest"); HandlePickupRequest(senderId, reader); break;
+				case ItemSyncAction.Remove: MPMain.LogDebug("[MP ItemSync] HandleRemove"); HandleRemove(reader); break;
+				case ItemSyncAction.PickupReject: MPMain.LogDebug("[MP ItemSync] HandlePickupReject"); HandlePickupReject(reader); break;
 			}
 		} catch (Exception e) {
 			MPMain.LogError($"[P2P ItemSync] HandleItemState failed for action {action}: {e.Message}");
@@ -469,43 +502,35 @@ public static class ItemSyncManager {
 		var position = reader.GetVector3();
 		var rotation = reader.GetQuaternion();
 		var velocity = reader.GetVector3();
-		var isDropSpawn = reader.GetBool();
-
 		if (string.IsNullOrEmpty(networkId) || string.IsNullOrEmpty(prefabKey)) return;
-
 		// 已追踪过此 ID: 直接刷新状态 (延迟/重复消息)
 		if (_items.TryGetValue(networkId, out var existing) && existing != null) {
-			ApplyCreate(existing, position, rotation, velocity, isDropSpawn, skipDropCallbacks: true);
+			existing.OwnerId = senderId;
+			ApplyCreate(existing, position, rotation, velocity);
 			return;
 		}
-
 		// 候选匹配
-		var candidate = isDropSpawn ? FindPendingLocalDrop(prefabKey, position) : null;
 		bool wasSnapshotCandidate = false;
 
-		if (candidate == null) {
-			candidate = FindSceneItemByStableId(networkId);
-			if (candidate != null) {
-				wasSnapshotCandidate = _snapshotCandidates.Contains(candidate);
-				RemoveCandidate(candidate);
-			} else if (candidate == null)
-				candidate = FindClientCandidate(prefabKey, position, out wasSnapshotCandidate);
+		Item_Object candidate = FindSceneItemByStableId(networkId);
+		if (candidate != null) {
+			wasSnapshotCandidate = _snapshotCandidates.Contains(candidate);
+			RemoveCandidate(candidate);
+		} else if (candidate == null){
+			candidate = FindClientCandidate(prefabKey, position, out wasSnapshotCandidate);
 		}
 
 		var itemObject = candidate;
 		bool instantiatedBySync = false;
-
 		if (itemObject == null) {
 			itemObject = InstantiateWorldItem(prefabKey, position, rotation);
 			instantiatedBySync = itemObject != null;
 		}
 		if (itemObject == null) return;
-
 		// 配置同步身份
 		var identity = GetOrCreateIdentity(itemObject.gameObject);
 		if (networkId.StartsWith("sceneitem:", StringComparison.Ordinal))
 			identity.StableSceneId = networkId;
-
 		identity.NetworkId = networkId;
 		identity.PrefabKey = prefabKey;
 		identity.OwnerId = senderId;
@@ -514,8 +539,7 @@ public static class ItemSyncManager {
 
 		_items[networkId] = identity;
 
-		bool skipDropCallbacks = !wasSnapshotCandidate && candidate != null && isDropSpawn;
-		ApplyCreate(identity, position, rotation, velocity, isDropSpawn, skipDropCallbacks);
+		ApplyCreate(identity, position, rotation, velocity);
 	}
 
 	/// <summary>
@@ -614,7 +638,7 @@ public static class ItemSyncManager {
 	}
 
 	/// <summary>向全网广播创建物品.</summary>
-	private static void BroadcastCreate(NetworkedItem identity, Item_Object itemObject, Vector3 velocity, bool isDropSpawn) {
+	private static void BroadcastCreate(NetworkedItem identity, Item_Object itemObject, Vector3 velocity) {
 		if (identity == null || itemObject == null || string.IsNullOrEmpty(identity.NetworkId)) return;
 
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ItemStateSync);
@@ -624,7 +648,6 @@ public static class ItemSyncManager {
 		writer.Put(itemObject.transform.position);
 		writer.Put(itemObject.transform.rotation);
 		writer.Put(velocity);
-		writer.Put(isDropSpawn);
 		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
 	}
 
@@ -656,7 +679,7 @@ public static class ItemSyncManager {
 	}
 
 	/// <summary>向指定客户端单播单个物品的创建消息 (快照协议使用).</summary>
-	private static void SendCreate(ulong clientId, NetworkedItem identity, Item_Object itemObject, Vector3 velocity, bool isDropSpawn) {
+	private static void SendCreate(ulong clientId, NetworkedItem identity, Item_Object itemObject, Vector3 velocity) {
 		if (identity == null || itemObject == null || string.IsNullOrEmpty(identity.NetworkId)) return;
 
 		var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.ItemStateSync);
@@ -666,7 +689,6 @@ public static class ItemSyncManager {
 		writer.Put(itemObject.transform.position);
 		writer.Put(itemObject.transform.rotation);
 		writer.Put(velocity);
-		writer.Put(isDropSpawn);
 		MPSteamworks.Instance.SendToPeer(clientId, writer);
 	}
 
@@ -718,7 +740,7 @@ public static class ItemSyncManager {
 			var itemObject = identity.GetComponent<Item_Object>();
 			if (!IsSyncableWorldItem(itemObject)) continue;
 
-			SendCreate(clientId, identity, itemObject, GetVelocity(itemObject), isDropSpawn: false);
+			SendCreate(clientId, identity, itemObject, GetVelocity(itemObject));
 			if (++sentThisFrame >= SnapshotItemsPerFrame) { sentThisFrame = 0; yield return null; }
 		}
 
@@ -763,9 +785,8 @@ public static class ItemSyncManager {
 	private static void DiscoverAndBroadcastNewHostWorldItems() {
 		foreach (var itemObject in EnumerateSceneItems()) {
 			if (!TryPrepareNewHostWorldItem(itemObject, out var prefabKey)) continue;
-
 			var identity = RegisterHostItem(itemObject, prefabKey, preferStableSceneIdentity: true);
-			BroadcastCreate(identity, itemObject, GetVelocity(itemObject), isDropSpawn: false);
+			BroadcastCreate(identity, itemObject, GetVelocity(itemObject));
 		}
 	}
 
@@ -782,6 +803,7 @@ public static class ItemSyncManager {
 	/// </summary>
 	private static NetworkedItem RegisterHostItem(Item_Object itemObject, string prefabKey, bool preferStableSceneIdentity = false) {
 		var identity = GetOrCreateIdentity(itemObject.gameObject);
+
 		if (preferStableSceneIdentity) TryAssignStableSceneIdentity(itemObject, identity);
 
 		if (string.IsNullOrEmpty(identity.NetworkId))
@@ -802,10 +824,8 @@ public static class ItemSyncManager {
 	private static bool TryPrepareNewHostWorldItem(Item_Object itemObject, out string prefabKey) {
 		prefabKey = string.Empty;
 		if (!IsSyncableWorldItem(itemObject)) return false;
-
 		prefabKey = GetPrefabKey(itemObject);
 		if (string.IsNullOrEmpty(prefabKey)) return false;
-
 		var identity = itemObject.GetComponent<NetworkedItem>();
 		if (identity == null || string.IsNullOrEmpty(identity.NetworkId)) return true;
 		return !_items.ContainsKey(identity.NetworkId);
@@ -834,21 +854,12 @@ public static class ItemSyncManager {
 	/// </para>
 	/// </summary>
 	private static void ApplyCreate(
-		NetworkedItem identity, Vector3 position, Quaternion rotation,
-		Vector3 velocity, bool isDropSpawn, bool skipDropCallbacks
-	) {
+		NetworkedItem identity, Vector3 position, Quaternion rotation, Vector3 velocity) {
 		if (identity == null || identity.gameObject == null) return;
 
 		ApplyingRemoteState = true;
 		try {
 			identity.transform.SetPositionAndRotation(position, rotation);
-
-			var itemObject = identity.GetComponent<Item_Object>();
-			if (itemObject?.itemData != null)
-				_dropObjectField(itemObject.itemData) = itemObject; // 建立 Item → Item_Object 的反向引用
-
-			if (isDropSpawn && itemObject != null && !skipDropCallbacks)
-				itemObject.OnDrop(); // 触发掉落冷却, 防止立即被拾取
 
 			var rb = GetRigidbody(identity.gameObject);
 			if (rb != null) { rb.isKinematic = false; rb.velocity = velocity; }
@@ -891,9 +902,9 @@ public static class ItemSyncManager {
 			} else {
 				// 正常的场景遗忘清理
 				identity.gameObject.SetActive(false);
-				if (identity.WasInstantiatedBySync) {
+				if (identity.WasInstantiatedBySync)
 					Object.Destroy(identity.gameObject);
-				} else {
+				else {
 					// 清除旧的 NetworkId防止带旧 ID 错乱
 					identity.NetworkId = string.Empty;
 					identity.StableSceneId = string.Empty;
@@ -919,6 +930,7 @@ public static class ItemSyncManager {
 		}
 		RemoveCandidate(itemObject);
 		itemObject.gameObject.SetActive(false);
+		Object.Destroy(itemObject.gameObject); 
 		_items.Remove(networkId);
 		return true;
 	}
@@ -932,15 +944,14 @@ public static class ItemSyncManager {
 	/// </para>
 	/// </summary>
 	private static Item_Object InstantiateWorldItem(string prefabKey, Vector3 position, Quaternion rotation) {
-		if(!MPUtil.TryGetItemPrefab(prefabKey, out Item_Object prefab)) return null;
+		if (!MPUtil.TryGetItemPrefab(prefabKey, out Item_Object prefab)) return null;
 
 		ApplyingRemoteState = true;
 		try {
-			var instance = Object.Instantiate(prefab, position, rotation).gameObject;
+			var itemComponent = Object.Instantiate(prefab, position, rotation);
 			var levelRoot = WorldLoader.GetCurrentLevelParentRoot();
-			if (levelRoot != null) instance.transform.SetParent(levelRoot);
+			if (levelRoot != null) itemComponent.transform.SetParent(levelRoot);
 
-			var itemComponent = instance.GetComponent<Item_Object>() ?? instance.GetComponentInChildren<Item_Object>(true);
 			if (itemComponent?.itemData != null)
 				itemComponent.itemData.InitializeItemData(itemComponent);
 
@@ -965,10 +976,15 @@ public static class ItemSyncManager {
 
 	/// <summary>枚举场景中所有可同步且未在黑名单的物品.</summary>
 	private static IEnumerable<Item_Object> EnumerateSceneItems() {
-		foreach (var itemObject in Object.FindObjectsOfType<Item_Object>()) {
-			if (IsSyncableWorldItem(itemObject) && !IsBlacklisted(itemObject))
+		var levelRoot = WorldLoader.instance?.transform;
+		if (levelRoot == null) yield break;
+
+		// 仅在当前关卡根节点下进行子树扫描，开销极小
+		var items = levelRoot.GetComponentsInChildren<Item_Object>(includeInactive: false);
+
+		foreach (var itemObject in items)
+			if (IsSyncableWorldItem(itemObject) && !IsBlacklisted(itemObject.gameObject))
 				yield return itemObject;
-		}
 	}
 
 	/// <summary>
@@ -977,17 +993,23 @@ public static class ItemSyncManager {
 	/// </summary>
 	private static void RememberCandidate(Item_Object itemObject, bool snapshotCandidate) {
 		if (!IsSyncableWorldItem(itemObject)) return;
-
+		// 优先尝试分配稳定场景 ID, 若成功则直接写入 _items, 否则加入候选列表
 		var identity = GetOrCreateIdentity(itemObject.gameObject);
+		// NetworkId 第一次初始化 写入 _items, 否则加入候选列表
 		if (snapshotCandidate && TryAssignStableSceneIdentity(itemObject, identity)) {
 			identity.PrefabKey = GetPrefabKey(itemObject);
 			_items[identity.NetworkId] = identity;
+			MPMain.LogTest("RememberCandidate NetworkId 第一次初始化");
 			return;
 		}
+		// NetworkId 已初始化 写入 _items
 		if (!string.IsNullOrEmpty(identity.NetworkId)) {
 			_items[identity.NetworkId] = identity;
+			MPMain.LogTest("RememberCandidate NetworkId 已初始化");
 			return;
 		}
+
+		MPMain.LogTest("RememberCandidate 添加到候选物品列表");
 		if (!_clientCandidates.Contains(itemObject)) _clientCandidates.Add(itemObject);
 		if (snapshotCandidate && !_snapshotCandidates.Contains(itemObject)) _snapshotCandidates.Add(itemObject);
 	}
@@ -996,7 +1018,6 @@ public static class ItemSyncManager {
 	private static void RemoveCandidate(Item_Object itemObject) {
 		_clientCandidates.Remove(itemObject);
 		_snapshotCandidates.Remove(itemObject);
-		RemovePendingLocalDrop(itemObject);
 	}
 
 	/// <summary>按 prefabKey + 距离在 _clientCandidates 中查找最近匹配物品.</summary>
@@ -1029,57 +1050,6 @@ public static class ItemSyncManager {
 			if (!IsSyncableWorldItem(_clientCandidates[i])) _clientCandidates.RemoveAt(i);
 		for (int i = _snapshotCandidates.Count - 1; i >= 0; i--)
 			if (!IsSyncableWorldItem(_snapshotCandidates[i])) _snapshotCandidates.RemoveAt(i);
-		RemoveDestroyedPendingLocalDrops();
-	}
-
-	#endregion
-
-	#region[本地丢弃追踪]
-
-	/// <summary>按 prefabKey + 距离在 _pendingLocalDrops 中查找匹配项, 匹配成功后移除记录.</summary>
-	private static Item_Object FindPendingLocalDrop(string prefabKey, Vector3 position) {
-		RemoveDestroyedPendingLocalDrops();
-		Item_Object best = null;
-		float bestDistance = float.MaxValue;
-
-		for (int i = _pendingLocalDrops.Count - 1; i >= 0; i--) {
-			var pending = _pendingLocalDrops[i];
-			if (!PrefabKeysMatch(prefabKey, pending.PrefabKey)) continue;
-
-			float distance = (pending.ItemObject.transform.position - position).sqrMagnitude;
-			if (distance > LocalDropMatchDistanceSqr || distance >= bestDistance) continue;
-
-			best = pending.ItemObject;
-			bestDistance = distance;
-		}
-		if (best != null) RemoveCandidate(best);
-		return best;
-	}
-
-	/// <summary>检查物品是否在 _pendingLocalDrops 中 (用于阻止 NotifyLocalPickup 误触发).</summary>
-	private static bool IsPendingLocalDrop(Item_Object itemObject) {
-		if (itemObject == null) return false;
-		RemoveDestroyedPendingLocalDrops();
-		foreach (var pending in _pendingLocalDrops)
-			if (pending.ItemObject == itemObject) return true;
-		return false;
-	}
-
-	/// <summary>从 _pendingLocalDrops 中移除指定物品的所有记录.</summary>
-	private static void RemovePendingLocalDrop(Item_Object itemObject) {
-		if (itemObject == null) return;
-		for (int i = _pendingLocalDrops.Count - 1; i >= 0; i--)
-			if (_pendingLocalDrops[i].ItemObject == itemObject) _pendingLocalDrops.RemoveAt(i);
-	}
-
-	/// <summary>清理 _pendingLocalDrops 中已失效 (销毁) 或已超时 (LocalDropMaxAge) 的记录.</summary>
-	private static void RemoveDestroyedPendingLocalDrops() {
-		float minCreatedAt = Time.time - LocalDropMaxAge;
-		for (int i = _pendingLocalDrops.Count - 1; i >= 0; i--) {
-			var pending = _pendingLocalDrops[i];
-			if (!IsSyncableWorldItem(pending.ItemObject) || pending.CreatedAt < minCreatedAt)
-				_pendingLocalDrops.RemoveAt(i);
-		}
 	}
 
 	#endregion
@@ -1112,16 +1082,21 @@ public static class ItemSyncManager {
 	/// </para>
 	/// </summary>
 	private static string GetStableSceneItemId(Item_Object itemObject) {
-		if (itemObject == null || itemObject.gameObject == null) return string.Empty;
-		if (!itemObject.gameObject.scene.IsValid() || string.IsNullOrEmpty(itemObject.gameObject.scene.name)) return string.Empty;
+		if (itemObject == null || itemObject.gameObject == null) return string.Empty; 
+		if (!itemObject.gameObject.scene.IsValid() || string.IsNullOrEmpty(itemObject.gameObject.scene.name)) 
+			return string.Empty;
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
-		if (identity != null && !string.IsNullOrEmpty(identity.StableSceneId)) return identity.StableSceneId;
+		if (identity != null && !string.IsNullOrEmpty(identity.StableSceneId)) {
+			MPMain.LogTest("GetStableSceneItemId NetworkedItem.StableSceneId != null");
+			return identity.StableSceneId;
+		}
 
-		string path = BuildTransformPath(itemObject.transform);
+		string path = MPUtil.BuildTransformPath(itemObject.transform);
 		if (string.IsNullOrEmpty(path)) return string.Empty;
-
+		
 		string anchor = BuildStableTransformAnchor(itemObject.transform);
+		MPMain.LogTest("GetStableSceneItemId " + path + anchor);
 		return $"sceneitem:{itemObject.gameObject.scene.name}:{path}|{anchor}";
 	}
 
@@ -1185,24 +1160,6 @@ public static class ItemSyncManager {
 		return gameObject.GetComponent<NetworkedItem>() ?? gameObject.AddComponent<NetworkedItem>();
 	}
 
-	/// <summary>构建 Transform 的层级路径字符串, 格式: "Root[0]/Child[1]".</summary>
-	private static string BuildTransformPath(Transform transform) {
-		if (transform == null) return string.Empty;
-		var builder = new System.Text.StringBuilder();
-		var parts = new Stack<string>();
-		var current = transform;
-
-		while (current != null) {
-			parts.Push($"{MPUtil.CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
-			current = current.parent;
-		}
-		while (parts.Count > 0) {
-			if (builder.Length > 0) builder.Append('/');
-			builder.Append(parts.Pop());
-		}
-		return builder.ToString();
-	}
-
 	#endregion
 	#region[物理工具]
 
@@ -1253,6 +1210,7 @@ public static class ItemSyncManager {
 	}
 
 	#endregion
+
 	#region[安全判断工具]
 
 	/// <summary>
@@ -1272,6 +1230,7 @@ public static class ItemSyncManager {
 	}
 
 	#endregion
+
 	#endregion
 
 	#region[黑名单判定]
@@ -1288,44 +1247,57 @@ public static class ItemSyncManager {
 	private static readonly HashSet<string> _blacklistedItemTags = new(StringComparer.OrdinalIgnoreCase) {
 		"artifact", // 神器: 关卡特殊物品, 不同步世界生成, 但丢弃/拾取同步
 		"disk",     // 磁盘: 关卡特殊物品, 不同步世界生成, 但丢弃/拾取同步
-		"trinket"	// 饰品: 关卡特殊物品, 不同步世界生成, 但丢弃/拾取同步
+		"trinket",	// 饰品: 关卡特殊物品, 不同步世界生成, 但丢弃/拾取同步
+		"notsync",	// 不同步: 特殊物品, 不同步世界生成, 但丢弃/拾取同步
 	};
 
-	/// <summary>检查 Item 数据是否在黑名单 (预制体名称或物品标签命中).</summary>
+	private static readonly HashSet<string> _blacklistedObjectTagger = new(StringComparer.OrdinalIgnoreCase) {
+		"ItemLocked"// 锁定物品: 特殊锁定物品, 不同步世界生成/丢弃/拾取
+	};
+
+	/// <summary>检查预制体名称是否在黑名单.</summary>
+	public static bool IsBlacklisted(string prefabName) {
+		if (string.IsNullOrEmpty(prefabName)) return false;
+		return _blacklistedPrefabNames.Contains(MPUtil.CleanCloneName(prefabName));
+	}
+
+	/// <summary>检查 Item 数据是否在黑名单 (物品标签).</summary>
 	public static bool IsBlacklisted(Item item) {
-		return item != null
-			&& (_blacklistedPrefabNames.Contains(MPUtil.CleanCloneName(item.prefabName))
-				|| _blacklistedItemTags.Intersect(item.itemTags).Any());
+		if (item == null) return false;
+
+		if (item.itemTags != null)
+			foreach (var tag in item.itemTags)
+				if (_blacklistedItemTags.Contains(tag)) return true;
+
+		return false;
 	}
 
-	/// <summary>检查 Item_Object 表现层是否在黑名单.</summary>
-	public static bool IsBlacklisted(Item_Object itemObj) {
-		return itemObj != null && IsBlacklisted(itemObj.itemData);
+	/// <summary>检查 ObjectTagger 是否在黑名单.</summary>
+	public static bool IsBlacklisted(ObjectTagger tagger) {
+		if (tagger?.tags == null) return false;
+
+		foreach (var tag in tagger.tags)
+			if (_blacklistedObjectTagger.Contains(tag)) return true;
+
+		return false;
 	}
 
-	#endregion
+	public static bool IsBlacklisted(GameObject go) {
+		if (go == null) return false;
 
-	#region[内部类型]
+		// 检查对象名称
+		if (IsBlacklisted(go.name))
+			return true;
 
-	/// <summary>
-	/// 待处理的本地丢弃记录 (防御性机制, 应对潜在的广播自环).
-	/// <para>
-	/// 生命周期:
-	///   创建: NotifyLocalDrop 经 SyncAndBroadcast 广播 Create 后隐式记录
-	///   消费: HandleCreate 收到匹配 Create 时由 FindPendingLocalDrop 移除
-	///   过期: CreatedAt + LocalDropMaxAge 后由 RemoveDestroyedPendingLocalDrops 清理
-	/// </para>
-	/// </summary>
-	private sealed class PendingLocalDrop {
-		public PendingLocalDrop(Item_Object itemObject, string prefabKey, float createdAt) {
-			ItemObject = itemObject;
-			PrefabKey = prefabKey;
-			CreatedAt = createdAt;
-		}
+		// 检查数据组件 Item_Object
+		if (go.TryGetComponent<Item_Object>(out var itemObj) && IsBlacklisted(itemObj.itemData))
+			return true;
 
-		public Item_Object ItemObject { get; } // 本地已存在的丢弃物实例
-		public string PrefabKey { get; }       // 预制体键, 用于与 Create 消息匹配
-		public float CreatedAt { get; }        // 记录时间 (Time.time), 用于超时清理
+		// 检查标签组件 ObjectTagger
+		if (go.TryGetComponent<ObjectTagger>(out var tagger) && IsBlacklisted(tagger))
+			return true;
+
+		return false;
 	}
 
 	#endregion

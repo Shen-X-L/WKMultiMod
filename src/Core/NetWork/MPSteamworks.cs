@@ -95,15 +95,15 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private const float CONN_CLEANUP_FIRST = 0.2f;
 	// 最大尝试次数
 	private const int MAX_ATTEMPTS = 3;
-	// 每次重试最大等待 1 秒
-	private const float RETRY_INTERVAL = 1.0f;
-	// 接收方等待发起方连接的最大时间 (3次 * 1秒) + 0.5秒 = 3.5秒
+	// 每次重试最大等待 2 秒
+	private const float RETRY_INTERVAL = 2.0f;
+	// 接收方等待发起方连接的最大时间 (3次 * 2秒) + 0.5秒 = 6.5秒
 	private const float RECEIVER_WAIT_INITIATOR = (MAX_ATTEMPTS * RETRY_INTERVAL);
 
-	// 接收方最坏情况:清理时间 (1.5秒) + 双方发起方结束时间 (3.5秒 * 2次) = 8.5秒
+	// 接收方最坏情况:清理时间 (1.5秒) + 双方发起方结束时间 (6.5秒 * 2次) = 14.5秒
 	private const float RECEIVER_WCS = CONN_CLEANUP_RECONNECT + RECEIVER_WAIT_INITIATOR * 2;
 
-	// 扫描间隔必须大于最长链路(RECEIVER_WCS) 外加一个安全缓冲 8.5秒 + 3.5秒 = 12秒
+	// 扫描间隔必须大于最长链路(RECEIVER_WCS) 外加一个安全缓冲 14.5秒 + 3.5秒 = 18秒
 	// 这样可以确保在上一次对端超时放弃前, 绝对不会触发下一轮扫描
 	private static readonly float SCAN_INTERVAL = RECEIVER_WCS + 3.5f;
 
@@ -335,13 +335,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	public void Broadcast(byte[] data, int offset, int length,
 						  SendType sendType = SendType.Reliable, ushort laneIndex = 0) {
-
-		// Debug
-		//bool canLog = _debugTick.TryTick();
-		//if (canLog) {
-		//	MPMain.LogInfo(Localization.GetByPath("MPSteamworks.StartedBroadcasting", _allConnections.Count.ToString()));
-		//}
-
 		foreach (var (steamId, connection) in _allConnections) {
 			try {
 				connection.SendMessage(data, offset, length, sendType, laneIndex);
@@ -879,8 +872,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			for (int i = 0; i < maxAttempts; i++) {
 				// 检查现有连接(可能在循环开始前已连上)
 				if (_allConnections.ContainsKey(targetId)) {
-					// 等待 0.5秒确定连接正常
-					yield return Wait500ms;
+					// 等待 1秒确定连接正常
+					yield return Wait1000ms;
 					// 连接正常 退出协程
 					if (_allConnections.ContainsKey(targetId)) {
 						HasConnections = true;
@@ -895,8 +888,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				// 重试间隔
 				while (Time.unscaledTime < endTime) { 
 					if (_allConnections.ContainsKey(targetId)) {
-						// 等待 0.5秒确定连接正常
-						yield return Wait500ms;
+						// 等待 1秒确定连接正常
+						yield return Wait1000ms;
 						// 连接正常 退出协程
 						if (_allConnections.ContainsKey(targetId)) {
 							HasConnections = true;
@@ -925,8 +918,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			float endTime = Time.unscaledTime + RECEIVER_WAIT_INITIATOR;
 			while (Time.unscaledTime < endTime) {
 				if (_allConnections.ContainsKey(targetId)) {
-					// 等待 0.5秒确定连接正常
-					yield return Wait500ms;
+					// 等待 1秒确定连接正常
+					yield return Wait1000ms;
 					if (_allConnections.ContainsKey(targetId)) {
 						HasConnections = true;
 						MPEventBusNet.NotifyPlayerConnected(targetId);
@@ -978,6 +971,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		var steamId = info.Identity.SteamId;
 		MPMain.LogInfo(Localization.Get("MPSteamworks.PlayerConnected", steamId.ToString(), connection.Id, info.State));
 		_allConnections[steamId] = connection;
+		StopCoroutine(_connectionCoroutines[steamId]);
+		_connectionCoroutines.Remove(steamId);
+		HasConnections = true;
+		MPEventBusNet.NotifyPlayerConnected(steamId);
 	}
 
 	// 接收消息
@@ -1010,8 +1007,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogInfo(Localization.Get("MPSteamworks.AlreadyActiveConnected", steamId.ToString(), info.State));
 			_instance._outgoingConnections[steamId] = this;
 			_instance._allConnections[steamId] = this.Connection;
+			Instance.StopCoroutine(Instance._connectionCoroutines[steamId]);
+			Instance._connectionCoroutines.Remove(steamId);
+			Instance.HasConnections = true;
 			MPEventBusNet.NotifyPlayerConnected(steamId);
-			Instance?.HasConnections = true;
 		}
 
 		// 接收消息

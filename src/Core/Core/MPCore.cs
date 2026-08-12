@@ -130,7 +130,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	#region[Unity生命周期函数]
 	protected override void Awake() {
 		base.Awake();
-		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore.Awake"));
 	}
 
@@ -181,7 +180,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 重置状态
 		ResetStateVariables();
 
-		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore.Destroy"));
 
 		// 关闭输入监听
@@ -228,7 +226,6 @@ public class MPCore : MonoSingleton<MPCore> {
 			damageRules = MPConfig.DamageRules;
 			IsAllowCheats = MPConfig.AllowCheats;
 
-			// Debug
 			MPMain.LogInfo(Localization.Get("MPCore.AllManagersInitialized"));
 		} catch (Exception e) {
 			MPMain.LogError(Localization.Get("MPCore.ManagerInitializationFailed", e.Message));
@@ -866,7 +863,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		if (args.Length > 2 && int.TryParse(args[2], out int parsedMax)) {
 			maxPlayers = parsedMax;
 		}
-		// Debug
+
 		MPMain.LogInfo(Localization.Get("MPCore.CreatingLobby", lobbyName));
 
 		// 设置状态为正在连接
@@ -1080,7 +1077,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	public void Leave(string[] args) {
 		ResetStateVariables();
-		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore.DisconnectedAndCleaned"));
 	}
 
@@ -1687,7 +1683,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	/// <param name="lobby"></param>
 	private void HandleLobbyEntered(Lobby lobby) {
-		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore.EnteringLobby", lobby.Id.ToString()));
 
 		// 启动协程发送请求初始化数据
@@ -1843,7 +1838,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// 处理玩家断连事件
 	/// </summary>
 	private void HandlePlayerDisconnected(SteamId steamId) {
-		// Debug
 		MPMain.LogInfo(Localization.Get("MPCore.PlayerDisconnected", steamId.ToString()));
 		_RPManager.ProcessPlayerLeave(steamId);
 		// 如果在大厅且已初始化且有连接,允许发送数据

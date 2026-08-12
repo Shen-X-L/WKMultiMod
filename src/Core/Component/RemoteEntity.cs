@@ -69,8 +69,6 @@ public class RemoteEntity : CL_Prop ,Clickable{
 		if (!pvpEnabled) return false;
 		if (!info.tags.Contains("player")&& !DamageRules.whitelistDamage.Contains(info.type)) return false;
 
-		MPMain.LogTest($"{playerId} Cause Damage: type: {info.type}, tags: {string.Join(",", info.tags)}");
-
 		_invincibilityTimer.SetInterval(MPCore.damageRules.InvincibilityTime);
 
 		// 如果无敌时间已到 (大于 b), 开启新一轮的伤害判定窗口

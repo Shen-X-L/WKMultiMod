@@ -96,10 +96,8 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 	/// </summary>
 	public static Sprite LoadSprite(string dir, string filename, bool makePersistent = false) {
 		string fullPath = Path.Combine(dir, filename);
-		if (!File.Exists(fullPath)) {
-			MPMain.LogTest($"icon not found: {fullPath}");
-			return null;
-		}
+		if (!File.Exists(fullPath)) return null;
+		
 		try {
 			// 加载图片文件
 			byte[] imageData = File.ReadAllBytes(fullPath);
@@ -126,7 +124,6 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 
 			return sprite;
 		} catch (Exception ex) {
-			MPMain.LogTest($"icon load failed for {filename}: {ex.Message}");
 			return null;
 		}
 	}

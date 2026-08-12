@@ -49,7 +49,6 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 			}
 		}
 		_cachedPrefabs.Clear();
-		MPMain.LogTest("[RPFactoryManager] 全局预制体母本缓存已清空释放");
 	}
 
 	#endregion
@@ -125,11 +124,10 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		AssetBundle bundle = null;
 		GameObject rawPrefab = null;
 
-		// 彻底抛弃硬编码路径, 动态采用注册时提供的 BundlePath
+		// 采用注册时提供的 BundlePath
 		string path = registration.BundlePath;
 
 		try {
-			// 绝对安全的物理路径加载
 			bundle = AssetBundle.LoadFromFile(path);
 			if (bundle == null) {
 				MPMain.LogError(Localization.Get("RPFactoryManager.UnableToLoadResources") + $" 路径: {path}");

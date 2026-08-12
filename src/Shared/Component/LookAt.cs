@@ -32,6 +32,8 @@ public class LookAt : MonoBehaviour {
 			// 目标期望的最终全局大小 (World Scale)
 			float finalScale = scaleMultiplier * baseScale * userScale;
 
+			//transform.localScale = new Vector3(finalScale, finalScale, finalScale);
+
 			// 如果有父节点 计算父节点的全局缩放 若无父节点则为 1
 			Vector3 parentScale = transform.parent != null ? transform.parent.lossyScale : Vector3.one;
 

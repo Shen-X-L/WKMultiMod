@@ -19,7 +19,6 @@ public class RPManager : Singleton<RPManager> {
 	public const string NO_ITEM_NAME = "None";
 	public const string HAMMER_NAME = "Item_Hammer";
 
-	// Debug日志输出间隔
 	private TickTimer _debugTick = new TickTimer(5f);
 	// 存储所有远程对象
 	internal Dictionary<IDType, RPContainer> Players = new Dictionary<IDType, RPContainer>();

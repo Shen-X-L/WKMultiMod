@@ -64,9 +64,21 @@ public static class MPUtil {
 	/// Removes whitespace and Unity's instantiated "(Clone)" suffix
 	/// </summary>
 	public static string CleanCloneName(string prefabKey) {
-		if (string.IsNullOrEmpty(prefabKey)) return string.Empty;
+		return string.IsNullOrEmpty(prefabKey) ? string.Empty : prefabKey.Replace("(Clone)", string.Empty).Trim();
+	}
 
-		return prefabKey.Replace("(Clone)", string.Empty).Trim();
+	/// <summary>
+	/// 构建变换层级路径. 例如 "Root[0]/Child[1]/Grandchild[0]".
+	/// </summary>
+	public static string BuildTransformPath(Transform transform) {
+		if (transform == null) return string.Empty;
+		var stack = new Stack<string>();
+		var current = transform;
+		while (current != null) {
+			stack.Push($"{MPUtil.CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
+			current = current.parent;
+		}
+		return string.Join("/", stack);
 	}
 
 	public static string SerializePlayerColor(Color32 color) => $"{color.r},{color.g},{color.b}";

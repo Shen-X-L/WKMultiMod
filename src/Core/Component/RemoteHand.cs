@@ -50,6 +50,8 @@ public class RemoteHand : MonoBehaviour {
 	#region[手部物品相关]
 
 	public const string NONE_ITEM_NAME = "None";// 空物品
+	public const string ITEM_GLOVE_NAME = "Item_Artifact_EVAGlove";// 手套物品
+	public const string ITEM_TEMP = "Item_Temp";// 临时物品
 	private Dictionary<string, GameObject> _itemCache = new();// 手持物品缓存字典
 	private string _itemPrefabName;// 目前物品预制体名字
 	private GameObject _item;// 目前物品实例
@@ -265,12 +267,12 @@ public class RemoteHand : MonoBehaviour {
 		// 空物品
 		if (handData.itemPrefabName == NONE_ITEM_NAME) {
 			_itemPrefabName = null;
-			if (_item != null) _item.SetActive(false);
+			_item?.SetActive(false);
 			_renderer.enabled = true;
 			return;
 		}
 		// 是否是手套 (关闭手模型)
-		_renderer.enabled = handData.itemPrefabName != "Item_Artifact_EVAGlove";
+		_renderer.enabled = handData.itemPrefabName != ITEM_GLOVE_NAME;
 		// 获取或创建物品实例
 		GameObject? item = GetOrCreateItem(handData.itemPrefabName);
 		if (item == null) return;
@@ -305,7 +307,11 @@ public class RemoteHand : MonoBehaviour {
 	private GameObject? BuildItem(string prefabName) {
 		if (!MPUtil.TryGetItemPrefab(prefabName, out var itemPrefab)) {
 			MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", prefabName));
-			return null;
+			if (!MPUtil.TryGetItemPrefab(ITEM_TEMP, out var itemPrefabTemp)) {
+				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", ITEM_TEMP));
+				return null;
+			}
+			itemPrefab = itemPrefabTemp;
 		}
 
 		// 构建物品实例
@@ -376,11 +382,12 @@ public class RemoteHand : MonoBehaviour {
 			obj.transform.localRotation = Quaternion.identity;
 			obj.transform.localPosition = Vector3.zero;
 		}
-		// 移除标签
+		// 修改标签
 		var tags = obj.GetComponent<ObjectTagger>();
 		if (tags != null) {
 			tags.RemoveTag("Item");
 			tags.RemoveTag("Prop");
+			tags.AddTag("ItemLocked");
 		}
 
 		obj.SetActive(false);

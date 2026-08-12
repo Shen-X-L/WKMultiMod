@@ -110,15 +110,9 @@ public class RPContainer {
 			// 暂时关闭对象
 			_isDead = true;
 			PlayerObject.SetActive(false);
-			// 传输到远方
-			//_remotePlayer.Teleport(new Vector3(0,-10000,0), Quaternion.identity);
-			//_remoteLeftHand.TeleportToPosition(new Vector3(0, -10000, 1));
-			//_remoteRightHand.TeleportToPosition(new Vector3(0, -10000, -1));
-			// Debug
 			MPMain.LogInfo(Localization.Get("RPContainer.MappingSucceeded", PlayerId.ToString()));
 			return true;
 		} catch (Exception ex) {
-			// Debug
 			MPMain.LogError(Localization.Get("RPContainer.MappingFailed", PlayerId.ToString(), ex.Message));
 
 			if (PlayerObject != null) Object.Destroy(PlayerObject);
