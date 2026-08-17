@@ -40,9 +40,10 @@ public class MPPacketHandlers {
 
 		RPManager.Instance.ProcessPlayerData(playerId, ref playerData);
 
+		// 获取自定义额外数据
 		if (reader.GetBool()) {
 			var playerDictData = reader.GetStringStringDict();
-			RPManager.Instance.ProcessPlayerDictData(playerId, playerDictData);
+			RPManager.Instance.ProcessPlayerCustomProperties(playerId, playerDictData);
 		}
 	}
 
@@ -80,7 +81,7 @@ public class MPPacketHandlers {
 		bool tagShow = reader.GetBool();    // 是否显示在Tag中
 		string msg = reader.GetString();    // 读取消息
 		CommandConsole.Log(msg);
-		if (tagShow) RPManager.Instance.ProcessPlayerTag(senderId, msg);
+		if (tagShow) RPManager.Instance.ProcessPlayerTagMessage(senderId, msg);
 	}
 
 	/// <summary>

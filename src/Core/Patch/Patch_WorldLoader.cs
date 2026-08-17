@@ -30,12 +30,11 @@ public class Patch_WorldLoader {
 	public static List<LevelTransformData> levelWorldTransformDatas = new List<LevelTransformData>();
 
 	// 补丁类: 在联机模式下默认是固定种子,不上传成绩
-	// 初始化物品同步和生物同步
+	// 初始化生物同步
 	[HarmonyPatch(nameof(WorldLoader.Initialize))]
 	[HarmonyPostfix]
 	public static void Initialize_UseCustomSeed() {
 		if (MPCore.IsInLobby) customSeed = true;
-		ItemSyncManager.NotifyWorldInitialized();
 		EnemySyncManager.NotifyWorldInitialized();
 	}
 

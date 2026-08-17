@@ -23,11 +23,11 @@ public static class MPUtil {
 		// 双重检测获取 Item_Object 组件
 		Item_Object itemObject = null;
 		try {
+			// 优先使用专用的 Item_Object 查找机制
 			itemObject = CL_AssetManager.GetItemObjectPrefab(prefabName);
 		} catch (Exception e) {
 			MPMain.LogError("[MP] " + e.ToString());
 		}
-		// 优先使用专用的 Item_Object 查找机制
 		if (itemObject == null) {
 			// 备用：从通用 GameObject 中获取组件
 			GameObject go = CL_AssetManager.GetAssetGameObject(prefabName);

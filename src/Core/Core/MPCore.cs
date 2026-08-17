@@ -109,8 +109,9 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	private InputAction _toggleAction;
 	public static ENT_Player.InteractType IsGrabOrHangState = ENT_Player.InteractType.hanging;
-
+	// 检测指令可检查项目
 	public static readonly List<string> checkOptions = new List<string> { "inventory", "perk", "stamina", "health", "cheats" };
+	// 默认颜色字典
 	private static readonly Dictionary<string, Color32> PlayerColorPresets = new(StringComparer.OrdinalIgnoreCase) {
 		{ "default", new Color32(255, 255, 255, 255) },
 		{ "white", new Color32(255, 255, 255, 255) },
@@ -696,7 +697,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		CommandConsole.BuildCommand("allowpvp", SetPvp)
 			.NotCheat().Description(Localization.Get("CommandHelp.AllowPVP"))
 			.OverValue(() => _MPSteamworks.IsInLobby
-				? TeamRuleManager.GetRule(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM, RuleType.Pvp, false)
+				? TeamRuleManager.GetRule(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM, RuleType.Pvp)
 				: "Not In Lobby")
 			.AutocompleteCustom(autocomplete => {
 				NotHostAutocomplete(autocomplete);
@@ -1246,7 +1247,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		if (!EnsureHostPrivileges()) return;
 		bool enabled = false;
 		if (args.Length == 0) {
-			enabled = !TeamRuleManager.GetRule(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM, RuleType.Pvp, false);
+			enabled = !TeamRuleManager.GetRule(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM, RuleType.Pvp);
 		} else if (bool.TryParse(args[0], out bool result)) {
 			enabled = result;
 		} else {
@@ -1329,12 +1330,13 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 更新当前队伍和玩家间规则
 		CurrentTeam = teamName;
 		TeamRuleManager.UpdateActiveRules(CurrentTeam);
-		_RPManager.RefreshAllRule();
-		// 使用加入队伍指令
+		// 执行加入队伍远程命令
 		if (_MPSteamworks.LobbyData.TryGetValue(MPKeys.JOIN_TEAM_COMMAND + "_" + teamName, out string? joinCmd))
 			Patch_CommandConsole.ExecuteCommandForcefully(joinCmd);
 		// 更新玩家数据, 触发同步
 		_MPSteamworks.SetMemberData(MPKeys.TEAM, teamName);
+		// 场景物品同步刷新
+		SceneItemManager.ResetState(teamChange: true);
 		//_MPSteamworks.SendAllMemberData();
 		CommandConsole.Log(Localization.Get("CommandConsole.JoinedTeam", teamName));
 	}
@@ -1564,7 +1566,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				if (CurrentTeam == team) localNeedsExec = true;
 
 				// 给队伍里的每个玩家发包 (利用 HashSet 自动去重, 防止某玩家在多个逻辑队伍里被重复发包)
-				foreach (var playerId in _RPManager.GetPlayerInTeam(targetStr)) {
+				foreach (var playerId in _RPManager.GetPlayersInTeam(targetStr)) {
 					if (sentPlayers.Add(playerId)) {
 						MPSteamworks.Instance.SendToPeer(playerId, writer);
 					}
@@ -1827,7 +1829,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandlePlayerConnected(SteamId steamId) {
 		if (_MPSteamworks.IsHost) {
-			ItemSyncManager.SendSnapshotToClient(steamId);
+			SceneItemManager.SendTombstonesToClient(steamId);
 			EnemySyncManager.SendSnapshotToClient(steamId);
 		}
 		// 如果在大厅且已初始化且有连接,允许发送数据
@@ -1882,6 +1884,8 @@ public class MPCore : MonoSingleton<MPCore> {
 		if (changedData.TryGetValue(MPKeys.ACTIVE_TEAMS, out var activeTeamsValue)) {
 			var teams = activeTeamsValue.Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s));
 			TeamRuleManager.UpdateActiveTeams(teams);
+			// 队伍消失 切换为默认队伍
+			if (!TeamRuleManager.activeTeams.Contains(CurrentTeam)) JoinTeam([MPKeys.DEFAULT_TEAM]);
 		}
 
 		// 规则相关的键以 "Rule_" 开头,例如 "Rule_{TeamA}_{TeamB}"为两个队伍之间的规则的键
@@ -1897,10 +1901,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		}
 
 		// 如果规则对当前玩家有影响, 则更新当前玩家的实际规则
-		if (ruleChange) {
-			TeamRuleManager.UpdateActiveRules(CurrentTeam);
-			_RPManager?.RefreshAllRule();
-		}
+		if (ruleChange) TeamRuleManager.UpdateActiveRules(CurrentTeam);
 
 		// 伤害规则
 		if (changedData.TryGetValue(MPKeys.DAMAGE_CONFIG, out var damageValue)) {

@@ -18,7 +18,7 @@ public class DefaultModelExtension : ICustomModelExtension {
 	public string DeathEffectAssetName => null;
 	public string DamageEffectAssetName => null;
 
-	private const string DISTANCE_FIELD_OVERLAY_SHADER = "TextMeshPro/Distance Field";
+	private const string DISTANCE_FIELD_OVERLAY_SHADER = "assets/textmesh pro/shaders/tmp_sdf overlay.shader";
 	private const string GAME_TMP_FONT_ASSET = "Ticketing SDF";
 
 	/// <summary>

@@ -198,7 +198,6 @@ public class DefaultModelBehaviour : CustomModelBehaviour {
 	internal Renderer[] _tintRenderers;// 可以进行换色的渲染器
 
 	public override void OnPrefabLoaded() {
-
 		// 提前收集渲染器并存入 behaviour._tintRenderers 序列化字段
 		List<Renderer> renderersList = new();
 		foreach (var r in gameObject.GetComponentsInChildren<Renderer>(true)) {
@@ -209,11 +208,6 @@ public class DefaultModelBehaviour : CustomModelBehaviour {
 		// 赋值给预制体模板, 克隆时会自动映射到每个子渲染器
 		_tintRenderers = renderersList.ToArray();
 	}
-
-	///// <summary>
-	///// 初始化回调
-	///// </summary>
-	//public void Start() {}
 
 	/// <summary>
 	/// 修改玩家颜色

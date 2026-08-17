@@ -7,6 +7,7 @@ using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.NetWork;
 using WKMPMod.Util;
 using static WKMPMod.UI.UI_Manager;
 using Object = UnityEngine.Object;
@@ -39,6 +40,7 @@ public class RPManager : Singleton<RPManager> {
 	public void Initialize(Transform RootTransform) {
 		_remotePlayersRoot = RootTransform;
 		MPEventBusGame.OnPlayerDamage += ProcessPlayerDamage;
+		MPEventBusGame.OnRulesUpdated += RefreshAllRule;
 	}
 
 	/// <summary>
@@ -113,7 +115,7 @@ public class RPManager : Singleton<RPManager> {
 	/// 处理玩家数据字典
 	/// </summary>
 	public void ProcessMemberData(IDType playerId, Dictionary<string, string> data) {
-		MPMain.LogTest($"[RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
+		MPMain.LogDebug($"[RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 
 		RPContainer container = GetOrCreateContainer(playerId);
 
@@ -160,7 +162,7 @@ public class RPManager : Singleton<RPManager> {
 		}
 	}
 
-	public void ProcessPlayerDictData(IDType playerId, Dictionary<string, string> playerData) {
+	public void ProcessPlayerCustomProperties(IDType playerId, Dictionary<string, string> playerData) {
 		if (!MPCore.IsInitialized || !MPCore.IsInLobby) return;
 
 		// 以后加上时间戳处理
@@ -176,10 +178,10 @@ public class RPManager : Singleton<RPManager> {
 	/// <summary>
 	/// 处理玩家数据
 	/// </summary>
-	public void ProcessPlayerTag(IDType playerId, string massage) {
+	public void ProcessPlayerTagMessage(IDType playerId, string tagMessage) {
 		// 以后加上时间戳处理
 		if (Players.TryGetValue(playerId, out var RPcontainer)) {
-			RPcontainer.HandleNameTag(massage);
+			RPcontainer.HandleNameTag(tagMessage);
 			return;
 		}
 		MPMain.LogError(Localization.Get(
@@ -329,22 +331,58 @@ public class RPManager : Singleton<RPManager> {
 		}
 	}
 
+	#endregion
+
+	#region[队伍规则相关]
+
 	/// <summary>
 	/// 刷新所有玩家的规则引用, 以适应规则修改时的即时生效
 	/// </summary>
 	public void RefreshAllRule() {
-		foreach (var (id, container) in Players) container.RefreshRuleReference();
+		foreach (var container in Players.Values) container.RefreshRuleReference();
 	}
 
-	public List<IDType> GetPlayerInTeam(string teamName) {
+	/// <summary>
+	/// 获取指定队伍的玩家ID列表
+	/// </summary>
+	public List<IDType> GetPlayersInTeam(string teamName) {
 		var players = new List<IDType>();
-		foreach (var (id, container) in Players) {
-			if (container.team == teamName)
-				players.Add(id);
-		}
+		foreach (var (id, container) in Players) 
+			if (container.team == teamName) players.Add(id);
 		return players;
 	}
 
+	/// <summary>
+	/// 判断两个玩家是否属于同一队伍
+	/// </summary>
+	public bool IsSameTeam(IDType playerId1, IDType playerId2 = default) {
+		if (!Players.TryGetValue(playerId1, out var container1)) return false;
+		string? team2 = (playerId2 == default)
+			? MPCore.CurrentTeam
+			: (Players.TryGetValue(playerId2, out var container2) ? container2.team : null);
+		return container1.team != null && container1.team == team2;
+	}
+
+	/// <summary>
+	/// 获取指定规则类型的玩家ID列表
+	/// </summary>
+	public List<IDType> GetPlayersMatchingRule(RuleType type, bool value = false) {
+		var players = new List<IDType>();
+		foreach (var (id, container) in Players) 
+			if (container.actionRule.GetFieldValue(type) == value) players.Add(id);
+		return players;
+	}
+
+	public bool GetPlayerRuleValue(IDType playerId, RuleType type) {
+		if (!Players.TryGetValue(playerId, out var container)) return false;
+		return container.actionRule.GetFieldValue(type);
+	}
+
+
+	public string GetPlayerTeam(IDType playerId) {
+		if (!Players.TryGetValue(playerId, out var container)) return string.Empty;
+		return container.team;
+	}
 	#endregion
 
 }

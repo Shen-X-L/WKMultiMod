@@ -27,7 +27,7 @@ public class TeamRule {
 	public bool? syncDied;
 	public bool? collision;
 
-	// 【新增】对象拷贝方法: 用于在修改前克隆一个旧规则, 实现完美增量更新
+	// 对象拷贝方法: 用于在修改前克隆一个旧规则, 实现增量更新
 	public TeamRule Clone() {
 		return new TeamRule {
 			pvp = this.pvp,
@@ -129,27 +129,112 @@ public class TeamRule {
 			case RuleType.SyncInventory: syncInventory = value; break;
 			case RuleType.SyncDied: syncDied = value; break;
 			case RuleType.Collision: collision = value; break;
-		}
-		;
+		};
 	}
 }
 
-// 全是明确的 bool, 没有 null, 供组件每帧高频无开销读取
-public class FlattenedRule {
-	public bool pvp;
-	public bool hang;
-	public bool grab;
-	public bool tagShow;
-	public bool syncItem;
-	public bool syncInventory;
-	public bool syncDied;
-	public bool collision;
+/// <summary>
+/// 全是明确的 bool, 没有 null, 供组件每帧高频无开销读取
+/// 内存压缩版规则结构体，仅占用 8 位 1 Byte
+/// </summary>
+public readonly struct FlattenedRule {
+	// 内部仅使用 1 个字节存储 8 个 bool 状态
+	private readonly byte _data;
+
+	// 定义各个规则对应的 Bit 位掩码 (Bitmask)
+	private const byte MASK_PVP = 1 << 0; // 0000 0001 (0x01)
+	private const byte MASK_HANG = 1 << 1; // 0000 0010 (0x02)
+	private const byte MASK_GRAB = 1 << 2; // 0000 0100 (0x04)
+	private const byte MASK_TAG_SHOW = 1 << 3; // 0000 1000 (0x08)
+	private const byte MASK_SYNC_ITEM = 1 << 4; // 0001 0000 (0x10)
+	private const byte MASK_SYNC_INVENTORY = 1 << 5; // 0010 0000 (0x20)
+	private const byte MASK_SYNC_DIED = 1 << 6; // 0100 0000 (0x40)
+	private const byte MASK_COLLISION = 1 << 7; // 1000 0000 (0x80)
+
+	#region [属性暴露 - 保持对外 API 兼容]
+
+	public bool pvp => (_data & MASK_PVP) != 0;
+	public bool hang => (_data & MASK_HANG) != 0;
+	public bool grab => (_data & MASK_GRAB) != 0;
+	public bool tagShow => (_data & MASK_TAG_SHOW) != 0;
+	public bool syncItem => (_data & MASK_SYNC_ITEM) != 0;
+	public bool syncInventory => (_data & MASK_SYNC_INVENTORY) != 0;
+	public bool syncDied => (_data & MASK_SYNC_DIED) != 0;
+	public bool collision => (_data & MASK_COLLISION) != 0;
+
+	#endregion
+
+	#region [构造函数]
+
+	// 基础构造函数：直接通过 raw byte 构建
+	public FlattenedRule(byte rawData) {
+		_data = rawData;
+	}
+
+	// 全参构造函数：通过 8 个 bool 拼装位图
+	public FlattenedRule(
+		bool pvp, bool hang, bool grab, bool tagShow,
+		bool syncItem, bool syncInventory, bool syncDied, bool collision) {
+
+		byte data = 0;
+		if (pvp) data |= MASK_PVP;
+		if (hang) data |= MASK_HANG;
+		if (grab) data |= MASK_GRAB;
+		if (tagShow) data |= MASK_TAG_SHOW;
+		if (syncItem) data |= MASK_SYNC_ITEM;
+		if (syncInventory) data |= MASK_SYNC_INVENTORY;
+		if (syncDied) data |= MASK_SYNC_DIED;
+		if (collision) data |= MASK_COLLISION;
+
+		_data = data;
+	}
+
+	#endregion
+
+	#region [核心 API: 获取与生成新值的修改]
+
+	/// <summary>
+	/// 根据 RuleType 查询对应的布尔状态
+	/// </summary>
+	public bool GetFieldValue(RuleType type) {
+		byte mask = GetMaskByRuleType(type);
+		return (_data & mask) != 0;
+	}
+
+	/// <summary>
+	/// 由于 readonly struct 是不可变的，SetFieldValue 返回修改后的新结构体实例
+	/// </summary>
+	public FlattenedRule SetFieldValue(RuleType type, bool value) {
+		byte mask = GetMaskByRuleType(type);
+		byte newData = value
+			? (byte)(_data | mask)   // 将指定位置 1
+			: (byte)(_data & ~mask); // 将指定位置 0
+
+		return new FlattenedRule(newData);
+	}
+
+	// 辅助映射函数：将枚举转为对应的 Bitmask
+	private static byte GetMaskByRuleType(RuleType type) {
+		return type switch {
+			RuleType.Pvp => MASK_PVP,
+			RuleType.Hang => MASK_HANG,
+			RuleType.Grab => MASK_GRAB,
+			RuleType.TagShow => MASK_TAG_SHOW,
+			RuleType.SyncItem => MASK_SYNC_ITEM,
+			RuleType.SyncInventory => MASK_SYNC_INVENTORY,
+			RuleType.SyncDied => MASK_SYNC_DIED,
+			RuleType.Collision => MASK_COLLISION,
+			_ => 0
+		};
+	}
+
+	#endregion
 }
 
 public static class TeamRuleManager {
-	// 缓存字典, Key为 "Rule_A_B"
+	// 所有可能的队伍组合 的 规则缓存字典, Key为 "Rule_A_B"
 	private static Dictionary<string, TeamRule> _rulesCache = new();
-	// 直接缓存字典, Key为 TeamName
+	// 当前队伍 对 其他队伍 规则的直接缓存字典, Key为 TeamName
 	private static Dictionary<string, FlattenedRule> _flatRulesByTarget = new();
 
 	// 活跃队伍列表
@@ -170,10 +255,22 @@ public static class TeamRuleManager {
 		_flatRulesByTarget.Clear();
 	}
 
+	// 保底安全对象 (使用构造函数进行初始化)
+	private static readonly FlattenedRule _defaultSafeRule = new FlattenedRule(
+		pvp: false,
+		hang: true,
+		grab: false,
+		tagShow: true,
+		syncItem: true,
+		syncInventory: false,
+		syncDied: false,
+		collision: false
+	);
+
 	/// <summary>
 	/// 查询 A 对 B 的某项规则 (支持三级回退)
 	/// </summary>
-	public static bool GetRule(string teamA, string teamB, RuleType type, bool newValue = false) {
+	public static bool GetRule(string teamA, string teamB, RuleType type) {
 		// 第一级: 查询专属规则 Rule_{teamA}_{teamB}
 		if (_rulesCache.TryGetValue(GetRuleKey(teamA, teamB), out var specificRule)) {
 			bool? val = specificRule.GetFieldValue(type);
@@ -193,7 +290,7 @@ public static class TeamRuleManager {
 		}
 
 		// 第四级: 如果连全局规则都没配置, 返回程序硬编码的安全默认值
-		return newValue;
+		return _defaultSafeRule.GetFieldValue(type);
 	}
 
 	/// <summary>
@@ -208,62 +305,71 @@ public static class TeamRuleManager {
 	}
 
 	/// <summary>
-	/// 更新活跃队伍列表 (在解析规则时调用)
+	/// 更新活跃队伍列表
 	/// </summary>
 	public static void UpdateActiveTeams(IEnumerable<string> teams) {
 		activeTeams.Clear();
 		activeTeams.Add(MPKeys.DEFAULT_TEAM.ToLower());
-		foreach (var team in teams) {
-			if (!string.IsNullOrEmpty(team))
-				activeTeams.Add(team);
-		}
+		foreach (var team in teams)
+			if (!string.IsNullOrEmpty(team)) activeTeams.Add(team);
 	}
 
 	/// <summary>
-	/// 更新活跃规则缓存 (单向逻辑拍平)
+	/// 根据当前队伍,更新与其他队伍间规则缓存 (单向逻辑拍平)
 	/// </summary>
+	/// <param name="currentTeam">当前队伍</param>
 	public static void UpdateActiveRules(string currentTeam) {
-		currentTeam = currentTeam?.ToLower() ?? MPKeys.DEFAULT_TEAM.ToLower();
+		currentTeam = currentTeam?.ToLower() ?? MPKeys.DEFAULT_TEAM.ToLower(); 
 
-		foreach (var targetTeam in activeTeams) {
-			string targetLower = targetTeam.ToLower();
+    foreach (var targetTeam in activeTeams) {
+			
+        string targetLower = targetTeam.ToLower(); 
 
-			// 如果字典里还没有这个目标队伍的缓存对象, 则创建一个新的
-			if (!_flatRulesByTarget.TryGetValue(targetLower, out var flatRule)) {
-				flatRule = new FlattenedRule();
-				_flatRulesByTarget[targetLower] = flatRule;
-			}
+        // 一次性从源规则中读取并构建全新的 FlattenedRule 实例
+        var newFlatRule = new FlattenedRule(
+			pvp: GetRule(currentTeam, targetLower, RuleType.Pvp), 
+            hang: GetRule(currentTeam, targetLower, RuleType.Hang),
+            grab: GetRule(currentTeam, targetLower, RuleType.Grab),
+            tagShow: GetRule(currentTeam, targetLower, RuleType.TagShow),
+            syncItem: GetRule(currentTeam, targetLower, RuleType.SyncItem),
+            syncInventory: GetRule(currentTeam, targetLower, RuleType.SyncInventory),
+            syncDied: GetRule(currentTeam, targetLower, RuleType.SyncDied),
+            collision: GetRule(currentTeam, targetLower, RuleType.Collision)
+        );
 
-			flatRule.pvp = GetRule(currentTeam, targetLower, RuleType.Pvp, newValue: false);
-			flatRule.hang = GetRule(currentTeam, targetLower, RuleType.Hang, newValue: true);
-			flatRule.grab = GetRule(currentTeam, targetLower, RuleType.Grab, newValue: false);
-			flatRule.tagShow = GetRule(currentTeam, targetLower, RuleType.TagShow, newValue: true);
-			flatRule.syncItem = GetRule(currentTeam, targetLower, RuleType.SyncItem, newValue: false);
-			flatRule.syncInventory = GetRule(currentTeam, targetLower, RuleType.SyncInventory, newValue: false);
-			flatRule.syncDied = GetRule(currentTeam, targetLower, RuleType.SyncDied, newValue: false);
-			flatRule.collision = GetRule(currentTeam, targetLower, RuleType.Collision, newValue: false);
+			// 直接覆盖字典中的值
+			_flatRulesByTarget[targetLower] = newFlatRule;
 		}
+
+		MPEventBusGame.NotifyRulesUpdated();
 	}
 
 	/// <summary>
-	/// 供 RPContainer 获取内存引用
+	/// 获取对 目标队伍 的规则引用
 	/// </summary>
 	public static FlattenedRule GetActiveRuleRef(string targetTeam) {
-		if (_flatRulesByTarget.TryGetValue(targetTeam.ToLower(), out var rule)) {
-			return rule;
-		}
+		if (_flatRulesByTarget.TryGetValue(targetTeam.ToLower(), out var rule)) return rule;
 		return _defaultSafeRule; // 保底安全对象
 	}
 
-	private static readonly FlattenedRule _defaultSafeRule = new FlattenedRule { tagShow = true };
-
-	// 添加活跃队伍
-	public static void AddActiveTeam(string team) {
-		if (!string.IsNullOrEmpty(team))
-			activeTeams.Add(team);
+	/// <summary>
+	/// 获取对 目标队伍 具体规则启用情况
+	/// </summary>
+	/// <param name="targetTeam"></param>
+	/// <param name="type"></param>
+	/// <returns></returns>
+	public static bool GetActiveRule(string targetTeam, RuleType type) {
+		if (_flatRulesByTarget.TryGetValue(targetTeam.ToLower(), out var rule)) 
+			return rule.GetFieldValue(type);
+		return _defaultSafeRule.GetFieldValue(type);
 	}
 
 	// 添加活跃队伍
+	public static void AddActiveTeam(string team) {
+		if (!string.IsNullOrEmpty(team)) activeTeams.Add(team);
+	}
+
+	// 添加多个活跃队伍
 	public static void AddActiveTeams(IEnumerable<string> team) {
 		activeTeams.AddRange(team);
 	}
@@ -276,14 +382,19 @@ public static class TeamRuleManager {
 
 		// 删除相关规则
 		var keysToRemove = new List<string>();
-		foreach (var key in _rulesCache.Keys) {
-			if (key.Contains($"_{team}_") || key.EndsWith($"_{team}")) {
-				keysToRemove.Add(key);
-			}
-		}
-		foreach (var key in keysToRemove) {
-			_rulesCache.Remove(key);
-		}
+		foreach (var key in _rulesCache.Keys) 
+			if (key.Contains($"_{team}_") || key.EndsWith($"_{team}")) keysToRemove.Add(key);
+
+		foreach (var key in keysToRemove) _rulesCache.Remove(key);
+	}
+
+	// 获取符合条件的活跃队伍列表
+	public static IEnumerable<string> GetTeamsMatchingRule(RuleType type,bool value = false) { 
+		var result = new List<string>();
+		foreach (var (team, rule) in _flatRulesByTarget)
+			if (rule.GetFieldValue(type) == value) result.Add(team);
+		
+		return result;
 	}
 }
 
@@ -299,6 +410,9 @@ public class SpecificRuleConfig {
 	public Dictionary<string, bool> rules { get; set; } = new();
 }
 
+/// <summary>
+/// 本地规则配置文件加载器, 负责从 JSON 文件读取规则并转换为 SteamLobby 需要的键值对字典
+/// </summary>
 public static class RuleConfigLoader {
 	private static string configPath => Path.Combine(Paths.ConfigPath, MPKeys.TEAM_RULES_FILE);
 

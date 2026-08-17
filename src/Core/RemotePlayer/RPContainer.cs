@@ -446,8 +446,6 @@ public class RPContainer {
 		if (_colliders != null) foreach (var col in _colliders)
 			// 只处理非触发器的实体碰撞体
 			if (!col.isTrigger) col.enabled = actionRule.collision;// true 开启碰撞, false 关闭碰撞
-
-
 	}
 
 	/// <summary>
@@ -455,12 +453,12 @@ public class RPContainer {
 	/// </summary>
 	public void ChangeGrabOrHang(ENT_Player.InteractType interactType) {
 		foreach (var tagger in _objectTaggers) {
-			if (interactType == ENT_Player.InteractType.grab && actionRule?.grab == true)
+			if (interactType == ENT_Player.InteractType.grab && actionRule.grab == true)
 				tagger.AddTag(MPKeys.GRAB_TAGGER);
 			else
 				tagger.RemoveTag(MPKeys.GRAB_TAGGER);
 
-			if (interactType == ENT_Player.InteractType.hanging && actionRule?.hang == true)
+			if (interactType == ENT_Player.InteractType.hanging && actionRule.hang == true)
 				tagger.AddTag(MPKeys.HANGING_TAGGER);
 			else
 				tagger.RemoveTag(MPKeys.HANGING_TAGGER);

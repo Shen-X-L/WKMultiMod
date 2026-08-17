@@ -45,8 +45,13 @@ public static class MPEventBusGame {
 	// 游戏事件: 命令目标玩家停止抓握/拖拽交互
 	public static event Action<IDType> OnPlayerStopInteraction;
 	public static void NotifyPlayerStopInteraction(IDType playerId) => OnPlayerStopInteraction?.Invoke(playerId);
-	
+
 	#endregion
+
+	// 游戏事件: 规则更新事件
+	public static event Action OnRulesUpdated;
+	public static void NotifyRulesUpdated()=> OnRulesUpdated?.Invoke();
+
 	#region[UI事件]
 
 	// UI事件: 显示加载界面
