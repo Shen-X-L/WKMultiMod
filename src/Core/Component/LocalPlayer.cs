@@ -24,7 +24,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 
 	// 状态缓存
 	private PlayerData _lastPlayerData;
-	private string[] handItemPrefabNames = new string[2];
+	private string[] _handItemPrefabNames = new string[2];
 	private List<IDType> _farPlayersBuffer = new List<IDType>(16);
 	public List<IDType> _nearPlayersBuffer = new List<IDType>(16);  // 近处玩家,大部分数据可以仅对near发送
 	public Dictionary<string, string> _playerData = new();  // 玩家额外数据字典(背包状态 perk状态等)
@@ -265,7 +265,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			case InteractType.none: {
 				var itemPrefabName = hand.inventoryHand.currentItem?.prefabName ?? RemoteHand.NONE_ITEM_NAME;
 
-				if (handItemPrefabNames[handIndex] != itemPrefabName || forceUpdate) {
+				if (_handItemPrefabNames[handIndex] != itemPrefabName || forceUpdate) {
 					data.handItemUpdate = true;
 					data.itemPrefabName = itemPrefabName;
 				} else {

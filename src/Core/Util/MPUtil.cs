@@ -8,11 +8,12 @@ using WKMPMod.Core;
 namespace WKMPMod.Util;
 
 public static class MPUtil {
+
 	/// <summary>
 	/// 通过预制体名称获取物品预制体
 	/// </summary>
 	/// <param name="prefabName">预制体资源名称</param>
-	public static bool TryGetItemPrefab(string prefabName,out Item_Object item) {
+	public static bool TryGetItemPrefab(string prefabName, out Item_Object item) {
 		item = null;
 		// 参数防御校验
 		if (string.IsNullOrEmpty(prefabName)) {
@@ -42,19 +43,30 @@ public static class MPUtil {
 		return true;
 	}
 
-	public static readonly Dictionary<string, Color32> PlayerColorPresets = new(StringComparer.OrdinalIgnoreCase) {
-		{ "default", new Color32(255, 255, 255, 255) },
-		{ "white", new Color32(255, 255, 255, 255) },
-		{ "red", new Color32(255, 80, 80, 255) },
-		{ "orange", new Color32(255, 165, 0, 255) },
-		{ "yellow", new Color32(255, 220, 64, 255) },
-		{ "green", new Color32(80, 220, 120, 255) },
-		{ "cyan", new Color32(64, 220, 255, 255) },
-		{ "blue", new Color32(90, 140, 255, 255) },
-		{ "purple", new Color32(170, 90, 255, 255) },
-		{ "pink", new Color32(255, 110, 180, 255) },
-		{ "black", new Color32(32, 32, 32, 255) },
-	};
+	private const ulong FNV_offset_basis = 14695981039346656037UL;
+	private const ulong FNV_prime = 1099511628211UL;
+
+	/// <summary>
+	/// FNV-1a 64位哈希 (零 GC，结果跨平台绝对一致)
+	/// </summary>
+	public static unsafe ulong Hash64(ReadOnlySpan<char> str) {
+		if (str.IsEmpty) return 0;
+
+		ulong hash = FNV_offset_basis;
+		fixed (char* ptr = str) {
+			char* current = ptr;
+			char* end = ptr + str.Length;
+
+			while (current < end) {
+				hash ^= *current;
+				hash *= FNV_prime;
+				current++;
+			}
+		}
+		return hash;
+	}
+
+	#region[对象名称获取与路径构建]
 
 	/// <summary>
 	/// 标准化PrefabKey
@@ -81,8 +93,34 @@ public static class MPUtil {
 		return string.Join("/", stack);
 	}
 
+	#endregion
+
+	#region[颜色相关]
+
+	// 默认颜色字典
+	public static readonly Dictionary<string, Color32> PlayerColorPresets = new(StringComparer.OrdinalIgnoreCase) {
+		{ "default", new Color32(255, 255, 255, 255) },
+		{ "white", new Color32(255, 255, 255, 255) },
+		{ "red", new Color32(255, 80, 80, 255) },
+		{ "orange", new Color32(255, 165, 0, 255) },
+		{ "yellow", new Color32(255, 220, 64, 255) },
+		{ "green", new Color32(80, 220, 120, 255) },
+		{ "cyan", new Color32(64, 220, 255, 255) },
+		{ "blue", new Color32(90, 140, 255, 255) },
+		{ "purple", new Color32(170, 90, 255, 255) },
+		{ "pink", new Color32(255, 110, 180, 255) },
+		{ "black", new Color32(32, 32, 32, 255) },
+	};
+
+
+	/// <summary>
+	/// 颜色进行字符串序列化
+	/// </summary>
 	public static string SerializePlayerColor(Color32 color) => $"{color.r},{color.g},{color.b}";
 
+	/// <summary>
+	/// 反字符串序列化
+	/// </summary>
 	public static bool TryParsePlayerColor(string value, out Color32 color) {
 		color = new Color32(255, 255, 255, 255);
 		if (string.IsNullOrWhiteSpace(value)) {
@@ -111,4 +149,6 @@ public static class MPUtil {
 
 		return false;
 	}
+
+	#endregion
 }

@@ -111,20 +111,6 @@ public class MPCore : MonoSingleton<MPCore> {
 	public static ENT_Player.InteractType IsGrabOrHangState = ENT_Player.InteractType.hanging;
 	// 检测指令可检查项目
 	public static readonly List<string> checkOptions = new List<string> { "inventory", "perk", "stamina", "health", "cheats" };
-	// 默认颜色字典
-	private static readonly Dictionary<string, Color32> PlayerColorPresets = new(StringComparer.OrdinalIgnoreCase) {
-		{ "default", new Color32(255, 255, 255, 255) },
-		{ "white", new Color32(255, 255, 255, 255) },
-		{ "red", new Color32(255, 80, 80, 255) },
-		{ "orange", new Color32(255, 165, 0, 255) },
-		{ "yellow", new Color32(255, 220, 64, 255) },
-		{ "green", new Color32(80, 220, 120, 255) },
-		{ "cyan", new Color32(64, 220, 255, 255) },
-		{ "blue", new Color32(90, 140, 255, 255) },
-		{ "purple", new Color32(170, 90, 255, 255) },
-		{ "pink", new Color32(255, 110, 180, 255) },
-		{ "black", new Color32(32, 32, 32, 255) },
-	};
 
 	#endregion
 
@@ -754,12 +740,12 @@ public class MPCore : MonoSingleton<MPCore> {
 			})
 			.AutocompleteCustom(autocomplete => {
 				if (autocomplete.activeArg == 0)
-					autocomplete.FromArray(PlayerColorPresets.Keys.ToList());
+					autocomplete.FromArray(MPUtil.PlayerColorPresets.Keys.ToList());
 			})
 			.AutocompleteValidator(validator => {
 				if (validator.ArgumentAt(2) == "") {
 					// 小于3个参数,参数0不在字典中
-					if (!PlayerColorPresets.ContainsKey(validator.ArgumentAt(0)))
+					if (!MPUtil.PlayerColorPresets.ContainsKey(validator.ArgumentAt(0)))
 						validator.Reject();
 				} else if (validator.activeArg <= 2) {
 					// 大于等于3个参数,是前0,1,2参数,不能转为数字
@@ -1830,7 +1816,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	private void HandlePlayerConnected(SteamId steamId) {
 		if (_MPSteamworks.IsHost) {
 			SceneItemManager.SendTombstonesToClient(steamId);
-			EnemySyncManager.SendSnapshotToClient(steamId);
+			EnemySyncManager.SendDiedEnemiesToClient(steamId);
 		}
 		// 如果在大厅且已初始化且有连接,允许发送数据
 		LocalPlayer.Instance.ShouldSendData = IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
@@ -1964,14 +1950,14 @@ public class MPCore : MonoSingleton<MPCore> {
 
 	private bool TryParsePlayerColor(string[] args, out Color32 color, out string errorMessage) {
 		if (args.Length == 1) {
-			if (PlayerColorPresets.TryGetValue(args[0], out color)) {
+			if (MPUtil.PlayerColorPresets.TryGetValue(args[0], out color)) {
 				errorMessage = string.Empty;
 				return true;
 			}
 
 			errorMessage = Localization.Get(
 				"CommandConsole.PlayerColorInvalidPreset",
-				string.Join(", ", PlayerColorPresets.Keys.OrderBy(name => name)));
+				string.Join(", ", MPUtil.PlayerColorPresets.Keys.OrderBy(name => name)));
 			return false;
 		}
 

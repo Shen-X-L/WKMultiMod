@@ -35,7 +35,6 @@ public class Patch_WorldLoader {
 	[HarmonyPostfix]
 	public static void Initialize_UseCustomSeed() {
 		if (MPCore.IsInLobby) customSeed = true;
-		EnemySyncManager.NotifyWorldInitialized();
 	}
 
 	// 补丁类: 关闭种子偏移, 使复活时种子同步

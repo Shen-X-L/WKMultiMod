@@ -100,6 +100,7 @@ public class MPPacketRouter {
 		}
 	}
 	#endregion
+
 	#region[注册路由接口]
 
 	public static void RegisterRoute(PacketType packetType, Action<ulong, DataReader> handler) {
@@ -134,11 +135,13 @@ public class MPPacketRouter {
 	}
 
 	#endregion
+
 	#region[生命周期函数]
 	public static void Initialize() {
 		MPEventBusNet.OnReceiveData += Route;
 	}
 	#endregion
+
 	#region[数据转换+路由]
 	public static void Route(ulong connectionId, ArraySegment<byte> data) {
 		// 确保数据足够读取一个整数(数据包类型)
@@ -185,6 +188,7 @@ public class MPPacketRouter {
 		}
 	}
 	#endregion
+
 	#region[网络发送工具类]
 	/// <summary>
 	/// 转发网络数据包到指定的客户端

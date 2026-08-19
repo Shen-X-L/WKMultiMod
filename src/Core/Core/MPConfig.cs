@@ -16,11 +16,21 @@ public class MPConfig {
 
 	// 数据发送频率 (每秒发送次数)
 	private static ConfigEntry<int> _dataSendFrequency;
-	public static int DataSendFrequency { get { return _dataSendFrequency.Value; } }
+	public static int DataSendFrequency =>_dataSendFrequency.Value;
 
+	// 生物同步发送频率 (每秒发送次数)
+	private static ConfigEntry<int> _enemySendFrequency;
+	public static int EnemySendFrequency => _enemySendFrequency.Value;
+
+	// 每次发送生物数量 (打包发送)
+	private static ConfigEntry<int> _maxEnemySendCount;
+	public static int MaxEnemySendCount => _maxEnemySendCount.Value;
+
+	// 切换抓取/拖拽按键
 	private static ConfigEntry<string> _toggleKey;
 	public static string ToggleKey => _toggleKey.Value;
 
+	// 正版/盗版开关
 	private static ConfigEntry<bool> _usePiratedMode;
 	public static bool UsePiratedMode => _usePiratedMode.Value;
 
@@ -28,7 +38,7 @@ public class MPConfig {
 
 	// 头顶名称标签字体最大值
 	private static ConfigEntry<float> _nameTagScale;
-	public static float NameTagScale { get { return _nameTagScale.Value; } }
+	public static float NameTagScale => _nameTagScale.Value;
 
 	// 远程玩家模型 (默认值为 "default", 可以设置为 "slugcat" 来使用蛞蝓猫模型)
 	private static ConfigEntry<string> _remotePlayerModel;
@@ -69,65 +79,65 @@ public class MPConfig {
 
 	// All (所有伤害)
 	private static ConfigEntry<float> _allActive;
-	public static float AllActive { get { return _allActive.Value; } }
+	public static float AllActive => _allActive.Value;
 
 	// Hammer (锤子)
 	private static ConfigEntry<float> _hammerActive;
-	public static float HammerActive { get { return _hammerActive.Value; } }
+	public static float HammerActive => _hammerActive.Value;
 
 	// Melee (近战)
 	private static ConfigEntry<float> _meleeActive;
-	public static float MeleeActive { get { return _meleeActive.Value; } }
+	public static float MeleeActive => _meleeActive.Value;
 
 	// rebar (钢筋/骨矛)
 	private static ConfigEntry<float> _rebarActive;
-	public static float RebarActive { get { return _rebarActive.Value; } }
+	public static float RebarActive => _rebarActive.Value;
 
 	// piton (自动钻头)
 	private static ConfigEntry<float> _pitonActive;
-	public static float PitonActive { get { return _pitonActive.Value; } }
+	public static float PitonActive => _pitonActive.Value;
 
 	// flare (信号枪)
 	private static ConfigEntry<float> _flareActive;
-	public static float FlareActive { get { return _flareActive.Value; } }
+	public static float FlareActive => _flareActive.Value;
 
 	// returnrebar (神器长矛)
 	private static ConfigEntry<float> _returnRebarActive;
-	public static float ReturnRebarActive { get { return _returnRebarActive.Value; } }
+	public static float ReturnRebarActive => _returnRebarActive.Value;
 
 	// rebarexplosion (爆炸钢筋)
 	private static ConfigEntry<float> _rebarExplosionActive;
-	public static float RebarExplosionActive { get { return _rebarExplosionActive.Value; } }
+	public static float RebarExplosionActive => _rebarExplosionActive.Value;
 
 	// rebarexplosion (爆炸)
 	private static ConfigEntry<float> _explosionActive;
-	public static float ExplosionActive { get { return _explosionActive.Value; } }
+	public static float ExplosionActive => _explosionActive.Value;
 
 	// ice (造冰枪-冰锥)
 	private static ConfigEntry<float> _iceActive;
-	public static float IceActive { get { return _iceActive.Value; } }
+	public static float IceActive => _iceActive.Value;
 
 	// bullet (手枪子弹)
 	private static ConfigEntry<float> _bulletActive;
-	public static float BulletActive { get { return _bulletActive.Value; } }
+	public static float BulletActive => _bulletActive.Value;
 
 	// other (其他伤害类型 信号枪灼烧除外)
 	private static ConfigEntry<float> _otherActive;
-	public static float OtherActive { get { return _otherActive.Value; } }
+	public static float OtherActive => _otherActive.Value;
 	// 信号枪灼烧持续时间倍率
 	private static ConfigEntry<float> _fireTimeMult;
-	public static float FireTimeMult { get { return _fireTimeMult.Value; } }
+	public static float FireTimeMult => _fireTimeMult.Value;
 	// 信号枪灼烧伤害倍率
 	private static ConfigEntry<float> _fireDamageMult;
-	public static float FireDamageMult { get { return _fireDamageMult.Value; } }
+	public static float FireDamageMult => _fireDamageMult.Value;
 
 	// 爆发伤害窗口期
 	private static ConfigEntry<float> _burstWindow;
-	public static float BurstWindow { get { return _burstWindow.Value; } }
+	public static float BurstWindow => _burstWindow.Value;
 
 	// 无敌时间
 	private static ConfigEntry<float> _invincibilityTime;
-	public static float InvincibilityTime { get { return _invincibilityTime.Value; } }
+	public static float InvincibilityTime => _invincibilityTime.Value;
 
 	#endregion
 	#region[房间规则控制]
@@ -168,6 +178,24 @@ public class MPConfig {
 			"Network", "DataSendFrequency", 20,
 			"Sets how many times per second data is sent to other players.\n" +
 			"设置每秒向其他玩家发送数据的次数.");
+
+		_enemySendFrequency = config.Bind<int>(
+			"Network", "EnemySendFrequency", 5,
+			"Sets how many times per second the host sends creature sync data to other players.\n" +
+			"设置作为主机时每秒向其他玩家发送生物同步数据的次数.");
+
+		_maxEnemySendCount = config.Bind<int>(
+			"Network", "MaxEnemySendCount", 10,
+			"Sets how much data is bundled into each creature sync packet sent by the host.\n" +
+			"设置作为主机时每次发送生物同步数据会打包多少数据.");
+
+		_toggleKey = config.Bind("Controls", "ToggleKey", "g",
+			"Press this key to switch between grab/drag mode\n" +
+			"按下此键切换抓取/拖拽状态");
+
+		_usePiratedMode = config.Bind("Network", "UsePiratedMode", false,
+			"Enable piracy mode and use Spacewar as a disguise to support Steam online\n" +
+			"启用盗版模式,使用Spacewar做伪装来支持steam联机");
 
 		#region[自定义相关]
 
@@ -360,11 +388,6 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 			"控制由你开启的房间是否默认可以绑定或天赋同步");
 		#endregion
 
-		_toggleKey = config.Bind("Controls", "ToggleKey", "g", 
-			"Press this key to switch between grab/drag mode\n按下此键切换抓取/拖拽状态");
-
-		_usePiratedMode = config.Bind("Network", "UsePiratedMode", false, 
-			"Enable piracy mode and use Spacewar as a disguise to support Steam online\n启用盗版模式,使用Spacewar做伪装来支持steam联机");
 
 		if (isConfigOutdated) VersionDetection(config);
 	}
