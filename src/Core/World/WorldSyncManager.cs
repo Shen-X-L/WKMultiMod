@@ -11,13 +11,15 @@ namespace WKMPMod.World;
 public class WorldSyncManager : MonoSingleton<WorldSyncManager> {
 	private readonly Dictionary<string,ISyncModule> _modules = new();
 
-	private void Awake() {
+	protected override void Awake() {
+		base.Awake();
 		SceneManager.sceneLoaded += OnSceneLoaded;
 		// 注册所有同步模块 (以后有新模块只需在此 Add)
 		RegisterModule(EnemySyncModule.Instance);
 		RegisterModule(ClimbableSyncModule.Instance);
-		// RegisterModule(new ItemSyncModule());
-		// RegisterModule(new PlayerSyncModule());
+		RegisterModule(SceneItemModule.Instance);
+		RegisterModule(DroppedItemModule.Instance);
+
 	}
 
 	public void OnSceneLoaded(Scene scene, LoadSceneMode mode) {

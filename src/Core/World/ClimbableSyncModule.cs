@@ -165,6 +165,15 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	private readonly List<NetworkedClimable> _batchBuffer = new();
 	private readonly List<ulong> _localKeysCache = new List<ulong>();
 
+	private void ResetSweepState() {
+		_timer = 0f;
+		_isSweeping = false;
+		_sweepIndex = 0;
+		_sweepQueue.Clear();
+		_batchBuffer.Clear();
+		_localKeysCache.Clear();
+	}
+
 	#endregion
 
 	#endregion
@@ -176,12 +185,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// </summary>
 	public void ResetState() {
 		// 重置分帧打包状态机
-		_timer = 0f;
-		_isSweeping = false;
-		_sweepIndex = 0;
-		_sweepQueue.Clear();
-		_batchBuffer.Clear();
-		_localKeysCache.Clear();
+		ResetSweepState();
 		// 清空已攀爬物字典
 		_capturedPitons.Clear();
 		_handhold.Clear();
@@ -194,7 +198,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 
 	#endregion
 
-	#region[API 捕获与注册]
+	#region[API Hook 事件接入]
 
 	/// <summary>
 	/// List.Add 方法的包装, 供 IL 调用.
@@ -287,6 +291,10 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		}
 	}
 
+	// 创建拔出物
+	public static void CreateBreakObject(GameObject gameObject, CL_Handhold handhold) =>
+		Instance?.SendBreakRequest(gameObject, handhold);
+
 	#endregion
 
 	#region[协程与分帧同步]
@@ -296,12 +304,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// </summary>
 	public void OnSyncUpdate(float deltaTime) {
 		if (!MPCore.CanSync || !IsEnabled) {
-			_timer = 0f;
-			_isSweeping = false;
-			_sweepIndex = 0;
-			_sweepQueue.Clear();
-			_batchBuffer.Clear();
-			_localKeysCache.Clear();
+			ResetSweepState();
 			return;
 		}
 		// 处于空闲状态:累加定时器, 等待下一个同步周期到来
@@ -309,7 +312,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 			_timer += deltaTime;
 			if (_timer >= PeriodicUpdateInterval) {
 				// 保留余数, 保证计时精准
-				_timer %= PeriodicUpdateInterval;
+				_timer = Mathf.Max(0f, _timer - PeriodicUpdateInterval);
 				// 开启新一轮的全局扫描
 				StartNewSweep();
 				// 手持攀爬物拔出状态更新
@@ -564,9 +567,6 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		_localHandhold.Remove(networkId);
 	}
 
-	// 转接到实例方法
-	public static void CreateBreakObject(GameObject gameObject, CL_Handhold handhold) =>
-		Instance?.SendBreakInternal(gameObject, handhold);
 	/// <summary>
 	/// 岩钉被拔出后 
 	/// 非创建者: 创建临时掉落物 向主机通知创建被拔出
@@ -574,7 +574,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// HOOK调用: <see cref="Patch_CL_Handhold_PitonSync.Transpiler"/>
 	/// 接收函数: <see cref="HandlePitonBreakRequest"/>
 	/// </summary>
-	public void SendBreakInternal(GameObject gameObject, CL_Handhold handhold) {
+	public void SendBreakRequest(GameObject gameObject, CL_Handhold handhold) {
 		if (!MPCore.CanSync || ApplyingRemoteState || handhold == null || gameObject == null) return;
 		// 广播岩钉拔出
 		if (!TryGetNetworkIdentity(handhold, out var identity) || !identity.IsValid) return;
@@ -595,7 +595,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		} else {
 			// 生成同步掉落物
 			if (gameObject.TryGetComponent<Item_Object>(out var item_Object))
-				DroppedItemManager.SyncAndBroadcast(item_Object);
+				DroppedItemModule.Instance.SyncAndBroadcast(item_Object);
 			BroadcastBreak(identity);
 		}
 	}
@@ -775,7 +775,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 
 	/// <summary>
 	/// 销毁对应岩钉 回收掉落物
-	/// 发送函数: <see cref="SendBreakInternal"/>
+	/// 发送函数: <see cref="SendBreakRequest"/>
 	/// </summary>
 	public void HandlePitonBreakRequest(DataReader reader) {
 		ulong networkId = reader.GetULong();
@@ -790,7 +790,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 			// 生成同步掉落物
 			var breakObj = Object.Instantiate(handhold.breakObject, handhold.transform.position, handhold.transform.rotation);
 			if (breakObj.TryGetComponent<Item_Object>(out var item_Object)) {
-				DroppedItemManager.SyncAndBroadcast(item_Object);
+				DroppedItemModule.Instance.SyncAndBroadcast(item_Object);
 			}
 			// 广播销毁
 			BroadcastBreak(identity);

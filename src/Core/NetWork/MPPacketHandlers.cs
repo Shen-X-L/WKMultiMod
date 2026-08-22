@@ -291,9 +291,17 @@ public class MPPacketHandlers {
 	/// <summary>
 	/// 主机/客户端接收ItemStateSync: 通过物品同步管理器来进行物品同步
 	/// </summary>
-	[MPPacketHandler(PacketType.ItemStateSync)]
-	private static void HandleItemStateSync(IDType senderId, DataReader reader) {
-		ItemSyncManager.HandleItemState(senderId, reader);
+	[MPPacketHandler(PacketType.SceneItemStateSync)]
+	private static void HandleSceneItemStateSync(IDType senderId, DataReader reader) {
+		SceneItemModule.Instance.HandleItemState(senderId, reader);
+	}
+
+	/// <summary>
+	/// 主机/客户端接收ItemStateSync: 通过物品同步管理器来进行物品同步
+	/// </summary>
+	[MPPacketHandler(PacketType.DroppedItemStateSync)]
+	private static void HandleDroppedItemStateSync(IDType senderId, DataReader reader) {
+		DroppedItemModule.Instance.HandleItemState(senderId, reader);
 	}
 
 	/// <summary>

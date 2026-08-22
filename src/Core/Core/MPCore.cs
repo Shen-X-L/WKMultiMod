@@ -375,7 +375,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		_RPManager.ResetAll();
 		_WorldSyncManager.LeaveAll();
 		TeamRuleManager.ClearCache();
-		ItemSyncManager.ResetState();
 		// 是否需要重置饰品/绑定
 		if (NeedResetTrinkets && NeedResetGamemodeName != null) {
 			StatManager.saveData.SetGamemodeTrinkets(NeedResetGamemodeName, new List<string>());
@@ -1350,7 +1349,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 更新玩家数据, 触发同步
 		_MPSteamworks.SetMemberData(MPKeys.TEAM, teamName);
 		// 场景物品同步刷新
-		SceneItemManager.ResetState(teamChange: true);
+		SceneItemModule.Instance.ChangeTeam();
 		//_MPSteamworks.SendAllMemberData();
 		CommandConsole.Log(Localization.Get("CommandConsole.JoinedTeam", teamName));
 	}
@@ -1843,7 +1842,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandlePlayerConnected(SteamId steamId) {
 		if (MPSteamworks.IsHost) {
-			SceneItemManager.SendTombstonesToClient(steamId);
+			SceneItemModule.Instance.HandleSceneRemoveChunkRequest(steamId);
 			EnemySyncModule.Instance.HandleChunkRequest(steamId);
 			ClimbableSyncModule.Instance.HandleChunkRequest(steamId);
 		}

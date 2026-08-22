@@ -28,6 +28,10 @@ public class NetworkedItem : MonoBehaviour {
 		CacheComponents();
 	}
 
+	private void OnEnable() {
+		RigidBody?.useGravity = true;
+	}
+
 	/// <summary>
 	/// 缓存常用组件, 避免频繁 GetComponent / 递归查找
 	/// </summary>

@@ -2,6 +2,7 @@ using HarmonyLib;
 using System;
 using System.Diagnostics;
 using Unity.VisualScripting;
+using WKMPMod.Component;
 using WKMPMod.Core;
 //using WKMPMod.World;
 using WKMPMod.World;
@@ -15,7 +16,33 @@ public class Patch_Item_Object {
 	[HarmonyPatch(nameof(Item_Object.Pickup))]
 	[HarmonyPostfix]
 	public static void Patch_Pickup(Item_Object __instance) {
-		ItemSyncManager.NotifyLocalPickup(__instance);
+		NotifyLocalPickup(__instance);
+	}
+
+	/// <summary>
+	/// 本地玩家拾取物品时调用 (由 Harmony 补丁 Patch_Item_Object_Pickup_ItemSync 在 Postfix 触发).
+	/// 场景物品: 同队广播移除
+	/// 丢弃物品
+	/// </summary>
+	public static void NotifyLocalPickup(Item_Object itemObject) {
+		if (itemObject == null || !MPCore.IsReady) return;
+
+		var identity = itemObject.GetComponent<NetworkedItem>();
+		if (identity == null || identity.networkId == 0) return; // 无网络身份, 纯本地物品
+
+		MPMain.LogInfo($"[MP ItemSync] LocalPickup: {itemObject.name}, ID={identity.networkId}, Owner={identity.ownerId}");
+
+		// 是场景物品
+		if (identity.sceneOrDropped == SceneItemModule.SCENE_ITEM) {
+			SceneItemModule.Instance.NotifyLocalPickup(identity);
+			return;
+		}
+
+		if (identity.sceneOrDropped == DroppedItemModule.DROPPED_ITEM) {
+			DroppedItemModule.Instance.NotifyLocalPickup(identity);
+			return;
+		}
+		MPMain.LogError($"[MP ItemSync] 未知物品创建方式");
 	}
 
 	// 物品生成时判断是否是场景物品并对比记录
@@ -23,7 +50,7 @@ public class Patch_Item_Object {
 	[HarmonyPostfix]
 	public static void Patch_Start(Item_Object __instance) {
 		// 当物品 Start 执行完毕后, 触发网络层的本地关卡物品注册/反向绑定
-		SceneItemManager.OnSceneItemStarted(__instance);
+		SceneItemModule.Instance.OnSceneItemStarted(__instance);
 	}
 }
 
@@ -61,7 +88,7 @@ public class Patch_Inventory_DropItemIntoWorld_ItemSync {
 	public static void Postfix(Item item) {
 		if (ItemSyncSuppress.IsSuppressedByFloppy) return;			// 被软盘交互模块丢弃时不同步
 		if (ItemSyncSuppress.IsSuppressedByItemInteract) return;    // 被交互模块丢弃时不同步
-		DroppedItemManager.NotifyLocalDrop(item);
+		DroppedItemModule.Instance.NotifyLocalDrop(item);
 	}
 }
 #endregion

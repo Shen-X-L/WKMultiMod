@@ -114,7 +114,15 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	// 缓存本轮待发送的敌人队列, 避免产生 GC
 	private readonly List<NetworkedEnemy> _sweepQueue = new();
 	private readonly List<NetworkedEnemy> _batchBuffer;
-
+	private readonly List<ulong> _localKeysCache = new List<ulong>();
+	private void ResetSweepState() {
+		_timer = 0f;
+		_isSweeping = false;
+		_sweepIndex = 0;
+		_sweepQueue.Clear();
+		_batchBuffer.Clear();
+		_localKeysCache.Clear();
+	}
 	#endregion
 
 	#endregion
@@ -124,7 +132,8 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	private EnemySyncModule() {
 		// 重置标志位与配置
 		IsEnabled = MPConfig.EnemySync;
-		_syncInterval = 1 / MPConfig.EnemySendFrequency;
+		float freq = MPConfig.EnemySendFrequency > 0 ? MPConfig.EnemySendFrequency : 5f;
+		_syncInterval = Mathf.Max(0.016f, 1f / freq);
 		_maxSyncPerFrame = MPConfig.MaxEnemySendCount;
 		_batchBuffer = new(_maxSyncPerFrame);
 	}
@@ -134,11 +143,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// </summary>
 	public void ResetState() {
 		// 重置分帧打包状态机
-		_timer = 0f;
-		_isSweeping = false;
-		_sweepIndex = 0;
-		_sweepQueue.Clear();
-		_batchBuffer.Clear();
+		ResetSweepState();
 		// 清空已同步生物字典
 		_enemies.Clear();
 		_byInstanceId.Clear();
@@ -147,7 +152,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 
 	#endregion
 
-	#region[GameEntity Hook 事件接入]
+	#region[API Hook 事件接入]
 
 	/// <summary>
 	/// 实体启用时的增量回调 (由 Harmony Patch 调用)
@@ -234,11 +239,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// </summary>
 	public void OnSyncUpdate(float deltaTime) {
 		if (!MPSteamworks.IsHost || !MPCore.CanSync || !IsEnabled) {
-			_timer = 0f;
-			_isSweeping = false;
-			_sweepIndex = 0;
-			_sweepQueue.Clear();
-			_batchBuffer.Clear();
+			ResetSweepState();
 			return;
 		}
 
@@ -246,7 +247,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		if (!_isSweeping) {
 			_timer += deltaTime;
 			if (_timer >= _syncInterval) {
-				_timer %= _syncInterval; // 保留余数, 保证计时精准
+				_timer = Mathf.Max(0f, _timer - _syncInterval); // 保留余数, 保证计时精准
 				StartNewSweep();          // 开启新一轮的全局扫描
 			}
 		}
@@ -262,9 +263,17 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		_sweepQueue.Clear();
 		_sweepIndex = 0;
 
-		foreach (var identity in _enemies.Values) {
-			if (identity == null || identity.gameObject == null) continue;
-			// 移除处理
+		_localKeysCache.Clear();
+
+		foreach (var key in _enemies.Keys) {
+			_localKeysCache.Add(key);
+		}
+
+		for (int i = 0; i < _localKeysCache.Count; i++) {
+			ulong networkId = _localKeysCache[i];
+			// 容错：防止因其他逻辑提前从字典中删除了 key
+			if (!_enemies.TryGetValue(networkId, out var identity)) continue;
+			// 移除检测
 			if (identity.IsRemoved()) RemoveEnemyRecord(identity);
 			// 变化检测
 			else if (identity.HasMeaningfulChange()) _sweepQueue.Add(identity);
@@ -278,6 +287,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// 连续分帧打包 单帧最多打包并发送 _maxSyncPerFrame 个敌人
 	/// </summary>
 	private void FlushNextBatch() {
+		MPMain.LogTest("FlushNextBatch");
 		_batchBuffer.Clear();
 
 		// 截取当前帧能容纳的上限数据
@@ -414,6 +424,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// </summary>
 	private void BroadcastStateBatch(List<NetworkedEnemy> batch) {
 		if (!IsEnabled || batch == null || batch.Count == 0) return;
+		MPMain.LogTest("BroadcastStateBatch");
 
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
 		writer.Put((byte)EnemySyncAction.StateBatch);
