@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using WKMPMod.Util;
 
 namespace WKMPMod.Core;
@@ -27,12 +28,9 @@ public class MPMain : BaseUnityPlugin {
 	internal static new ManualLogSource Logger;
 	// Harmony上下文
 	private Harmony _harmony;
-	// 核心实例访问器
-	public static MPCore Core => MPCore.Instance;
 	// 蛞蝓猫手部皮肤ID 和 身体皮肤ID
 	public const string SLUGCAT_HAND_ID = "slugcat hands";
 	public const string SLUGCAT_BODY_FACTORY_ID = "slugcat";
-
 
 	// Awake在对象创建时调用, 早于Start
 	private void Awake() {
@@ -48,14 +46,38 @@ public class MPMain : BaseUnityPlugin {
 		Logger.LogInfo($"[MPMain] {PLUGIN_GUID} {PLUGIN_VERSION} loaded");
 
 		// 使用Harmony打补丁
-		_harmony = new Harmony($"{PLUGIN_GUID}");
-		_harmony.PatchAll();
+		try {
+			_harmony = new Harmony($"{PLUGIN_GUID}");
+			foreach (var type in typeof(MPMain).Assembly.GetTypes()) {
+				try {
+					if (type.GetCustomAttributes(typeof(HarmonyPatch), true).Length == 0)
+						continue;
+
+					MPMain.LogDebug($"[MP Harmony] Patching: {type.FullName}");
+
+					new PatchClassProcessor(_harmony, type).Patch();
+
+					MPMain.LogDebug($"[MP Harmony] OK: {type.FullName}");
+				} catch (Exception ex) {
+					MPMain.LogError(
+						$"[MP Harmony] FAILED: {type.FullName}\n{ex}");
+				}
+			}
+		} catch (Exception ex) {
+			LogError($"[MPMain] Message: {ex.Message}\nStackTrace: {ex.StackTrace}");
+		}
 
 		// 配置初始化
 		MPConfig.Initialize(base.Config);
 
 		// 文本配置
 		Localization.Load();
+
+		SceneManager.sceneLoaded += OnSceneLoaded;
+	}
+
+	private void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
+		if(scene.name!= "Intro") _ = MPCore.Instance;
 	}
 
 	private void OnDestroy() {

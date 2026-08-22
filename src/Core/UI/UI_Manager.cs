@@ -105,17 +105,21 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	#endregion
 
-	#region[Unity组件生命周期函数]
+	#region[生命周期函数]
 
 	protected override void Awake() {
 		base.Awake();
 		SceneManager.sceneLoaded += OnSceneLoaded;
+		Scene currentScene = SceneManager.GetActiveScene();
+		HandleSceneInit(currentScene);
 	}
-
-	#endregion
 
 	// 场景切换时重注册UI
 	public void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
+		HandleSceneInit(scene);
+	}
+
+	private void HandleSceneInit(Scene scene) {
 		switch (scene.name) {
 			case "Main-Menu": {
 				try {
@@ -152,6 +156,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 				break;
 		}
 	}
+
+	#endregion
 
 	#region[初始引用获取]
 	public bool CacheRoots() {

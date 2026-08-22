@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
-using WKMultiPlayerMod.Shared.Data;
+using WKMPModa.Shared.Data;
 using static UnityEngine.GraphicsBuffer;
 using static UnityEngine.UI.Image;
 using Vector3 = UnityEngine.Vector3;

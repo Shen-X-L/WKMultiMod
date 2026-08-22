@@ -26,7 +26,8 @@ public static partial class MPKeys {
 	public const string LOBBY_NAME = "name";					// 大厅名称
 
 	public const string GAMEMODE_JSON = "gamemode";				// 游戏模式
-	public const string BIND_SYNC = "bind sync";				// 是否同步饰品/绑定
+	public const string BIND_SYNC = "bind sync";                // 是否同步饰品/绑定
+	public const string ENEMY_SYNC = "enemy sync";				// 是否同步生物
 	public const string ALLOW_CHEATS = "allow cheats";			// 是否允许作弊
 	public const string DAMAGE_CONFIG = "damage config";		// 伤害规则配置
 	public const string ACTIVE_TEAMS = "active teams";			// 活跃队伍列表键

@@ -97,7 +97,7 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.PitonStateSync)]
 	private static void HandlePitonStateSync(IDType senderId, DataReader reader) {
-		ClimbableItemSyncManager.HandlePitonState(senderId, reader);
+		ClimbableSyncModule.Instance.HandlePitonState(senderId, reader);
 	}
 
 	/// <summary>
@@ -293,7 +293,7 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.ItemStateSync)]
 	private static void HandleItemStateSync(IDType senderId, DataReader reader) {
-		WKMPMod.World.ItemSyncManager.HandleItemState(senderId, reader);
+		ItemSyncManager.HandleItemState(senderId, reader);
 	}
 
 	/// <summary>
@@ -301,7 +301,7 @@ public class MPPacketHandlers {
 	/// </summary>
 	[MPPacketHandler(PacketType.EnemyStateSync)]
 	private static void HandleEnemyStateSync(IDType senderId, DataReader reader) {
-		EnemySyncManager.HandleEnemyState(senderId, reader);
+		EnemySyncModule.Instance.HandleEnemyState(senderId, reader);
 	}
 
 	/// <summary>

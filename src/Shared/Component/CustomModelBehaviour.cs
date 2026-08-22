@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMultiPlayerMod.Shared.Data;
+using WKMPModa.Shared.Data;
 
-namespace WKMultiPlayerMod.Shared.Component;
+namespace WKMPModa.Shared.Component;
 
 /// <summary>
 /// 挂载在玩家模型克隆体上的运行时控制器基类

@@ -27,7 +27,7 @@ public class Patch_CommandConsole {
 	[HarmonyPrefix]
 	public static bool EnableCheatsCommand_BlockIfNotAllowed() {
 		// 在大厅且不允许作弊
-		if (MPCore.IsInLobby && !MPCore.IsAllowCheats && !MPSteamworks.Instance.IsHost) {
+		if (MPCore.IsInLobby && !MPCore.IsAllowCheats && !MPSteamworks.IsHost) {
 			// 当前大厅不允许作弊
 			CommandConsole.LogError(Localization.Get("CommandConsole.CheatsNotAllowed"));
 			return false;

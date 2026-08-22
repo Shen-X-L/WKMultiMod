@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
-namespace WKMultiPlayerMod.Shared.Data;
+namespace WKMPModa.Shared.Data;
 
 [System.Serializable]
 public struct ItemPoseData {

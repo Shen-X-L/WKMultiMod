@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
-using WKMultiPlayerMod.Shared.Data;
+using WKMPModa.Shared.Data;
 
-namespace WKMultiPlayerMod.Shared.Component;
+namespace WKMPModa.Shared.Component;
 
 public class SlugcatModelBehaviour : CustomModelBehaviour {
 

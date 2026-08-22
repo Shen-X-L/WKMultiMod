@@ -1,7 +1,7 @@
 ﻿using TMPro;
 using UnityEngine;
-using WKMultiPlayerMod.Shared.Component;
-using WKMultiPlayerMod.Shared.Data;
+using WKMPModa.Shared.Component;
+using WKMPModa.Shared.Data;
 
 
 namespace WKMPMod.RemotePlayer;

@@ -6,11 +6,11 @@ namespace WKMPMod.Patch;
 [HarmonyPatch(typeof(GameEntity))]
 public class Patch_GameEntity {
 	#region[伤害同步]
-	// DEN_VentThing 没调用父类Damage
+	// DEN_VentThing DEN_Mother 没调用父类Damage
 	[HarmonyPatch(nameof(GameEntity.Damage))]
 	[HarmonyPrefix]
 	public static void Patch_Damage(GameEntity __instance, Damageable.DamageInfo info) {
-		EnemySyncManager.BroadcastEnemyDamage(__instance, info);
+		EnemySyncModule.Instance.BroadcastEnemyDamage(__instance, info);
 	}
 
 	#endregion
@@ -25,7 +25,7 @@ public class Patch_GameEntity {
 	[HarmonyPatch(nameof(GameEntity.OnEnable))]
 	[HarmonyPostfix]
 	public static void Patch_OnEnable(GameEntity __instance) {
-		EnemySyncManager.OnEntityEnabled(__instance);
+		EnemySyncModule.Instance.OnEntityEnabled(__instance);
 	}
 
 	/// <summary>
@@ -34,7 +34,7 @@ public class Patch_GameEntity {
 	[HarmonyPatch(nameof(GameEntity.OnDisable))]
 	[HarmonyPrefix]
 	public static void Patch_OnDisable(GameEntity __instance) {
-		EnemySyncManager.OnEntityDisabled(__instance);
+		EnemySyncModule.Instance.OnEntityDisabled(__instance);
 	}
 
 	/// <summary>
@@ -49,7 +49,7 @@ public class Patch_GameEntity {
 	[HarmonyPostfix]
 	public static void Patch_Postfix_Kill(GameEntity __instance, string type, bool __state) {
 		// 执行前未死亡,执行后死亡 视为第一次死亡
-		if (!__state && __instance.dead) EnemySyncManager.OnEntityKill(__instance, type);
+		if (!__state && __instance.dead) EnemySyncModule.Instance.OnEntityKill(__instance, type);
 	}
 }
 
@@ -68,7 +68,7 @@ public class Patch_DEN_Bloodbug {
 	[HarmonyPostfix]
 	public static void Patch_Postfix_Kill(DEN_Bloodbug __instance, string type, bool __state) {
 		// 执行前未死亡,执行后死亡 视为第一次死亡
-		if (!__state && __instance.dead) EnemySyncManager.OnEntityKill(__instance, type);
+		if (!__state && __instance.dead) EnemySyncModule.Instance.OnEntityKill(__instance, type);
 	}
 }
 #endregion

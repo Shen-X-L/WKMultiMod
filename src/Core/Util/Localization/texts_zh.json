@@ -383,7 +383,7 @@
     "AlreadyActiveConnected": "[MPSW] 已经主动连接玩家. SteamId: {0} 连接状态: {1}",
     "AlreadyConnected": "[MPSW] 已经连接过玩家. SteamId: {0}",
     "AsyncTaskFailed": "[MPSW] 异步任务执行失败: {0}",
-    "BroadcastingException": "[MPSW] 广播数据异常: {0}",
+    "BroadcastingException": "[MPSW] 广播数据异常: {0}\n{1}",
     "ConnectSuccess": "[MPSW] 连接玩家成功. SteamId: {0}",
     "ConnectToPlayerException": "[MPSW] 连接玩家异常: {0}",
     "ConnectedToLobbyPlayer": "[MPSW] 连接已在大厅玩家: {0}({1})",
@@ -430,7 +430,7 @@
     "SteamworksInitFailed": "[MPSW] Steamworks初始化失败, 请检查Steam在线情况",
     "SteamworksInitSuccess": "[MPSW] Steamworks初始化成功 玩家: {0} ID: {1}",
     "Timeout": "[MPSW] 请求超时,Steam 服务器响应过慢",
-    "UnicastException": "[MPSW] 单播数据异常: {0} SteamId: {1}"
+    "UnicastException": "[MPSW] 单播数据异常: {0} SteamId: {1}\n{2}"
   },
   "Patch": {
     "CoreAlreadyInjected": "[MP Patch] Core已经注入过,跳过",

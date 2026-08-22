@@ -9,8 +9,8 @@ using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
-using WKMultiPlayerMod.Shared.Component;
-using WKMultiPlayerMod.Shared.Data;
+using WKMPModa.Shared.Component;
+using WKMPModa.Shared.Data;
 using Object = UnityEngine.Object;
 
 namespace WKMPMod.RemotePlayer;

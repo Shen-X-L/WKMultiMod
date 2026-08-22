@@ -326,7 +326,7 @@
 //	/// </summary>
 //	public static void SendSnapshotToClient(ulong clientId) {
 //		if (!MPCore.CanSync) return;
-//		if (!MPSteamworks.Instance.IsHost) return;
+//		if (!MPSteamworks.IsHost) return;
 //		if (MPCore.Instance == null) return;
 //		if (clientId == 0 || clientId == MPSteamworks.UserSteamId) return;
 
@@ -379,14 +379,14 @@
 
 //		MPMain.LogInfo(
 //			$"[MP ItemSync] Local pickup. " +
-//			$"Host={MPSteamworks.Instance.IsHost}, " +
+//			$"Host={MPSteamworks.IsHost}, " +
 //			$"Item={itemObject.name}, " +
 //			$"NetworkId={identity.NetworkId}, " +
 //			$"PrefabKey={identity.PrefabKey}"
 //		);
 
 //		// 主机直接广播移除并遗忘
-//		if (MPSteamworks.Instance.IsHost) {
+//		if (MPSteamworks.IsHost) {
 //			BroadcastRemove(identity.NetworkId);
 //			Forget(identity.NetworkId);
 //			return;
@@ -426,7 +426,7 @@
 //		var prefabKey = GetPrefabKey(itemObject);
 //		if (string.IsNullOrEmpty(prefabKey)) return;
 
-//		if (MPSteamworks.Instance.IsHost) {
+//		if (MPSteamworks.IsHost) {
 //			var identity = RegisterHostItem(itemObject, prefabKey);
 //			var velocity = GetVelocity(itemObject);
 //			RememberSuppressedPickup(itemObject);
@@ -460,7 +460,7 @@
 //		if (ApplyingRemoteState || !MPCore.CanSync) return;
 //		if (string.IsNullOrWhiteSpace(prefabKey)) return;
 
-//		if (!MPSteamworks.Instance.IsHost) {
+//		if (!MPSteamworks.IsHost) {
 //			SendDropRequest(prefabKey, position, rotation, velocity);
 //			return;
 //		}
@@ -529,7 +529,7 @@
 //	private static IEnumerator PrepareWorldRoutine() {
 //		MPMain.LogInfo(
 //			$"[MP ItemSync] PrepareWorldRoutine started. " +
-//			$"IsHost={MPSteamworks.Instance.IsHost}, IsInLobby={MPCore.IsInLobby}, CanSync={MPCore.CanSync}, " +
+//			$"IsHost={MPSteamworks.IsHost}, IsInLobby={MPCore.IsInLobby}, CanSync={MPCore.CanSync}, " +
 //			$"WorldInitialized={WorldLoader.initialized}, WorldLoaded={WorldLoader.isLoaded}"
 //		);
 
@@ -538,7 +538,7 @@
 //		yield return null;
 //		yield return null;
 
-//		if (MPSteamworks.Instance.IsHost) {
+//		if (MPSteamworks.IsHost) {
 //			// 主机注册场景物品
 //			yield return RegisterHostSceneItemsRoutine();
 //			if (MPCore.Instance != null && _hostDiscoveryRoutine == null) {
@@ -634,7 +634,7 @@
 //	/// 主机注册所有场景物品协程 (分帧执行).
 //	/// </summary>
 //	private static IEnumerator RegisterHostSceneItemsRoutine() {
-//		if (!MPSteamworks.Instance.IsHost) yield break;
+//		if (!MPSteamworks.IsHost) yield break;
 
 //		int registeredThisFrame = 0;
 //		int totalRegistered = 0;
@@ -666,7 +666,7 @@
 //		var wait = new WaitForSecondsRealtime(0.5f);
 
 //		while (MPCore.Instance != null) {
-//			if (MPCore.CanSync && MPSteamworks.Instance.IsHost && _hostSceneItemsRegistered) {
+//			if (MPCore.CanSync && MPSteamworks.IsHost && _hostSceneItemsRegistered) {
 //				DiscoverAndBroadcastNewHostWorldItems();
 //			}
 
@@ -777,7 +777,7 @@
 //	/// 客户端收到快照重置: 清空状态并重新捕获场景候选.
 //	/// </summary>
 //	private static void HandleSnapshotReset() {
-//		if (MPSteamworks.Instance.IsHost) return;
+//		if (MPSteamworks.IsHost) return;
 
 //		MPMain.LogInfo("[MP ItemSync] Received snapshot reset.");
 
@@ -794,7 +794,7 @@
 //	/// </para>
 //	/// </summary>
 //	private static void HandleSnapshotFinalize() {
-//		if (MPSteamworks.Instance.IsHost) return;
+//		if (MPSteamworks.IsHost) return;
 
 //		int hidden = 0;
 
@@ -840,7 +840,7 @@
 //	/// </para>
 //	/// </summary>
 //	private static void HandleCreate(ulong senderId, DataReader reader) {
-//		if (MPSteamworks.Instance.IsHost) return;
+//		if (MPSteamworks.IsHost) return;
 
 //		var networkId = reader.GetString();
 //		var prefabKey = reader.GetString();
@@ -920,7 +920,7 @@
 //	/// 主机处理拾取请求: 广播移除并遗忘物品.
 //	/// </summary>
 //	private static void HandlePickupRequest(DataReader reader) {
-//		if (!MPSteamworks.Instance.IsHost) return;
+//		if (!MPSteamworks.IsHost) return;
 
 //		var networkId = reader.GetString();
 
@@ -941,7 +941,7 @@
 //	/// 主机处理丢弃请求: 实例化物品, 注册并广播创建.
 //	/// </summary>
 //	private static void HandleDropRequest(ulong senderId, DataReader reader) {
-//		if (!MPSteamworks.Instance.IsHost) return;
+//		if (!MPSteamworks.IsHost) return;
 
 //		var prefabKey = reader.GetString();
 //		var position = reader.GetVector3();

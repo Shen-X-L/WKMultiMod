@@ -1,21 +1,15 @@
-using HarmonyLib;
 using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
-using static UT_Damage;
 using static WKMPMod.Data.MPWriterPool;
-using Object = UnityEngine.Object;
 
 namespace WKMPMod.World;
 
@@ -43,97 +37,109 @@ public enum EnemySyncAction : byte {
 /// 敌人同步管理器 - 主机权威的敌人 (Denizen/GameEntity) 变换、生命值和死亡同步.
 /// 现有场景敌人通过稳定的层级结构 ID 匹配, 因此客户端无需实例化敌人预制体即可与主机保持一致.
 /// </summary>
-public static class EnemySyncManager {
-	#region[常量]
+public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 
-	private const int ChunkItemsPerFrame = 10; // 每帧补发死亡记录数量上限
-	private static float _syncInterval = 0.20f; // 状态同步间隔 (秒, 约5Hz)
-	private static int _maxSyncPerFrame = 10; // 每次最多处理并广播的敌人数量
-	private const float PositionEpsilonSqr = 0.01f; // 位置变化阈值平方 (0.1m)
-	private const float RotationEpsilonDegrees = 1.0f; // 旋转变化阈值 (度)
-	private const float HealthEpsilon = 0.01f; // 生命值变化阈值
-	private static readonly AccessTools.FieldRef<GameEntity, float> _healthField =
-		AccessTools.FieldRefAccess<GameEntity, float>("health");
-	private static WaitForSecondsRealtime _waitSyncInterval;
+	#region[ISyncModule接口实现]
 
-	#endregion
-
-	#region[静态字段]
-
-	/// <summary>
-	/// 所有已注册的敌人字典. Key=NetworkId, Value=NetworkedEnemy 组件.
-	/// </summary>
-	private static readonly Dictionary<ulong, NetworkedEnemy> _enemies = new();
-
-	/// <summary>
-	/// 已经死亡或移除的生物,用于同步给新加入的玩家 string储存死亡方式
-	/// </summary>
-	private static readonly Dictionary<ulong, string> _diedEntities = new();
-
-	/// <summary>
-	/// 每个客户端对应的快照发送协程. Key=客户端SteamId, Value=协程引用.
-	/// </summary>
-	private static readonly Dictionary<IDType, Coroutine> _diedEntityRoutines = new();
-
-	/// <summary>
-	/// 按实例ID索引的敌人字典, 用于快速查找场景中已存在的敌人.
-	/// </summary>
-	private static readonly Dictionary<int, NetworkedEnemy> _byInstanceId = new();
-
-	private static Coroutine _syncRoutine = null; // 主同步协程引用
-
-	/// <summary>
-	/// 是否正在应用远程状态. 用于防止应用远程数据时再次触发本地广播造成循环.
-	/// </summary>
-	public static bool ApplyingRemoteState { get; private set; }
+	public string ModuleName => "EnemySync";
 
 	/// <summary>
 	/// 是否开启了生物同步
 	/// </summary>
-	public static bool IsEnemySync;
+	public bool IsEnabled { get; set; }
+
+	public void OnReset() {
+		ResetState();
+	}
+
+	// 没有联机情况 清空死亡生物记录和死亡生物记录发送协程
+	public void OnLeave() {
+		// 停止残留的异步协程
+		_diedEntities.Clear();
+		if (WorldSyncManager.Instance != null)
+			foreach (var coroutine in _diedEntityRoutines.Values)
+				if (coroutine != null) WorldSyncManager.Instance.StopCoroutine(coroutine);
+
+		_diedEntityRoutines.Clear();
+		ResetState();
+	}
+
+	public void OnEnd() => OnLeave();
+
+	#endregion
+
+	#region[字段和属性]
+
+	#region[	新玩家记录同步]
+
+	/// <summary>
+	/// 已经死亡或移除的生物,用于同步给新加入的玩家 string储存死亡方式
+	/// </summary>
+	private readonly Dictionary<ulong, string> _diedEntities = new();
+
+	/// <summary>
+	/// 每个客户端对应的快照发送协程. Key=客户端SteamId, Value=协程引用.
+	/// </summary>
+	private readonly Dictionary<IDType, Coroutine> _diedEntityRoutines = new();
+	private const int ChunkItemsPerFrame = 10; // 每帧补发死亡记录数量上限
+
+	#endregion
+
+	#region[	同步时数据]
+
+	/// <summary>
+	/// 所有已注册的敌人字典. Key=NetworkId, Value=NetworkedEnemy 组件.
+	/// </summary>
+	private readonly Dictionary<ulong, NetworkedEnemy> _enemies = new();
+
+	/// <summary>
+	/// 按实例ID索引的敌人字典, 用于快速查找场景中已存在的敌人.
+	/// </summary>
+	private readonly Dictionary<int, NetworkedEnemy> _byInstanceId = new();
+
+	/// <summary>
+	/// 是否正在应用远程状态. 用于防止应用远程数据时再次触发本地广播造成循环.
+	/// </summary>
+	public bool ApplyingRemoteState { get; private set; }
+
+	#endregion
+
+	#region[	分帧发送状态机]
+	private float _syncInterval = 0.20f; // 状态同步间隔 (秒, 约5Hz)
+	private int _maxSyncPerFrame = 10; // 每次最多处理并广播的敌人数量
+	private float _timer = 0f;
+	private bool _isSweeping = false;
+	private int _sweepIndex = 0;
+
+	// 缓存本轮待发送的敌人队列, 避免产生 GC
+	private readonly List<NetworkedEnemy> _sweepQueue = new();
+	private readonly List<NetworkedEnemy> _batchBuffer;
+
+	#endregion
 
 	#endregion
 
 	#region[生命周期函数]
 
-	static EnemySyncManager() {
-		// 订阅场景切换
-		SceneManager.sceneLoaded += OnSceneLoaded;
-	}
-
-	#endregion
-
-	#region[初始化与重置]
-
-	public static void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
-		ResetState();
-		if (MPCore.Instance == null) return;
-		if (MPCore.IsInLobby && MPCore.IsInitialized)
-			_syncRoutine = MPCore.Instance.StartCoroutine(WorldRoutine());
+	private EnemySyncModule() {
+		// 重置标志位与配置
+		IsEnabled = MPConfig.EnemySync;
+		_syncInterval = 1 / MPConfig.EnemySendFrequency;
+		_maxSyncPerFrame = MPConfig.MaxEnemySendCount;
+		_batchBuffer = new(_maxSyncPerFrame);
 	}
 
 	/// <summary>
-	/// 完全重置敌人同步状态: 停止所有协程, 清空字典, 重置标志.
+	/// 场景重置
 	/// </summary>
-	public static void ResetState() {
-		_syncInterval = 1 / MPConfig.EnemySendFrequency;
-		_maxSyncPerFrame = MPConfig.MaxEnemySendCount;
-		_waitSyncInterval = new WaitForSecondsRealtime(_syncInterval);
-
-		// 没有联机情况 清空死亡生物记录和死亡生物记录发送协程
-		if (!MPCore.IsInLobby && !MPCore.IsInitialized) {
-			_diedEntities.Clear();
-			if (MPCore.Instance != null)
-				foreach (var coroutine in _diedEntityRoutines.Values)
-					if (coroutine != null) MPCore.Instance.StopCoroutine(coroutine);
-
-			_diedEntityRoutines.Clear();
-		}
-
-		if (_syncRoutine != null && MPCore.Instance != null)
-			MPCore.Instance.StopCoroutine(_syncRoutine);
-
-		_syncRoutine = null;
+	public void ResetState() {
+		// 重置分帧打包状态机
+		_timer = 0f;
+		_isSweeping = false;
+		_sweepIndex = 0;
+		_sweepQueue.Clear();
+		_batchBuffer.Clear();
+		// 清空已同步生物字典
 		_enemies.Clear();
 		_byInstanceId.Clear();
 		ApplyingRemoteState = false;
@@ -146,8 +152,8 @@ public static class EnemySyncManager {
 	/// <summary>
 	/// 实体启用时的增量回调 (由 Harmony Patch 调用)
 	/// </summary>
-	public static void OnEntityEnabled(GameEntity entity) {
-		if (entity == null || !MPCore.CanSync) return;
+	public void OnEntityEnabled(GameEntity entity) {
+		if (entity == null || !MPCore.IsReady) return;
 		if (!IsSyncableEnemy(entity)) return;
 
 		// 主机与客机均在实体启用时直接建立身份绑定
@@ -157,24 +163,26 @@ public static class EnemySyncManager {
 	/// <summary>
 	/// 实体禁用/销毁时的增量回调 (由 Harmony Patch 调用)
 	/// </summary>
-	public static void OnEntityDisabled(GameEntity entity) {
+	public void OnEntityDisabled(GameEntity entity) {
 		if (entity == null || ApplyingRemoteState) return;
 
 		int instanceId = entity.GetInstanceID();
-		if (_byInstanceId.TryGetValue(instanceId, out var identity)) {
+		if (_byInstanceId.TryGetValue(instanceId, out var identity)) 
 			RemoveEnemyRecord(identity);
-		}
 	}
 
-	public static void OnEntityKill(GameEntity entity, string type) {
+	/// <summary>
+	/// 生物死亡时主机额外记录
+	/// </summary>
+	public void OnEntityKill(GameEntity entity, string type) {
 		if (entity == null) return;
 
 		if (entity.TryGetComponent<NetworkedEnemy>(out var identity)
-			&& !_diedEntities.ContainsKey(identity.NetworkId)
-			&& MPSteamworks.Instance.IsHost) {
+			&& !_diedEntities.ContainsKey(identity.networkId)
+			&& MPSteamworks.IsHost) {
 
 			// 进行额外记录并广播
-			_diedEntities[identity.NetworkId] = type;
+			_diedEntities[identity.networkId] = type;
 			BroadcastKill(identity, type);
 		}
 
@@ -187,22 +195,9 @@ public static class EnemySyncManager {
 	#region[API]
 
 	/// <summary>
-	/// 向指定客户端发送敌人死亡表. 仅主机可调用.
-	/// </summary>
-	public static void SendDiedEnemiesToClient(IDType clientId) {
-		if (!MPCore.CanSync || !MPSteamworks.Instance.IsHost || MPCore.Instance == null) return;
-		if (clientId == 0 || clientId == MPSteamworks.UserSteamId) return;
-		// 停止旧协程
-		if (_diedEntityRoutines.TryGetValue(clientId, out var existing) && existing != null)
-			MPCore.Instance.StopCoroutine(existing);
-		// 启动协程分帧发送
-		_diedEntityRoutines[clientId] = MPCore.Instance.StartCoroutine(SendDiedEnemiesChunksRoutine(clientId));
-	}
-
-	/// <summary>
 	/// 处理接收到的敌人同步数据包: 根据操作类型分发到对应处理方法.
 	/// </summary>
-	public static void HandleEnemyState(IDType senderId, DataReader reader) {
+	public void HandleEnemyState(IDType senderId, DataReader reader) {
 		var action = (EnemySyncAction)reader.GetByte();
 		try {
 			switch (action) {
@@ -216,7 +211,7 @@ public static class EnemySyncManager {
 					HandleKill(reader);
 					break;
 				case EnemySyncAction.KillChunkRequest:
-					HandleChunkRequest(senderId, reader);
+					HandleChunkRequest(senderId);
 					break;
 				case EnemySyncAction.KillChunk:
 					HandleChunk(reader);
@@ -232,57 +227,77 @@ public static class EnemySyncManager {
 
 	#endregion
 
-	#region[协程与分帧同步]
+	#region[分帧同步]
 
 	/// <summary>
-	/// 分帧生物状态广播.
+	/// 由 WorldSyncManager 每帧在 LateUpdate 调用
 	/// </summary>
-	private static IEnumerator WorldRoutine() {
-		yield return new WaitUntil(() => WorldLoader.isLoaded && WorldLoader.initialized);
-		yield return null;
-		yield return null;
+	public void OnSyncUpdate(float deltaTime) {
+		if (!MPSteamworks.IsHost || !MPCore.CanSync || !IsEnabled) {
+			_timer = 0f;
+			_isSweeping = false;
+			_sweepIndex = 0;
+			_sweepQueue.Clear();
+			_batchBuffer.Clear();
+			return;
+		}
 
-		// 复用缓存列表，避免每轮循环产生 GC 垃圾
-		var activeSnapshot = new List<NetworkedEnemy>();
-		// 数据打包发送
-		var pendingStateBatch = new List<NetworkedEnemy>(_maxSyncPerFrame);
-
-		while (MPCore.IsInLobby && MPCore.IsInitialized) {
-			if (!MPSteamworks.Instance.IsHost || !MPCore.CanSync) {
-				yield return _waitSyncInterval;
-				continue;
+		// 处于空闲状态:累加定时器, 等待下一个同步周期到来
+		if (!_isSweeping) {
+			_timer += deltaTime;
+			if (_timer >= _syncInterval) {
+				_timer %= _syncInterval; // 保留余数, 保证计时精准
+				StartNewSweep();          // 开启新一轮的全局扫描
 			}
-			// 获取当前存活敌人快照
-			activeSnapshot.Clear();
-			activeSnapshot.AddRange(_enemies.Values);
-			pendingStateBatch.Clear();
+		}
 
-			foreach (var identity in activeSnapshot) {
-				if (identity == null || identity.gameObject == null) continue;
+		// 处于处理数据包状态 连续跨帧处理数据包
+		if (_isSweeping) FlushNextBatch();
+	}
 
-				// 生物移除检测
-				// 是否有变化记录
-				if (IsRemoved(identity)) {
-					RemoveEnemyRecord(identity);
-				} else if (HasMeaningfulChange(identity)) {
-					pendingStateBatch.Add(identity);
-				}
+	/// <summary>
+	/// 开启新一轮同步, 扫描并收集所有需要同步的敌人
+	/// </summary>
+	private void StartNewSweep() {
+		_sweepQueue.Clear();
+		_sweepIndex = 0;
 
-				// 分帧更新控制 处理满 MaxSyncPerFrame 个敌人则让出当帧
-				// 数据打包发送
-				if (pendingStateBatch.Count >= _maxSyncPerFrame) {
-					BroadcastStateBatch(pendingStateBatch);
-					pendingStateBatch.Clear();
-					yield return null;
-				}
+		foreach (var identity in _enemies.Values) {
+			if (identity == null || identity.gameObject == null) continue;
+			// 移除处理
+			if (identity.IsRemoved()) RemoveEnemyRecord(identity);
+			// 变化检测
+			else if (identity.HasMeaningfulChange()) _sweepQueue.Add(identity);
+		}
+
+		// 如果本轮有需要更新的生物, 开启冲刷标志
+		if (_sweepQueue.Count > 0) _isSweeping = true;
+	}
+
+	/// <summary>
+	/// 连续分帧打包 单帧最多打包并发送 _maxSyncPerFrame 个敌人
+	/// </summary>
+	private void FlushNextBatch() {
+		_batchBuffer.Clear();
+
+		// 截取当前帧能容纳的上限数据
+		while (_sweepIndex < _sweepQueue.Count && _batchBuffer.Count < _maxSyncPerFrame) {
+			var identity = _sweepQueue[_sweepIndex];
+			_sweepIndex++;
+
+			// 跨帧二次有效性校验 (防止在前几帧冲刷期间生物被彻底 Destroy)
+			if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy) {
+				_batchBuffer.Add(identity);
 			}
+		}
 
-			// 最后的残留打包发送
-			if (pendingStateBatch.Count > 0) {
-				BroadcastStateBatch(pendingStateBatch);
-				pendingStateBatch.Clear();
-			}
-			yield return _waitSyncInterval;
+		// 真正发包并刷新 RememberState
+		if (_batchBuffer.Count > 0) BroadcastStateBatch(_batchBuffer);
+
+		// 如果队列已经全部发完, 关闭冲刷, 等待下一个 _syncInterval 触发
+		if (_sweepIndex >= _sweepQueue.Count) {
+			_isSweeping = false;
+			_sweepQueue.Clear();
 		}
 	}
 
@@ -290,7 +305,7 @@ public static class EnemySyncManager {
 	/// 分帧向客户端补发死亡生物表
 	/// 接收函数: <see cref="HandleChunk"/>
 	/// </summary>
-	private static IEnumerator SendDiedEnemiesChunksRoutine(IDType clientId) {
+	private IEnumerator SendDiedEnemiesChunksRoutine(IDType clientId) {
 		var list = new List<KeyValuePair<ulong, string>>(_diedEntities);
 		int total = list.Count;
 		int currentIndex = 0;
@@ -323,7 +338,7 @@ public static class EnemySyncManager {
 	/// <summary>
 	/// 确保敌人有 NetworkedEnemy 组件: 从缓存查找或创建, 分配稳定 NetworkId.
 	/// </summary>
-	private static NetworkedEnemy EnsureIdentity(GameEntity entity) {
+	private NetworkedEnemy EnsureIdentity(GameEntity entity) {
 		var syncRoot = entity.transform;
 		if (syncRoot == null) return null;
 
@@ -333,10 +348,10 @@ public static class EnemySyncManager {
 
 		// 获取或添加 NetworkedEnemy 组件
 		var identity = syncRoot.GetComponent<NetworkedEnemy>() ?? syncRoot.AddComponent<NetworkedEnemy>();
-		if (identity.NetworkId == 0) identity.NetworkId = BuildStableNetworkId(syncRoot);
+		if (identity.networkId == 0) identity.networkId = BuildStableNetworkId(syncRoot);
 
 		// 该生物已经被记录 杀死该生物
-		if (_diedEntities.TryGetValue(identity.NetworkId, out var diedType)) {
+		if (_diedEntities.TryGetValue(identity.networkId, out var diedType)) {
 			if (string.IsNullOrEmpty(diedType)) entity.Kill("diedSync");
 			else entity.Kill(diedType);
 			entity.health = 0f;
@@ -344,19 +359,18 @@ public static class EnemySyncManager {
 		}
 
 		// 注册到字典
-		_enemies[identity.NetworkId] = identity;
+		_enemies[identity.networkId] = identity;
 		_byInstanceId[instanceId] = identity;
-		RememberState(identity);
 		return identity;
 	}
 
 	/// <summary>
 	/// 从本地所有字典中注销并移除敌人记录.
 	/// </summary>
-	private static void RemoveEnemyRecord(NetworkedEnemy identity) {
+	private void RemoveEnemyRecord(NetworkedEnemy identity) {
 		if (identity == null) return;
 
-		if (identity.NetworkId != 0) _enemies.Remove(identity.NetworkId);
+		if (identity.networkId != 0) _enemies.Remove(identity.networkId);
 
 		int instanceId = identity.transform.GetInstanceID();
 		_byInstanceId.Remove(instanceId);
@@ -365,55 +379,8 @@ public static class EnemySyncManager {
 	/// <summary>
 	/// 构建稳定的 Hash NetworkId: "{层级路径}".
 	/// </summary>
-	private static ulong BuildStableNetworkId(Transform transform) {
+	private ulong BuildStableNetworkId(Transform transform) {
 		return MPUtil.Hash64(MPUtil.BuildTransformPath(transform));
-	}
-
-	#endregion
-
-	#region[状态变化检测]
-
-	/// <summary>
-	/// 检查敌人状态是否有足够明显的变化需要同步.
-	/// 比较: 位置距离、旋转角度、生命值差异.
-	/// </summary>
-	private static bool HasMeaningfulChange(NetworkedEnemy identity) {
-		var transform = identity.transform;
-
-		// 位置变化检查
-		if ((transform.position - identity.LastPosition).sqrMagnitude > PositionEpsilonSqr) return true;
-
-		// 旋转变化检查
-		if (Quaternion.Angle(transform.rotation, identity.LastRotation) > RotationEpsilonDegrees) return true;
-
-		// 生命值变化检查
-		float health = identity.TryGetComponent<GameEntity>(out GameEntity entity) ? _healthField(entity) : float.NaN;
-
-		if (float.IsNaN(health) != float.IsNaN(identity.LastHealth)) return true;
-		if (!float.IsNaN(health) && Mathf.Abs(health - identity.LastHealth) > HealthEpsilon) return true;
-
-		return false;
-	}
-
-	/// <summary>
-	/// 记录当前状态为上次同步状态: 保存位置、旋转、生命值和移除状态.
-	/// </summary>
-	private static void RememberState(NetworkedEnemy identity) {
-		identity.LastPosition = identity.transform.position;
-		identity.LastRotation = identity.transform.rotation;
-		identity.LastHealth = identity.TryGetComponent<GameEntity>(out GameEntity entity) ? _healthField(entity) : float.NaN;
-		identity.LastRemoved = IsRemoved(identity);
-	}
-
-	/// <summary>
-	/// 检查敌人是否已移除: GameObject为null、未激活
-	/// </summary>
-	private static bool IsRemoved(NetworkedEnemy identity) {
-		if (identity == null || identity.gameObject == null) return true;
-		if (!identity.gameObject.activeInHierarchy) return true;
-
-		float health = identity.TryGetComponent<GameEntity>(out GameEntity entity) ? _healthField(entity) : float.NaN;
-		return !float.IsNaN(health) && health <= 0f;
 	}
 
 	#endregion
@@ -424,16 +391,16 @@ public static class EnemySyncManager {
 	/// 广播本地敌人受伤通知
 	/// 接收函数: <see cref="HandleDamage"/>
 	/// </summary>
-	public static void BroadcastEnemyDamage(GameEntity entity, Damageable.DamageInfo info) {
-		if (ApplyingRemoteState || entity == null || info == null || !MPCore.CanSync) return;
+	public void BroadcastEnemyDamage(GameEntity entity, Damageable.DamageInfo info) {
+		if (!MPCore.CanSync || !IsEnabled || ApplyingRemoteState || info == null) return;
 		if (!IsSyncableEnemy(entity)) return;
 		var identity = EnsureIdentity(entity);
-		if (identity == null || identity.NetworkId == 0) return;
+		if (identity == null || identity.networkId == 0) return;
 
 		// 构建并发送伤害请求数据包
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
 		writer.Put((byte)EnemySyncAction.Damage);
-		writer.Put(identity.NetworkId);
+		writer.Put(identity.networkId);
 		writer.Put(info.amount);
 		writer.Put(info.type);
 		writer.Put(info.tags);
@@ -445,8 +412,8 @@ public static class EnemySyncManager {
 	/// 主机广播敌人状态包
 	/// 接收函数: <see cref="HandleState"/>
 	/// </summary>
-	private static void BroadcastStateBatch(List<NetworkedEnemy> batch) {
-		if (batch == null || batch.Count == 0) return;
+	private void BroadcastStateBatch(List<NetworkedEnemy> batch) {
+		if (!IsEnabled || batch == null || batch.Count == 0) return;
 
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
 		writer.Put((byte)EnemySyncAction.StateBatch);
@@ -454,11 +421,11 @@ public static class EnemySyncManager {
 
 		for (int i = 0; i < batch.Count; i++) {
 			var identity = batch[i];
-			writer.Put(identity.NetworkId);
+			writer.Put(identity.networkId);
 			writer.Put(identity.transform.position);
 			writer.Put(identity.transform.rotation);
-			writer.Put(identity.TryGetComponent<GameEntity>(out var entity) ? _healthField(entity) : float.NaN);
-			RememberState(identity);
+			writer.Put(identity.currentHealth);
+			identity.RememberState();
 		}
 
 		MPSteamworks.Instance.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
@@ -468,10 +435,11 @@ public static class EnemySyncManager {
 	/// 广播实体死亡
 	/// 接收函数: <see cref="HandleKill"/>
 	/// </summary>
-	private static void BroadcastKill(NetworkedEnemy identity, string type) {
+	private void BroadcastKill(NetworkedEnemy identity, string type) {
+		if (!MPCore.CanSync || !IsEnabled) return;
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
 		writer.Put((byte)EnemySyncAction.Kill);
-		writer.Put(identity.NetworkId);
+		writer.Put(identity.networkId);
 		writer.Put(type);
 		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
 	}
@@ -480,9 +448,9 @@ public static class EnemySyncManager {
 	/// 客机向主机请求生物死亡表 (NeedRemoveChunk)
 	/// 接收函数: <see cref="HandleChunkRequest"/>
 	/// </summary>
-	private static void SendKillChunkRequest() {
-		if (MPSteamworks.Instance.IsHost) return;
-		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.ItemStateSync);
+	private void SendKillChunkRequest() {
+		if (MPSteamworks.IsHost || !IsEnabled) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.EnemyStateSync);
 		writer.Put((byte)EnemySyncAction.KillChunkRequest);
 
 		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
@@ -496,7 +464,7 @@ public static class EnemySyncManager {
 	/// 收到伤害请求: 对指定敌人施加伤害, 更新状态并广播.
 	/// 发送函数: <see cref="BroadcastEnemyDamage"/>
 	/// </summary>
-	private static void HandleDamage(DataReader reader) {
+	private void HandleDamage(DataReader reader) {
 		ulong networkId = reader.GetULong();
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
@@ -524,8 +492,8 @@ public static class EnemySyncManager {
 	/// 客机接收生物同步数据包
 	/// 发送函数: <see cref="BroadcastStateBatch"/>
 	/// </summary>
-	private static void HandleState(DataReader reader) {
-		if (MPSteamworks.Instance.IsHost) return;
+	private void HandleState(DataReader reader) {
+		if (MPSteamworks.IsHost) return;
 
 		byte count = reader.GetByte();
 		ApplyingRemoteState = true;
@@ -536,14 +504,8 @@ public static class EnemySyncManager {
 				Quaternion rotation = reader.GetQuaternion();
 				float health = reader.GetFloat();
 
-				if (_enemies.TryGetValue(networkId, out var identity) && identity != null) {
-					identity.transform.SetPositionAndRotation(position, rotation);
-					if (identity.TryGetComponent<GameEntity>(out var entity) && !float.IsNaN(health)) {
-						_healthField(entity) = health;
-					}
-					if (!identity.gameObject.activeSelf) identity.gameObject.SetActive(true);
-					RememberState(identity);
-				}
+				if (_enemies.TryGetValue(networkId, out var identity) && identity != null)
+					identity.ApplyRemoteState(position, rotation, health);
 			}
 		} finally {
 			ApplyingRemoteState = false;
@@ -554,8 +516,8 @@ public static class EnemySyncManager {
 	/// 客户端收到实体死亡消息: 
 	/// 发送函数: <see cref="BroadcastKill"/>
 	/// </summary>
-	private static void HandleKill(DataReader reader) {
-		if (MPSteamworks.Instance.IsHost) return;
+	private void HandleKill(DataReader reader) {
+		if (MPSteamworks.IsHost) return;
 
 		ulong networkId = reader.GetULong();
 		string killType = reader.GetString();
@@ -570,17 +532,22 @@ public static class EnemySyncManager {
 	/// 主机收到客机生物死亡表请求
 	/// 发送函数: <see cref="SendKillChunkRequest"/>
 	/// </summary>
-	private static void HandleChunkRequest(IDType senderId, DataReader reader) {
-		if (!MPSteamworks.Instance.IsHost) return;
-		SendDiedEnemiesToClient(senderId);
+	public void HandleChunkRequest(IDType senderId) {
+		if (!MPCore.CanSync || !MPSteamworks.IsHost || WorldSyncManager.Instance == null || !IsEnabled) return;
+		if (senderId == 0 || senderId == MPSteamworks.UserSteamId) return;
+		// 停止旧协程
+		if (_diedEntityRoutines.TryGetValue(senderId, out var existing) && existing != null)
+			WorldSyncManager.Instance.StopCoroutine(existing);
+		// 启动协程分帧发送
+		_diedEntityRoutines[senderId] = WorldSyncManager.Instance.StartCoroutine(SendDiedEnemiesChunksRoutine(senderId));
 	}
 
 	/// <summary>
 	/// 客机获取生物死亡记录表
 	/// 发送函数: <see cref="SendDiedEnemiesChunksRoutine"/>
 	/// </summary>
-	private static void HandleChunk(DataReader reader) {
-		if (MPSteamworks.Instance.IsHost) return;
+	private void HandleChunk(DataReader reader) {
+		if (MPSteamworks.IsHost) return;
 
 		int count = reader.GetInt();
 
@@ -609,7 +576,7 @@ public static class EnemySyncManager {
 	/// 排除: 玩家、远程实体、RP容器、物品物体.
 	/// 包含: 带有 "Creature" 标签的物体, 或名称以 "Denizen_"/"DEN_" 开头.
 	/// </summary>
-	private static bool IsSyncableEnemy(GameEntity entity) {
+	private bool IsSyncableEnemy(GameEntity entity) {
 		if (entity == null || entity.gameObject == null) return false;
 
 		// 暂时排除物品(仅CL_Prop) 但有AI生物有CL_Prop

@@ -14,6 +14,12 @@ public class MPConfig {
 	// 配置版本号 (在大更新时对其配置用)
 	private static ConfigEntry<string> _configVersion;
 
+	// 切换抓取/拖拽按键
+	private static ConfigEntry<string> _toggleKey;
+	public static string ToggleKey => _toggleKey.Value;
+
+	#region[网络相关]
+
 	// 数据发送频率 (每秒发送次数)
 	private static ConfigEntry<int> _dataSendFrequency;
 	public static int DataSendFrequency =>_dataSendFrequency.Value;
@@ -26,13 +32,11 @@ public class MPConfig {
 	private static ConfigEntry<int> _maxEnemySendCount;
 	public static int MaxEnemySendCount => _maxEnemySendCount.Value;
 
-	// 切换抓取/拖拽按键
-	private static ConfigEntry<string> _toggleKey;
-	public static string ToggleKey => _toggleKey.Value;
-
 	// 正版/盗版开关
 	private static ConfigEntry<bool> _usePiratedMode;
 	public static bool UsePiratedMode => _usePiratedMode.Value;
+
+	#endregion
 
 	#region[自定义相关]
 
@@ -75,6 +79,7 @@ public class MPConfig {
 
 
 	#endregion
+
 	#region[PVP相关]
 
 	// All (所有伤害)
@@ -140,6 +145,7 @@ public class MPConfig {
 	public static float InvincibilityTime => _invincibilityTime.Value;
 
 	#endregion
+
 	#region[房间规则控制]
 
 	private static ConfigEntry<bool> _allowCheats;
@@ -160,6 +166,12 @@ public class MPConfig {
 		set { _bindsync.Value = value; }
 	}
 
+	private static ConfigEntry<bool> _enemysync;
+	public static bool EnemySync {
+		get { return _enemysync.Value; }
+		set { _enemysync.Value = value; }
+	}
+
 	#endregion
 
 	/// <summary>
@@ -173,6 +185,12 @@ public class MPConfig {
 		_configVersion = config.Bind("Internal", "Version", CURRENT_CONFIG_VERSION, "Internal version tracking. Do not modify.内部版本跟踪 别改哦");
 
 		isConfigOutdated |= new Version(_configVersion.Value) < new Version((string)_configVersion.DefaultValue);
+		
+		_toggleKey = config.Bind("Controls", "ToggleKey", "g",
+			"Press this key to switch between grab/drag mode\n" +
+			"按下此键切换抓取/拖拽状态");
+
+		#region[网络相关]
 
 		_dataSendFrequency = config.Bind<int>(
 			"Network", "DataSendFrequency", 20,
@@ -189,13 +207,11 @@ public class MPConfig {
 			"Sets how much data is bundled into each creature sync packet sent by the host.\n" +
 			"设置作为主机时每次发送生物同步数据会打包多少数据.");
 
-		_toggleKey = config.Bind("Controls", "ToggleKey", "g",
-			"Press this key to switch between grab/drag mode\n" +
-			"按下此键切换抓取/拖拽状态");
-
 		_usePiratedMode = config.Bind("Network", "UsePiratedMode", false,
 			"Enable piracy mode and use Spacewar as a disguise to support Steam online\n" +
 			"启用盗版模式,使用Spacewar做伪装来支持steam联机");
+
+		#endregion
 
 		#region[自定义相关]
 
@@ -230,6 +246,7 @@ public class MPConfig {
 			"玩家模型颜色蓝色通道(0-255).");
 
 		#endregion
+
 		#region[PVP相关]
 
 		config.Bind(
@@ -370,6 +387,7 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 			"玩家受到伤害后的无敌时间(秒)");
 
 		#endregion
+
 		#region[房间规则控制]
 
 		_allowCheats = config.Bind<bool>(
@@ -386,6 +404,12 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 			"LobbyRule", "bindsync", false,
 			"Controls whether bindings or trinkets synchronization is enabled by LobbyRule in lobby you host.\n" +
 			"控制由你开启的房间是否默认可以绑定或天赋同步");
+
+		_enemysync = config.Bind<bool>(
+			"LobbyRule", "enemysync", false,
+			"Controls whether enemies synchronization is enabled by LobbyRule in lobby you host.\n" +
+			"控制由你开启的房间是否默认可以生物同步");
+
 		#endregion
 
 

@@ -47,7 +47,7 @@ public static class MPUtil {
 	private const ulong FNV_prime = 1099511628211UL;
 
 	/// <summary>
-	/// FNV-1a 64位哈希 (零 GC，结果跨平台绝对一致)
+	/// FNV-1a 64位哈希 (零 GC, 结果跨平台绝对一致)
 	/// </summary>
 	public static unsafe ulong Hash64(ReadOnlySpan<char> str) {
 		if (str.IsEmpty) return 0;

@@ -22,7 +22,7 @@ public class Patch_Item_Object {
 	[HarmonyPatch("Start")]
 	[HarmonyPostfix]
 	public static void Patch_Start(Item_Object __instance) {
-		// 当物品 Start 执行完毕后，触发网络层的本地关卡物品注册/反向绑定
+		// 当物品 Start 执行完毕后, 触发网络层的本地关卡物品注册/反向绑定
 		SceneItemManager.OnSceneItemStarted(__instance);
 	}
 }

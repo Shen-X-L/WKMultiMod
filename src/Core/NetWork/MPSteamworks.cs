@@ -60,10 +60,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	public ulong HostSteamId { get; private set; }
 
 	// 检查是否是大厅所有者
-	public bool IsHost {
+	public static bool IsHost {
 		get {
-			if (_currentLobby.Id == 0) return false;
-			return _currentLobby.Owner.Id == UserSteamId;
+			if (Instance._currentLobby.Id == 0) return false;
+			return Instance._currentLobby.Owner.Id == UserSteamId;
 		}
 	}
 
@@ -142,7 +142,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	protected override void Awake() {
 		base.Awake();
-		//SteamClient.Init(3195790u);
 		try {
 			if (!SteamClient.IsValid) {
 
@@ -339,7 +338,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			try {
 				connection.SendMessage(data, offset, length, sendType, laneIndex);
 			} catch (Exception ex) {
-				MPMain.LogError(Localization.Get("MPSteamworks.BroadcastingException", ex.Message));
+				MPMain.LogError(Localization.Get("MPSteamworks.BroadcastingException", ex.Message, Environment.StackTrace));
 			}
 		}
 	}
@@ -363,7 +362,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		try {
 			_allConnections[steamId].SendMessage(data, offset, length, sendType, laneIndex);
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("MPSteamworks.UnicastException", ex.Message, steamId.ToString()));
+			MPMain.LogError(Localization.Get(
+				"MPSteamworks.UnicastException", ex.Message, steamId.ToString(),
+				Environment.StackTrace));
 		}
 	}
 
@@ -380,10 +381,11 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			try {
 				connection.SendMessage(data, offset, length, sendType, laneIndex);
 			} catch (Exception ex) {
-				MPMain.LogError(Localization.Get("MPSteamworks.BroadcastingException", ex.Message));
+				MPMain.LogError(Localization.Get("MPSteamworks.BroadcastingException", ex.Message, Environment.StackTrace));
 			}
 		}
 	}
+
 	#endregion
 
 	#region[消息处理函数]

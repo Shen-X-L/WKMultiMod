@@ -135,7 +135,7 @@ public class TeamRule {
 
 /// <summary>
 /// 全是明确的 bool, 没有 null, 供组件每帧高频无开销读取
-/// 内存压缩版规则结构体，仅占用 8 位 1 Byte
+/// 内存压缩版规则结构体, 仅占用 8 位 1 Byte
 /// </summary>
 public readonly struct FlattenedRule {
 	// 内部仅使用 1 个字节存储 8 个 bool 状态
@@ -202,7 +202,7 @@ public readonly struct FlattenedRule {
 	}
 
 	/// <summary>
-	/// 由于 readonly struct 是不可变的，SetFieldValue 返回修改后的新结构体实例
+	/// 由于 readonly struct 是不可变的, SetFieldValue 返回修改后的新结构体实例
 	/// </summary>
 	public FlattenedRule SetFieldValue(RuleType type, bool value) {
 		byte mask = GetMaskByRuleType(type);

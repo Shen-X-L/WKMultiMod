@@ -38,8 +38,6 @@ public enum ItemSyncAction : byte {
 public static class ItemSyncManager {
 
 	#region[字段和属性]
-	private const float VelocityEpsilonSqr = 0.0025f;       // 速度零阈值平方 (约 0.05 m/s), 低于此值视为静止不发送速度
-
 	// ── 反射绑定 ──────────────────────────────────────────────────────────────
 	// Item.dropObject 是私有字段: 持有对应 Item_Object 的引用, 必须通过反射读写.
 	// Item.InHand 是私有方法: 检查物品是否正在被玩家手持, 供 ForceCleanupItemPhysicalAndInventory 使用.
@@ -71,20 +69,20 @@ public static class ItemSyncManager {
 	/// </para>
 	/// </summary>
 	public static void NotifyLocalPickup(Item_Object itemObject) {
-		if (itemObject == null || !MPCore.CanSync) return;
+		if (itemObject == null || !MPCore.IsReady) return;
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
-		if (identity == null || identity.NetworkId == 0) return; // 无网络身份, 纯本地物品
+		if (identity == null || identity.networkId == 0) return; // 无网络身份, 纯本地物品
 
-		MPMain.LogInfo($"[MP ItemSync] LocalPickup: {itemObject.name}, ID={identity.NetworkId}, Owner={identity.OwnerId}");
+		MPMain.LogInfo($"[MP ItemSync] LocalPickup: {itemObject.name}, ID={identity.networkId}, Owner={identity.ownerId}");
 
 		// 是场景物品
-		if (identity.SceneOrDropped == SceneItemManager.SCENE_ITEM) {
+		if (identity.sceneOrDropped == SceneItemManager.SCENE_ITEM) {
 			SceneItemManager.NotifyLocalPickup(identity);
 			return;
 		}
 
-		if (identity.SceneOrDropped == DroppedItemManager.DROPPED_ITEM) {
+		if (identity.sceneOrDropped == DroppedItemManager.DROPPED_ITEM) {
 			DroppedItemManager.NotifyLocalPickup(identity);
 			return;
 		}
@@ -159,23 +157,7 @@ public static class ItemSyncManager {
 		return gameObject.GetComponent<NetworkedItem>() ?? gameObject.AddComponent<NetworkedItem>();
 	}
 
-	/// <summary>获取 GameObject 或其子物体上的 Rigidbody 组件.</summary>
-	public static Rigidbody GetRigidbody(GameObject gameObject) {
-		if (gameObject == null) return null;
-		return gameObject.GetComponent<Rigidbody>() ?? gameObject.GetComponentInChildren<Rigidbody>();
-	}
-
-	/// <summary>
-	/// 获取物品的 Rigidbody 速度, 静止 (低于 VelocityEpsilonSqr) 时返回零向量.
-	/// </summary>
-	public static Vector3 GetVelocity(Item_Object itemObject) {
-		var rb = GetRigidbody(itemObject.gameObject);
-		if (rb == null) return Vector3.zero;
-		return rb.velocity.sqrMagnitude > VelocityEpsilonSqr ? rb.velocity : Vector3.zero;
-	}
-
 	#endregion
-
 }
 
 public static class SceneItemManager {
@@ -217,7 +199,7 @@ public static class SceneItemManager {
 		// 如果是队伍切换 清除销毁物品表 
 		if (teamChange) {
 			_sceneTombstones.Clear();
-			if (!MPSteamworks.Instance.IsHost) SendSceneRemoveChunkRequest();
+			if (!MPSteamworks.IsHost) SendSceneRemoveChunkRequest();
 		}
 	}
 
@@ -225,16 +207,13 @@ public static class SceneItemManager {
 	/// 场景物品被首次加载调用 检测该物品是否被其他同规则玩家拿走过
 	/// </summary>
 	public static void OnSceneItemStarted(Item_Object itemObject) {
-		MPMain.LogDebug("OnSceneItemStarted A");
-		if (itemObject == null || (!MPCore.IsInLobby && !MPCore.IsInitialized)) return;
-		MPMain.LogDebug("OnSceneItemStarted B");
+		if (itemObject == null || !MPCore.IsReady) return;
 		// 黑名单或无法同步
 		if (!IsSyncableWorldItem(itemObject) || IsBlacklisted(itemObject.gameObject)) return;
 		// 由p2p创建的物品
 		if (itemObject.TryGetComponent<NetworkedItem>(out var tempIdentity)
-			&& !(tempIdentity.SceneOrDropped == SCENE_ITEM))
-			return;
-		MPMain.LogDebug("OnSceneItemStarted C");
+			&& !(tempIdentity.sceneOrDropped == SCENE_ITEM)) return;
+
 		// 生成场景序列Hash
 		ulong networkHashId = GetSceneNetworkId(itemObject);
 		if (networkHashId == 0) return;
@@ -248,16 +227,15 @@ public static class SceneItemManager {
 			_sceneItems.Remove(networkHashId);
 			return;
 		}
-		MPMain.LogDebug("OnSceneItemStarted D");
 		// 缓存到 O(1) 检索字典
 		_sceneItems[networkHashId] = itemObject;
 
 		// 建立NetworkId
 		var identity = ItemSyncManager.GetOrCreateIdentity(itemObject.gameObject);
-		identity.NetworkId = networkHashId;
-		identity.OwnerId = default;
-		identity.IsRemote = false;
-		identity.SceneOrDropped = SCENE_ITEM;
+		identity.networkId = networkHashId;
+		identity.ownerId = default;
+		identity.isRemote = false;
+		identity.sceneOrDropped = SCENE_ITEM;
 	}
 
 	/// <summary>
@@ -272,7 +250,7 @@ public static class SceneItemManager {
 	/// 在主机与客机初次连接 或 客机切换队伍向主机申请时 启动协程
 	/// </summary>
 	public static void SendTombstonesToClient(IDType clientId) {
-		if (!MPCore.CanSync || !MPSteamworks.Instance.IsHost || MPCore.Instance == null) return;
+		if (!MPCore.CanSync || !MPSteamworks.IsHost || MPCore.Instance == null) return;
 		if (clientId == 0 || clientId == MPSteamworks.UserSteamId) return;
 
 		var teamName = RPManager.Instance.GetPlayerTeam(clientId);
@@ -301,8 +279,8 @@ public static class SceneItemManager {
 			return 0;
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
-		if (identity != null && identity.SceneOrDropped == SCENE_ITEM) {
-			return identity.NetworkId;
+		if (identity != null && identity.sceneOrDropped == SCENE_ITEM) {
+			return identity.networkId;
 		}
 
 		string path = MPUtil.BuildTransformPath(itemObject.transform);
@@ -318,10 +296,10 @@ public static class SceneItemManager {
 	/// 接收函数: <see cref="HandleSceneRemove"/>
 	/// </summary>
 	private static void BroadcastSceneRemove(NetworkedItem identity) {
-		if (!(identity?.SceneOrDropped == SCENE_ITEM)) return;
+		if ((identity?.sceneOrDropped != SCENE_ITEM)) return;
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.SceneRemove);
-		writer.Put(identity.NetworkId);
+		writer.Put(identity.networkId);
 
 		// 仅广播给物品同步队伍的玩家 和 主机必须的一份
 		var playerIds = RPManager.Instance.GetPlayersMatchingRule(RuleType.SyncItem, true);
@@ -337,7 +315,7 @@ public static class SceneItemManager {
 	/// 接收函数: <see cref="HandleSceneRemoveChunkRequest"/>
 	/// </summary>
 	private static void SendSceneRemoveChunkRequest() {
-		if (MPSteamworks.Instance.IsHost) return;
+		if (MPSteamworks.IsHost) return;
 
 		MPMain.LogInfo("[MP ItemSync] Requesting Scene Tombstone Chunk from Host...");
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.ItemStateSync);
@@ -347,7 +325,7 @@ public static class SceneItemManager {
 	}
 
 	/// <summary>
-	/// 协程：分帧向客户端补发墓碑列表，防止大批量数据导致帧率卡顿或网络拥塞
+	/// 协程：分帧向客户端补发墓碑列表, 防止大批量数据导致帧率卡顿或网络拥塞
 	/// 接收函数: <see cref="HandleSceneRemoveChunk"/>
 	/// </summary>
 	private static IEnumerator SendTombstoneChunksCoroutine(IDType clientId, List<ulong> tombstoneList) {
@@ -389,8 +367,14 @@ public static class SceneItemManager {
 	public static void HandleSceneRemove(IDType senderId, DataReader reader) {
 		var networkId = reader.GetULong();
 		// 是主机 记录该玩家所在队伍的销毁项
-		if (MPSteamworks.Instance.IsHost)
-			RecordHostTombstone(senderId, networkId);
+		if (MPSteamworks.IsHost) {
+			var teamName = RPManager.Instance.GetPlayerTeam(senderId);
+			if (!_teamTombstones.TryGetValue(teamName, out var tombstones)) {
+				tombstones = new HashSet<ulong>();
+				_teamTombstones[teamName] = tombstones;
+			}
+			tombstones.Add(networkId);
+		}
 
 		// 执行本地销毁与遗忘
 		ProcessSceneItemRemoval(networkId);
@@ -415,7 +399,7 @@ public static class SceneItemManager {
 	/// 发送函数: <see cref="SendSceneRemoveChunkRequest"/>
 	/// </summary>
 	public static void HandleSceneRemoveChunkRequest(IDType senderId, DataReader reader) {
-		if (!MPSteamworks.Instance.IsHost) return;
+		if (!MPSteamworks.IsHost) return;
 
 		MPMain.LogInfo($"[MP ItemSync] Client {senderId} requested Tombstone Chunk. Starting dispatch...");
 		SendTombstonesToClient(senderId);
@@ -434,7 +418,7 @@ public static class SceneItemManager {
 		// 写入本地墓碑记录 (HashSet.Add 返回 false 说明早已记录过)
 		_sceneTombstones.Add(networkId);
 
-		// 若场景中已有该实体，进行销毁并移除缓存
+		// 若场景中已有该实体, 进行销毁并移除缓存
 		if (_sceneItems.TryGetValue(networkId, out var itemObject)) {
 			MPMain.LogInfo($"[MP ItemSync] Suppressing deleted scene item: {networkId}");
 			if (itemObject != null && itemObject.gameObject != null) {
@@ -443,20 +427,6 @@ public static class SceneItemManager {
 			}
 			_sceneItems.Remove(networkId);
 		}
-	}
-
-	/// <summary>
-	/// 主机端记录指定队伍的销毁墓碑
-	/// </summary>
-	private static void RecordHostTombstone(IDType senderId, ulong networkId) {
-		if (!MPSteamworks.Instance.IsHost) return;
-
-		var teamName = RPManager.Instance.GetPlayerTeam(senderId);
-		if (!_teamTombstones.TryGetValue(teamName, out var tombstones)) {
-			tombstones = new HashSet<ulong>();
-			_teamTombstones[teamName] = tombstones;
-		}
-		tombstones.Add(networkId);
 	}
 
 	#endregion
@@ -579,12 +549,12 @@ public static class DroppedItemManager {
 	/// p2p物品拾取API
 	/// </summary>
 	public static void NotifyLocalPickup(NetworkedItem identity) {
-		if (identity.OwnerId == MPSteamworks.UserSteamId) {
+		if (identity.ownerId == MPSteamworks.UserSteamId) {
 			// 我是所有者: 直接广播 Remove 并且仅隐藏物品而不移除
-			BroadcastPickupRemove(MPSteamworks.UserSteamId, identity.NetworkId, false);
+			BroadcastPickupRemove(MPSteamworks.UserSteamId, identity.networkId, false);
 		} else {
 			// 他人所有: 乐观拾取, 向所有者申请所有权
-			SendPickupRequest(identity.NetworkId, identity.OwnerId);
+			SendPickupRequest(identity.networkId, identity.ownerId);
 		}
 	}
 
@@ -617,25 +587,25 @@ public static class DroppedItemManager {
 		var identity = ItemSyncManager.GetOrCreateIdentity(itemObject.gameObject);
 
 		// 如果没有同步组件 (或 ID 为空), 当场进行 P2P 注册
-		if (identity.NetworkId == 0 || identity.OwnerId == default) {
-			identity.NetworkId = MPUtil.Hash64($"{MPSteamworks.UserSteamId}:{_nextLocalItemId++}"); // SteamId 命名空间 + 本地自增 = 全局唯一
-			identity.PrefabKey = GetPrefabKey(itemObject);
-			identity.OwnerId = MPSteamworks.UserSteamId; // 此物品的首任所有者
-			identity.SceneOrDropped = DROPPED_ITEM;
-			identity.IsRemote = false;
+		if (identity.networkId == 0 || identity.ownerId == default) {
+			identity.networkId = MPUtil.Hash64($"{MPSteamworks.UserSteamId}:{_nextLocalItemId++}"); // SteamId 命名空间 + 本地自增 = 全局唯一
+			identity.prefabKey = GetPrefabKey(itemObject);
+			identity.ownerId = MPSteamworks.UserSteamId; // 此物品的首任所有者
+			identity.sceneOrDropped = DROPPED_ITEM;
+			identity.isRemote = false;
 
-			_p2pItems[identity.NetworkId] = identity;
-			MPMain.LogTest($"[MP ItemSync] SyncAndBroadcast - Created P2P Identity: {itemObject.name} → {identity.NetworkId}");
+			_p2pItems[identity.networkId] = identity;
+			MPMain.LogTest($"[MP ItemSync] SyncAndBroadcast - Created P2P Identity: {itemObject.name} → {identity.networkId}");
 		} else {
 			// 如果它已经有网络 ID, 必须确保它存在于追踪字典中
-			if (!_p2pItems.ContainsKey(identity.NetworkId)) {
-				identity.OwnerId = MPSteamworks.UserSteamId; // 此物品的所有者
-				_p2pItems[identity.NetworkId] = identity;
+			if (!_p2pItems.ContainsKey(identity.networkId)) {
+				identity.ownerId = MPSteamworks.UserSteamId; // 此物品的所有者
+				_p2pItems[identity.networkId] = identity;
 			}
 		}
 
 		// 广播 Create, 告知网络中所有对等端生成或注册此物体
-		BroadcastDropCreate(identity, itemObject, ItemSyncManager.GetVelocity(itemObject));
+		BroadcastDropCreate(identity, itemObject, identity.CurrentVelocity);
 		return identity;
 	}
 
@@ -651,11 +621,11 @@ public static class DroppedItemManager {
 		if (itemObject == null) return;
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
-		if (identity != null && identity.NetworkId != 0) {
-			MPMain.LogTest($"[MP ItemSync] DespawnAndBroadcast - Broadcasting global destruction: {identity.NetworkId}");
-			BroadcastPickupRemove(MPProtocol.BroadcastId, identity.NetworkId);
-			_p2pItems.Remove(identity.NetworkId);
-			identity.NetworkId = 0;
+		if (identity != null && identity.networkId != 0) {
+			MPMain.LogTest($"[MP ItemSync] DespawnAndBroadcast - Broadcasting global destruction: {identity.networkId}");
+			BroadcastPickupRemove(MPProtocol.BroadcastId, identity.networkId);
+			_p2pItems.Remove(identity.networkId);
+			identity.networkId = 0;
 		} else {
 			itemObject.gameObject.SetActive(false);
 			Object.Destroy(itemObject.gameObject); // 无网络身份, 直接销毁
@@ -671,12 +641,12 @@ public static class DroppedItemManager {
 	/// 接收函数: <see cref="HandleDropCreate"/>
 	/// </summary>
 	private static void BroadcastDropCreate(NetworkedItem identity, Item_Object itemObject, Vector3 velocity) {
-		if (identity == null || itemObject == null || identity.NetworkId == 0) return;
+		if (identity == null || itemObject == null || identity.networkId == 0) return;
 
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ItemStateSync);
 		writer.Put((byte)ItemSyncAction.DropCreate);
-		writer.Put(identity.NetworkId);
-		writer.Put(identity.PrefabKey);
+		writer.Put(identity.networkId);
+		writer.Put(identity.prefabKey);
 		writer.Put(itemObject.transform.position);
 		writer.Put(itemObject.transform.rotation);
 		writer.Put(velocity);
@@ -747,8 +717,8 @@ public static class DroppedItemManager {
 
 		// 如果已经追踪过此 ID, 直接刷新状态
 		if (_p2pItems.TryGetValue(networkId, out var existing) && existing != null) {
-			existing.OwnerId = senderId;
-			ApplyCreate(existing, position, rotation, velocity);
+			existing.ownerId = senderId;
+			existing.ApplyRemoteState(position, rotation, velocity);
 			return;
 		}
 
@@ -759,7 +729,7 @@ public static class DroppedItemManager {
 		if (itemObject == null || identity == null) return;
 
 		_p2pItems[networkId] = identity;
-		ApplyCreate(identity, position, rotation, velocity);
+		identity.ApplyRemoteState(position, rotation, velocity);
 	}
 
 	/// <summary>
@@ -782,20 +752,21 @@ public static class DroppedItemManager {
 		MPMain.LogInfo($"[MP ItemSync] PickupRequest from {requesterId} for {networkId}");
 
 		// 物品已不在我这里 (已被别人先拿), 拒绝申请
-		if (!_p2pItems.TryGetValue(networkId, out var identity)) {
+		if (!_p2pItems.TryGetValue(networkId, out var identity)
+			|| identity == null) {
 			SendPickupReject(requesterId, networkId);
 			return;
 		}
 
 		// 物品在背包 拒绝申请
-		if (IsItemInInventory(identity)) {
+		if (identity.IsInLocalInventory(ItemSyncManager.InHand)) {
 			MPMain.LogWarning($"[MP ItemSync] PickupRequest denied: Item {networkId} is already in local inventory.");
 			SendPickupReject(requesterId, networkId);
 			return;
 		}
 
 		// 批准: 广播 Remove (holderId=申请者) + 本地遗忘
-		if (identity.OwnerId == MPSteamworks.UserSteamId) {
+		if (identity.ownerId == MPSteamworks.UserSteamId) {
 			BroadcastPickupRemove(requesterId, networkId, true);
 			Forget(networkId);
 		} else {
@@ -827,7 +798,7 @@ public static class DroppedItemManager {
 			// 否则下次扔出来时,依然附带旧的 OwnerId,导致别人的拾取申请被拒
 			if (!_p2pItems.TryGetValue(networkId, out var identity) || identity == null) return;
 			var itemObject = identity.GetComponent<Item_Object>();
-			identity.NetworkId = 0;
+			identity.networkId = 0;
 			_p2pItems.Remove(networkId);
 			return;
 		}
@@ -880,13 +851,7 @@ public static class DroppedItemManager {
 
 		// 完成网络数据的配置
 		var identity = ItemSyncManager.GetOrCreateIdentity(itemComponent.gameObject);
-		if (networkId != 0) {
-			identity.NetworkId = networkId;
-			identity.PrefabKey = prefabKey;
-			identity.OwnerId = ownerId;
-			identity.SceneOrDropped = DROPPED_ITEM;
-			identity.IsRemote = true;
-		}
+		if (networkId != 0) identity.SetupIdentity(networkId, prefabKey, ownerId, DROPPED_ITEM, true);
 
 		// 获取所在关卡
 		var closeLevelRoot = WorldLoader.GetClosestLevelToPosition(position);
@@ -916,143 +881,21 @@ public static class DroppedItemManager {
 		if (networkId == 0) return;
 
 		// 物体存在判断
-		if (!_p2pItems.TryGetValue(networkId, out var networkedItem) || networkedItem == null) return;
+		if (!_p2pItems.TryGetValue(networkId, out var identity) || identity == null) return;
 
-		// 清理背包内对象
-		ClearupItemInBag(networkId);
+		// 委派给组件自身完成清理
+		identity.ForceCleanup(shouldRemove);
 
-		// 清理世界物品
-		networkedItem?.gameObject.SetActive(false);
-
-		// 所有者反复拾取时 不销毁对象,其他玩家拾取时 销毁对象(默认新物品)
-		if (shouldRemove) {
-			GameObject.Destroy(networkedItem?.gameObject);
-			_p2pItems.Remove(networkId);
-		}
-	}
-
-	/// <summary>
-	/// 清理背包中有相同标签的物品
-	/// </summary>
-	/// <param name="networkId"></param>
-	private static void ClearupItemInBag(ulong networkId) {
-		// 背包清理
-		var inventory = ENT_Player.GetInventory();
-		// 清理玩家当前正拿在手里的物品
-		if (inventory?.itemHands != null) {
-			foreach (var handSlot in inventory.itemHands) {
-				if (handSlot == null || handSlot.currentItem == null) continue;
-
-				var handItem = handSlot.currentItem;
-				var dropObj = handItem.GetDropObject(false);
-				if (dropObj == null) continue;
-
-				var identity = dropObj.GetComponent<NetworkedItem>();
-				if (identity == null || identity.NetworkId != networkId) continue;
-				inventory.ClearItemFromHand(handItem);
-				handItem.hasBeenDestroyed = true;
-				MPMain.LogWarning($"[MP ItemSync] Removed stale/rejected item '{handItem.itemName}' directly from Player Hands!");
-				return;
-			}
-		}
-		// 清理额外的背包口袋 (Pocket) 内的物品
-		if (inventory?.pockets != null) {
-			foreach (Pocket pocket in inventory.pockets) {
-				if (pocket == null || pocket.pouch == null) continue;
-				for (int i = pocket.pouch.pouchItems.Count - 1; i >= 0; i--) {
-					var pouchItem = pocket.pouch.pouchItems[i];
-					if (pouchItem == null) continue;
-
-					var dropObj = pouchItem.GetDropObject(false);
-					if (dropObj == null) continue;
-
-					var dropIdentity = dropObj.GetComponent<NetworkedItem>();
-					if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
-					pocket.pouch.pouchItems.RemoveAt(i);
-					pouchItem.hasBeenDestroyed = true;
-					inventory?.RescanInventory(); // 通知 UI 刷新背包格子
-					return;
-				}
-			}
-		}
-		// 清理背包内的物品
-		if (inventory?.bagItems != null) {
-			for (int i = inventory.bagItems.Count - 1; i >= 0; i--) {
-				var bagItem = inventory.bagItems[i];
-				if (bagItem == null) continue;
-
-				var dropObj = bagItem.GetDropObject(false);
-				if (dropObj == null) continue;
-
-				var dropIdentity = dropObj.GetComponent<NetworkedItem>();
-				if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
-				inventory.bagItems.RemoveAt(i);
-				bagItem.hasBeenDestroyed = true;
-				inventory?.RescanInventory(); // 通知 UI 刷新背包格子
-				return;
-			}
-		}
-		// 清理额外的背包袋子 (Pouch) 内的物品
-		if (inventory?.extraPouches != null) {
-			foreach (Pouch pouch in inventory.extraPouches) {
-				if (pouch == null) continue;
-				for (int i = pouch.pouchItems.Count - 1; i >= 0; i--) {
-					var pouchItem = pouch.pouchItems[i];
-					if (pouchItem == null) continue;
-
-					var dropObj = pouchItem.GetDropObject(false);
-					if (dropObj == null) continue;
-
-					var dropIdentity = dropObj.GetComponent<NetworkedItem>();
-					if (dropIdentity == null || dropIdentity.NetworkId != networkId) continue;
-					pouch.pouchItems.RemoveAt(i);
-					pouchItem.hasBeenDestroyed = true;
-					inventory?.RescanInventory(); // 通知 UI 刷新背包格子
-					return;
-				}
-			}
-		}
-	}
-
-	/// <summary>
-	/// 检查物品是否已经在本地玩家的背包或手中
-	/// </summary>
-	private static bool IsItemInInventory(NetworkedItem identity) {
-		if (identity == null || identity.gameObject == null) return false;
-
-		var itemObject = identity.GetComponent<Item_Object>();
-		if (itemObject == null || itemObject.itemData == null) return false;
-
-		// 检查 itemData 是否标记为在包内, 或通过委托检查是否在手中
-		bool inBag = itemObject.itemData.inBag;
-		bool inHand = ItemSyncManager.InHand(itemObject.itemData);
-
-		return inBag || inHand;
+		if (shouldRemove) _p2pItems.Remove(networkId);
 	}
 
 	/// <summary>
 	/// 获取物品的预制体键: 优先 itemData.prefabName, 否则取去 Clone 后缀的 GameObject 名.
 	/// </summary>
 	private static string GetPrefabKey(Item_Object itemObject) {
-		if (itemObject == null) return string.Empty;
 		if (itemObject.itemData != null && !string.IsNullOrEmpty(itemObject.itemData.prefabName))
 			return itemObject.itemData.prefabName;
 		return MPUtil.CleanCloneName(itemObject.gameObject.name);
-	}
-
-	/// <summary>
-	/// 将网络接收到的Transform 位置/旋转 Rigidbody 速度 应用到物品对象. 
-	/// </summary>
-	private static void ApplyCreate(
-		NetworkedItem identity, Vector3 position, Quaternion rotation, Vector3 velocity) {
-		if (identity == null || identity.gameObject == null) return;
-
-		identity.transform.SetPositionAndRotation(position, rotation);
-
-		var rb = ItemSyncManager.GetRigidbody(identity.gameObject);
-		if (rb != null) { rb.isKinematic = false; rb.velocity = velocity; }
-
-		identity.gameObject.SetActive(true);
 	}
 
 	#endregion

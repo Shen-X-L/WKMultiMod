@@ -69,7 +69,7 @@ public static class MPWriterPool {
 		return _threadWriter;
 	}
 
-	public static DataWriter GetWriter(ulong senderId,ulong targetId,PacketType type) {
+	public static DataWriter GetWriter(ulong senderId, ulong targetId, PacketType type) {
 		if (_threadWriter == null) {
 			_threadWriter = new DataWriter();
 		}
