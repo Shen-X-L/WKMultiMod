@@ -16,6 +16,7 @@ using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Patch;
 using WKMPMod.RemotePlayer;
+using WKMPMod.Team;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
@@ -1145,8 +1146,7 @@ public class MPCore : MonoSingleton<MPCore> {
 
 			// 获取现有规则克隆副本, 或创建新规则
 			TeamRule rule = TeamRuleManager.GetAllRules().TryGetValue(key, out var existing)
-				? existing.Clone()
-				: new TeamRule();
+				? existing.Clone() : new TeamRule();
 
 			// 循环让规则对象自己更新自己
 			for (int i = 2; i + 1 < parts.Length; i += 2) {
@@ -1190,7 +1190,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		} else if ((argIndex & 0b1) == 0b0) {
 			// argIndex % 2 == 0
 			// 偶数位置: 规则名称这里顺便把逗号也加入菜单提示, 引导玩家连写
-			candidates.AddRange(TeamRule.ruleFieldNames);
+			candidates.AddRange(TeamRule.DefinitionNames);
 			candidates.Add(",");
 		} else {
 			// 奇数位置: 规则值同样加入逗号提示

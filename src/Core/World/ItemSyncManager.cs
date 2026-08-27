@@ -5,15 +5,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.RemotePlayer;
+using WKMPMod.Team;
 using WKMPMod.Util;
-using static Inventory;
-using static UnityEngine.UI.Image;
 using static WKMPMod.Data.MPWriterPool;
 using Object = UnityEngine.Object;
 
@@ -30,10 +28,10 @@ public enum ItemSyncAction : byte {
 	SceneRemoveChunkRequest = 3,    // 请求数据: 在重置场景/切换队伍时想主机申请移除物品网络包
 
 	// P2P物品相关
-	DropCreate = 10,        // 创建物品: 广播在指定位置生成/注册一个掉落物
-	PickupRequest = 11,     // 拾取申请: 拾取非自己持有物品时, 单播给该物品的所有者申请所有权
-	PickupRemove = 12,      // 移除物品: 广播全局销毁掉落物 (同时清除世界物体与背包数据)
-	PickupReject = 13,      // 拾取拒绝: 所有者确认物品已被别人抢先取走, 通知申请者回滚背包
+	DropCreate = 0,        // 创建物品: 广播在指定位置生成/注册一个掉落物
+	PickupRequest = 1,     // 拾取申请: 拾取非自己持有物品时, 单播给该物品的所有者申请所有权
+	PickupRemove = 2,      // 移除物品: 广播全局销毁掉落物 (同时清除世界物体与背包数据)
+	PickupReject = 3,      // 拾取拒绝: 所有者确认物品已被别人抢先取走, 通知申请者回滚背包
 }
 
 public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
@@ -58,14 +56,14 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// </summary>
 	public bool IsEnabled { get; set; }
 
-	public void OnReset() {
+	public void OnResetMap() {
 		ResetState();
 	}
 
 	// 没有联机情况 清空死亡生物记录和死亡生物记录发送协程
 	public void OnLeave() {
 		// 没有联机情况 清空所有状态
-		if (!MPCore.IsInLobby && !MPCore.IsInitialized) {
+		if (!MPCore.IsReady) {
 			_sceneTombstones.Clear();
 			_sceneItems.Clear();
 
@@ -98,7 +96,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 		_sceneItems.Clear();
 		// 目前重启也会导致之前物品消失 
 		// 注释后 重启后物品消失不同步
-		//_sceneTombstones.Clear();
+		_sceneTombstones.Clear();
 	}
 
 	public void ChangeTeam() {
@@ -148,6 +146,9 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// </summary>
 	public  void NotifyLocalPickup(NetworkedItem identity) {
 		BroadcastSceneRemove(identity);
+		// 遗忘并重置物品网络ID(变为个人)
+		_sceneItems.Remove(identity.networkId);
+		identity.networkId = 0;
 	}
 
 	#endregion
@@ -190,12 +191,19 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 		writer.Put(identity.networkId);
 
 		// 仅广播给物品同步队伍的玩家 和 主机必须的一份
-		var playerIds = RPManager.Instance.GetPlayersMatchingRule(RuleType.SyncItem, true);
+		var playerIds = RPManager.Instance.GetPlayersMatchingRule(RuleType.SyncSceneItem, true);
 		foreach (var targetId in playerIds)
 			if (targetId != MPSteamworks.Instance.HostSteamId)
 				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
 
-		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
+		if (!MPSteamworks.IsHost) MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
+		else {
+			if (!_teamTombstones.TryGetValue(MPCore.CurrentTeam, out var tombstones)) {
+				tombstones = new HashSet<ulong>();
+				_teamTombstones[MPCore.CurrentTeam] = tombstones;
+			}
+			tombstones.Add(identity.networkId);
+		}
 	}
 
 	/// <summary>
@@ -262,6 +270,8 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 				_teamTombstones[teamName] = tombstones;
 			}
 			tombstones.Add(networkId);
+			// 不在相同队伍 不执行遗忘
+			if (!RPManager.Instance.GetPlayerRuleValue(senderId, RuleType.SyncSceneItem)) return;
 		}
 
 		// 执行本地销毁与遗忘
@@ -463,7 +473,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// </summary>
 	public bool IsEnabled { get; set; }
 
-	public void OnReset() {
+	public void OnResetMap() {
 		_p2pItems.Clear();
 		_nextLocalItemId = 1;
 	}
@@ -575,7 +585,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// 适用场景: 垃圾桶吞噬, 剧情强制扣除, 作弊指令清理等.
 	/// </para>
 	/// </summary>
-	public  void DespawnAndBroadcast(Item_Object itemObject) {
+	public void DespawnAndBroadcast(Item_Object itemObject) {
 		if (itemObject == null) return;
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
@@ -610,7 +620,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 		writer.Put(velocity);
 
 		// 仅广播给物品同步队伍的玩家
-		var playerIds = RPManager.Instance.GetPlayersMatchingRule(RuleType.SyncItem, true);
+		var playerIds = RPManager.Instance.GetPlayersMatchingRule(RuleType.SyncDropItem, true);
 		foreach (var targetId in playerIds)
 			MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
 	}
@@ -651,7 +661,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 		writer.Put(destroyObject);
 
 		// 仅广播给物品同步队伍的玩家
-		var playerIds = RPManager.Instance.GetPlayersMatchingRule(RuleType.SyncItem, true);
+		var playerIds = RPManager.Instance.GetPlayersMatchingRule(RuleType.SyncDropItem, true);
 		foreach (var targetId in playerIds)
 			MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
 	}
@@ -747,7 +757,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 		var shouldRemove = reader.GetBool();
 
 		// 与目标队伍间没有启用物品同步
-		if (!RPManager.Instance.GetPlayerRuleValue(senderId, RuleType.SyncItem)) return;
+		if (!RPManager.Instance.GetPlayerRuleValue(senderId, RuleType.SyncDropItem)) return;
 
 		if (networkId == 0) return;
 

@@ -6,7 +6,8 @@ namespace WKMPMod.Patch;
 [HarmonyPatch(typeof(GameEntity))]
 public class Patch_GameEntity {
 	#region[伤害同步]
-	// DEN_VentThing DEN_Mother 没调用父类Damage
+
+	// DEN_Mother 没调用父类Damage
 	[HarmonyPatch(nameof(GameEntity.Damage))]
 	[HarmonyPrefix]
 	public static void Patch_Damage(GameEntity __instance, Damageable.DamageInfo info) {
@@ -15,7 +16,8 @@ public class Patch_GameEntity {
 
 	#endregion
 
-	#region[Harmony Patches - 实体生命周期拦截]
+	#region[实体生命周期拦截]
+
 	// DEN_Teeth DEN_EngravedDoor 没调用父类OnDisable OnEnable
 	// DEN_Hunter 没调用父类OnDisable
 
@@ -37,6 +39,10 @@ public class Patch_GameEntity {
 		EnemySyncModule.Instance.OnEntityDisabled(__instance);
 	}
 
+	#endregion
+
+	#region[生物死亡同步]
+
 	/// <summary>
 	/// 监听 GameEntity 死亡,立即通知注销记录
 	/// </summary>
@@ -51,10 +57,13 @@ public class Patch_GameEntity {
 		// 执行前未死亡,执行后死亡 视为第一次死亡
 		if (!__state && __instance.dead) EnemySyncModule.Instance.OnEntityKill(__instance, type);
 	}
+
+	#endregion
 }
 
 [HarmonyPatch(typeof(DEN_Bloodbug))]
 public class Patch_DEN_Bloodbug {
+	#region[血虫死亡同步]
 
 	/// <summary>
 	/// 监听 GameEntity 死亡,立即通知注销记录
@@ -64,11 +73,22 @@ public class Patch_DEN_Bloodbug {
 	public static void Patch_Prefix_Kill(DEN_Bloodbug __instance, out bool __state) {
 		__state = __instance.dead;
 	}
+
 	[HarmonyPatch(nameof(DEN_Bloodbug.Kill))]
 	[HarmonyPostfix]
 	public static void Patch_Postfix_Kill(DEN_Bloodbug __instance, string type, bool __state) {
 		// 执行前未死亡,执行后死亡 视为第一次死亡
 		if (!__state && __instance.dead) EnemySyncModule.Instance.OnEntityKill(__instance, type);
 	}
+
+	#endregion
 }
-#endregion
+
+[HarmonyPatch(typeof(DEN_VentThing))]
+public class Patch_DEN_VentThing {
+	[HarmonyPatch(nameof(DEN_VentThing.Damage))]
+	[HarmonyPrefix]
+	public static void Patch_Damage(DEN_VentThing __instance, Damageable.DamageInfo info) {
+		EnemySyncModule.Instance.BroadcastEnemyDamage(__instance, info);
+	}
+}

@@ -48,7 +48,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// </summary>
 	public bool IsEnabled { get; set; }
 
-	public void OnReset() {
+	public void OnResetMap() {
 		ResetState();
 	}
 
@@ -287,7 +287,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// 连续分帧打包 单帧最多打包并发送 _maxSyncPerFrame 个敌人
 	/// </summary>
 	private void FlushNextBatch() {
-		MPMain.LogTest("FlushNextBatch");
 		_batchBuffer.Clear();
 
 		// 截取当前帧能容纳的上限数据
@@ -424,8 +423,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// </summary>
 	private void BroadcastStateBatch(List<NetworkedEnemy> batch) {
 		if (!IsEnabled || batch == null || batch.Count == 0) return;
-		MPMain.LogTest("BroadcastStateBatch");
-
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
 		writer.Put((byte)EnemySyncAction.StateBatch);
 		writer.Put((byte)batch.Count);

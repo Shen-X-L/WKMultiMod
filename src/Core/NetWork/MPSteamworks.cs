@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Steamworks;
 using Steamworks.Data;
+using Steamworks.ServerList;
 using System;
 using System.Buffers;
 using System.Collections;
@@ -8,9 +9,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Unity.Entities.UniversalDelegates;
 using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.Team;
 using WKMPMod.Util;
 
 namespace WKMPMod.NetWork;
@@ -27,7 +30,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		public DateTime ReceiveTime;
 	}
 
-	#region[字段和属性 - 大厅信息]
+	#region[字段和属性]
+
+	#region[	大厅信息]
 
 	// 大厅Id
 	public Lobby _currentLobby;
@@ -52,7 +57,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	#endregion
 
-	#region[字段和属性 - 玩家信息]
+	#region[	玩家信息]
 
 	// 本机Id
 	public static ulong UserSteamId { get => SteamClient.SteamId; }
@@ -69,7 +74,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	#endregion
 
-	#region[字段和属性 - steamConnection]
+	#region[	steamConnection]
 
 	// 监听socket
 	internal SocketManager _socketManager;
@@ -87,7 +92,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	#endregion
 
-	#region[字段和属性 - 扫描协程和时间轴对齐]
+	#region[	扫描协程和时间轴对齐]
+	// 每次连接流程最多连接数量
+	private const int MAX_PEER_CONNECTIONS = 8;
 
 	// 重连清理等待
 	private const float CONN_CLEANUP_RECONNECT = 1.5f;
@@ -111,14 +118,17 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private Dictionary<SteamId, Coroutine> _connectionCoroutines = new();
 	// 扫描协程
 	private Coroutine _scanCoroutines = null;
+	// 清理连接协程记录
+	private List<SteamId> _pendingRemoveKeys = new();
 	// 在协程外部或类初始化时缓存, 避免在循环中重复 new 产生 GC
 	public readonly WaitForSecondsRealtime Wait200ms = new WaitForSecondsRealtime(0.2f);
 	public readonly WaitForSecondsRealtime Wait1000ms = new WaitForSecondsRealtime(1.0f);
 	public readonly WaitForSecondsRealtime Wait500ms = new WaitForSecondsRealtime(0.5f);
 
+
 	#endregion
 
-	#region[字段和属性 - 大厅检索]
+	#region[	大厅检索]
 
 	// 判断玩家是否在大厅
 	public bool IsMemberInLobby(SteamId targetId) {
@@ -130,11 +140,13 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 	// 全部大厅
 	public List<Lobby> LastFetchedLobbies { get; private set; } = new List<Lobby>();    // 上次查询大厅列表
-	private TickTimer _autoRefreshTimer = new TickTimer(30f,true);// 计时器
+	private TickTimer _autoRefreshTimer = new TickTimer(30f, true);// 计时器
 	private float _lastRealFetchTime = -999f;           // 上次真正发起网络请求的时间	
 	private const float CACHE_PROTECTION_TIME = 5f;     // 5秒刷新冷却
 	private Task<List<Lobby>> _currentRefreshTask;       // 当前正在执行的刷新任务
 	private readonly object _taskLock = new object();    // 锁
+
+	#endregion
 
 	#endregion
 
@@ -200,12 +212,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		ProcessMessageQueue();
 
 		// 刷新检查
-		if (_autoRefreshTimer.TryTick()) {
-			_ = RefreshLobbyListAsync();
-		}
+		if (_autoRefreshTimer.TryTick()) _ = RefreshLobbyListAsync();
 
 		// 在大厅 && 扫描启动协程为空 && 到达间隔
-		if (IsInLobby && _scanCoroutines == null) {
+		if (IsInLobby && _scanCoroutines == null) { 
 			_scanCoroutines = StartCoroutine(ScanLoop());
 		}
 	}
@@ -457,7 +467,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			// 重连检测
 			if (IsInLobby && IsMemberInLobby(steamId) && !_connectionCoroutines.ContainsKey(steamId))
-				_connectionCoroutines[steamId] = StartCoroutine(ConnectionController(steamId, true));
+				_connectionCoroutines[steamId] = StartCoroutine(ConnectionController(steamId, CONN_CLEANUP_RECONNECT));
 
 			MPMain.LogInfo(Localization.Get("MPSteamworks.PlayerDisconnectedCleaned", steamId.ToString()));
 
@@ -662,6 +672,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	#endregion
 
 	#region[Steam事件处理函数]
+
 	/// <summary>
 	/// 接收数据: 进入到大厅<br/>
 	/// LobbyEntered总线订阅者: <see cref="MPCore.HandleLobbyEntered"/><br/>
@@ -670,6 +681,22 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		_currentLobby = lobby;
 		HostSteamId = lobby.Owner.Id;
 		MPMain.LogInfo(Localization.Get("MPSteamworks.EnteredLobby", lobby.Id.ToString()));
+		// 新玩家 对 除自己外所有玩家进行ID排序
+		var members = Members
+			.Where(friend => friend.Id != UserSteamId)
+			.OrderBy(friend => friend.Id.Value).ToList();
+
+		// 8人分组 每组进行连接协程创建
+		for (int i = 0; i < members.Count; ++i) {
+			var friend = members[i];
+
+			if (_allConnections.ContainsKey(friend.Id) || _connectionCoroutines.ContainsKey(friend.Id))
+				continue;
+
+			var waitTime = i / MAX_PEER_CONNECTIONS * SCAN_INTERVAL + CONN_CLEANUP_FIRST;
+			if (!_allConnections.ContainsKey(friend.Id) && !_connectionCoroutines.ContainsKey(friend.Id))
+				_connectionCoroutines[friend.Id] = StartCoroutine(ConnectionController(friend.Id, waitTime));
+		}
 
 		// 发布事件到总线
 		MPEventBusNet.NotifyLobbyEntered(lobby);
@@ -682,6 +709,19 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		if (lobby.Id == _currentLobby.Id) {
 			_currentLobby = lobby;
 			MPMain.LogInfo(Localization.Get("MPSteamworks.PlayerJoinedRoom", friend.Name));
+
+			// 排除自己
+			if (friend.Id != UserSteamId) {
+				if (!_allConnections.ContainsKey(friend.Id) && !_connectionCoroutines.ContainsKey(friend.Id)) {
+					// 当前玩家 检查去除 新玩家 后 当前玩家 的ID位置
+					var playerIndex = Members
+						.Where(f => f.Id != friend.Id)
+						.OrderBy(f => f.Id.Value)
+						.ToList().FindIndex(f => f.Id == UserSteamId);
+					var waitTime = playerIndex / MAX_PEER_CONNECTIONS * SCAN_INTERVAL + CONN_CLEANUP_FIRST;
+					_connectionCoroutines[friend.Id]= StartCoroutine(ConnectionController(friend.Id, waitTime));
+				}
+			}
 
 			// 发布事件到总线
 			MPEventBusNet.NotifyLobbyMemberJoined(friend);
@@ -838,19 +878,20 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			yield return new WaitForSecondsRealtime((float)(SCAN_INTERVAL - (now % SCAN_INTERVAL) % SCAN_INTERVAL));
 
 			// 清理已经成功建立连接的协程记录
-			foreach (var (steamId,_) in _connectionCoroutines.ToList()) {
-				if (_allConnections.ContainsKey(steamId))
-					_connectionCoroutines.Remove(steamId);
-			}
+			_pendingRemoveKeys.Clear();
+			foreach (var kvp in _connectionCoroutines) 
+				if (_allConnections.ContainsKey(kvp.Key)) _pendingRemoveKeys.Add(kvp.Key);
+			for (int i = 0; i < _pendingRemoveKeys.Count; i++) 
+				_connectionCoroutines.Remove(_pendingRemoveKeys[i]);
 
 			// 在大厅但没有连接
 			foreach (var member in Members) {
-				if (_connectionCoroutines.Count >= 8) break;
+				if (_connectionCoroutines.Count >= MAX_PEER_CONNECTIONS) break;
 				if (member.Id == UserSteamId) continue; // 跳过自己
 
-				// 只有当没有连接, 且没有正在进行的连接协程时, 才发起连接
+				// 没有连接 && 没有正在进行的连接协程 -> 发起连接
 				if (!_allConnections.ContainsKey(member.Id) && !_connectionCoroutines.ContainsKey(member.Id)) {
-					_connectionCoroutines[member.Id] = StartCoroutine(ConnectionController(member.Id, true));
+					_connectionCoroutines[member.Id] = StartCoroutine(ConnectionController(member.Id, CONN_CLEANUP_RECONNECT));
 				}
 			}
 		}
@@ -860,9 +901,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// <summary>
 	/// 通用的连接控制器:支持初始连接和断线重连
 	/// </summary>
-	public IEnumerator ConnectionController(SteamId targetId, bool isReconnect) {
-		// 如果是重连 等待1.5秒进行连接清理
-		yield return new WaitForSecondsRealtime(isReconnect ? CONN_CLEANUP_RECONNECT : CONN_CLEANUP_FIRST);
+	public IEnumerator ConnectionController(SteamId targetId, float waitTime) {
+		yield return new WaitForSecondsRealtime(waitTime);
 		// 目标不在大厅或自己不在大厅 时退出连接流程
 		if (!IsInLobby || !IsMemberInLobby(targetId)) {
 			_connectionCoroutines.Remove(targetId);
@@ -888,7 +928,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				// 等待重试间隔,期间持续检查状态
 				float endTime = Time.unscaledTime + retryInterval;
 				// 重试间隔
-				while (Time.unscaledTime < endTime) { 
+				while (Time.unscaledTime < endTime) {
 					if (_allConnections.ContainsKey(targetId)) {
 						// 等待 1秒确定连接正常
 						yield return Wait1000ms;
@@ -1072,11 +1112,10 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// 设置大厅数据的公共接口,允许业务层在创建大厅时传入自定义数据
 	/// </summary>
 	public void SetLobbyData(Dictionary<string, string> lobbyData) {
-		if (_currentLobby.Id.IsValid) {
+		if (!_currentLobby.Id.IsValid) return;
+		foreach (var (key, value) in lobbyData) {
 			try {
-				foreach (var (key, value) in lobbyData) {
-					_currentLobby.SetData(key, value);
-				}
+				_currentLobby.SetData(key, value);
 			} catch (Exception ex) {
 				MPMain.LogError(Localization.Get("MPSteamworks.SetLobbyDataException", ex.Message));
 			}

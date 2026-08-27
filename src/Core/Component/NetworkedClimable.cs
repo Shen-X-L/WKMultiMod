@@ -1,6 +1,7 @@
 using Unity.Entities;
 using UnityEngine;
 using UnityEngine.UIElements;
+using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
 using WKMPMod.World;
@@ -22,6 +23,15 @@ public class NetworkedClimable : MonoBehaviour {
 	private void Awake() {
 		Handhold = GetComponent<CL_Handhold>() ?? GetComponentInChildren<CL_Handhold>(true);
 		ClimbableSyncModule.RegisterLookup(Handhold, this);
+	}
+
+	private void Start() {
+		transform.SetPositionAndRotation(data.position, data.rotation);
+		if (Handhold != null) {
+			Handhold.Initialize();
+			Handhold.secureAmount = data.secureAmount;
+			Handhold.secure = data.secure;
+		}
 	}
 
 	private void OnDestroy() {
@@ -87,24 +97,11 @@ public class ClimbableData: INetworkSerializable {
 	public float secureAmount;
 	public bool secure;
 
-
-
-	public ClimbableData() { }
-
-	public ClimbableData(ulong networkId, string prefabKey, ulong ownerId, Vector3 pos, Quaternion rot, float secureAmount, bool secure) {
-		this.networkId = networkId;
-		this.prefabKey = prefabKey;
-		this.ownerId = ownerId;
-		position = pos;
-		rotation = rot;
-		this.secure = secure;
-		this.secureAmount = secureAmount;
-	}
-
 	/// <summary>
 	/// 初始化并绑定持久化数据结构
 	/// </summary>
 	public void BindData(Vector3 position, Quaternion rotation, float secureAmount, bool secure) {
+		MPMain.LogTest("ClimbableData.BindData");
 		this.position = position;
 		this.rotation = rotation;
 		this.secure = secure;

@@ -28,7 +28,7 @@ public class Patch_Item_Object {
 		if (itemObject == null || !MPCore.IsReady) return;
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
-		if (identity == null || identity.networkId == 0) return; // 无网络身份, 纯本地物品
+		if (identity == null) return; // 无网络身份, 纯本地物品
 
 		MPMain.LogInfo($"[MP ItemSync] LocalPickup: {itemObject.name}, ID={identity.networkId}, Owner={identity.ownerId}");
 

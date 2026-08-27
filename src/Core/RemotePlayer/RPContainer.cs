@@ -8,6 +8,7 @@ using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.Team;
 using WKMPMod.Util;
 using WKMPModa.Shared.Component;
 using WKMPModa.Shared.Data;

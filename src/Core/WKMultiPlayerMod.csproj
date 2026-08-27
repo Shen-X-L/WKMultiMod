@@ -36,18 +36,13 @@
 			<SharedOutputFiles Include="$(ProjectDir)Util\Localization\*.json" />
 		</ItemGroup>
 		<!--生成.dll复制到bin\解决方案配置-->
-		<Copy SourceFiles="@(SharedOutputFiles)"
-			  DestinationFolder="$(SolutionDir)bin\$(Configuration)\"
-			  SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)bin\$(Configuration)\" SkipUnchangedFiles="true" />
 
 		<ItemGroup>
 			<AllOutputFiles Include="$(SolutionDir)bin\$(Configuration)\**\*.*" />
 		</ItemGroup>
 
-		<Copy Condition="'$(GamePath)' != ''"
-			  SourceFiles="@(AllOutputFiles)"
-			  DestinationFolder="$(GamePath)\BepInEx\plugins\MP\%(RecursiveDir)"
-			  SkipUnchangedFiles="true" />
+		<Copy Condition="'$(GamePath)' != ''" SourceFiles="@(AllOutputFiles)" DestinationFolder="$(GamePath)\BepInEx\plugins\MP\%(RecursiveDir)" SkipUnchangedFiles="true" />
 
 	</Target>
 

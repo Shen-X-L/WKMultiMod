@@ -46,7 +46,7 @@ public class WorldSyncManager : MonoSingleton<WorldSyncManager> {
 	}
 
 	public void ResetAll() {
-		foreach (var module in _modules.Values) module.OnReset();
+		foreach (var module in _modules.Values) module.OnResetMap();
 	}
 
 	public void LeaveAll() {
@@ -69,7 +69,7 @@ public interface ISyncModule {
 	/// <summary>
 	/// 场景重启状态重置 
 	/// </summary>
-	void OnReset();
+	void OnResetMap();
 
 	/// <summary>
 	/// 大厅连接断线状态重置 

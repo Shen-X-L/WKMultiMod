@@ -40,7 +40,7 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 			if (FX_PrefabDic.TryGetValue(obj.name, out var _)) continue;// 已经加载过了
 			if (obj.GetComponentInChildren<ParticleSystem>() == null) continue;// 本身及其子对象没有特效组件
 
-			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset",obj.name, actualValue));
+			MPMain.LogDebug(Localization.Get("MPAssetManager.LoadAsset",obj.name, actualValue));
 			FX_PrefabDic[actualValue] = obj;
 		}
 
@@ -51,7 +51,7 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 			if (string.IsNullOrEmpty(key)) continue;
 			if (handholdPrefabDic.ContainsKey(key)) continue;
 
-			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset", "HandItem_Piton", key));
+			MPMain.LogDebug(Localization.Get("MPAssetManager.LoadAsset", "HandItem_Piton", key));
 			handholdPrefabDic[key] = piton.pitonWorldObject;
 		}
 
@@ -62,7 +62,7 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 			if (string.IsNullOrEmpty(key1)) continue;
 			if (projectilePrefabDic.ContainsKey(key1)) continue;
 
-			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset", "Projectile", key1));
+			MPMain.LogDebug(Localization.Get("MPAssetManager.LoadAsset", "Projectile", key1));
 			projectilePrefabDic[key1] = projectile.gameObject;
 
 			if (projectile.hitEffect == null) continue;
@@ -71,7 +71,7 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 			if (string.IsNullOrEmpty(key2)) continue;
 			if (handholdPrefabDic.ContainsKey(key2)) continue;
 
-			MPMain.LogInfo(Localization.Get("MPAssetManager.LoadAsset", "HitEffect", key2));
+			MPMain.LogDebug(Localization.Get("MPAssetManager.LoadAsset", "HitEffect", key2));
 			handholdPrefabDic[key2] = projectile.hitEffect;
 		}
 

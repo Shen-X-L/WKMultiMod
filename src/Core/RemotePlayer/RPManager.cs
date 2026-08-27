@@ -1,16 +1,14 @@
-﻿using Steamworks;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
-using WKMPMod.NetWork;
+using WKMPMod.Team;
 using WKMPMod.Util;
 using static WKMPMod.UI.UI_Manager;
-using Object = UnityEngine.Object;
+
 
 namespace WKMPMod.RemotePlayer;
 
@@ -373,12 +371,22 @@ public class RPManager : Singleton<RPManager> {
 		return players;
 	}
 
+	/// <summary>
+	/// 获取 指定规则 在和 目标玩家 之间是否启用
+	/// </summary>
+	/// <param name="playerId"></param>
+	/// <param name="type"></param>
+	/// <returns></returns>
 	public bool GetPlayerRuleValue(IDType playerId, RuleType type) {
 		if (!Players.TryGetValue(playerId, out var container)) return false;
 		return container.actionRule.GetFieldValue(type);
 	}
 
-
+	/// <summary>
+	/// 获取 目标玩家 所在队伍
+	/// </summary>
+	/// <param name="playerId"></param>
+	/// <returns></returns>
 	public string GetPlayerTeam(IDType playerId) {
 		if (!Players.TryGetValue(playerId, out var container)) return string.Empty;
 		return container.team;

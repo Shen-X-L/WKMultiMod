@@ -192,10 +192,8 @@ public class Patch_CL_Handhold_PitonSync {
 	/// Patch: Handhold hammered (secured)- Triggers a forced sync update
 	/// </summary>
 	[HarmonyPatch(nameof(CL_Handhold.HammerIn))]
-	[HarmonyPrefix]
-	public static void Prefix_HammerIn(CL_Handhold __instance, float amount) {
-		// 已经锤入 不需要广播
-		if (__instance.secure) return;
+	[HarmonyPostfix]
+	public static void Postfix_HammerIn(CL_Handhold __instance, float amount) {
 		ClimbableSyncModule.Instance.BroadcastHammerIn(__instance,amount);
 	}
 
