@@ -237,10 +237,8 @@ public class DamageRules {
 			.ToArray();
 
 		// 缓存为字典 (用于 SetField)
-		_floatFields = new Dictionary<string, FieldInfo>(
-			fields.Length, StringComparer.OrdinalIgnoreCase);
-		foreach (var f in fields)
-			_floatFields[f.Name] = f;
+		_floatFields = new Dictionary<string, FieldInfo>(fields.Length, StringComparer.OrdinalIgnoreCase);
+		foreach (var f in fields) _floatFields[f.Name] = f;
 
 		// 字段名集合 (用于外部查询)
 		FloatFieldNames = new HashSet<string>(

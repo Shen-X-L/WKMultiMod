@@ -690,7 +690,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(new[] { "true", "false" });
 			});
 
-		// 设置是否需要饰品/绑定同步
+		// 设置敌人实体同步
 		CommandConsole.BuildCommand("enemysync", (args) => {
 			if (!EnsureHostPrivileges()) return;
 			bool enabled = false;
