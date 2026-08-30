@@ -1,8 +1,6 @@
 ﻿import json
 from pathlib import Path
-import pprint
 from deepdiff import DeepDiff
-import sys
 
 def get_script_dir():
     """使用 pathlib 获取脚本所在目录"""
@@ -44,62 +42,67 @@ def sort_json_file(input_file, output_file=None):
     
     print(f"已保存到: {output}")
 
-# 仅对比结构(只关心类型和键, 不关心值)
-def compare_structure(obj1, obj2):
-    """对比 JSON 结构"""
+def compare_json_files_simple(file1, file2, ignore_paths=None):
+    """
+    简化版本：只支持完全路径匹配
+    
+    Args:
+        file1: 第一个文件路径
+        file2: 第二个文件路径
+        ignore_paths: 要忽略的路径列表, 格式如：
+            ["0_DisplayMessage"]  # 忽略整个根键
+            ["0_DisplayMessage.JoinMessages"]  # 忽略嵌套路径
+    """
+    if ignore_paths is None:
+        ignore_paths = []
+    
+    ignore_set = set(ignore_paths)
+    
+    with open(file1, 'r', encoding='utf-8') as f:
+        data1 = json.load(f)
+    with open(file2, 'r', encoding='utf-8') as f:
+        data2 = json.load(f)
+    
+    def should_ignore_path(current_path: str) -> bool:
+        """检查路径是否应该被忽略"""
+        return current_path in ignore_set
+    
+    def remove_keys_by_path(obj, current_path=""):
+        """根据路径递归删除要忽略的键"""
+        if isinstance(obj, dict):
+            result = {}
+            for key, value in obj.items():
+                new_path = f"{current_path}.{key}" if current_path else key
+                
+                if should_ignore_path(new_path):
+                    continue
+                
+                result[key] = remove_keys_by_path(value, new_path)
+            return result
+        
+        elif isinstance(obj, list):
+            return [remove_keys_by_path(item, current_path) for item in obj]
+        else:
+            return obj
+    
+    data1_filtered = remove_keys_by_path(data1)
+    data2_filtered = remove_keys_by_path(data2)
+    
     diff = DeepDiff(
-        obj1, obj2,
-        ignore_order=True,                    # 忽略数组顺序
-        ignore_string_type_changes=True,      # 忽略字符串类型
-        ignore_numeric_type_changes=True,     # 忽略数字类型差异
-        significant_digits=0,                 # 忽略数值精度差异
-        exclude_paths=[] if not isinstance(obj1, dict) else []
+        data1_filtered, data2_filtered,
+        ignore_order=True,
+        ignore_string_type_changes=True,
+        ignore_numeric_type_changes=True,
+        significant_digits=0
     )
     
-    # 过滤掉值变化的差异, 只保留类型变化的差异
     result = {}
-    if 'type_changes' in diff:
-        result['type_changes'] = diff['type_changes']
-    if 'dictionary_item_removed' in diff:
-        result['dictionary_item_removed'] = diff['dictionary_item_removed']
-    if 'dictionary_item_added' in diff:
-        result['dictionary_item_added'] = diff['dictionary_item_added']
-    if 'iterable_item_removed' in diff:
-        result['iterable_item_removed'] = diff['iterable_item_removed']
-    if 'iterable_item_added' in diff:
-        result['iterable_item_added'] = diff['iterable_item_added']
+    for key in ['dictionary_item_removed', 'dictionary_item_added', 
+                'type_changes', 'iterable_item_removed', 'iterable_item_added']:
+        if key in diff:
+            result[key] = diff[key]
     
     return result
-
-def compare_file_structure(input_file1, input_file2):
-    # 读取JSON文件
-    with open(input_file1, 'r', encoding='utf-8') as f:
-        data1 = json.load(f)
-    with open(input_file2, 'r', encoding='utf-8') as f:
-        data2 = json.load(f)
-        
-    result = compare_structure(data1, data2)
-    
-        # 手动格式化输出
-    print("{")
-    for i, (key, value) in enumerate(result.items()):
-        indent = "  "
-        print(f"{indent}'{key}':")
-        
-        if isinstance(value, dict):
-            for j, (sub_key, sub_val) in enumerate(value.items()):
-                print(f"{indent}{indent}{sub_key}: {sub_val}")
-                if j < len(value) - 1:
-                    print()  # 每项之间加空行
-        elif isinstance(value, list):
-            for item in value:
-                print(f"{indent}{indent}{item}")
-        else:
-            print(f"{indent}{indent}{value}")
-        
-        if i < len(result) - 1:
-            print()  # 顶层每项之间加空行
-    print("}")
 
 # 使用示例
 if __name__ == "__main__":
@@ -108,5 +111,26 @@ if __name__ == "__main__":
     sort_json_file("texts_en.json")
     
     # 对比json结构
-    compare_file_structure("texts_zh.json","texts_en.json")
+    result = compare_json_files_simple("texts_zh.json","texts_en.json",ignore_paths=["0_DeathMessage","0_DisplayMessage"])
+    
+    if result:
+        print("{")
+        for key, value in result.items():
+            print(f"  '{key}':")
+            if isinstance(value, dict):
+                for sub_key, sub_val in value.items():
+                    # 处理多行字符串
+                    if isinstance(sub_val, str):
+                        sub_val = ' '.join(sub_val.split())
+                    print(f"    {sub_key}: {sub_val}")
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, str):
+                        item = ' '.join(item.split())
+                    print(f"    {item}")
+            else:
+                if isinstance(value, str):
+                    value = ' '.join(value.split())
+                print(f"    {value}")
+        print("}")
     

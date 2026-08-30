@@ -20,24 +20,25 @@ namespace WKMPMod.World;
 /// <summary>
 /// 多人游戏物品同步操作类型 (P2P 协议标签).
 /// </summary>
-public enum ItemSyncAction : byte {
+public enum SceneItemSyncAction : byte {
 	// 场景物品相关
-	SceneCreate = 0,        // 创建物品: 场景物品创建(暂时不使用)
-	SceneRemove = 1,        // 移除物品: 场景物品消除
-	SceneRemoveChunk = 2,   // 移除物品: 主机发送的物品移除包
-	SceneRemoveChunkRequest = 3,    // 请求数据: 在重置场景/切换队伍时想主机申请移除物品网络包
+	Create = 0,        // 创建物品: 场景物品创建(暂时不使用)
+	Remove = 1,        // 移除物品: 场景物品消除
+	RemoveChunk = 2,   // 移除物品: 主机发送的物品移除包
+	RemoveChunkRequest = 3,    // 请求数据: 在重置场景/切换队伍时想主机申请移除物品网络包
+}
 
-	// P2P物品相关
-	DropCreate = 0,        // 创建物品: 广播在指定位置生成/注册一个掉落物
-	PickupRequest = 1,     // 拾取申请: 拾取非自己持有物品时, 单播给该物品的所有者申请所有权
-	PickupRemove = 2,      // 移除物品: 广播全局销毁掉落物 (同时清除世界物体与背包数据)
-	PickupReject = 3,      // 拾取拒绝: 所有者确认物品已被别人抢先取走, 通知申请者回滚背包
+public enum DroppedItemSyncAction : byte {
+	Create = 0,// 创建物品: 广播在指定位置生成/注册一个掉落物
+	PickupRequest = 1,// 拾取申请: 拾取非自己持有物品时, 单播给该物品的所有者申请所有权
+	PickupRemove = 2,// 移除物品: 广播全局销毁掉落物 (同时清除世界物体与背包数据)
+	PickupReject = 3,// 拾取拒绝: 所有者确认物品已被别人抢先取走, 通知申请者回滚背包
 }
 
 public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	public const byte SCENE_ITEM = 1;
 	// 快照协议每帧最多发送/注册物品数量, 防止大批量物品导致帧率下降
-	private const int TombstonesPerChunk = 10;
+	private const int TombstonesPerChunk = 20;
 	// 被其他玩家拿走过的场景id集合 可能会重复多发
 	private HashSet<ulong> _sceneTombstones = new();
 	// 注册到场景缓存
@@ -72,7 +73,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 			_teamTombstones.Clear();
 
 			foreach (var coroutine in _sendCoroutines.Values)
-				if (coroutine != null) MPCore.Instance.StopCoroutine(coroutine);
+				if (coroutine != null) WorldSyncManager.Instance.StopCoroutine(coroutine);
 			_sendCoroutines.Clear();
 
 			return;
@@ -187,7 +188,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	private  void BroadcastSceneRemove(NetworkedItem identity) {
 		if ((identity?.sceneOrDropped != SCENE_ITEM)) return;
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.SceneItemStateSync);
-		writer.Put((byte)ItemSyncAction.SceneRemove);
+		writer.Put((byte)SceneItemSyncAction.Remove);
 		writer.Put(identity.networkId);
 
 		// 仅广播给物品同步队伍的玩家 和 主机必须的一份
@@ -196,6 +197,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 			if (targetId != MPSteamworks.Instance.HostSteamId)
 				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
 
+		// 通知主机进行删除记录
 		if (!MPSteamworks.IsHost) MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
 		else {
 			if (!_teamTombstones.TryGetValue(MPCore.CurrentTeam, out var tombstones)) {
@@ -215,7 +217,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 
 		MPMain.LogInfo("[MP ItemSync] Requesting Scene Tombstone Chunk from Host...");
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.SceneItemStateSync);
-		writer.Put((byte)ItemSyncAction.SceneRemoveChunkRequest);
+		writer.Put((byte)SceneItemSyncAction.RemoveChunkRequest);
 
 		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
 	}
@@ -232,7 +234,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 			int countToSend = Mathf.Min(TombstonesPerChunk, total - currentIndex);
 
 			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.SceneItemStateSync);
-			writer.Put((byte)ItemSyncAction.SceneRemoveChunk);
+			writer.Put((byte)SceneItemSyncAction.RemoveChunk);
 			writer.Put(countToSend);
 
 			for (int i = 0; i < countToSend; i++) {
@@ -297,16 +299,17 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// 发送函数: <see cref="SendSceneRemoveChunkRequest"/>
 	/// </summary>
 	public  void HandleSceneRemoveChunkRequest(IDType senderId) {
-		if (!MPCore.CanSync || !MPSteamworks.IsHost || MPCore.Instance == null) return;
+		if (!MPCore.CanSync || !MPSteamworks.IsHost || WorldSyncManager.Instance == null) return;
 		if (senderId == 0 || senderId == MPSteamworks.UserSteamId) return;
 
 		var teamName = RPManager.Instance.GetPlayerTeam(senderId);
+		if (teamName == string.Empty) teamName = MPKeys.DEFAULT_TEAM;
 		if (!_teamTombstones.TryGetValue(teamName, out var tombstones) || tombstones.Count == 0) return;
 		// 停止旧协程
 		if (_sendCoroutines.TryGetValue(senderId, out var coroutine) && coroutine != null)
-			MPCore.Instance.StopCoroutine(coroutine);
+			WorldSyncManager.Instance.StopCoroutine(coroutine);
 		// 启动协程分帧发送
-		_sendCoroutines[senderId] = MPCore.Instance.StartCoroutine(SendTombstoneChunksCoroutine(senderId, tombstones.ToList()));
+		_sendCoroutines[senderId] = WorldSyncManager.Instance.StartCoroutine(SendTombstoneChunksCoroutine(senderId, tombstones.ToList()));
 
 	}
 
@@ -315,23 +318,23 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// 由 MPPacketHandlers.HandleItemStateSync 调用.
 	/// </summary>
 	public void HandleItemState(IDType senderId, DataReader reader) {
-		var action = (ItemSyncAction)reader.GetByte();
+		var action = (SceneItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
-				case ItemSyncAction.SceneCreate:
-					MPMain.LogDebug("[MP ItemSync] SceneCreate");
+				case SceneItemSyncAction.Create:
+					MPMain.LogDebug("[MP SceneItemSync] Create");
 					HandleSceneCreate(senderId, reader);
 					break;
-				case ItemSyncAction.SceneRemove:
-					MPMain.LogDebug("[MP ItemSync] SceneRemove");
+				case SceneItemSyncAction.Remove:
+					MPMain.LogDebug("[MP SceneItemSync] Remove");
 					HandleSceneRemove(senderId, reader);
 					break;
-				case ItemSyncAction.SceneRemoveChunk:
-					MPMain.LogDebug("[MP ItemSync] SceneRemoveChunk");
+				case SceneItemSyncAction.RemoveChunk:
+					MPMain.LogDebug("[MP SceneItemSync] RemoveChunk");
 					HandleSceneRemoveChunk(reader);
 					break;
-				case ItemSyncAction.SceneRemoveChunkRequest:
-					MPMain.LogDebug("[MP ItemSync] NeedRemoveChunk");
+				case SceneItemSyncAction.RemoveChunkRequest:
+					MPMain.LogDebug("[MP SceneItemSync] RemoveChunkRequest");
 					HandleSceneRemoveChunkRequest(senderId);
 					break;
 			}
@@ -563,7 +566,6 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 			identity.isRemote = false;
 
 			_p2pItems[identity.networkId] = identity;
-			MPMain.LogTest($"[MP ItemSync] SyncAndBroadcast - Created P2P Identity: {itemObject.name} → {identity.networkId}");
 		} else {
 			// 如果它已经有网络 ID, 必须确保它存在于追踪字典中
 			if (!_p2pItems.ContainsKey(identity.networkId)) {
@@ -590,7 +592,6 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 
 		var identity = itemObject.GetComponent<NetworkedItem>();
 		if (identity != null && identity.networkId != 0) {
-			MPMain.LogTest($"[MP ItemSync] DespawnAndBroadcast - Broadcasting global destruction: {identity.networkId}");
 			BroadcastPickupRemove(MPProtocol.BroadcastId, identity.networkId);
 			_p2pItems.Remove(identity.networkId);
 			identity.networkId = 0;
@@ -612,7 +613,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 		if (identity == null || itemObject == null || identity.networkId == 0) return;
 
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.DroppedItemStateSync);
-		writer.Put((byte)ItemSyncAction.DropCreate);
+		writer.Put((byte)DroppedItemSyncAction.Create);
 		writer.Put(identity.networkId);
 		writer.Put(identity.prefabKey);
 		writer.Put(itemObject.transform.position);
@@ -631,7 +632,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// </summary>
 	private  void SendPickupRequest(ulong networkId, ulong ownerId) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, ownerId, PacketType.DroppedItemStateSync);
-		writer.Put((byte)ItemSyncAction.PickupRequest);
+		writer.Put((byte)DroppedItemSyncAction.PickupRequest);
 		writer.Put(networkId);
 		MPSteamworks.Instance.SendToPeer(ownerId, writer, SendType.Reliable);
 	}
@@ -642,7 +643,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// </summary>
 	private  void SendPickupReject(ulong targetId, ulong networkId) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.DroppedItemStateSync);
-		writer.Put((byte)ItemSyncAction.PickupReject);
+		writer.Put((byte)DroppedItemSyncAction.PickupReject);
 		writer.Put(networkId);
 		MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
 	}
@@ -655,7 +656,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// </summary>
 	private  void BroadcastPickupRemove(IDType holderId, ulong networkId, bool destroyObject = true) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.DroppedItemStateSync);
-		writer.Put((byte)ItemSyncAction.PickupRemove);
+		writer.Put((byte)DroppedItemSyncAction.PickupRemove);
 		writer.Put(networkId);
 		writer.Put(holderId);
 		writer.Put(destroyObject);
@@ -793,23 +794,23 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// 由 MPPacketHandlers.HandleItemStateSync 调用.
 	/// </summary>
 	public void HandleItemState(IDType senderId, DataReader reader) {
-		var action = (ItemSyncAction)reader.GetByte();
+		var action = (DroppedItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
-				case ItemSyncAction.DropCreate:
-					MPMain.LogDebug("[MP ItemSync] DropCreate");
+				case DroppedItemSyncAction.Create:
+					MPMain.LogDebug("[MP DropItemSync] Create");
 					HandleDropCreate(senderId, reader);
 					break;
-				case ItemSyncAction.PickupRequest:
-					MPMain.LogDebug("[MP ItemSync] PickupRequest");
+				case DroppedItemSyncAction.PickupRequest:
+					MPMain.LogDebug("[MP DropItemSync] PickupRequest");
 					HandlePickupRequest(senderId, reader);
 					break;
-				case ItemSyncAction.PickupRemove:
-					MPMain.LogDebug("[MP ItemSync] PickupRemove");
+				case DroppedItemSyncAction.PickupRemove:
+					MPMain.LogDebug("[MP DropItemSync] PickupRemove");
 					HandlePickupRemove(senderId, reader);
 					break;
-				case ItemSyncAction.PickupReject:
-					MPMain.LogDebug("[MP ItemSync] PickupReject");
+				case DroppedItemSyncAction.PickupReject:
+					MPMain.LogDebug("[MP DropItemSync] PickupReject");
 					HandlePickupReject(reader);
 					break;
 			}

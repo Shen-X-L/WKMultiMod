@@ -11,33 +11,30 @@ public static class DictionaryExtensions {
 	/// <returns>
 	/// (result, matchingKeys) - 返回值 和 匹配的键列表
 	/// </returns>
-	public static List<ulong> FindByKeySuffix<T>(
-		this Dictionary<ulong, T> dictionary, ulong suffix) {
-
+	public static List<ulong> FindByKeySuffix(IEnumerable<ulong> dictionary, ulong suffix) {
 		var matchingKeys = new List<ulong>();
 
-		if (dictionary == null || dictionary.Count == 0)
-			return matchingKeys;
+		if (dictionary == null) return matchingKeys;
 
 		ulong divisor = CalculateDivisor(suffix);
 
-		foreach (var kvp in dictionary) {
-			if (kvp.Key % divisor == suffix) {
-				matchingKeys.Add(kvp.Key);
-			}
-		}
-
+		foreach (var value in dictionary) 
+			if (value % divisor == suffix) matchingKeys.Add(value);
+		
 		return matchingKeys;
 	}
 
-	// 返回对比用的10进制模
+	/// <summary>
+	/// 返回对比用的10进制模
+	/// </summary>
+	/// <param name="suffix"></param>
+	/// <returns>大于入参的最小10次幂</returns>
 	private static ulong CalculateDivisor(ulong suffix) {
 		if (suffix == 0) return 10;
 
 		ulong divisor = 1;
-		while (divisor <= suffix) {
-			divisor *= 10;
-		}
+		while (divisor <= suffix) divisor *= 10;
+		
 		return divisor;
 	}
 

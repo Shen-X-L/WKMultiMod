@@ -2,6 +2,7 @@
 using TMPro;
 using UnityEngine;
 using WKMPMod.Core;
+using WKMPMod.Util;
 using Object = UnityEngine.Object;
 
 namespace WKMPMod.UI;
@@ -36,7 +37,7 @@ public class Patch_UI_GamemodeScreen_Initialize {
 
 			// 修改文本
 			var tmp = lobbyBtnObj.GetComponentInChildren<TMP_Text>();
-			if (tmp != null) tmp.text = "Multi Play";
+			if (tmp != null) tmp.text = Localization.GetSmart("UI_Manager.GamemodeScreen Multi Play");
 
 			// 处理存档显示逻辑
 			panel.noSaveObjects.Add(lobbyBtnObj);
@@ -50,11 +51,8 @@ public class Patch_UI_GamemodeScreen_Initialize {
 public class Patch_UI_MenuButton_Initialize {
 	static bool Prefix(UI_MenuButton __instance, UI_Menu menu) {
 		// 检查这个按钮是否属于我们克隆出来的菜单
-		if (UI_Manager.IsCloningMultiplayerMenu) {
-			if (__instance.gameObject.name == "Facility Button") {
-				//MPMain.LogWarning("检测到克隆期间的 Facility Button, 拦截初始化");
-				return false;
-			}
+		if (UI_Manager.IsCloningMultiplayerMenu && __instance.gameObject.name == "Facility Button") {
+			return false;
 		}
 		return true; // 其他按钮正常执行
 	}

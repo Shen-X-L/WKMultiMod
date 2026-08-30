@@ -1,5 +1,6 @@
 ﻿using DG.Tweening;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Steamworks;
 using Steamworks.Data;
 using System;
@@ -55,6 +56,14 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 
 	#endregion
 
+	# region[颜色常量]
+
+	private const string COLOR_RED = "<color=red>";
+	private const string COLOR_YELLOW = "<color=yellow>";
+	private const string COLOR_END = "</color>";
+
+	#endregion
+
 	/// <summary>
 	/// 初始化按钮 - 设置点击事件, 图标, 标题和统计文本
 	/// </summary>
@@ -93,10 +102,11 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.GamemodeParseError", rawData, ex.Message));
 		}
 		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
+
 		// 自定义游戏模式显示锁定图标,显示未知游戏模式文本
 		if (!isOfficialGamemodes) {
 			unlockIcon?.gameObject.SetActive(true);
-			unlockText?.text = "Unknown gamemode";
+			unlockText?.text = Localization.GetSmart("UI_LobbyJoinButton.UnknownGamemode");
 		}
 		// 设置按钮交互和透明度
 		if (group != null) {
@@ -111,12 +121,10 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		}
 
 		// 查看版本是否匹配
-		var v1 = new Version(MPMain.PLUGIN_VERSION);
-		if (!Version.TryParse(lobby.GetData(MPKeys.MOD_VERSION), out var v2) ||
-			v1.Major != v2.Major || v1.Minor != v2.Minor) {
+		var (isCompatible, versionDisplay) = CheckVersionCompatibility(MPMain.PLUGIN_VERSION, lobby.GetData(MPKeys.MOD_VERSION));
+		if (!isCompatible) {
 			unlockIcon?.gameObject.SetActive(true);
-			string modVersion = lobby.GetData(MPKeys.MOD_VERSION);
-			unlockText?.text = $"Incompatible mod version: {(string.IsNullOrEmpty(modVersion) ? "unknown" : modVersion)}";
+			unlockText?.text = versionDisplay;
 		}
 
 		// 设置标题(支持自定义名称)
@@ -278,6 +286,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	// 加入失败 - 目前没有额外逻辑
 	public void JoinFailed() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.LobbyConnectionError);
+		MPCore.Instance.ResetStateVariables();
 		// 恢复同一标签页内按钮点击
 		button!.interactable = true;
 		var pane = GetComponentInParent<UI_LobbyListPane>();
@@ -313,6 +322,62 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	public IEnumerator ShowAnimation() {
 		yield return new WaitForSeconds(showDelayAnimation);
 		transform.DOPunchScale(Vector3.one * 0.04f, 0.5f, 5, 0.5f);
+	}
+	#endregion
+
+	#region[版本对比]
+	private (bool compatible, string displayText) CheckVersionCompatibility(string currentVersion, string lobbyVersion) {
+		if (string.IsNullOrEmpty(lobbyVersion)) {
+			return (false, Localization.GetSmart("UI_LobbyJoinButton.UnableToRetrieveLobbyVersion"));
+		}
+
+		var v1 = new Version(currentVersion);
+		if (!Version.TryParse(lobbyVersion, out var v2)) {
+			return (false, Localization.GetSmart("UI_LobbyJoinButton.InvalidLobbyVersion", lobbyVersion));
+		}
+
+		bool majorMatch = v1.Major == v2.Major;
+		bool minorMatch = v1.Minor == v2.Minor;
+		bool buildMatch = v1.Build == v2.Build;
+		bool revisionMatch = v1.Revision == v2.Revision;
+
+		bool compatible = majorMatch && minorMatch && buildMatch && revisionMatch;
+
+		// 构建版本显示
+		string currentDisplay = BuildVersionDisplay(v1, majorMatch, minorMatch, buildMatch, revisionMatch);
+		string lobbyDisplay = BuildVersionDisplay(v2, majorMatch, minorMatch, buildMatch, revisionMatch);
+		string versionText = $"{currentDisplay} | {lobbyDisplay}";
+
+		string key;
+		if (!majorMatch || !minorMatch) {
+			key = "VersionIncompatible";
+		} else if (!buildMatch) {
+			key = "PatchVersionMismatch";
+		} else if (!revisionMatch) {
+			key = "BuildVersionMismatch";
+		} else {
+			key = "VersionMatch";
+		}
+
+		string status = Localization.GetSmart($"UI_LobbyJoinButton.{key}", versionText);
+		return (compatible, status);
+	}
+
+	// ============ 版本段颜色构建 ============
+	private string BuildVersionDisplay(Version v, bool majorMatch, bool minorMatch, bool buildMatch, bool revisionMatch) {
+
+		string major = majorMatch 
+			? v.Major.ToString() : $"{COLOR_RED}{v.Major.ToString()}{COLOR_END}";
+		string minor = majorMatch && minorMatch 
+			? v.Minor.ToString() : $"{COLOR_RED}{v.Minor.ToString()}{COLOR_END}";
+		string build = majorMatch && minorMatch
+			? buildMatch ? v.Build.ToString() : $"{COLOR_YELLOW}{v.Build.ToString()}{COLOR_END}"
+			: $"{COLOR_RED}{v.Build.ToString()}{COLOR_END}";
+		string revision = majorMatch && minorMatch
+			? buildMatch ? v.Revision.ToString() : $"{COLOR_YELLOW}{v.Revision.ToString()}{COLOR_END}"
+			: $"{COLOR_RED}{v.Revision.ToString()}{COLOR_END}";
+
+		return $"{major}.{minor}.{build}.{revision}";
 	}
 	#endregion
 }

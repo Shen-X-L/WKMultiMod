@@ -4,6 +4,9 @@ using WKMPMod.Data;
 
 namespace WKMPMod.UI;
 
+/// <summary>
+/// loading界面管理器
+/// </summary>
 public class UI_LoadingDisplay : MonoBehaviour {
 	private Coroutine? _hideCoroutine;		// 当前的隐藏协程
 	private float _hideTime = -1f;			// 隐藏时间(-1表示永久显示)
@@ -23,6 +26,7 @@ public class UI_LoadingDisplay : MonoBehaviour {
 	}
 
 	#endregion
+
 	#region[事件订阅函数]
 
 	private void HandleLoadingRequest(float duration) {
@@ -34,6 +38,7 @@ public class UI_LoadingDisplay : MonoBehaviour {
 	}
 
 	#endregion
+
 	#region[状态设置函数]
 
 	/// <summary>
@@ -120,6 +125,7 @@ public class UI_LoadingDisplay : MonoBehaviour {
 	}
 
 	#endregion
+
 	#region[隐藏对象协程]
 
 	/// <summary>
@@ -137,6 +143,7 @@ public class UI_LoadingDisplay : MonoBehaviour {
 	}
 
 	#endregion
+
 	#region[状态获取函数]
 
 	/// 获取剩余显示时间(如果是永久显示则返回0)

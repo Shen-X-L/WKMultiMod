@@ -35,7 +35,7 @@ public partial class TeamRule {
 		Rules = new Dictionary<RuleType, bool?>(this.Rules)
 	};
 
-	// 利用 Enum.TryParse 自动映射，无需 switch-case
+	// 利用 Enum.TryParse 自动映射, 无需 switch-case
 	public void UpdateRule(string ruleName, string valStr) {
 		if (!Enum.TryParse<RuleType>(ruleName, true, out var type)) return;
 

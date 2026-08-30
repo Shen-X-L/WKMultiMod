@@ -1,10 +1,6 @@
 using HarmonyLib;
-using System;
-using System.Diagnostics;
-using Unity.VisualScripting;
 using WKMPMod.Component;
 using WKMPMod.Core;
-//using WKMPMod.World;
 using WKMPMod.World;
 
 namespace WKMPMod.Patch;
@@ -91,4 +87,5 @@ public class Patch_Inventory_DropItemIntoWorld_ItemSync {
 		DroppedItemModule.Instance.NotifyLocalDrop(item);
 	}
 }
+
 #endregion

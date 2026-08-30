@@ -1,13 +1,8 @@
 ﻿using BepInEx;
-using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
-using HarmonyLib.Tools;
-using Steamworks;
 using System;
 using System.IO;
-using System.Reflection;
-using UnityEngine;
 using UnityEngine.SceneManagement;
 using WKMPMod.Util;
 
@@ -18,7 +13,7 @@ public class MPMain : BaseUnityPlugin {
 
 	public const string PLUGIN_GUID = "shenxl.MultiPlayerMod";
 	public const string PLUGIN_NAME = "MultiPlayer Mod";
-	public const string PLUGIN_VERSION = "1.8.0";
+	public const string PLUGIN_VERSION = "1.8.1.0";
 	//Assembly.GetExecutingAssembly().Location -> BepInEx\plugins\MultiPlayer\WKMultiPlayerMod.dll
 	//Path.GetDirectoryName -> BepInEx\plugins\MultiPlayer
 	public static string path = Path.GetDirectoryName(typeof(MPMain).Assembly.Location) ?? string.Empty;

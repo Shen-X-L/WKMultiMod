@@ -46,7 +46,7 @@ public static class TeamRuleManager {
 
 			ulong maskData = 0;
 
-			// 遍历所有规则，若 GetRule 返回 true，则按位或运算，把对应的位置 1
+			// 遍历所有规则, 若 GetRule 返回 true, 则按位或运算, 把对应的位置 1
 			foreach (var type in TeamRule.AllRuleTypes) 
 				if (GetRule(currentTeam, targetLower, type)) maskData |= (ulong)type; 
 

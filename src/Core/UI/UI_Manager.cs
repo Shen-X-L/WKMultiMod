@@ -193,7 +193,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 修改层级
 		_mpButton.transform.SetSiblingIndex(1);
 		// 修改文字
-		_mpButton.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>()?.text = "MULTI PLAY";
+		_mpButton.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>()?.text 
+			= Localization.GetSmart("UI_Manager.Main Menu Multi Play");
 	}
 
 	#endregion
@@ -270,7 +271,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		_newTabButton.name = "ModeButton_Lobby";
 		_newTabButton.transform.Find("Text (TMP)")
 			?.gameObject.GetComponent<TextMeshProUGUI>()
-			?.text = "LOBBY";
+			?.text = Localization.GetSmart("UI_Manager.LOBBY");
 
 		_tabButtonTemplate.transform.SetSiblingIndex(1);
 		_newTabButton.transform.SetSiblingIndex(2);
@@ -345,7 +346,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		refreshText.enableWordWrapping = false;
 		refreshText.overflowMode = TextOverflowModes.Overflow;
 		refreshText.font = _mutators.transform.Find("Ironman Toggle/Background/Label (1)")?.GetComponent<TextMeshProUGUI>()?.font;
-		refreshText.text = "Refresh";
+		refreshText.text = Localization.GetSmart("UI_Manager.Refresh");
 		refreshText.fontSize = 24;
 
 		// 添加点击事件

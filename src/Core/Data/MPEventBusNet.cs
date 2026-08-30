@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace WKMPMod.Data;
 
 // 数据包类型枚举 - 定义不同类型的网络消息
-public enum PacketType {
+public enum PacketType:ushort {
 	LobbyDataRequest = 0,	// 客机->主机: 请求房间数据
 	LobbyDataResponse = 1,  // 主机->客机: 响应房间数据
 	MemberDataRequest = 2,  // 客机->主机->客机: 请求玩家数据

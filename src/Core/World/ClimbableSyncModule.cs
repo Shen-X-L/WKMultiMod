@@ -421,7 +421,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	private IEnumerator SendCreateChunksRoutine(IDType clientId) {
 		List<ClimbableData> itemsToSend = new List<ClimbableData>();
 
-		// 收集当前全场记录（优先获取 Handhold 字典中的最新状态）
+		// 收集当前全场记录 (优先获取 Handhold 字典中的最新状态) 
 		foreach (var kvp in _handhold) {
 			if (kvp.Value != null && kvp.Value.IsValid) {
 				itemsToSend.Add(kvp.Value.data);

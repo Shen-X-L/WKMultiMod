@@ -215,7 +215,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		if (_autoRefreshTimer.TryTick()) _ = RefreshLobbyListAsync();
 
 		// 在大厅 && 扫描启动协程为空 && 到达间隔
-		if (IsInLobby && _scanCoroutines == null) { 
+		if (IsInLobby && _scanCoroutines == null) {
 			_scanCoroutines = StartCoroutine(ScanLoop());
 		}
 	}
@@ -451,6 +451,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// 接收数据: 任意玩家->本机 / 本机->任意玩家 连接成功 -> Player(In/Out)Connected总线
 	/// </summary>
 	public void OnPlayerConnected(SteamId steamId, Connection connection, bool isIncoming) {
+		MPMain.LogTest("MPSteamworks.OnPlayerConnected");
 		MPEventBusNet.NotifyPlayerConnected(steamId);
 	}
 
@@ -683,7 +684,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		MPMain.LogInfo(Localization.Get("MPSteamworks.EnteredLobby", lobby.Id.ToString()));
 		// 新玩家 对 除自己外所有玩家进行ID排序
 		var members = Members
-			.Where(friend => friend.Id != UserSteamId)
+			.Where(friend => friend.Id != UserSteamId && friend.Id != 0)
 			.OrderBy(friend => friend.Id.Value).ToList();
 
 		// 8人分组 每组进行连接协程创建
@@ -715,11 +716,11 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				if (!_allConnections.ContainsKey(friend.Id) && !_connectionCoroutines.ContainsKey(friend.Id)) {
 					// 当前玩家 检查去除 新玩家 后 当前玩家 的ID位置
 					var playerIndex = Members
-						.Where(f => f.Id != friend.Id)
+						.Where(f => f.Id != friend.Id && f.Id != 0)
 						.OrderBy(f => f.Id.Value)
 						.ToList().FindIndex(f => f.Id == UserSteamId);
 					var waitTime = playerIndex / MAX_PEER_CONNECTIONS * SCAN_INTERVAL + CONN_CLEANUP_FIRST;
-					_connectionCoroutines[friend.Id]= StartCoroutine(ConnectionController(friend.Id, waitTime));
+					_connectionCoroutines[friend.Id] = StartCoroutine(ConnectionController(friend.Id, waitTime));
 				}
 			}
 
@@ -879,9 +880,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			// 清理已经成功建立连接的协程记录
 			_pendingRemoveKeys.Clear();
-			foreach (var kvp in _connectionCoroutines) 
+			foreach (var kvp in _connectionCoroutines)
 				if (_allConnections.ContainsKey(kvp.Key)) _pendingRemoveKeys.Add(kvp.Key);
-			for (int i = 0; i < _pendingRemoveKeys.Count; i++) 
+			for (int i = 0; i < _pendingRemoveKeys.Count; i++)
 				_connectionCoroutines.Remove(_pendingRemoveKeys[i]);
 
 			// 在大厅但没有连接
@@ -919,6 +920,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 					// 连接正常 退出协程
 					if (_allConnections.ContainsKey(targetId)) {
 						HasConnections = true;
+						MPMain.LogTest("MPSteamworks.AttemptAndVerify");
 						MPEventBusNet.NotifyPlayerConnected(targetId);
 						yield break;
 					}
@@ -935,6 +937,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 						// 连接正常 退出协程
 						if (_allConnections.ContainsKey(targetId)) {
 							HasConnections = true;
+							MPMain.LogTest("MPSteamworks.AttemptAndVerify");
 							MPEventBusNet.NotifyPlayerConnected(targetId);
 							yield break;
 						}
@@ -964,6 +967,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 					yield return Wait1000ms;
 					if (_allConnections.ContainsKey(targetId)) {
 						HasConnections = true;
+						MPMain.LogTest("MPSteamworks.ConnectionController"); 
 						MPEventBusNet.NotifyPlayerConnected(targetId);
 						alreadyConnected = true;
 						break;
@@ -1016,6 +1020,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		StopCoroutine(_connectionCoroutines[steamId]);
 		_connectionCoroutines.Remove(steamId);
 		HasConnections = true;
+		MPMain.LogTest("ISocketManager.MPSteamworks.OnConnected");
 		MPEventBusNet.NotifyPlayerConnected(steamId);
 	}
 
@@ -1052,6 +1057,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			Instance.StopCoroutine(Instance._connectionCoroutines[steamId]);
 			Instance._connectionCoroutines.Remove(steamId);
 			Instance.HasConnections = true;
+			MPMain.LogTest("SteamConnectionManager.OnConnected");
 			MPEventBusNet.NotifyPlayerConnected(steamId);
 		}
 
@@ -1157,9 +1163,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			_currentLobby.SetMemberData(kvp.Key, kvp.Value);
 
 			// 只要有新 Key 成功加入 Cache, 标记变更
-			if (_knownKeysCache.Add(kvp.Key)) {
-				indexChanged = true;
-			}
+			if (_knownKeysCache.Add(kvp.Key)) indexChanged = true;
 		}
 
 		if (indexChanged) {

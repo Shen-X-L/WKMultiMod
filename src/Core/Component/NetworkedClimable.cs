@@ -101,7 +101,6 @@ public class ClimbableData: INetworkSerializable {
 	/// 初始化并绑定持久化数据结构
 	/// </summary>
 	public void BindData(Vector3 position, Quaternion rotation, float secureAmount, bool secure) {
-		MPMain.LogTest("ClimbableData.BindData");
 		this.position = position;
 		this.rotation = rotation;
 		this.secure = secure;

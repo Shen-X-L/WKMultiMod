@@ -1,12 +1,7 @@
 ﻿using Steamworks;
-using Steamworks.Ugc;
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.XR;
-using WKMPMod.Asset;
 using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Data;
@@ -17,7 +12,6 @@ using WKMPMod.Util;
 using WKMPMod.World;
 using static ENT_Player;
 using static WKMPMod.Data.MPWriterPool;
-using static WKMPMod.Data.PlayerData;
 using static WKMPMod.UI.UI_Manager;
 using static WKMPMod.Util.DictionaryExtensions;
 
@@ -46,30 +40,6 @@ public class MPPacketHandlers {
 			RPManager.Instance.ProcessPlayerCustomProperties(playerId, playerDictData);
 		}
 	}
-
-	///// <summary>
-	///// 主机/客户端接收RequestMemberData: 处理玩家本体数据请求<br/>
-	///// 发送ResponseMemberData: 玩家本体数据字典<br/>
-	///// 接受函数 <see cref="HandleResponseMemberData"/><br/>
-	///// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
-	///// </summary>
-	//[MPPacketHandler(PacketType.RequestMemberData)]
-	//private static void HandleRequestMemberData(IDType senderId, DataReader reader) {
-	//	var writer = MPWriterPool.GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.ResponseMemberData);
-	//	writer.Put(MPSteamworks.Instance.MemberData);
-	//	MPSteamworks.Instance.SendToPeer(senderId, writer);
-	//}
-
-	///// <summary>
-	///// 主机/客户端接收ResponseMemberData: 处理远程玩家数据响应<br/>
-	///// 发送函数 <see cref="HandleRequestMemberData"/><br/>
-	///// 发送函数 <see cref="MPSteamworks.SendAllMemberData"/><br/>
-	///// </summary>
-	//[MPPacketHandler(PacketType.ResponseMemberData)]
-	//private static void HandleResponseMemberData(IDType senderId, DataReader reader) {
-	//	var data = reader.GetStringStringDict();
-	//	RPManager.Instance.ProcessMemberData(senderId, data);
-	//}
 
 	/// <summary>
 	/// 主机/客户端接收BroadcastMessage: 处理玩家文字广播<br/>
@@ -144,43 +114,6 @@ public class MPPacketHandlers {
 		// 处理玩家死亡
 		RPManager.Instance.ProcessPlayerDeath(senderId, remoteItems);
 	}
-
-	///// <summary>
-	///// 主机/客户端接收PlayerCreateRequest<br/>
-	///// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
-	///// 发送PlayerCreateResponse: 携带远程玩家工厂ID,让请求方创建远程玩家对象<br/>
-	///// 发送PlayerDataUpdate: 强制同步玩家数据给新玩家,让新玩家更新远程玩家数据<br/>
-	///// </summary>
-	//[MPPacketHandler(PacketType.PlayerCreateRequest)]
-	//private static void HandlePlayerCreateRequest(IDType senderId, DataReader reader) {
-	//	var writer = GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.PlayerCreateResponse);
-	//	writer.Put(LocalPlayer.Instance.FactoryId);
-	//	MPSteamworks.Instance.SendToPeer(senderId, writer);
-
-	//	// 1秒后强制同步玩家数据,让新玩家更新远程玩家数据,因为有可能在创建玩家对象时,玩家数据还没有被同步过去
-	//	MPCore.Instance.StartCoroutine(RoutineMultiSync(new float[] { 1f, 3f, 9f, 9f }));
-
-	//	IEnumerator RoutineMultiSync(float[] delays) {
-	//		foreach (float waitTime in delays) {
-	//			if (waitTime > 0) 
-	//				yield return new WaitForSeconds(waitTime);
-	//			if (!MPCore.IsInLobby || LocalPlayer.Instance == null) 
-	//				yield break; // 停止协程, 防止对不存在的玩家发包
-	//			if (LocalPlayer.Instance != null) 
-	//				LocalPlayer.Instance.ForceSyncToTarget(senderId);
-	//		}
-	//	}
-	//}
-
-	///// <summary>
-	///// 主机/客户端接收PlayerCreateResponse: 创建玩家对象<br/>
-	///// 发送函数 <see cref="HandlePlayerCreateRequest"/><br/>
-	///// </summary>
-	//[MPPacketHandler(PacketType.PlayerCreateResponse)]
-	//private static void HandlePlayerCreateResponse(IDType senderId, DataReader reader) {
-	//	string factoryId = reader.GetString();
-	//	RPManager.Instance.PlayerCreate(senderId, factoryId);
-	//}
 
 	/// <summary>
 	/// 主机/客户端接收SystemUIMessage: 显示文字在游戏内UI<br/>
