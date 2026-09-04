@@ -2,8 +2,6 @@
 
 盗版创建房间失败 ?
 
-restart指令不修改种子
-
 lobbyrestart指令
 
 支持Lua自定义命令

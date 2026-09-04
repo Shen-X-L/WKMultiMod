@@ -20,6 +20,7 @@ using WKMPMod.Team;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
+using static Unity.Collections.Unicode;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -714,13 +715,13 @@ public class MPCore : MonoSingleton<MPCore> {
 			.NotCheat().Description(GetSmart("CommandHelp.TeamRule"))
 			.AutocompleteCustom(TeamRuleAutocomplete);
 
-		// 注册 addteam 指令
+		// 注册 teamadd 指令
 		CommandConsole.BuildCommand("teamadd", AddTeamCommand)
 			.NotCheat().Description(GetSmart("CommandHelp.AddTeam"))
 			.OverValue(() => _MPSteamworks.IsInLobby ? (TeamRuleManager.activeTeams) : NOT_IN_LOBBY)
 			.AutocompleteCustom(NotHostAutocomplete);
 
-		// 注册 removeteam 指令
+		// 注册 teamremove 指令
 		CommandConsole.BuildCommand("teamremove", RemoveTeamCommand)
 			.NotCheat().Description(GetSmart("CommandHelp.RemoveTeam"))
 			.OverValue(() => _MPSteamworks.IsInLobby ? (TeamRuleManager.activeTeams) : NOT_IN_LOBBY)
@@ -1156,6 +1157,11 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	/// <param name="args"></param>
 	public void SetTeamRule(string[] args) {
+		if (!EnsureHostPrivileges()) {
+			CommandConsole.LogError(YOU_ARE_NOT_HOST);
+			return;
+		}
+
 		if (args == null || args.Length < 4) {
 			CommandConsole.LogError(Get("CommandConsole.TeamRuleInsufficientParams"));
 			return;
@@ -1168,9 +1174,9 @@ public class MPCore : MonoSingleton<MPCore> {
 			string[] parts = chunk.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 			if (parts.Length < 4) continue;
 
-			string attackerTeam = parts[0];
+			string sourceTeam = parts[0];
 			string targetTeam = parts[1];
-			string key = TeamRuleManager.GetRuleKey(attackerTeam, targetTeam);
+			string key = TeamRuleManager.GetRuleKey(sourceTeam, targetTeam);
 
 			// 获取现有规则克隆副本, 或创建新规则
 			TeamRule rule = TeamRuleManager.GetAllRules().TryGetValue(key, out var existing)
@@ -1194,12 +1200,10 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// TeamRule补全函数
 	/// </summary>
 	private void TeamRuleAutocomplete(CommandConsole.CommandAutocomplete autocomplete) {
-		if (!EnsureHostPrivileges()) {
-			autocomplete.FromArray(new[] { YOU_ARE_NOT_HOST });
-			autocomplete.Reject();
+		if (!MPSteamworks.IsHost) {
+			NotHostAutocomplete(autocomplete);
 			return;
 		}
-
 		// 计算有效索引 (遇到逗号重置)
 		int argIndex = autocomplete.activeArg;
 		for (int i = argIndex; i > 0; i--) {
@@ -1208,33 +1212,44 @@ public class MPCore : MonoSingleton<MPCore> {
 				break;
 			}
 		}
-
-		// 根据有效索引构建当前位置的合法下拉菜单
-		List<string> candidates = new List<string>();
-
+		// 输入
+		string currentArg = autocomplete.ArgumentAt(autocomplete.activeArg).Trim().ToLower();
 		if (argIndex == 0 || argIndex == 1) {
 			// 参数 0 和 1: 目标队伍
-			candidates.AddRange(TeamRuleManager.activeTeams);
-		} else if ((argIndex & 0b1) == 0b0) {
-			// argIndex % 2 == 0
-			// 偶数位置: 规则名称这里顺便把逗号也加入菜单提示, 引导玩家连写
-			candidates.AddRange(TeamRule.DefinitionNames);
-			candidates.Add(",");
-		} else {
-			// 奇数位置: 规则值同样加入逗号提示
-			candidates.AddRange(new[] { "true", "false", "default" });
-		}
-
-		// 将列表推送给引擎显示
-		autocomplete.FromArray(candidates);
-
-		// 实时输入验证
-		string currentArg = autocomplete.ArgumentAt(autocomplete.activeArg).Trim().ToLower();
-		if (!string.IsNullOrEmpty(currentArg)) {
-			// 如果玩家输入的词不在当前的菜单选项里, 爆红提醒
-			if (!candidates.Contains(currentArg)) {
+			var teams = TeamRuleManager.activeTeams.ToArray();
+			autocomplete.FromArray(teams);
+			// 输入验证 不为空 && 不在队伍列表中, 爆红提示
+			if (!string.IsNullOrEmpty(currentArg) && !teams.Contains(currentArg))
 				autocomplete.Reject();
+			return;
+		} else if ((argIndex & 1) == 0) {
+			// argIndex % 2 == 0
+			// 获取当前对应队伍
+			string sourceTeam = autocomplete.ArgumentAt(autocomplete.activeArg - argIndex).Trim().ToLower();
+			string targetTeam = autocomplete.ArgumentAt(autocomplete.activeArg - argIndex + 1).Trim().ToLower();
+			string teamKey = TeamRuleManager.GetRuleKey(sourceTeam, targetTeam);
+			// 不是活跃队伍, 爆红提示
+			if (!TeamRuleManager.activeTeams.Contains(sourceTeam)|| !TeamRuleManager.activeTeams.Contains(targetTeam)) {
+				autocomplete.FromArray(new[] { "Error Team Name" });
+				autocomplete.Reject();
+				return;
 			}
+			// 没有规则 创建缓存
+			if (!TeamRuleManager.GetAllRules().TryGetValue(teamKey, out var existing) || existing == null) {
+				existing = new TeamRule();
+				string compressedData = existing.SerializeTeamRule();
+				TeamRuleManager.UpdateRuleCache(teamKey, compressedData);
+			}
+			// 偶数位置: 规则名称 + 当前启用情况
+			autocomplete.FromArrayWithDesc(existing.FormattedRules);
+			return;
+		} else {
+			// argIndex % 2 == 1
+			var values = new[] { "true", "false", "default" };
+			autocomplete.FromArray(values);
+			if (!string.IsNullOrEmpty(currentArg) && !values.Contains(currentArg))
+				autocomplete.Reject();
+			return;
 		}
 	}
 

@@ -6,15 +6,41 @@ namespace WKMPMod.Team;
 
 // 队伍规则实体 (使用可空布尔值 bool?, null代表未设置, 需要触发回退) 
 public partial class TeamRule {
+	// 所有规则类型的缓存数组, 用于遍历和序列化
 	public static readonly RuleType[] AllRuleTypes =
 		Enum.GetValues(typeof(RuleType)).Cast<RuleType>().Where(t => t != RuleType.None).ToArray();
-
+	// 所有规则名称的缓存列表, 用于遍历和序列化
 	private static List<string> _definitionNamesCache;
 	public static List<string> DefinitionNames {
 		get {
 			if (_definitionNamesCache == null)
 				_definitionNamesCache = Definitions.Select(d => d.name).ToList();
 			return _definitionNamesCache;
+		}
+	}
+
+	// 私有缓存与脏标记
+	private List<(string type, string value)> _formattedRulesCache;
+	private bool _isCacheDirty = true;
+	/// <summary>
+	/// 获取全量规则格式化后的键值对列表, 格式为 (规则名称小写, "true"/"false"/"default")
+	/// 未设置的规则会自动补全为 "default"
+	/// </summary>
+	public IReadOnlyList<(string type, string value)> FormattedRules {
+		get {
+			if (_isCacheDirty || _formattedRulesCache == null) {
+				// 遍历全量规则 AllRuleTypes 确保数量一致
+				_formattedRulesCache = AllRuleTypes.Select(type => {
+					string keyStr = type.ToString().ToLower();
+					bool? val = GetFieldValue(type); // 若 Rules 中不存在则返回 null
+
+					string valStr = val.HasValue ? (val.Value ? "true" : "false") : "default";
+					return (keyStr, valStr);
+				}).Append((",", "change team")).ToList();
+
+				_isCacheDirty = false;
+			}
+			return _formattedRulesCache;
 		}
 	}
 
@@ -28,6 +54,7 @@ public partial class TeamRule {
 	public void SetFieldValue(RuleType type, bool? value) {
 		if (value.HasValue) Rules[type] = value;
 		else Rules.Remove(type);
+		_isCacheDirty = true;
 	}
 
 	// 直接通过构造函数深拷贝字典
@@ -70,9 +97,11 @@ public partial class TeamRule {
 
 		foreach (var part in data.Split(';')) {
 			var kv = part.Split(':');
+			// 改为直写
 			if (kv.Length == 2 && Enum.TryParse<RuleType>(kv[0], true, out var type)) 
-				rule.SetFieldValue(type, kv[1] == "1");
+				rule.Rules[type] = (kv[1] == "1");
 		}
+		rule._isCacheDirty = true;
 		return rule;
 	}
 

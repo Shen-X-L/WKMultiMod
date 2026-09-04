@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 using WKMPMod.Component;
 using WKMPMod.Core;
@@ -35,7 +36,7 @@ public enum DroppedItemSyncAction : byte {
 	PickupReject = 3,// 拾取拒绝: 所有者确认物品已被别人抢先取走, 通知申请者回滚背包
 }
 
-public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
+public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 	public const byte SCENE_ITEM = 1;
 	// 快照协议每帧最多发送/注册物品数量, 防止大批量物品导致帧率下降
 	private const int TombstonesPerChunk = 20;
@@ -68,8 +69,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 			_sceneTombstones.Clear();
 			_sceneItems.Clear();
 
-			foreach (var tobstone in _teamTombstones.Values)
-				tobstone.Clear();
+			foreach (var tobstone in _teamTombstones.Values) tobstone.Clear();
 			_teamTombstones.Clear();
 
 			foreach (var coroutine in _sendCoroutines.Values)
@@ -92,7 +92,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// <summary>
 	/// 对所有记录进行重置, 在游戏地图重置,玩家队伍切换时调用 重新申请销毁物品表
 	/// </summary>
-	public  void ResetState() {
+	public void ResetState() {
 		// 如果是场景切换 删除场景缓存物品记录
 		_sceneItems.Clear();
 		// 目前重启也会导致之前物品消失 
@@ -110,7 +110,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// <summary>
 	/// 场景物品被首次加载调用 检测该物品是否被其他同规则玩家拿走过
 	/// </summary>
-	public  void OnSceneItemStarted(Item_Object itemObject) {
+	public void OnSceneItemStarted(Item_Object itemObject) {
 		if (itemObject == null || !MPCore.IsReady) return;
 		// 黑名单或无法同步
 		if (!IsSyncableWorldItem(itemObject) || IsBlacklisted(itemObject.gameObject)) return;
@@ -145,7 +145,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// <summary>
 	/// 广播物品标签删除
 	/// </summary>
-	public  void NotifyLocalPickup(NetworkedItem identity) {
+	public void NotifyLocalPickup(NetworkedItem identity) {
 		BroadcastSceneRemove(identity);
 		// 遗忘并重置物品网络ID(变为个人)
 		_sceneItems.Remove(identity.networkId);
@@ -163,7 +163,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// 主客双方加载同一关卡后对同一 Item_Object 生成相同 ID, 实现精确匹配无需模糊搜索.
 	/// </para>
 	/// </summary>
-	private  ulong GetSceneNetworkId(Item_Object itemObject) {
+	private ulong GetSceneNetworkId(Item_Object itemObject) {
 		if (itemObject == null || itemObject.gameObject == null) return 0;
 		if (!itemObject.gameObject.scene.IsValid() || string.IsNullOrEmpty(itemObject.gameObject.scene.name))
 			return 0;
@@ -185,7 +185,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// 发送场景物品被拾取数据
 	/// 接收函数: <see cref="HandleSceneRemove"/>
 	/// </summary>
-	private  void BroadcastSceneRemove(NetworkedItem identity) {
+	private void BroadcastSceneRemove(NetworkedItem identity) {
 		if ((identity?.sceneOrDropped != SCENE_ITEM)) return;
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.SceneItemStateSync);
 		writer.Put((byte)SceneItemSyncAction.Remove);
@@ -212,7 +212,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// 客机向主机请求场景物品销毁表 (NeedRemoveChunk)
 	/// 接收函数: <see cref="HandleSceneRemoveChunkRequest"/>
 	/// </summary>
-	private  void SendSceneRemoveChunkRequest() {
+	private void SendSceneRemoveChunkRequest() {
 		if (MPSteamworks.IsHost) return;
 
 		MPMain.LogInfo("[MP ItemSync] Requesting Scene Tombstone Chunk from Host...");
@@ -226,23 +226,25 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// 协程：分帧向客户端补发墓碑列表, 防止大批量数据导致帧率卡顿或网络拥塞
 	/// 接收函数: <see cref="HandleSceneRemoveChunk"/>
 	/// </summary>
-	private  IEnumerator SendTombstoneChunksCoroutine(IDType clientId, List<ulong> tombstoneList) {
-		int total = tombstoneList.Count;
-		int currentIndex = 0;
+	private IEnumerator SendTombstoneChunksCoroutine(IDType clientId, IReadOnlyCollection<ulong> tombstones) {
+		int total = tombstones.Count;
+		if (total == 0) yield break;
 
-		while (currentIndex < total) {
-			int countToSend = Mathf.Min(TombstonesPerChunk, total - currentIndex);
+		using var enumerator = tombstones.GetEnumerator();
+		int sentCount = 0;
+
+		while (sentCount < total) {
+			int countToSend = Mathf.Min(TombstonesPerChunk, total - sentCount);
 
 			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.SceneItemStateSync);
 			writer.Put((byte)SceneItemSyncAction.RemoveChunk);
 			writer.Put(countToSend);
 
-			for (int i = 0; i < countToSend; i++) {
-				writer.Put(tombstoneList[currentIndex + i]);
-			}
+			for (int i = 0; i < countToSend; i++) 
+				if (enumerator.MoveNext()) writer.Put(enumerator.Current);
 
 			MPSteamworks.Instance.SendToPeer(clientId, writer, SendType.Reliable);
-			currentIndex += countToSend;
+			sentCount += countToSend;
 
 			yield return null; // 等待下一帧继续发送
 		}
@@ -255,14 +257,14 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 
 	#region[网络数据接收]
 
-	public  void HandleSceneCreate(IDType senderId, DataReader reader) {
+	public void HandleSceneCreate(IDType senderId, DataReader reader) {
 	}
 
 	/// <summary>
 	/// 接收场景物品消失数据, 物品存在则消除, 不存在则记录为待删除
 	/// 发送函数: <see cref="BroadcastSceneRemove"/>
 	/// </summary>
-	public  void HandleSceneRemove(IDType senderId, DataReader reader) {
+	public void HandleSceneRemove(IDType senderId, DataReader reader) {
 		var networkId = reader.GetULong();
 		// 是主机 记录该玩家所在队伍的销毁项
 		if (MPSteamworks.IsHost) {
@@ -284,7 +286,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// 接收主机补发的场景物品销毁表 Chunk (SceneRemoveChunk)
 	/// 发送函数: <see cref="SendTombstoneChunksCoroutine"/>
 	/// </summary>
-	public  void HandleSceneRemoveChunk(DataReader reader) {
+	public void HandleSceneRemoveChunk(DataReader reader) {
 		int count = reader.GetInt();
 		MPMain.LogInfo($"[MP ItemSync] Received Tombstone Chunk with {count} items.");
 
@@ -298,19 +300,28 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	/// 主机收到客机申请销毁表请求 (NeedRemoveChunk)
 	/// 发送函数: <see cref="SendSceneRemoveChunkRequest"/>
 	/// </summary>
-	public  void HandleSceneRemoveChunkRequest(IDType senderId) {
+	public void HandleSceneRemoveChunkRequest(IDType senderId) {
 		if (!MPCore.CanSync || !MPSteamworks.IsHost || WorldSyncManager.Instance == null) return;
 		if (senderId == 0 || senderId == MPSteamworks.UserSteamId) return;
 
 		var teamName = RPManager.Instance.GetPlayerTeam(senderId);
 		if (teamName == string.Empty) teamName = MPKeys.DEFAULT_TEAM;
-		if (!_teamTombstones.TryGetValue(teamName, out var tombstones) || tombstones.Count == 0) return;
+
+		// 获取所有对 teamA同步过的队伍列表
+		var teams = TeamRuleManager.GetTeamsWithRuleTo(teamName, RuleType.SyncSceneItem, true);
 		// 停止旧协程
 		if (_sendCoroutines.TryGetValue(senderId, out var coroutine) && coroutine != null)
 			WorldSyncManager.Instance.StopCoroutine(coroutine);
-		// 启动协程分帧发送
-		_sendCoroutines[senderId] = WorldSyncManager.Instance.StartCoroutine(SendTombstoneChunksCoroutine(senderId, tombstones.ToList()));
 
+		HashSet<ulong> tombstones = new();
+		foreach (var activeTeam in teams)
+			if (_teamTombstones.TryGetValue(activeTeam, out var teamStones))
+				tombstones.UnionWith(teamStones);
+
+		if (tombstones.Count == 0) return;
+
+		// 启动协程分帧发送
+		_sendCoroutines[senderId] = WorldSyncManager.Instance.StartCoroutine(SendTombstoneChunksCoroutine(senderId, tombstones));
 	}
 
 	/// <summary>
@@ -459,7 +470,7 @@ public class SceneItemModule: Singleton<SceneItemModule>, ISyncModule{
 	#endregion
 }
 
-public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
+public class DroppedItemModule : Singleton<DroppedItemModule>, ISyncModule {
 	public const byte DROPPED_ITEM = 2;
 	private Dictionary<ulong, NetworkedItem> _p2pItems = new();
 	private ulong _nextLocalItemId = 1;     // 本地 P2P ID 自增计数器: 与 SteamId 组合确保全局唯一
@@ -502,7 +513,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// SyncAndBroadcast 内部会判断是否已有 NetworkId (防止重复广播).
 	/// </para>
 	/// </summary>
-	public  void NotifyLocalDrop(Item item) {
+	public void NotifyLocalDrop(Item item) {
 		if (item == null || !MPCore.CanSync) return;
 
 		var itemObject = item.GetDropObject();
@@ -519,7 +530,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	///		拒绝: 物品回滚消失
 	///		允许: 物品正常保留并更改所有者
 	/// </summary>
-	public  void NotifyLocalPickup(NetworkedItem identity) {
+	public void NotifyLocalPickup(NetworkedItem identity) {
 		if (identity.ownerId == MPSteamworks.UserSteamId) {
 			// 我是所有者: 直接广播 Remove 并且仅隐藏物品而不移除
 			BroadcastPickupRemove(MPSteamworks.UserSteamId, identity.networkId, false);
@@ -533,7 +544,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// 脚本/触发器直接在本地生成一个同步的世界掉落物.
 	/// 实例化物品后调用 SyncAndBroadcast 使其进入 P2P 网络.
 	/// </summary>
-	public  void SpawnSyncedWorldDrop(string prefabKey, Vector3 position, Quaternion rotation, Vector3 velocity) {
+	public void SpawnSyncedWorldDrop(string prefabKey, Vector3 position, Quaternion rotation, Vector3 velocity) {
 		if (!MPCore.CanSync || string.IsNullOrWhiteSpace(prefabKey)) return;
 
 		var (itemObject, identity) = InstantiateWorldItem(prefabKey, position, rotation);
@@ -552,7 +563,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// </para>
 	/// </summary>
 	/// <returns>NetworkedItem 同步组件, 失败返回 null</returns>
-	public  NetworkedItem SyncAndBroadcast(Item_Object itemObject) {
+	public NetworkedItem SyncAndBroadcast(Item_Object itemObject) {
 		if (itemObject == null || itemObject.gameObject == null) return null;
 
 		var identity = GetOrCreateIdentity(itemObject.gameObject);
@@ -609,7 +620,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// 向全网广播创建物品.
 	/// 接收函数: <see cref="HandleDropCreate"/>
 	/// </summary>
-	private  void BroadcastDropCreate(NetworkedItem identity, Item_Object itemObject, Vector3 velocity) {
+	private void BroadcastDropCreate(NetworkedItem identity, Item_Object itemObject, Vector3 velocity) {
 		if (identity == null || itemObject == null || identity.networkId == 0) return;
 
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.DroppedItemStateSync);
@@ -630,7 +641,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// 向物品所有者单播拾取申请.
 	/// 接收函数: <see cref="HandlePickupRequest"/>
 	/// </summary>
-	private  void SendPickupRequest(ulong networkId, ulong ownerId) {
+	private void SendPickupRequest(ulong networkId, ulong ownerId) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, ownerId, PacketType.DroppedItemStateSync);
 		writer.Put((byte)DroppedItemSyncAction.PickupRequest);
 		writer.Put(networkId);
@@ -641,7 +652,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// 向拾取申请者单播拒绝消息.
 	/// 接收函数: <see cref="HandlePickupReject"/>
 	/// </summary>
-	private  void SendPickupReject(ulong targetId, ulong networkId) {
+	private void SendPickupReject(ulong targetId, ulong networkId) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.DroppedItemStateSync);
 		writer.Put((byte)DroppedItemSyncAction.PickupReject);
 		writer.Put(networkId);
@@ -654,7 +665,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// (因为持有者本地已在发包前完成了清理).
 	/// <see cref="HandlePickupRemove"/>
 	/// </summary>
-	private  void BroadcastPickupRemove(IDType holderId, ulong networkId, bool destroyObject = true) {
+	private void BroadcastPickupRemove(IDType holderId, ulong networkId, bool destroyObject = true) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.DroppedItemStateSync);
 		writer.Put((byte)DroppedItemSyncAction.PickupRemove);
 		writer.Put(networkId);
@@ -675,7 +686,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// 收到创建消息: 按优先级匹配候选或实例化新物品, 应用初始状态并写入追踪.
 	/// 发送函数: <see cref="BroadcastDropCreate"/>
 	/// </summary>
-	public  void HandleDropCreate(IDType senderId, DataReader reader) {
+	public void HandleDropCreate(IDType senderId, DataReader reader) {
 		var networkId = reader.GetULong();
 		var prefabKey = reader.GetString();
 		var position = reader.GetVector3();
@@ -714,7 +725,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// <br/>
 	/// 包是单播给所有者的, 正常情况下 OwnerId==我 恒成立. OwnerId!=我 属于异常边界情况.
 	/// </summary>
-	public  void HandlePickupRequest(ulong requesterId, DataReader reader) {
+	public void HandlePickupRequest(ulong requesterId, DataReader reader) {
 		var networkId = reader.GetULong();
 		if (networkId == 0) return;
 
@@ -752,7 +763,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// <br/>
 	/// holderId != 我: 他人拾起了物品, 执行 ForceCleanupItemPhysicalAndInventory.
 	/// </summary>
-	public  void HandlePickupRemove(IDType senderId, DataReader reader) {
+	public void HandlePickupRemove(IDType senderId, DataReader reader) {
 		var networkId = reader.GetULong();
 		var holderId = reader.GetULong();
 		var shouldRemove = reader.GetBool();
@@ -781,7 +792,7 @@ public class DroppedItemModule: Singleton<DroppedItemModule>, ISyncModule {
 	/// 执行背包清理与世界实体清除.
 	/// 发送函数: <see cref="SendPickupReject"/>
 	/// </summary>
-	public  void HandlePickupReject(DataReader reader) {
+	public void HandlePickupReject(DataReader reader) {
 		var networkId = reader.GetULong();
 		if (networkId == 0) return;
 

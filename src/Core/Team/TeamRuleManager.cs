@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Unity.VisualScripting;
+using WKMPMod.Core;
 using WKMPMod.Data;
 
 namespace WKMPMod.Team;
@@ -18,19 +19,24 @@ public static class TeamRuleManager {
 	// 活跃队伍列表
 	public static HashSet<string> activeTeams = new();
 
-	public static string GetRuleKey(string attackerTeam, string targetTeam) => $"Rule_{attackerTeam}_{targetTeam}";
+	// 全局函数: 根据队伍名称生成规则键名
+	public static string GetRuleKey(string sourceTeam, string targetTeam) => $"Rule_{sourceTeam}_{targetTeam}";
 
 	public static IReadOnlyDictionary<string, TeamRule> GetAllRules() => _rulesCache;
 
-	// 接收大厅数据更新缓存
-	public static void UpdateRuleCache(string key, string data) {
-		_rulesCache[key] = TeamRule.Parse(data);
-	}
-
-	// 清理缓存 (断开连接时调用) 
+	/// <summary>
+	/// 清理缓存 (断开连接时调用) 
+	/// </summary>
 	public static void ClearCache() {
 		_rulesCache.Clear();
 		_flatRulesByTarget.Clear();
+	}
+
+	/// <summary>
+	/// 接收大厅数据更新缓存
+	/// </summary>
+	public static void UpdateRuleCache(string key, string data) {
+		_rulesCache[key] = TeamRule.Parse(data);
 	}
 
 	/// <summary>
@@ -41,9 +47,7 @@ public static class TeamRuleManager {
 		currentTeam = currentTeam?.ToLower() ?? MPKeys.DEFAULT_TEAM.ToLower();
 
 		foreach (var targetTeam in activeTeams) {
-
 			string targetLower = targetTeam.ToLower();
-
 			ulong maskData = 0;
 
 			// 遍历所有规则, 若 GetRule 返回 true, 则按位或运算, 把对应的位置 1
@@ -93,15 +97,7 @@ public static class TeamRuleManager {
 		return rule.SerializeTeamRule();
 	}
 
-	/// <summary>
-	/// 更新活跃队伍列表
-	/// </summary>
-	public static void UpdateActiveTeams(IEnumerable<string> teams) {
-		activeTeams.Clear();
-		activeTeams.Add(MPKeys.DEFAULT_TEAM.ToLower());
-		foreach (var team in teams)
-			if (!string.IsNullOrEmpty(team)) activeTeams.Add(team);
-	}
+	#region[规则查询]
 
 	/// <summary>
 	/// 获取对 目标队伍 的规则引用
@@ -114,26 +110,43 @@ public static class TeamRuleManager {
 	/// <summary>
 	/// 获取对 目标队伍 具体规则启用情况
 	/// </summary>
-	/// <param name="targetTeam"></param>
-	/// <param name="type"></param>
-	/// <returns></returns>
 	public static bool GetActiveRule(string targetTeam, RuleType type) {
 		if (_flatRulesByTarget.TryGetValue(targetTeam.ToLower(), out var rule))
 			return rule.GetFieldValue(type);
 		return FlattenedRule.defaultSafeRule.GetFieldValue(type);
 	}
 
-	// 添加活跃队伍
+	#endregion
+
+	#region[活跃队伍管理]
+
+	/// <summary>
+	/// 修改活跃队伍列表
+	/// </summary>
+	public static void UpdateActiveTeams(IEnumerable<string> teams) {
+		activeTeams.Clear();
+		activeTeams.Add(MPKeys.DEFAULT_TEAM.ToLower());
+		foreach (var team in teams)
+			if (!string.IsNullOrEmpty(team)) activeTeams.Add(team);
+	}
+
+	/// <summary>
+	/// 添加活跃队伍
+	/// </summary>
 	public static void AddActiveTeam(string team) {
 		if (!string.IsNullOrEmpty(team)) activeTeams.Add(team);
 	}
 
-	// 添加多个活跃队伍
+	/// <summary>
+	/// 添加多个活跃队伍
+	/// </summary>
 	public static void AddActiveTeams(IEnumerable<string> team) {
 		activeTeams.AddRange(team);
 	}
 
-	// 删除特定活跃队伍和规则
+	/// <summary>
+	/// 删除特定活跃队伍和规则
+	/// </summary>
 	public static void RemoveActiveTeam(string team) {
 		if (string.IsNullOrEmpty(team)) return;
 
@@ -147,14 +160,59 @@ public static class TeamRuleManager {
 		foreach (var key in keysToRemove) _rulesCache.Remove(key);
 	}
 
-	// 获取符合条件的活跃队伍列表
-	public static IEnumerable<string> GetTeamsMatchingRule(RuleType type, bool value = false) {
+	#endregion
+
+	#region[对应队伍查询]
+
+	/// <summary>
+	/// 获取符合条件的活跃队伍列表
+	/// </summary>
+	public static IEnumerable<string> GetTeamsMatchingRule(RuleType type, bool active = true) {
 		var result = new List<string>();
 		foreach (var (team, rule) in _flatRulesByTarget)
-			if (rule.GetFieldValue(type) == value) result.Add(team);
+			if (rule.GetFieldValue(type) == active) result.Add(team);
 
 		return result;
 	}
+
+	/// <summary>
+	/// 查询(X -> targetTeam)RuleType 判定结果为 active 的来源队伍列表
+	/// </summary>
+	/// <param name="targetTeam">目标队伍 (teamA)</param>
+	/// <param name="type">规则类型</param>
+	/// <param name="active">期望匹配的规则结果 (true/false)</param>
+	/// <returns>符合条件的来源队伍名称列表</returns>
+	public static IEnumerable<string> GetTeamsWithRuleTo(string targetTeam, RuleType type, bool active = true) {
+		if (string.IsNullOrEmpty(targetTeam)) return Enumerable.Empty<string>();
+
+		string targetLower = targetTeam.ToLower();
+		var matchingTeams = new List<string>();
+
+		// 遍历所有活跃队伍，将其作为来源队伍 (teamA)
+		foreach (var team in activeTeams)
+			if (GetRule(team.ToLower(), targetLower, type) == active) matchingTeams.Add(team);
+
+		return matchingTeams;
+	}
+
+	/// <summary>
+	/// 查询(targetTeam -> X)RuleType 判定结果为 active 的来源队伍列表
+	/// </summary>
+	/// <param name="targetTeam">目标队伍 (teamB)</param>
+	/// <param name="type">规则类型</param>
+	/// <param name="active">期望匹配的规则结果 (true/false)</param>
+	/// <returns>符合条件的来源队伍名称列表</returns>
+	public static IEnumerable<string> GetTeamsWithRuleFrom(string sourceTeam, RuleType type, bool active = true) {
+		if (string.IsNullOrEmpty(sourceTeam)) return Enumerable.Empty<string>();
+
+		string sourceLower = sourceTeam.ToLower();
+		var result = new List<string>();
+		foreach (var team in activeTeams) 
+			if (GetRule(sourceLower, team.ToLower(), type) == active)result.Add(team);
+		return result;
+	}
+
+	#endregion
 }
 
 #region[本地储存]
@@ -167,11 +225,13 @@ public class ServerRuleConfig {
 }
 
 /// <summary>
-/// attackerTeam队伍 对 victimTeam队伍使用的规则
+/// sourceTeam队伍 对 targetTeam队伍使用的规则
 /// </summary>
 public class SpecificRuleConfig {
-	public string attackerTeam { get; set; }
-	public string victimTeam { get; set; }
+	public string sourceTeam { get; set; }
+	public string attackerTeam { set { sourceTeam = value; }}
+	public string targetTeam { get; set; }
+	public string victimTeam { set { targetTeam = value; } }
 	public Dictionary<string, bool> rules { get; set; } = new();
 }
 
@@ -201,8 +261,8 @@ public static class RuleConfigLoader {
 				},
 				SpecificRules = new List<SpecificRuleConfig> {
 					new SpecificRuleConfig {
-						attackerTeam = "hunter",
-						victimTeam = "runner",
+						sourceTeam = "hunter",
+						targetTeam = "runner",
 						rules = new Dictionary<string, bool> {
 							{ RuleType.Pvp.ToString().ToLower(), true },
 							{ RuleType.Grab.ToString().ToLower(), false },
@@ -210,8 +270,8 @@ public static class RuleConfigLoader {
 						}
 					},
 					new SpecificRuleConfig {
-						attackerTeam = "hunter",
-						victimTeam = MPKeys.DEFAULT_TEAM,
+						sourceTeam = "hunter",
+						targetTeam = MPKeys.DEFAULT_TEAM,
 						rules = new Dictionary<string, bool> {
 							{ RuleType.Pvp.ToString().ToLower(), true }
 						}
@@ -223,17 +283,21 @@ public static class RuleConfigLoader {
 
 		// 读取并反序列化 JSON
 		string jsonStr = File.ReadAllText(configPath);
+		MPMain.LogTest(jsonStr);
 		var config = JsonConvert.DeserializeObject<ServerRuleConfig>(jsonStr);
 		if (config == null) return lobbyDataPairs;
 
 		// 处理全局默认规则
 		string globalKey = TeamRuleManager.GetRuleKey(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM);
 		lobbyDataPairs[globalKey] = ConvertDictToString(config.GlobalDefault);
-
+		MPMain.LogTest(string.Join(", ", config.GlobalDefault.Select(kvp => $"{kvp.Key}={kvp.Value}")));
+		MPMain.LogTest(config.SpecificRules.Count.ToString());
 		// 处理特定队伍规则
 		foreach (var spec in config.SpecificRules) {
-			string key = TeamRuleManager.GetRuleKey(spec.attackerTeam, spec.victimTeam);
+			string key = TeamRuleManager.GetRuleKey(spec.sourceTeam, spec.targetTeam);
 			lobbyDataPairs[key] = ConvertDictToString(spec.rules);
+			MPMain.LogTest($"{spec.sourceTeam}->{spec.targetTeam}");
+			MPMain.LogTest(string.Join(", ", spec.rules.Select(kvp => $"{kvp.Key}={kvp.Value}")));
 		}
 
 		return lobbyDataPairs;
@@ -267,8 +331,8 @@ public static class RuleConfigLoader {
 				config.GlobalDefault = ruleDict;
 			} else {
 				config.SpecificRules.Add(new SpecificRuleConfig {
-					attackerTeam = teamA,
-					victimTeam = teamB,
+					sourceTeam = teamA,
+					targetTeam = teamB,
 					rules = ruleDict
 				});
 			}
