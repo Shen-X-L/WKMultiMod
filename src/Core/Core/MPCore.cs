@@ -478,11 +478,11 @@ public class MPCore : MonoSingleton<MPCore> {
 				sourceName = container.PlayerName;
 
 				// 死亡信息获取
-				message = HasLocalKey("0_DeathMessage", "playerKill" + type)
+				message = HasKey("0_DeathMessage", "playerKill" + type)
 					? GetRandom($"0_DeathMessage.playerKill{type}", name, sourceName)// {0}为死者 {1}为凶手
 					: GetRandom("0_DeathMessage.playerKillDefault", name, type, sourceName);// {0}为死者 {1}为未匹配方式 {2}为凶手
 			} else {
-				message = HasLocalKey("0_DeathMessage", type)
+				message = HasKey("0_DeathMessage", type)
 					? GetRandom($"0_DeathMessage.{type}", name)// {0}为死者
 					: GetRandom("0_DeathMessage.default", name, type);// {0}为死者 {1}为未匹配方式
 			}

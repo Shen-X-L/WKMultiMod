@@ -273,6 +273,21 @@ public static class Localization {
 	#region[Debug检查]
 
 	/// <summary>
+	/// 检查当前生效的语言环境 (含字体支持校验与英文回退) 中是否存在指定的 Key
+	/// </summary>
+	public static bool HasKey(string key) {
+		if (_isFontPluginLoaded && _flatLocalCache.ContainsKey(key)) return true;
+		return _flatEnCache.ContainsKey(key);
+	}
+
+	/// <summary>
+	/// 检查当前生效的语言环境中是否存在指定的 Category 和 Key
+	/// </summary>
+	public static bool HasKey(string category, string key) {
+		return HasKey($"{category}.{key}");
+	}
+
+	/// <summary>
 	/// 检查键是否存在
 	/// </summary>
 	public static bool HasLocalKey(string key) {
@@ -283,10 +298,7 @@ public static class Localization {
 	/// 检查分类和键是否存在
 	/// </summary>
 	public static bool HasLocalKey(string category, string key) {
-		if (_localTable.TryGetValue(category, out var categoryDict)) {
-			return categoryDict.ContainsKey(key);
-		}
-		return false;
+		return HasLocalKey($"{category}.{key}");
 	}
 
 	/// <summary>
