@@ -91,10 +91,17 @@ public static class Localization {
 				LoadFileToTable(localFilePath, _localTable);
 				MPMain.LogInfo($"[Localization] Loaded local language file for: {language}");
 			}
+			// 构建缓存
+			_flatEnCache = BuildFlatCache(_enTable);
+			_flatLocalCache = BuildFlatCache(_localTable);
+		} else {
+			// 英文直接使用英文表
+			_localTable = _enTable; 
+			// 构建缓存
+			_flatEnCache = BuildFlatCache(_enTable);
+			_flatLocalCache = _flatEnCache;
 		}
-		// 构建缓存
-		_flatEnCache = BuildFlatCache(_enTable);
-		_flatLocalCache = BuildFlatCache(_localTable);
+
 		if (_flatEnCache.Count == 0 && _flatLocalCache.Count == 0) {
 			MPMain.LogError($"[Localization] CRITICAL: No localization files loaded!");
 		}

@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Patch;
-using WKMPMod.RemotePlayer;
+using WKMPMod.RemotePlayers;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
@@ -82,8 +82,8 @@ public class MPPacketHandlers {
 		IDType source = reader.GetULong();
 
 		if (RPManager.Instance.Players.TryGetValue(source, out var container)
-			&& container?.RemoteEntities?.Length > 0) {
-			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, container.RemoteEntities[0]));
+			&& container?.remotePlayer != null) {
+			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, container.remotePlayer));
 		} else
 			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
 	}

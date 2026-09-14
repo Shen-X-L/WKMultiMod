@@ -4,6 +4,38 @@ using System.Linq;
 
 namespace WKMPMod.Team;
 
+[Flags]
+public enum RuleType : ulong {
+	None = 0,
+
+	[RuleDefinition("pvp", "pvp")]
+	Pvp = 1UL << 0,
+
+	[RuleDefinition("hang", "hang")]
+	Hang = 1UL << 1,
+
+	[RuleDefinition("grab", "grab")]
+	Grab = 1UL << 2,
+
+	[RuleDefinition("tagshow", "tagShow")]
+	TagShow = 1UL << 3,
+
+	[RuleDefinition("syncsceneitem", "syncSceneItem")]
+	SyncSceneItem = 1UL << 4,
+
+	[RuleDefinition("syncdropitem", "syncDropItem")]
+	SyncDropItem = 1UL << 5,
+
+	[RuleDefinition("syncinventory", "syncInventory")]
+	SyncInventory = 1UL << 6,
+
+	[RuleDefinition("syncdied", "syncDied")]
+	SyncDied = 1UL << 7,
+
+	[RuleDefinition("collision", "collision")]
+	Collision = 1UL << 8,
+}
+
 // 队伍规则实体 (使用可空布尔值 bool?, null代表未设置, 需要触发回退) 
 public partial class TeamRule {
 	// 所有规则类型的缓存数组, 用于遍历和序列化
@@ -144,4 +176,18 @@ public readonly partial struct FlattenedRule {
 	}
 
 	#endregion
+}
+
+// 标记规则的元数据 Attribute
+// CommandName:  指令/配置名 (全小写)
+// PropertyName: 属性名 (小驼峰, FlattenedRule 暴露给外部读取 API 使用)
+[AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+public sealed class RuleDefinitionAttribute : Attribute {
+	public string CommandName { get; }
+	public string PropertyName { get; }
+
+	public RuleDefinitionAttribute(string commandName, string propertyName) {
+		CommandName = commandName;
+		PropertyName = propertyName;
+	}
 }

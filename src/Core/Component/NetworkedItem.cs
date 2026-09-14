@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 
 public class NetworkedItem : MonoBehaviour {
     public ulong networkId;

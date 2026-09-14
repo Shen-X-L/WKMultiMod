@@ -889,6 +889,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			foreach (var member in Members) {
 				if (_connectionCoroutines.Count >= MAX_PEER_CONNECTIONS) break;
 				if (member.Id == UserSteamId) continue; // 跳过自己
+				if (member.Id == 0) continue; // 跳过无效ID
 
 				// 没有连接 && 没有正在进行的连接协程 -> 发起连接
 				if (!_allConnections.ContainsKey(member.Id) && !_connectionCoroutines.ContainsKey(member.Id)) {

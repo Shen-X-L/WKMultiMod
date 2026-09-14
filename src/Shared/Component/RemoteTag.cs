@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using WKMPMod.Util;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 
 // 这个组件用来修改玩家名字
 public class RemoteTag : MonoBehaviour {

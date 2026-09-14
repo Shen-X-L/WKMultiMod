@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using WKMPModa.Shared.Data;
 
-namespace WKMPMod.RemotePlayer;
+namespace WKMPMod.RemotePlayers;
 
 public interface ICustomModelExtension {
 	/// <summary>

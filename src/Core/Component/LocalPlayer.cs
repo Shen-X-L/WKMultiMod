@@ -7,14 +7,14 @@ using UnityEngine.UIElements;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
-using WKMPMod.RemotePlayer;
+using WKMPMod.RemotePlayers;
 using WKMPMod.Util;
 using static ENT_Player;
 using static WKMPMod.Data.MPWriterPool;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 
 //仅获取本地玩家信息并触发事件给其他系统使用
 //仅在联机时创建一个实例
@@ -179,8 +179,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		}
 
 		// 如果没有显著变换 && 不强制发送, 返回
-		if (!CheckLocalPlayerUpdates(tickMinFreq))
-			return;
+		if (!CheckLocalPlayerUpdates(tickMinFreq)) return;
 
 		// 获取距离分层列表 (将本地玩家当前位置作为中心点)
 		// 2400m/玩家数量, 最小100m, 远距离玩家仅保证最小频率发送数据

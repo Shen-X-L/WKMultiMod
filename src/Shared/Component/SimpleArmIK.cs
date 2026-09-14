@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 
 public class SimpleArmIK : MonoBehaviour {
 	[Header("目标设置")]

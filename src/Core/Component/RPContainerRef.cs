@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMPMod.RemotePlayer;
+using WKMPMod.RemotePlayers;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 
 public class RPContainerRef : MonoBehaviour {
 	public RPContainer container;

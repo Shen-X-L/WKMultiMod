@@ -4,10 +4,11 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.RemotePlayers;
 using WKMPMod.Util;
 using static WKMPMod.Data.MPWriterPool;
 
@@ -23,9 +24,11 @@ public enum EnemySyncAction : byte {
 	StateBatch = 1,     // 状态更新包: 主机发送同步位置/旋转/生命值
 	Damage = 2,         // 伤害广播: 客机广播对实体造成伤害
 	Kill = 3,           // 实体死亡: 杀死实体
-	KillChunkRequest = 5, // 生物死亡记录请求: 客机向主机请求所有的死亡生物
+	KillChunkRequest = 5,	// 生物死亡记录请求: 客机向主机请求所有的死亡生物
 	KillChunk = 6,      // 生物死亡: 主机发送的生物死亡记录包
-	Create = 7          // 生物创建: 暂时不实现
+	Create = 7,			// 生物创建: 暂时不实现
+	AnimatorTrigger = 8,	// 动画同步: 主机广播 Animator SetTrigger
+	AnimStateBatch = 9   // 动画同步分块: 主机广播 Animator 的SetBool SetFloat SetInt后的状态
 }
 
 #endregion
@@ -36,6 +39,7 @@ public enum EnemySyncAction : byte {
 /// need to instantiate enemy prefabs to stay aligned with the host.
 /// 敌人同步管理器 - 主机权威的敌人 (Denizen/GameEntity) 变换、生命值和死亡同步.
 /// 现有场景敌人通过稳定的层级结构 ID 匹配, 因此客户端无需实例化敌人预制体即可与主机保持一致.
+/// 相关网络组件 <see cref="NetworkedEnemy"/>
 /// </summary>
 public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 
@@ -98,6 +102,11 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	private readonly Dictionary<int, NetworkedEnemy> _byInstanceId = new();
 
 	/// <summary>
+	/// 按 Animator 索引, 用于判断HOOK的 Animator 是否属于已注册的敌人
+	/// </summary>
+	private readonly Dictionary<Animator, NetworkedEnemy> _byAnimator = new();
+
+	/// <summary>
 	/// 是否正在应用远程状态. 用于防止应用远程数据时再次触发本地广播造成循环.
 	/// </summary>
 	public bool ApplyingRemoteState { get; private set; }
@@ -111,9 +120,12 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	private bool _isSweeping = false;
 	private int _sweepIndex = 0;
 
-	// 缓存本轮待发送的敌人队列, 避免产生 GC
+	// Transform/Health 待发送队列
 	private readonly List<NetworkedEnemy> _sweepQueue = new();
 	private readonly List<NetworkedEnemy> _batchBuffer;
+	// Animator 状态待发送队列
+	private readonly List<NetworkedEnemy> _animSweepQueue = new();
+	private readonly List<NetworkedEnemy> _animBatchBuffer;
 	private readonly List<ulong> _localKeysCache = new List<ulong>();
 	private void ResetSweepState() {
 		_timer = 0f;
@@ -121,6 +133,8 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		_sweepIndex = 0;
 		_sweepQueue.Clear();
 		_batchBuffer.Clear();
+		_animSweepQueue.Clear();
+		_animBatchBuffer.Clear();
 		_localKeysCache.Clear();
 	}
 	#endregion
@@ -136,6 +150,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		_syncInterval = Mathf.Max(0.016f, 1f / freq);
 		_maxSyncPerFrame = MPConfig.MaxEnemySendCount;
 		_batchBuffer = new(_maxSyncPerFrame);
+		_animBatchBuffer = new(_maxSyncPerFrame);
 	}
 
 	/// <summary>
@@ -147,6 +162,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		// 清空已同步生物字典
 		_enemies.Clear();
 		_byInstanceId.Clear();
+		_byAnimator.Clear();
 		ApplyingRemoteState = false;
 	}
 
@@ -195,6 +211,14 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		int instanceId = entity.GetInstanceID();
 		if (_byInstanceId.TryGetValue(instanceId, out var existingIdentity)) RemoveEnemyRecord(existingIdentity);
 	}
+
+	/// <summary>
+	/// O(1) 极速查询
+	/// </summary>
+	public bool TryGetNetworkIdentity(Animator handhold, out NetworkedEnemy identity) {
+		return _byAnimator.TryGetValue(handhold, out identity);
+	}
+
 	#endregion
 
 	#region[API]
@@ -210,7 +234,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 					HandleState(reader);
 					break;
 				case EnemySyncAction.Damage:
-					HandleDamage(reader);
+					HandleDamage(senderId,reader);
 					break;
 				case EnemySyncAction.Kill:
 					HandleKill(reader);
@@ -220,6 +244,12 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 					break;
 				case EnemySyncAction.KillChunk:
 					HandleChunk(reader);
+					break;
+				case EnemySyncAction.AnimatorTrigger:
+					HandleAnimatorTrigger(reader);
+					break;
+				case EnemySyncAction.AnimStateBatch:
+					HandleAnimStateBatch(reader);
 					break;
 				default:
 					MPMain.LogWarning($"[MP EnemySync] Unknown action: {action}");
@@ -261,6 +291,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// </summary>
 	private void StartNewSweep() {
 		_sweepQueue.Clear();
+		_animSweepQueue.Clear();
 		_sweepIndex = 0;
 
 		_localKeysCache.Clear();
@@ -276,11 +307,14 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 			// 移除检测
 			if (identity.IsRemoved()) RemoveEnemyRecord(identity);
 			// 变化检测
-			else if (identity.HasMeaningfulChange()) _sweepQueue.Add(identity);
+			else { 
+				if (identity.HasMeaningfulChange)  _sweepQueue.Add(identity);
+				if (identity.HasAnimDirty) _animSweepQueue.Add(identity);
+			}
 		}
 
 		// 如果本轮有需要更新的生物, 开启冲刷标志
-		if (_sweepQueue.Count > 0) _isSweeping = true;
+		if (_sweepQueue.Count > 0 || _animSweepQueue.Count > 0) _isSweeping = true;
 	}
 
 	/// <summary>
@@ -288,25 +322,41 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// </summary>
 	private void FlushNextBatch() {
 		_batchBuffer.Clear();
+		_animBatchBuffer.Clear();
+
+		int maxIndex = Mathf.Max(_sweepQueue.Count, _animSweepQueue.Count);
 
 		// 截取当前帧能容纳的上限数据
-		while (_sweepIndex < _sweepQueue.Count && _batchBuffer.Count < _maxSyncPerFrame) {
-			var identity = _sweepQueue[_sweepIndex];
-			_sweepIndex++;
+		while (_sweepIndex < maxIndex && (_batchBuffer.Count < _maxSyncPerFrame || _animBatchBuffer.Count < _maxSyncPerFrame)) {
 
-			// 跨帧二次有效性校验 (防止在前几帧冲刷期间生物被彻底 Destroy)
-			if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy) {
-				_batchBuffer.Add(identity);
+			// Transform 截取
+			if (_sweepIndex < _sweepQueue.Count && _batchBuffer.Count < _maxSyncPerFrame) {
+				var identity = _sweepQueue[_sweepIndex];
+				// 跨帧二次有效性校验 (防止在前几帧冲刷期间生物被彻底 Destroy)
+				if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy) 
+					_batchBuffer.Add(identity);
 			}
+
+			// Animator 状态截取
+			if (_sweepIndex < _animSweepQueue.Count && _animBatchBuffer.Count < _maxSyncPerFrame) {
+				var identity = _animSweepQueue[_sweepIndex];
+				if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy) 
+					_animBatchBuffer.Add(identity);
+			}
+
+			_sweepIndex++;
 		}
 
-		// 真正发包并刷新 RememberState
+		// 发送 Transform/Health 批量包
 		if (_batchBuffer.Count > 0) BroadcastStateBatch(_batchBuffer);
+		// 发送 Animator 批量包
+		if (_animBatchBuffer.Count > 0) BroadcastAnimStateBatch(_animBatchBuffer);
 
 		// 如果队列已经全部发完, 关闭冲刷, 等待下一个 _syncInterval 触发
 		if (_sweepIndex >= _sweepQueue.Count) {
 			_isSweeping = false;
 			_sweepQueue.Clear();
+			_animSweepQueue.Clear();
 		}
 	}
 
@@ -368,9 +418,18 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		}
 
 		// 注册到字典
-		_enemies[identity.networkId] = identity;
-		_byInstanceId[instanceId] = identity;
+		RegisterEnemyRecord(identity);
 		return identity;
+	}
+
+	/// <summary>
+	/// 注册映射
+	/// </summary>
+	public void RegisterEnemyRecord(NetworkedEnemy identity) {
+		_enemies[identity.networkId] = identity;
+		_byInstanceId[identity.gameObject.GetInstanceID()] = identity;
+		if (identity.EntityAnimator != null) 
+			_byAnimator[identity.EntityAnimator] = identity;
 	}
 
 	/// <summary>
@@ -380,9 +439,9 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		if (identity == null) return;
 
 		if (identity.networkId != 0) _enemies.Remove(identity.networkId);
-
-		int instanceId = identity.transform.GetInstanceID();
-		_byInstanceId.Remove(instanceId);
+		_byInstanceId.Remove(identity.gameObject.GetInstanceID());
+		if (identity.EntityAnimator != null) 
+			_byAnimator.Remove(identity.EntityAnimator);
 	}
 
 	/// <summary>
@@ -405,7 +464,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		if (!IsSyncableEnemy(entity)) return;
 		var identity = EnsureIdentity(entity);
 		if (identity == null || identity.networkId == 0) return;
-
+		bool isSourcePlayer = info.sourceEntity != null && info.sourceEntity.TryGetComponent<ENT_Player>(out var player);
 		// 构建并发送伤害请求数据包
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
 		writer.Put((byte)EnemySyncAction.Damage);
@@ -414,6 +473,8 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		writer.Put(info.type);
 		writer.Put(info.tags);
 		writer.Put(info.position);
+		writer.Put(info.force);
+		writer.Put(isSourcePlayer);
 		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
 	}
 
@@ -432,11 +493,30 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 			writer.Put(identity.networkId);
 			writer.Put(identity.transform.position);
 			writer.Put(identity.transform.rotation);
-			writer.Put(identity.currentHealth);
+			writer.Put(identity.CurrentHealth);
 			identity.RememberState();
 		}
 
 		MPSteamworks.Instance.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
+	}
+
+	/// <summary>
+	/// 主机广播 Animator 状态分帧更新包
+	/// 接收函数: <see cref="HandleAnimStateBatch"/>
+	/// </summary>
+	private void BroadcastAnimStateBatch(List<NetworkedEnemy> batch) {
+		if (!IsEnabled || batch == null || batch.Count == 0) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
+		writer.Put((byte)EnemySyncAction.AnimStateBatch);
+		writer.Put((byte)batch.Count);
+
+		for (int i = 0; i < batch.Count; i++) {
+			var identity = batch[i];
+			writer.Put(identity.networkId);
+			identity.WriteAndClearAnimState(writer);
+		}
+
+		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
 	}
 
 	/// <summary>
@@ -464,6 +544,18 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
 	}
 
+	/// <summary>
+	/// 主机广播 Animator SetTrigger 事件
+	/// 接收函数: <see cref="HandleAnimatorTrigger"/>
+	/// </summary>
+	public void BroadcastAnimTriggerHash(NetworkedEnemy identity, int hashId) {
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
+		writer.Put((byte)EnemySyncAction.AnimatorTrigger);
+		writer.Put(identity.networkId);
+		writer.Put(hashId);
+		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+	}
+
 	#endregion
 
 	#region[网络数据处理]
@@ -472,22 +564,28 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 	/// 收到伤害请求: 对指定敌人施加伤害, 更新状态并广播.
 	/// 发送函数: <see cref="BroadcastEnemyDamage"/>
 	/// </summary>
-	private void HandleDamage(DataReader reader) {
+	private void HandleDamage(IDType senderId, DataReader reader) {
 		ulong networkId = reader.GetULong();
 		float amount = reader.GetFloat();
 		string type = reader.GetString();
 		List<string> tags = reader.GetStringList();
 		Vector3 position = reader.GetVector3();
+		Vector3 force = reader.GetVector3();
+		bool isSourcePlayer = reader.GetBool();
 
 		if (!_enemies.TryGetValue(networkId, out var identity) || identity == null) return;
 
 		var entity = identity.GetComponent<GameEntity>();
 		if (entity == null) return;
-
 		// 构建伤害信息并应用
-		var info = Damageable.DamageInfo.CreateDamageInfo(amount, type, tags);
-		info.position = position;
+		GameEntity? sourceEntity = isSourcePlayer 
+									&& RPManager.Instance.Players.TryGetValue(senderId, out var player)
+									&& player.remotePlayer != null 
+									? player.remotePlayer : null;
 
+		var info = Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, sourceEntity);
+		info.position = position;
+		info.force = force;
 		ApplyingRemoteState = true;
 		try {
 			entity.Damage(info);
@@ -514,6 +612,26 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 
 				if (_enemies.TryGetValue(networkId, out var identity) && identity != null)
 					identity.ApplyRemoteState(position, rotation, health);
+			}
+		} finally {
+			ApplyingRemoteState = false;
+		}
+	}
+
+	/// <summary>
+	/// 客机接收 Animator 状态批量包
+	/// </summary>
+	private void HandleAnimStateBatch(DataReader reader) {
+		if (MPSteamworks.IsHost) return;
+
+		byte count = reader.GetByte();
+		ApplyingRemoteState = true;
+		try {
+			for (int i = 0; i < count; i++) {
+				ulong networkId = reader.GetULong();
+				if (_enemies.TryGetValue(networkId, out var identity) && identity != null) {
+					identity.ApplyRemoteAnimState(reader); // 内部递归应用 Bool/Float/Int/LayerWeight
+				}
 			}
 		} finally {
 			ApplyingRemoteState = false;
@@ -575,6 +693,27 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		}
 	}
 
+	/// <summary>
+	/// 客机接收 Animator SetTrigger 事件
+	/// 发送函数: <see cref="BroadcastAnimTriggerHash"/>
+	/// </summary>
+	private void HandleAnimatorTrigger(DataReader reader) {
+		if (MPSteamworks.IsHost) return;
+		ulong networkId = reader.GetULong();
+		int hashId = reader.GetInt();
+		if (_enemies.TryGetValue(networkId, out var identity) && identity != null) {
+			var animator = identity.EntityAnimator;
+			if (animator != null) {
+				ApplyingRemoteState = true;
+				try {
+					animator.SetTrigger(hashId);
+				} finally {
+					ApplyingRemoteState = false;
+				}
+			}
+		}
+	}
+
 	#endregion
 
 	#region[黑名单]
@@ -594,7 +733,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		// 排除玩家相关
 		if (entity.GetComponent<ENT_Player>() != null) return false;
 		// 排除远程实体 (由其他系统管理)
-		if (entity.GetComponent<RemoteEntity>() != null) return false;
+		if (entity.GetComponent<Components.RemotePlayer>() != null) return false;
 		// 排除 RP 容器
 		if (entity.GetComponent<RPContainerRef>() != null) return false;
 		// 暂时排除 MASS
@@ -606,10 +745,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule{
 		var tagger = entity.GetComponent<ObjectTagger>();
 		if (tagger != null && tagger.tags.Contains(MPKeys.CREATURE_TAGGER)) return true; // CREATURE_TAGGER (生物标签)
 
-		MPMain.LogTest("Checking syncable enemy: " + entity.name);
+		//MPMain.LogTest("Checking syncable enemy: " + entity.name);
 		// 检查命名约定
 		var rootName = entity.name;
-		MPMain.LogTest("Sync root name: " + rootName);
+		//MPMain.LogTest("Sync root name: " + rootName);
 		return rootName.StartsWith("Denizen_", StringComparison.OrdinalIgnoreCase)  // "Denizen_" 前缀
 			|| rootName.StartsWith("DEN_", StringComparison.OrdinalIgnoreCase);     // "DEN_" 前缀
 	}

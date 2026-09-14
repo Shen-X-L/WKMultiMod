@@ -11,11 +11,11 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using WKMPMod.Asset;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Patch;
-using WKMPMod.RemotePlayer;
+using WKMPMod.RemotePlayers;
 using WKMPMod.Team;
 using WKMPMod.UI;
 using WKMPMod.Util;
@@ -473,7 +473,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		string sourceName;
 		string message;
 		try {
-			if (info?.sourceEntity is RemoteEntity remoteEntity
+			if (info?.sourceEntity is Components.RemotePlayer remoteEntity
 				&& _RPManager.Players.TryGetValue(remoteEntity.playerId, out var container)) {
 				sourceName = container.PlayerName;
 
@@ -938,6 +938,7 @@ public class MPCore : MonoSingleton<MPCore> {
 						var currentModeData = MPGameModeManager.CaptureCurrentModeData();
 						if (string.IsNullOrWhiteSpace(_MPSteamworks.LobbyData?.GetValueOrDefault(MPKeys.GAMEMODE_JSON)))
 							_MPSteamworks.SetLobbyData(MPKeys.GAMEMODE_JSON, JsonConvert.SerializeObject(currentModeData));
+						SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 						break;
 					}
 					// 其他模式不需要重载地图
@@ -1877,7 +1878,6 @@ public class MPCore : MonoSingleton<MPCore> {
 		_RPManager.ProcessPlayerLeave(friend.Id);
 		// 如果在大厅且已初始化且有连接,允许发送数据
 		LocalPlayer.Instance.ShouldSendData = IsInLobby && IsInitialized && MPSteamworks.Instance.HasConnections;
-
 	}
 
 	/// <summary>

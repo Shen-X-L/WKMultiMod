@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Threading.Tasks;
 using UnityEngine;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
-using WKMPMod.RemotePlayer;
+using WKMPMod.RemotePlayers;
 
 namespace WKMPMod.Data;
 
@@ -21,7 +21,7 @@ public static class MPEventBusGame {
 	/// </summary>
 	public static event Action<IDType, Damageable.DamageInfo> OnPlayerDamage;
 	/// <summary>
-	/// 调用者 <see cref="RemoteEntity.Damage">
+	/// 调用者 <see cref="RemotePlayer.Damage">
 	/// </summary>
 	public static void NotifyPlayerDamage(IDType steamId, Damageable.DamageInfo info)
 		=> OnPlayerDamage?.Invoke(steamId, info);

@@ -4,7 +4,7 @@ using WKMPModa.Shared.Component;
 using WKMPModa.Shared.Data;
 
 
-namespace WKMPMod.RemotePlayer;
+namespace WKMPMod.RemotePlayers;
 
 public class SlugcatModelExtension : ICustomModelExtension {
 	public string ModelId => "slugcat";

@@ -6,7 +6,7 @@ using WKMPModa.Shared.Data;
 using static Unity.Burst.Intrinsics.X86.Avx;
 using static UnityEngine.InputSystem.OnScreen.OnScreenStick;
 
-namespace WKMPMod.RemotePlayer;
+namespace WKMPMod.RemotePlayers;
 
 public class DefaultModelExtension : ICustomModelExtension {
 

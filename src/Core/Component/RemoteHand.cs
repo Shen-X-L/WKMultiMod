@@ -12,7 +12,7 @@ using static UnityEngine.GraphicsBuffer;
 using static UnityEngine.UI.Image;
 using Vector3 = UnityEngine.Vector3;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 // MultiPlayerHandComponent: 管理玩家手部的网络同步位置
 public class RemoteHand : MonoBehaviour {
 	#region[映射后配置字段]

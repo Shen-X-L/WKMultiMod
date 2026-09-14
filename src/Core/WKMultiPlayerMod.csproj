@@ -4,22 +4,19 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>WKMultiPlayerMod</AssemblyName>
 		<Product>WKMultiPlayerMod</Product>
-		<Version>1.8.1.1</Version>
+		<Version>1.8.2.0</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
-		<RestoreAdditionalProjectSources>
-			https://api.nuget.org/v3/index.json;
-			https://nuget.bepinex.dev/v3/index.json;
-			https://nuget.samboy.dev/v3/index.json
-		</RestoreAdditionalProjectSources>
 		<RootNamespace>WKMultiPlayerMod</RootNamespace>
-		<!-- 统一输出到解决方案的 bin 目录 -->
-		<!-- <OutputPath>$(SolutionDir)bin\$(Configuration)\</OutputPath> -->
 		<!-- 项目本身的 bin 目录 -->
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<Nullable>enable</Nullable>
+		<!-- 开启 将生成代码写入磁盘 -->
+		<CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 	</PropertyGroup>
 
+	<!-- 构建前检查 GamePath 是否设置 -->
 	<Target Name="ValidateLocalPaths" BeforeTargets="Build" Condition="'$(GamePath)' == ''">
 		<Error Text="GamePath is not set. Copy LocalPaths.props.example to LocalPaths.props and set your local game path." />
 	</Target>
@@ -28,29 +25,30 @@
 		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
 	</ItemGroup>
 
-	<!-- AfterTargets="PostBuildEvent"表示在生成完成后执行 -->
+	<!-- 在构建完成后执行 -->
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<!-- 创建名为 SharedOutputFiles 的项列表 -->
 		<ItemGroup>
 			<SharedOutputFiles Include="$(TargetDir)$(TargetName).dll" />
 			<SharedOutputFiles Include="$(ProjectDir)Util\Localization\*.json" />
 		</ItemGroup>
-		<!--生成.dll复制到bin\解决方案配置-->
+		<!-- 生成.dll复制到bin\解决方案配置 -->
 		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)bin\$(Configuration)\" SkipUnchangedFiles="true" />
-
+		<!-- 收集解决方案 bin 下所有文件 -->
 		<ItemGroup>
 			<AllOutputFiles Include="$(SolutionDir)bin\$(Configuration)\**\*.*" />
 		</ItemGroup>
-
+		<!-- 复制到游戏目录 -->
 		<Copy Condition="'$(GamePath)' != ''" SourceFiles="@(AllOutputFiles)" DestinationFolder="$(GamePath)\BepInEx\plugins\MP\%(RecursiveDir)" SkipUnchangedFiles="true" />
-
 	</Target>
 
+	<!-- 定义游戏路径 -->
 	<PropertyGroup>
 		<ManagedPath>$(GamePath)\White Knuckle_Data\Managed</ManagedPath>
 		<BepInExPath>$(GamePath)\BepInEx\core</BepInExPath>
 	</PropertyGroup>
 
+	<!-- 导入游戏代码库 -->
 	<ItemGroup>
 		<Reference Include="$(ManagedPath)\Assembly-CSharp.dll" Private="False" />
 		<Reference Include="$(ManagedPath)\Unity*.dll" Private="False" />
@@ -62,8 +60,17 @@
 		<Reference Include="$(BepInExPath)\*.dll" Exclude="$(BepInExPath)\0Harmony20.dll" Private="False" />
 	</ItemGroup>
 
+	<!-- 导入 Unity所需代码项目 和 代码生成器项目 -->
 	<ItemGroup>
 		<ProjectReference Include="..\Shared\WKMultiPlayerMod.Shared.csproj" />
+		<ProjectReference Include="..\Generators\WKMultiPlayerMod.Generators.csproj"
+				OutputItemType="Analyzer"
+				ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- 排除磁盘上的生成文件, 防止 Roslyn 重复编译 -->
+		<Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
 	</ItemGroup>
 
 </Project>

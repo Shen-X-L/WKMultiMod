@@ -7,7 +7,7 @@ using WKMPMod.Util;
 using WKMPMod.World;
 using static WKMPMod.Data.PlayerData;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 
 public class NetworkedClimable : MonoBehaviour {
 	private const float positionEpsilonSqr = 0.0004f;       // 位置变化阈值平方

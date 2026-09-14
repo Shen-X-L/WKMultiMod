@@ -1,5 +1,5 @@
 using HarmonyLib;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.World;
 

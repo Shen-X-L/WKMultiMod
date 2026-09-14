@@ -1,73 +1,139 @@
 ﻿using HarmonyLib;
-using Steamworks.Data;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Unity.VisualScripting;
 using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
-using WKMPMod.NetWork;
-using WKMPMod.RemotePlayer;
 using WKMPMod.Util;
-using static Clickable;
-using static Unity.VisualScripting.Member;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 
-public class RemoteEntity : CL_Prop ,Clickable{
+public class RemotePlayer : GameEntity {
+	// 玩家ID,用于识别玩家
 	public IDType playerId;
-	// 使用 Harmony 的 FieldRef 高效读写基类 CL_Prop 中的私有变量 rigid 和 initialized
-	private static readonly AccessTools.FieldRef<CL_Prop, Rigidbody> PropRigidRef =
-		AccessTools.FieldRefAccess<CL_Prop, Rigidbody>("rigid");
-	private static readonly AccessTools.FieldRef<CL_Prop, bool> PropInitializedRef =
-		AccessTools.FieldRefAccess<CL_Prop, bool>("initialized");
-	private static readonly AccessTools.FieldRef<CL_Prop, List<Collider>> PropCollidersRef =
-		AccessTools.FieldRefAccess<CL_Prop, List<Collider>>("colliders");
+	// 是否启用PVP伤害判定, 可通过玩家数据更新
+	public bool pvpEnabled = false;
+
+	#region [位移与旋转同步]
+
+	public float teleportThreshold = 50f;   // 当前位置与目标位置超过此距离时直接瞬移
+	public float maxSmoothDistance = 10f;   // 超过此距离使用更快的平滑
+
+	private bool _isTeleporting = false;    // 是否进行了传送
+	private Vector3 _targetPosition;        // 目标位置
+	private Vector3 _velocity = Vector3.zero;   // 当前速度,用于平滑插值
+
+	// 每帧更新位置
+	protected void LateUpdate() {
+		// 如果是传送状态,不进行平滑移动
+		if (_isTeleporting) return;
+		// 检查当前位置与目标位置的距离
+		float distance = Vector3.Distance(transform.position, _targetPosition);
+		// 如果距离超过阈值,直接瞬移
+		if (distance > teleportThreshold) {
+			Teleport(_targetPosition);
+			return;
+		}
+
+		if (transform.position != _targetPosition) {
+			// 计算平滑时间
+			float smoothTime = CalculateSmoothTime(distance);
+
+			transform.position = Vector3.SmoothDamp(
+				transform.position, // 当前位置
+				_targetPosition,    // 目标位置
+				ref _velocity,      // 速度引用
+				smoothTime,         // 平滑时间
+				float.MaxValue,     // 最大速度
+				Time.deltaTime      // 时间增量
+			);
+
+			// 速度 < 0.5 && 距离 > 0.05时 强制最低速度 0.5格/秒
+			if (_velocity.magnitude < 0.5f && distance > 0.05f) {
+				Vector3 direction = (_targetPosition - transform.position).normalized;
+				_velocity = direction * 0.5f;
+			}
+		}
+	}
+
+	// 根据距离计算平滑时间
+	private float CalculateSmoothTime(float distance) {
+		// 如果距离很远,使用更快的平滑
+		if (distance > maxSmoothDistance) {
+			// 使用对数曲线
+			return Mathf.Clamp(Mathf.Log(distance) * 0.1f, 0.1f, 0.3f);
+		}
+		return Mathf.Clamp(distance / maxSmoothDistance, 0.05f, 0.1f);
+	}
+
+	// 从PlayerData更新手位置(Container调用这个方法)
+	public void UpdateFromPlayerData(Vector3 position, Quaternion rotation) {
+		_isTeleporting = false;
+		_targetPosition = position;
+		transform.rotation = rotation;
+	}
+
+	public void UpdateFromPlayerData(ref PlayerData playerData) {
+		_isTeleporting = false;
+		_targetPosition = playerData.Position;
+		transform.rotation = playerData.Rotation;
+	}
+
+	// 统一重写 GameEntity 的 Teleport，彻底避免位移与平滑算法冲突
+	public override void Teleport(Vector3 pos) {
+		TeleportInternal(pos, null);
+	}
+
+	public override void Teleport(Vector3 position, Quaternion rotation, bool keepVelocity = false) {
+		TeleportInternal(position, rotation);
+	}
+
+	// 立即传送
+	private void TeleportInternal(Vector3 position, Quaternion? rotation, bool keepVelocity = false) {
+		// 标记为传送状态,避免平滑插值
+		_isTeleporting = true;
+		transform.position = position;
+		_targetPosition = position;
+		// 重置速度
+		if (!keepVelocity) _velocity = Vector3.zero;
+		// 如果提供了旋转,则设置旋转
+		if (rotation.HasValue) transform.rotation = rotation.Value;
+		// 传送完成后重置状态(延迟一帧确保不会立即开始平滑)
+		StartCoroutine(ResetTeleportFlag());
+
+		IEnumerator ResetTeleportFlag() {
+			yield return null;
+			_isTeleporting = false;
+		}
+	}
+
+	#endregion
+
+	#region [战斗与伤害判定 (GameEntity 重写)]
 
 	// 负责处理 无敌帧 的重置计时器
 	private TickTimer _invincibilityTimer = new TickTimer(0.5f);
 	// 负责记录每次 无敌帧并发窗口 的起始物理时间
 	private float _burstStartTime = -999f;
-	// 是否启用PVP伤害判定, 可通过玩家数据更新
-	public bool pvpEnabled = false;
-
-	#region[Unity生命周期函数]
-
-	public override void Start() {
-		// 动态获取当前克隆实例上的 Root Rigidbody (绝对不能用预制体母本的)
-		Rigidbody rootRigidbody = transform.root.GetComponent<Rigidbody>();
-		if (rootRigidbody == null) {
-			// 保底方案: 如果顶层没有, 就往父级或自身找
-			rootRigidbody = GetComponentInParent<Rigidbody>() ?? GetComponent<Rigidbody>();
-		}
-
-		// 核心: 利用 FieldRef 强行将当前实例的物理和碰撞体塞进基类的私有变量中
-		PropRigidRef(this) = rootRigidbody;
-		PropCollidersRef(this) = new List<Collider>(GetComponentsInChildren<Collider>());
-
-		// 提前标记为已初始化, 双重保险
-		PropInitializedRef(this) = true;
-		canSave = false;    // 不保存远程实体
-
-		base.Start();
-	}
-
-	public override void Update() {
-		
-	}
-
-	#endregion
-
-	#region[CL_Prop重写]
 
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
 		// 关闭pvp || 伤害来源非同步因素伤害
 		if (!pvpEnabled) return false;
-		if (!info.tags.Contains("player")&& !DamageRules.whitelistDamage.Contains(info.type)) return false;
+
+		MPMain.LogTest($"DamageInfo: {info.amount} type: {info.type} source: {info.sourceEntity?.name?? "Unknown"}");
+
+		if (!DamageRules.whitelistDamage.Contains(info.type)) return false;
+
+		// 如果对方正在抓着我, 强制对方放手
+		if (LocalPlayer.IsHoldingMe(playerId))
+			MPEventBusGame.NotifyPlayerStopInteraction(playerId);
+
+		if (info.amount <= 0) return false;
 
 		_invincibilityTimer.SetInterval(MPCore.damageRules.InvincibilityTime);
 
@@ -83,28 +149,16 @@ public class RemoteEntity : CL_Prop ,Clickable{
 
 		// 添加屏幕震动
 		CL_CameraControl.Shake(0.01f);
-
 		// 计算伤害倍率
 		CalculatedDamage(info);
-
-		// 发布到事件总线
+		// 发送伤害通知事件
 		MPEventBusGame.NotifyPlayerDamage(playerId, info);
-
-		// 如果对方正在抓着我, 强制对方放手
-		if (LocalPlayer.IsHoldingMe(playerId))
-			MPEventBusGame.NotifyPlayerStopInteraction(playerId);
 
 		// 会不会死由对方决定
 		return false;
 	}
 
-	public override void Kill(string type = "", Damageable.DamageInfo damageInfo = null) { 
-	}
-
-	// 传送实体
-	public override void Teleport(Vector3 pos) {
-		base.transform.position = pos;
-	}
+	public override void Kill(string type = "", Damageable.DamageInfo damageInfo = null) { }
 
 	// 添加力(基础实现)
 	public override void AddForce(Vector3 v, string source = "") {
@@ -119,38 +173,23 @@ public class RemoteEntity : CL_Prop ,Clickable{
 		AddForce(v, source);
 	}
 
-	// 舌头拉扯
-	public override void TonguePull(Vector3 v) { 
-	}
+	public override void TonguePull(Vector3 v) { }
 
 	#endregion
 
-	#region[Clickable重写]
+	#region[Unity生命周期函数]
 
-	/// <summary>
-	/// 检查是否可以交互
-	/// </summary>
-	bool Clickable.CanInteract(Interaction info) {
-		return canInteract;
-	}
-
-	ObjectTagger Clickable.GetTagger() {
-		return gameObject.GetComponent<ObjectTagger>();
-	}
-
-	Sprite Clickable.GetSprite() {
-		if (MPCore.IsGrabOrHangState == ENT_Player.InteractType.grab)
-			return MPAssetManager.grubSprite;
-		if (MPCore.IsGrabOrHangState == ENT_Player.InteractType.hanging)
-			return MPAssetManager.hangSprite;
-		return null;
+	public override void Start() {
+		base.Start();
 	}
 
 	#endregion
 
 	#region[工具函数]
 
-	// 计算伤害
+	/// <summary>
+	/// 应用伤害倍率
+	/// </summary>
 	public static void CalculatedDamage(Damageable.DamageInfo info) {
 		var baseDamage = info.amount * MPCore.damageRules.All;
 		info.amount = info.type switch {
@@ -204,9 +243,11 @@ public class DamageRules {
 	public float BurstWindow;// 并发伤害允许的窗口期 (秒)
 	public float InvincibilityTime;// 受伤后的完整无敌时间 (秒)
 
-	// 玩家不可以传递的伤害类型
+	// 玩家可以传递的伤害类型
 	public static readonly HashSet<string> whitelistDamage = new HashSet<string>{
-		"Melee","piton","flare","rebar","returnrebar","explosion","rebarexplosion","ice","bullet"
+		"Melee","piton","flare","rebar","returnrebar","explosion","rebarexplosion","ice","bullet",
+		"denizen","bloodbug","bloodbug-swarmer","bloodbug-spitter","barnacle",
+		"sprider","aunt-spike","aunt","ravelin","gasbag"
 	};
 
 	// 字段名集合
@@ -221,7 +262,7 @@ public class DamageRules {
 		get {
 			var result = new Dictionary<string, float>(_floatFields.Count,
 				StringComparer.OrdinalIgnoreCase);
-			foreach (var (fieldName,fieldInfo) in _floatFields) {
+			foreach (var (fieldName, fieldInfo) in _floatFields) {
 				result[fieldName] = (float)fieldInfo.GetValue(this);
 			}
 			return result;

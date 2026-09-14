@@ -10,7 +10,7 @@ using WKMPMod.Util;
 using static WKMPMod.UI.UI_Manager;
 
 
-namespace WKMPMod.RemotePlayer;
+namespace WKMPMod.RemotePlayers;
 
 // 生命周期为全局
 public class RPManager : Singleton<RPManager> {

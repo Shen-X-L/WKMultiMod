@@ -5,12 +5,12 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Util;
 using Object = UnityEngine.Object;
 
-namespace WKMPMod.RemotePlayer;
+namespace WKMPMod.RemotePlayers;
 
 public class RPFactoryManager : Singleton<RPFactoryManager> {
 	// 模型工厂缓存
@@ -150,7 +150,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 			registration.Extension?.OnPrefabLoaded(rawPrefab, helper);
 
 		} catch (Exception ex) {
-			MPMain.LogError($"预制体 [{assetName}] 读改异常: {ex.Message}");
+			MPMain.LogError($"预制体 [{assetName}] 读改异常:\n{ex}");
 			rawPrefab = null;
 		} finally {
 			// 完美保持原版的安全卸载: 传 false 意味着内存中加载出来的 GameObject 资产不会被销毁

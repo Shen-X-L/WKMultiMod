@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 
 // BillboardComponent: 使文本框始终面向摄像机
 public class LookAt : MonoBehaviour {
