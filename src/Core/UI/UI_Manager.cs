@@ -191,7 +191,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		_mpButton = Instantiate(templateButton, menuContent.transform);
 		_mpButton.name = "Multi Play";
 		// 修改层级
-		_mpButton.transform.SetSiblingIndex(1);
+		_mpButton.transform.SetSiblingIndex(2);
 		// 修改文字
 		_mpButton.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>()?.text 
 			= Localization.GetSmart("UI_Manager.Main Menu Multi Play");
@@ -565,9 +565,8 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	public void ShowStateIcon(ENT_Player.InteractType state) {
 		// 获取准心对象
-		var crosshairGo = CL_UIManager.instance.crosshair?.gameObject;
-		if (crosshairGo == null)
-			return;
+		var crosshairGo = CL_UIManager.instance.crosshairController.crosshairRoot?.gameObject;
+		if (crosshairGo == null) return;
 		// 获取精灵图
 		Sprite iconSprite;
 

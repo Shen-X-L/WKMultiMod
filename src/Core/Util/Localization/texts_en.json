@@ -417,7 +417,6 @@
     "PlayerLeftRoom": "[MPSW] Player left the room. SteamName: {0}",
     "RateLimitCacheHit": "[MPSW] Within 5-second cooldown, returning cached result",
     "RateLimitExceeded": "[MPSW] Operation rate limit exceeded by Steam",
-    "ReverseConnectionAttempt": "[MPSW] 10-second timeout: starting reverse attempt...",
     "SendingToConnection": "[MPSW] Sending data to connections. SteamId: {0} ConnectionId: {1}",
     "SetMemberDataFailed": "[MPSW] Failed to set member data: {0}",
     "SocketCreateException": "[MPSW] Create Socket exception: {0}",
@@ -427,7 +426,13 @@
     "SteamworksInitFailed": "[MPSW] Failed to initialize Steamworks. Please check your Steam login status.",
     "SteamworksInitSuccess": "[MPSW] Steamworks initialization succeeded. Player: {0} ID: {1}",
     "Timeout": "[MPSW] Request timeout, Steam server response too slow",
-    "UnicastException": "[MPSW] Unicast data exception: {0} SteamId: {1}"
+    "UnicastException": "[MPSW] Unicast data exception: {0} SteamId: {1}",
+    "ConnectVerifySuccess_PreCheck": "[MPSW] Valid connection detected prior to attempt: {0}",
+    "ConnectVerifySuccess_Attempt": "[MPSW] Active connection attempt to {0} verified successfully",
+    "ConnectVerifySuccess_InitiatorReverse": "[MPSW] Initiator successfully caught reverse connection from {0}",
+    "ConnectVerifySuccess_Receiver": "[MPSW] Receiver successfully caught active connection from {0}",
+    "InitiatorWaitingForReverseConnection": "[MPSW] Active connection to {0} failed, waiting for reverse connection...",
+    "ReverseConnectionAttempt": "[MPSW] Passive listening to connection {0} failed, starting reverse attempt"
   },
   "Patch": {
     "CoreAlreadyInjected": "[MP Patch] MPCore already injected, skipping.",

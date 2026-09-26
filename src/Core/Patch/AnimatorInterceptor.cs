@@ -1,14 +1,11 @@
 ﻿using DarkMachine.AI;
 using HarmonyLib;
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
-using Unity.VisualScripting;
 using UnityEngine;
 using WKMPMod.Components;
 using WKMPMod.Core;
@@ -274,55 +271,57 @@ public static class AnimatorInterceptor {
 	}
 
 	public static void OnSetTriggerStr(Animator anim, string name) {
-		if (!ShouldExecuteAnimCall(anim, out var identity)) return;
+		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
 		int hash = GetHash(name);
 		anim.SetTrigger(hash);
-		if (MPSteamworks.IsHost && identity != null) EnemySyncModule.Instance.BroadcastAnimTriggerHash(identity, hash);
+		if (MPSteamworks.IsHost && feature != null) 
+			EnemySyncModule.Instance.BroadcastAnimTriggerHash(feature.Entity.networkId,feature.FeatureIndex, hash);
 	}
 
 	public static void OnSetTriggerHash(Animator anim, int id) {
-		if (!ShouldExecuteAnimCall(anim, out var identity)) return;
+		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
 		anim.SetTrigger(id);
-		if (MPSteamworks.IsHost && identity != null) EnemySyncModule.Instance.BroadcastAnimTriggerHash(identity, id);
+		if (MPSteamworks.IsHost && feature != null) 
+			EnemySyncModule.Instance.BroadcastAnimTriggerHash(feature.Entity.networkId, feature.FeatureIndex, id);
 	}
 
 	public static void OnSetBoolStr(Animator anim, string name, bool value) {
-		if (!ShouldExecuteAnimCall(anim, out var identity)) return;
+		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
 		int hash = GetHash(name);
 		anim.SetBool(hash, value);
-		if (MPSteamworks.IsHost && identity != null) identity.SetAnimBoolDirty(hash, value);
+		if (MPSteamworks.IsHost && feature != null) feature.SetBoolDirty(hash, value);
 	}
 
 	public static void OnSetFloatStr(Animator anim, string name, float value) {
-		if (!ShouldExecuteAnimCall(anim, out var identity)) return;
+		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
 		int hash = GetHash(name);
 		anim.SetFloat(hash, value);
-		if (MPSteamworks.IsHost && identity != null) identity.SetAnimFloatDirty(hash, value);
+		if (MPSteamworks.IsHost && feature != null) feature.SetFloatDirty(hash, value);
 	}
 
 	public static void OnSetInteger(Animator anim, string name, int value) {
-		if (!ShouldExecuteAnimCall(anim, out var identity)) return;
+		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
 		int hash = GetHash(name);
 		anim.SetInteger(hash, value);
-		if (MPSteamworks.IsHost && identity != null) identity.SetAnimIntDirty(hash, value);
+		if (MPSteamworks.IsHost && feature != null) feature.SetIntDirty(hash, value);
 	}
 
 	public static void OnSetLayerWeight(Animator anim, int layer, float weight) {
-		if (!ShouldExecuteAnimCall(anim, out var identity)) return;
+		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
 		anim.SetLayerWeight(layer, weight);
-		if (MPSteamworks.IsHost && identity != null) identity.SetAnimLayerWeightDirty(layer, weight);
+		if (MPSteamworks.IsHost && feature != null) feature.SetLayerWeightDirty(layer, weight);
 	}
 
-	private static bool ShouldExecuteAnimCall(Animator anim, out NetworkedEnemy identity) {
-		identity = null;
+	private static bool ShouldExecuteAnimCall(Animator anim, out AnimatorSyncFeature feature) {
+		feature = null;
 		if (anim == null) return false;
 		// 如果未处于联机状态或未开启生物同步，正常播放本地动画
 		if (!MPCore.CanSync || !EnemySyncModule.Instance.IsEnabled) return true;
 		// 非同步实体正常执行
-		if (!EnemySyncModule.Instance.TryGetNetworkIdentity(anim, out identity)) return true; 
+		if (!AnimatorSyncFeature.TryGetFeature(anim, out feature)) return true;
 		// 主机: 正常允许本地 AI 修改动画
 		if (MPSteamworks.IsHost) return true;
 		// 客机: 只有在远程网络未接管时(IsNetworkControlled == false) 才允许改变 Animator
-		return identity.IsNetworkControlled == false;
+		return feature.Entity.IsNetworkControlled == false;
 	}
 }

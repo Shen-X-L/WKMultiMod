@@ -8,10 +8,19 @@ using UnityEngine;
 
 namespace WKMPMod.Data;
 public class DataReader {
-	private ReadOnlyMemory<byte> _data;
-	private int _position;
-
-	public int AvailableBytes => _data.Length - _position;
+	private ReadOnlyMemory<byte> _data;	// 原始数据包
+	private int _position;	// 游标
+	public int AvailableBytes => _data.Length - _position;	// 剩余长度
+	public int Length => _data.Length;	// 数据包总字节长度
+	// 当前读取游标位置
+	public int Position {
+		get => _position;
+		set {
+			if (value < 0 || value > _data.Length)
+				throw new ArgumentOutOfRangeException(nameof(value), "Position set out of bounds.");
+			_position = value;
+		}
+	}
 
 	// 支持视图 (ArraySegment)
 	public void SetSource(ArraySegment<byte> source) {
@@ -29,6 +38,12 @@ public class DataReader {
 	public void SetSource(byte[] source, int offset, int length) {
 		_data = new ReadOnlyMemory<byte>(source, offset, length);
 		_position = 0;
+	}
+
+	// 跳过指定字节数量
+	public void Skip(int byteCount) {
+		if (byteCount <= 0) return;
+		_position = Math.Min(_position + byteCount, _data.Length);
 	}
 
 	#region[读取基本类型]

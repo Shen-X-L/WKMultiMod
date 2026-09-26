@@ -1,21 +1,18 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using UnityEngine;
-using UnityEngine.UIElements;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
 using WKMPModa.Shared.Data;
-using static UnityEngine.GraphicsBuffer;
-using static UnityEngine.UI.Image;
 using Vector3 = UnityEngine.Vector3;
 
 namespace WKMPMod.Components;
 // MultiPlayerHandComponent: 管理玩家手部的网络同步位置
 public class RemoteHand : MonoBehaviour {
-	#region[映射后配置字段]
+	#region[字段和属性]
+
+	#region[	映射后配置字段]
 
 	public byte handType;// 手部索引
 	public float teleportThreshold = 50f;// 瞬移阈值: 超过此距离直接传送
@@ -27,7 +24,7 @@ public class RemoteHand : MonoBehaviour {
 
 	#endregion
 
-	#region[运行时数据]
+	#region[	运行时数据]
 
 	// 玩家ID,用于识别玩家
 	public IDType playerId;
@@ -47,7 +44,7 @@ public class RemoteHand : MonoBehaviour {
 
 	#endregion
 
-	#region[手部物品相关]
+	#region[	手部物品相关]
 
 	public const string NONE_ITEM_NAME = "None";// 空物品
 	public const string ITEM_GLOVE_NAME = "Item_Artifact_EVAGlove";// 手套物品
@@ -60,10 +57,12 @@ public class RemoteHand : MonoBehaviour {
 
 	#endregion
 
-	#region[姿态变换]
+	#region[	姿态变换]
 
 	public Transform shoulderTransform; // 肩膀 Transform (若无胳膊可留空)
 	public Transform bodyTransform;     // 身体 Transform (无胳膊时的备用参照)
+
+	#endregion
 
 	#endregion
 
@@ -388,6 +387,7 @@ public class RemoteHand : MonoBehaviour {
 			tags.RemoveTag("Item");
 			tags.RemoveTag("Prop");
 			tags.AddTag("ItemLocked");
+			tags.AddTag("inLocker");
 		}
 
 		obj.SetActive(false);

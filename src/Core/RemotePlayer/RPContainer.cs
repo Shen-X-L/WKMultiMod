@@ -31,6 +31,7 @@ public class RPContainer {
 	public ulong PlayerId { get; set; }
 	public string PlayerName { get; set; }
 	public GameObject PlayerObject { get; private set; }
+	public Dictionary<string, string> PlayerData { get; private set; }
 
 	#endregion
 
@@ -339,13 +340,12 @@ public class RPContainer {
 	public void HandlePlayerDictData(Dictionary<string, string> playerData) {
 		if (playerData.TryGetValue(MPKeys.PLAYER_SCALE, out var scaleStr)) {
 			var args = scaleStr.Split(',');
-			if (args.Length >= 2
+			if (args.Length >= 2 && IsModelReady
 				&& float.TryParse(args[0], out var height)
-				&& float.TryParse(args[1], out var radius)
-				&& IsModelReady)
+				&& float.TryParse(args[1], out var radius))
 				ApplyScale(height, radius);
 		}
-
+		PlayerData = playerData;
 		try {
 			_modelBehaviour?.HandlePlayerData(playerData);
 		} catch (Exception ex) {

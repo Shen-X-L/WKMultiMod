@@ -57,7 +57,7 @@ public class MPMain : BaseUnityPlugin {
 		} catch (Exception ex) {
 			LogError($"[MPMain] Message: {ex.Message}\nStackTrace: {ex.StackTrace}");
 		}
-
+		// 生物动画补丁
 		AnimatorInterceptor.Apply();
 
 		// 配置初始化

@@ -63,9 +63,7 @@
 	<!-- 导入 Unity所需代码项目 和 代码生成器项目 -->
 	<ItemGroup>
 		<ProjectReference Include="..\Shared\WKMultiPlayerMod.Shared.csproj" />
-		<ProjectReference Include="..\Generators\WKMultiPlayerMod.Generators.csproj"
-				OutputItemType="Analyzer"
-				ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\Generators\WKMultiPlayerMod.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<ItemGroup>

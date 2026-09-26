@@ -453,7 +453,7 @@
     "PlayerLeftRoom": "[MPSW] 玩家离开大厅. SteamName: {0}",
     "RateLimitCacheHit": "[MPSW] 处于5秒冷却期内, 直接返回缓存结果",
     "RateLimitExceeded": "[MPSW] 操作过于频繁,被 Steam 暂时限制频率",
-    "ReverseConnectionAttempt": "[MPSW] 10秒超时, 开始反向尝试...",
+    "ReverseConnectionAttempt": "[MPSW] 被动监听连接 {0} 失败,开始反向尝试",
     "SendingToConnection": "[MPSW] 广播数据, 当前连接: SteamId: {0} 连接Id: {1}",
     "SetMemberDataFailed": "[MPSW] 设置成员数据失败: {0}",
     "SocketCreateException": "[MPSW] 创建Socket失败: {0}",
@@ -463,7 +463,12 @@
     "SteamworksInitFailed": "[MPSW] Steamworks初始化失败, 请检查Steam在线情况",
     "SteamworksInitSuccess": "[MPSW] Steamworks初始化成功 玩家: {0} ID: {1}",
     "Timeout": "[MPSW] 请求超时,Steam 服务器响应过慢",
-    "UnicastException": "[MPSW] 单播数据异常: {0} SteamId: {1}\n{2}"
+    "UnicastException": "[MPSW] 单播数据异常: {0} SteamId: {1}\n{2}",
+    "InitiatorWaitingForReverseConnection": "[MPSW] 主动连接 {0} 失败,进行反向等待",
+    "ConnectVerifySuccess_PreCheck": "[MPSW] 尝试连接前已检测到有效连接: {0}",
+    "ConnectVerifySuccess_Attempt": "[MPSW] 主动尝试连接 {0} 校验成功",
+    "ConnectVerifySuccess_InitiatorReverse": "[MPSW] 发起方成功捕获来自 {0} 的反向连接",
+    "ConnectVerifySuccess_Receiver": "[MPSW] 接收方成功捕获来自 {0} 的主动连接"
   },
   "Patch": {
     "CoreAlreadyInjected": "[MP Patch] Core已经注入过,跳过",

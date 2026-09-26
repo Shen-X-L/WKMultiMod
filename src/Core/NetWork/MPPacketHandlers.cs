@@ -1,4 +1,5 @@
 ﻿using Steamworks;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -81,11 +82,21 @@ public class MPPacketHandlers {
 		List<string> tags = reader.GetStringList();
 		IDType source = reader.GetULong();
 
-		if (RPManager.Instance.Players.TryGetValue(source, out var container)
-			&& container?.remotePlayer != null) {
+		// 玩家造成的伤害 && 存在玩家
+		if (tags.Contains("player") && RPManager.Instance.Players.TryGetValue(source, out var container) && container?.remotePlayer != null) {
 			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, container.remotePlayer));
-		} else
+		} else if (
+			tags.Contains(MPKeys.REMOTE_ENEMY_DAMAGE_TAG) &&
+			tags.FirstOrDefault(t => t.StartsWith("NetEnemyId:", StringComparison.Ordinal)) is string idTag &&
+			ulong.TryParse(idTag.AsSpan(11), out ulong networkId) &&
+			EnemySyncModule.Instance.enemies.TryGetValue(networkId, out var identity) &&
+			identity.IsNetworkControlled && !identity.Entity.dead
+		) {
+			// 有远程生物伤害标签 && 有对应ID && 存在对应ID生物 && 生物被网络接管 && 本地未死亡
+			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, identity.Entity));
+		} else {
 			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
+		}
 	}
 
 	/// <summary>
@@ -183,7 +194,7 @@ public class MPPacketHandlers {
 		var inventory = Inventory.instance;
 		foreach (var (itemPrefabName, count) in missingItems) {
 			// 获取预制体
-			if(!MPUtil.TryGetItemPrefab(itemPrefabName, out var itemObjectPrefab)) continue;
+			if (!MPUtil.TryGetItemPrefab(itemPrefabName, out var itemObjectPrefab)) continue;
 
 			for (int i = 0; i < count; i++) {
 				// 实例化物品在 0,1,0 

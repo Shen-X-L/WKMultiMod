@@ -29,15 +29,14 @@ public class Patch_WorldLoader {
 	// 记录每个关卡的世界坐标和旋转数据, 用于后续矫正坐标
 	public static List<LevelTransformData> levelWorldTransformDatas = new List<LevelTransformData>();
 
-	// 补丁类: 在联机模式下默认是固定种子,不上传成绩
-	// 初始化生物同步
+	// 在联机模式下默认是固定种子,不上传成绩
 	[HarmonyPatch(nameof(WorldLoader.Initialize))]
 	[HarmonyPostfix]
 	public static void Initialize_UseCustomSeed() {
 		if (MPCore.IsInLobby) customSeed = true;
 	}
 
-	// 补丁类: 关闭种子偏移, 使复活时种子同步
+	// 关闭种子偏移, 使复活时种子同步
 	[HarmonyPatch(("IncrementSeed"))]
 	[HarmonyPrefix]
 	public static bool IncrementSeed_Off() {
@@ -46,7 +45,7 @@ public class Patch_WorldLoader {
 		return true;
 	}
 
-	// 补丁类: 关闭生成器的种子偏移, 使复活时种子同步
+	// 关闭生成器的种子偏移, 使复活时种子同步
 	[HarmonyPatch(("GenerateLevels"))]
 	[HarmonyPrefix]
 	public static void GenerateLevels_GenParams_Off(BranchInfo branch, GenerationParameters genParams, WorldLoader __instance, WorldGenerator ___currentGenerator) {
@@ -54,8 +53,9 @@ public class Patch_WorldLoader {
 			// 禁用种子偏移
 			genParams?.seedOffset = 0;
 			// 启动协程等待生成结束并收集数据
-			bool isGenerationBranch = genParams?.generator is M_GenerationBranch;
-			__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
+			// 是支线则进行关卡偏移
+			//bool isGenerationBranch = genParams?.generator is M_GenerationBranch;
+			//__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
 		}
 	}
 

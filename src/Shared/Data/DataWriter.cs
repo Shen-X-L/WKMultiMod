@@ -9,13 +9,31 @@ using UnityEngine;
 namespace WKMPMod.Data;
 
 public class DataWriter : IDisposable {
-
+	#region[原始byte包]
 
 	private byte[] _buffer;
 	private int _position;
 	private readonly ArrayPool<byte> _pool;
-
 	public ArraySegment<byte> Data => new ArraySegment<byte>(_buffer, 0, _position);
+
+	#endregion
+
+	#region [游标与长度属性]
+
+	/// <summary>
+	/// 当前写入游标位置 / 已写入字节数
+	/// </summary>
+	public int Position {
+		get => _position;
+		set => _position = value;
+	}
+
+	/// <summary>
+	/// 当前数据总长度
+	/// </summary>
+	public int Length => _position;
+
+	#endregion
 
 	public DataWriter(int initialCapacity = 1024) {
 		_pool = ArrayPool<byte>.Shared;
@@ -130,6 +148,39 @@ public class DataWriter : IDisposable {
 		long longVal = BitConverter.DoubleToInt64Bits(value);
 		BinaryPrimitives.WriteInt64LittleEndian(_buffer.AsSpan(_position), longVal);
 		_position += 8;
+		return this;
+	}
+
+	#endregion
+
+	#region [定点写入基本类型函数]
+
+	/// <summary>
+	/// 在指定的缓冲区偏移量处回填 ushort 值 (不移动当前写入游标)
+	/// </summary>
+	public void PutUShortAt(int offset, ushort value) {
+		if (offset < 0 || offset + 2 > _position)
+			throw new ArgumentOutOfRangeException(nameof(offset), "Offset out of buffer bounds.");
+		BinaryPrimitives.WriteUInt16LittleEndian(_buffer.AsSpan(offset), value);
+	}
+
+	/// <summary>
+	/// 在指定的缓冲区偏移量处回填 int 值 (不移动当前写入游标)
+	/// </summary>
+	public void PutIntAt(int offset, int value) {
+		if (offset < 0 || offset + 4 > _position)
+			throw new ArgumentOutOfRangeException(nameof(offset), "Offset out of buffer bounds.");
+		BinaryPrimitives.WriteInt32LittleEndian(_buffer.AsSpan(offset), value);
+	}
+
+	/// <summary>
+	/// 写入原始字节数组 (不包含长度前缀)
+	/// </summary>
+	public DataWriter PutRaw(byte[] value, int offset, int length) {
+		if (value == null || length <= 0) return this;
+		EnsureCapacity(length);
+		Array.Copy(value, offset, _buffer, _position, length);
+		_position += length;
 		return this;
 	}
 

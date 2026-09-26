@@ -9,9 +9,9 @@ namespace WKMPMod.Patch;
 [HarmonyPatch(typeof(Item_Object))]
 public class Patch_Item_Object {
 	// 物品被拾取 先判断是p2p物品还是场景物品
-	[HarmonyPatch(nameof(Item_Object.Pickup))]
+	[HarmonyPatch(nameof(Item_Object.OnPickup))]
 	[HarmonyPostfix]
-	public static void Patch_Pickup(Item_Object __instance) {
+	public static void Patch_OnPickup(Item_Object __instance) {
 		NotifyLocalPickup(__instance);
 	}
 

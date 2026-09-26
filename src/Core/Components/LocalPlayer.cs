@@ -52,9 +52,9 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	#region[字段和属性 - 定时器]
 
 	// 定时器
-	private TickTimer _sendDataTimer;//本地玩家数据频率器, 定时发送玩家数据
-	private TickTimer _teleportCooldownTimer;//传输状态定时器, 期间内传送标记为真
-	private TickTimer _minUpdateFrequencyTimer = new TickTimer(10.0f, true);//最小更新频率定时器
+	private TickTimer _sendDataTimer;// 本地玩家数据频率器, 定时发送玩家数据
+	private TickTimer _teleportCooldownTimer;// 传输状态定时器, 期间内传送标记为真
+	private TickTimer _minUpdateFrequencyTimer = new TickTimer(10.0f, true);// 最小更新频率定时器
 
 	#endregion
 
@@ -156,6 +156,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	/// 接收函数: <see cref="MPPacketHandlers.HandlePlayerDataUpdate"/>
 	/// </summary>
 	private void TrySendLocalPlayerData() {
+		// 发送给近距离玩家 常规频率定时器 && 位置发生了变化
 		bool tickNormal = _sendDataTimer.TryTick();
 		bool tickMinFreq = _minUpdateFrequencyTimer.TryTick();
 
@@ -189,26 +190,23 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			ref _farPlayersBuffer,
 			ref _nearPlayersBuffer
 		);
+		// 发送近距离玩家位置数据
+		if (tickNormal && !tickMinFreq) {
+			var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
+			writer.Put(_lastPlayerData);
+			writer.Put(false);
 
-
-		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
-		writer.Put(_lastPlayerData);
-		writer.Put(false);
-
-		// 发送给近距离玩家 常规频率定时器 && 位置发生了变化, 或者保底更新频率到了
-		if (tickNormal) {
-			foreach (ulong targetId in _nearPlayersBuffer) {
+			foreach (ulong targetId in _nearPlayersBuffer) 
 				MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Unreliable | SendType.NoNagle);
-			}
+			return;
 		}
-
-		var writerFreq = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
-		writerFreq.Put(_lastPlayerData);
-		writerFreq.Put(true);
-		writerFreq.Put(PlayerDataDic());
-
-		// 发送给远距离玩家 仅在最小频率定时器(如10秒一次)触发时发送
+		// 发送全玩家位置数据+玩家数据
 		if (tickMinFreq) {
+			var writerFreq = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
+			writerFreq.Put(_lastPlayerData);
+			writerFreq.Put(true);
+			writerFreq.Put(PlayerDataDic());
+
 			foreach (ulong targetId in _nearPlayersBuffer)
 				MPSteamworks.Instance.SendToPeer(targetId, writerFreq);
 			foreach (ulong targetId in _farPlayersBuffer)
@@ -216,7 +214,11 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		}
 	}
 
-	// 获取玩家数据, 更新缓存状态, 并返回是否发生了变化
+	/// <summary>
+	/// 获取玩家数据, 更新缓存状态, 并返回是否发生了变化
+	/// </summary>
+	/// <param name="forceUpdate">是否是强制更新</param>
+	/// <returns>是否有显著变化</returns>
 	public bool CheckLocalPlayerUpdates(bool forceUpdate) {
 		GetHandData(0, forceUpdate, out var currentLHand);
 		GetHandData(1, forceUpdate,out var currentRHand);
@@ -232,10 +234,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		};
 
 		// 获取是否改变, 如果改变, 更新旧坐标
-		if (_lastPlayerData.UpdateIfChanged(data, forceUpdate)) {
-			return true;
-		}
-
+		if (_lastPlayerData.UpdateIfChanged(data, forceUpdate)) return true;
 		return false;
 	}
 

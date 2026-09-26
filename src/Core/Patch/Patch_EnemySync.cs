@@ -1,4 +1,13 @@
+using DG.Tweening.Plugins.Core;
 using HarmonyLib;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
+using Unity.Entities.UniversalDelegates;
+using UnityEngine;
+using WKMPMod.Components;
+using WKMPMod.Core;
 using WKMPMod.World;
 
 namespace WKMPMod.Patch;
@@ -90,5 +99,56 @@ public class Patch_DEN_VentThing {
 	[HarmonyPrefix]
 	public static void Patch_Damage(DEN_VentThing __instance, Damageable.DamageInfo info) {
 		EnemySyncModule.Instance.BroadcastEnemyDamage(__instance, info);
+	}
+}
+
+[HarmonyPatch(typeof(DEN_Drone))]
+public static class Patch_DEN_Drone {
+
+	/// <summary>
+	/// 将 DEN_Drone.OnCollisionEnter 中旧版的
+	/// CreateDamageInfo(float, string)
+	/// 替换为 Mod 提供的带 Drone Source 的版本
+	/// </summary>
+	[HarmonyTranspiler]
+	[HarmonyPatch(typeof(DEN_Drone), "OnCollisionEnter")]
+	public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
+		var codes = new List<CodeInstruction>(instructions);
+
+		// 定义目标方法与 Helper 方法
+		var originalMethod = AccessTools.Method(
+			typeof(Damageable.DamageInfo),
+			nameof(Damageable.DamageInfo.CreateDamageInfo),
+			new[] { typeof(float), typeof(string) }
+		);
+		var helperMethod = AccessTools.Method(typeof(Patch_DEN_Drone), nameof(Patch_DEN_Drone.CreateDamageInfo));
+
+		// 方法存在性校验
+		if (originalMethod == null) {
+			MPMain.LogWarning("[Transpiler] DamageInfo.CreateDamageInfo(float,string) 不存在");
+			return codes;
+		}
+
+		// 寻找调用 CreateDamageInfo 的 IL 指令索引
+		int targetIndex = codes.FindIndex(c => c.Calls(originalMethod));
+		if (targetIndex == -1) {
+			MPMain.LogWarning("[Transpiler] DEN_Drone.OnCollisionEnter -> DamageInfo.CreateDamageInfo(float,string) 不存在");
+			return codes;
+		}
+
+		// 直接把原 Call 指令修改为 Ldarg_0
+		codes[targetIndex].opcode = OpCodes.Ldarg_0;
+		codes[targetIndex].operand = null;
+
+		// 在 targetIndex + 1 处追加调用 Helper 方法
+		codes.Insert(targetIndex + 1, new CodeInstruction(OpCodes.Call, helperMethod));
+		return codes;
+	}
+
+	/// <summary>
+	/// 实际由 IL 调用的辅助函数。
+	/// </summary>
+	public static Damageable.DamageInfo CreateDamageInfo(float amount, string objectType, DEN_Drone source) {
+		return Damageable.DamageInfo.CreateDamageInfo(amount, objectType, new List<string> { "drone" }, source);
 	}
 }

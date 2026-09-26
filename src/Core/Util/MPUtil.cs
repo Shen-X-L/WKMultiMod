@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using UnityEngine.UIElements;
 using WKMPMod.Core;
 
 namespace WKMPMod.Util;
@@ -87,8 +88,25 @@ public static class MPUtil {
 		var stack = new Stack<string>();
 		var current = transform;
 		while (current != null) {
-			stack.Push($"{MPUtil.CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
+			stack.Push($"{CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
 			current = current.parent;
+		}
+		return string.Join("/", stack);
+	}
+
+	/// <summary>
+	/// 从父对象向下构建到子对象的路径名称序列
+	/// </summary>
+	public static string BuildTransformPathNames(Transform child, Transform parent) {
+		if (child == null) return string.Empty;
+		var stack = new Stack<string>();
+		Transform current = child;
+		while (current != null && current != parent) {
+			stack.Push($"{CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
+			current = current.parent;
+		}
+		if (current == parent) {
+			stack.Push(CleanCloneName(parent.name));
 		}
 		return string.Join("/", stack);
 	}

@@ -1,14 +1,27 @@
+远程钻头没有被攀爬物同步
+
+远程生物受伤后仇恨索敌未同步
+
+仅有吐射动画,没有射击物
+
+重构为EnemySyncModule->NetworkGameEntity->INetSerializable子类
+
 僵尸索敌坐标错误
 
-特殊敌人只索敌主玩家
-
-炮塔 气囊 无索敌
-
-爆炸无伤害源对象
-
-DEN_Drone.OnCollisionEnter无人机冲撞伤害没有源对象
+DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
+DEN_Face.Start .Damage.HitShift
+DEN_Hunter.TrackPlayerPosition .Start .TargetCollisionCheck
+DEN_EngravedDoor
+DEN_LadderNightmare.Update 
+DEN_Mother.Damage 
+DEN_VentThing.SetTarget
+只索敌主玩家
 
 HUNTER在场景切换后ID不一致(记录hunter生命周期触发) TEETH无法同步 NEST中部分生物的ID无法一致(僵尸)
+
+关卡层级不使用子对象顺序
+
+重构为 1. 所有者广播 去所有者广播 所有者hash 时间戳 2. 询问所有者机制 
 
 复活时攀爬物同步/场景物品同步
 
@@ -32,7 +45,9 @@ lobbyrestart指令
 分配规则??? 时间戳+(steamId hash)去除大部分冲突+LobbyData进行二次校验来进行偏移
 LP组件使用压缩ID,RP中使用压缩ID+自定义玩家名字
 
-修复捷径碰撞网格丢失
+重构捷径同步 Patch_WorldLoader.GenerateLevels_GenParams_Off
+
+修复玩家手持磁盘,部分新道具的姿势
 
 使用WKLib构建部分UI
 

@@ -100,6 +100,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private const float CONN_CLEANUP_RECONNECT = 1.5f;
 	// 首次连接等待
 	private const float CONN_CLEANUP_FIRST = 0.2f;
+	// 发起连接前的快速二次检查等待
+	private const float CONN_PRE_CHECK_WAIT = 0.1f;
 	// 最大尝试次数
 	private const int MAX_ATTEMPTS = 3;
 	// 每次重试最大等待 2 秒
@@ -910,41 +912,50 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			_connectionCoroutines.Remove(targetId);
 			yield break;
 		}
+		bool isConnected = false;
 
-		// 核心重用逻辑:尝试并验证连接
-		IEnumerator AttemptAndVerify(int maxAttempts, float retryInterval) {
-			for (int i = 0; i < maxAttempts; i++) {
-				// 检查现有连接(可能在循环开始前已连上)
+		// 连接等待与二次验证
+		// timeout: 等待时长 locKey: 日志类型
+		IEnumerator WaitUntilConnected(float timeout, string locKey) {
+			isConnected = false;
+			float endTime = Time.unscaledTime + timeout;
+
+			while (Time.unscaledTime < endTime) {
+				// 玩家不在大厅 || 目标不在大厅
+				if (!IsInLobby || !IsMemberInLobby(targetId)) yield break;
+
+				// 捕获到连接, 进行 1 秒稳定度二次校验
 				if (_allConnections.ContainsKey(targetId)) {
-					// 等待 1秒确定连接正常
 					yield return Wait1000ms;
-					// 连接正常 退出协程
-					if (_allConnections.ContainsKey(targetId)) {
+
+					if (_allConnections.ContainsKey(targetId) && IsInLobby && IsMemberInLobby(targetId)) {
 						HasConnections = true;
-						MPMain.LogTest("MPSteamworks.AttemptAndVerify");
+						MPMain.LogInfo(Localization.Get($"MPSteamworks.{locKey}", targetId));
 						MPEventBusNet.NotifyPlayerConnected(targetId);
+						isConnected = true;
 						yield break;
 					}
 				}
-				// 清理连接并重连玩家
+
+				if (Time.unscaledTime >= endTime) break;
+				yield return Wait200ms;
+			}
+		}
+
+		// 尝试并验证连接
+		// maxAttempts: 尝试次数 retryInterval: 尝试间隔
+		IEnumerator AttemptAndVerify(int maxAttempts, float retryInterval) {
+			for (int i = 0; i < maxAttempts; i++) {
+				// 发起连接前, 先用 0.1s 检查现有连接是否已建立
+				yield return WaitUntilConnected(CONN_PRE_CHECK_WAIT, "ConnectVerifySuccess_PreCheck");
+				if (isConnected) yield break;
+
+				// 清理老连接并发起重连
 				ExecuteConnection(targetId);
-				// 等待重试间隔,期间持续检查状态
-				float endTime = Time.unscaledTime + retryInterval;
-				// 重试间隔
-				while (Time.unscaledTime < endTime) {
-					if (_allConnections.ContainsKey(targetId)) {
-						// 等待 1秒确定连接正常
-						yield return Wait1000ms;
-						// 连接正常 退出协程
-						if (_allConnections.ContainsKey(targetId)) {
-							HasConnections = true;
-							MPMain.LogTest("MPSteamworks.AttemptAndVerify");
-							MPEventBusNet.NotifyPlayerConnected(targetId);
-							yield break;
-						}
-					}
-					yield return Wait200ms;
-				}
+
+				// 等待重试间隔并持续检查状态
+				yield return WaitUntilConnected(retryInterval, "ConnectVerifySuccess_Attempt");
+				if (isConnected) yield break;
 				MPMain.LogWarning(Localization.Get("MPSteamworks.ConnectionAttemptFailed", i + 1, targetId));
 			}
 		}
@@ -955,31 +966,19 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		if (isInitiator) {
 			// 主动连接
 			MPMain.LogInfo(Localization.Get("MPSteamworks.ConnectionInitiator", targetId));
-			// 使用配置常量
 			yield return AttemptAndVerify(MAX_ATTEMPTS, RETRY_INTERVAL);
+			// 如果自身主动连接失败,但仍在同一个大厅内,转为被动监听,等待对方的反向连接尝试
+			if (!isConnected && IsInLobby && IsMemberInLobby(targetId)) {
+				MPMain.LogWarning(Localization.Get("MPSteamworks.InitiatorWaitingForReverseConnection", targetId));
+				yield return WaitUntilConnected(RECEIVER_WAIT_INITIATOR, "ConnectVerifySuccess_InitiatorReverse");
+			}
 		} else {
 			MPMain.LogInfo(Localization.Get("MPSteamworks.ConnectionEeceiver", targetId));
-			bool alreadyConnected = false;
-			// 等待对方的主动连接
-			float endTime = Time.unscaledTime + RECEIVER_WAIT_INITIATOR;
-			while (Time.unscaledTime < endTime) {
-				if (_allConnections.ContainsKey(targetId)) {
-					// 等待 1秒确定连接正常
-					yield return Wait1000ms;
-					if (_allConnections.ContainsKey(targetId)) {
-						HasConnections = true;
-						MPMain.LogTest("MPSteamworks.ConnectionController"); 
-						MPEventBusNet.NotifyPlayerConnected(targetId);
-						alreadyConnected = true;
-						break;
-					}
-				}
-				yield return Wait200ms;
-			}
+			yield return WaitUntilConnected(RECEIVER_WAIT_INITIATOR, "ConnectVerifySuccess_Receiver");
 
 			// 未能被动监听连接 开始主动连接
-			if (!alreadyConnected) {
-				MPMain.LogWarning(Localization.Get("MPSteamworks.ReverseConnectionAttempt"));
+			if (!isConnected) {
+				MPMain.LogWarning(Localization.Get("MPSteamworks.ReverseConnectionAttempt", targetId));
 				yield return AttemptAndVerify(MAX_ATTEMPTS, RETRY_INTERVAL);
 			}
 		}
@@ -1317,10 +1316,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	#region[富状态控制]
 
 	public void DebugTest() {
-		SteamFriends.SetRichPresence("steam_display", "run form RMSS");
-		SteamFriends.SetRichPresence("status", "Test text A");
-		SteamFriends.SetRichPresence("steam_player_group", _currentLobby.Id.ToString());
-		SteamFriends.SetRichPresence("steam_player_group_size", _currentLobby.MemberCount.ToString());
 	}
 
 	#endregion

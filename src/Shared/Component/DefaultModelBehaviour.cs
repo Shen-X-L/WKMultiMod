@@ -18,7 +18,7 @@ public class DefaultModelBehaviour : CustomModelBehaviour {
 
 	static DefaultModelBehaviour() {
 		_handItemTransform = new(){
-		{ "None",new ItemPoseData(Vector3.zero,Quaternion.identity,Vector3.one,HAND_ROT)},
+		{ "None",new ItemPoseData(new Vector3(0, 0.4f, 0), Quaternion.Euler(45, 45, 45), Vector3.one, HAND_ROT)},
 		{ "Item_Hammer",HAMMER_TRANSFROM},
 		{ "Item_BanHammer",HAMMER_TRANSFROM},
 		{ "Item_Pipewrench", HAMMER_TRANSFROM},

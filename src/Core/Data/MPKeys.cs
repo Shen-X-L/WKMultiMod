@@ -49,4 +49,7 @@ public static partial class MPKeys {
 
 	// 文件名
 	public const string TEAM_RULES_FILE = "WKMP_TeamRules.json";
+
+	// 生物伤害标签
+	public const string REMOTE_ENEMY_DAMAGE_TAG = "remoteEnemy";
 }

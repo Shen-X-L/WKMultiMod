@@ -8,6 +8,7 @@ using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
+using WKMPMod.NetWork;
 using WKMPMod.Util;
 
 namespace WKMPMod.Components;
@@ -122,18 +123,34 @@ public class RemotePlayer : GameEntity {
 
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
-		// 关闭pvp || 伤害来源非同步因素伤害
-		if (!pvpEnabled) return false;
-
 		MPMain.LogTest($"DamageInfo: {info.amount} type: {info.type} source: {info.sourceEntity?.name?? "Unknown"}");
 
-		if (!DamageRules.whitelistDamage.Contains(info.type)) return false;
+		// 玩家造成的伤害 || 爆炸伤害
+		if (info.sourceEntity == ENT_Player.GetPlayer() || info.tags.Contains("explosion")) {
+			PlayerDamage(info);
+			return false;
+		}
+
+		// 生物造成的伤害
+		if (info.sourceEntity != null) {
+			EnemyDamage(info);
+			return false;
+		}
+		
+		// 其余类型不广播
+		return false;
+	}
+
+	private void PlayerDamage(Damageable.DamageInfo info) {
+		// 关闭pvp || 伤害来源非同步因素伤害 不造成伤害
+		if (!pvpEnabled|| !DamageRules.whitelistDamage.Contains(info.type)) return;
 
 		// 如果对方正在抓着我, 强制对方放手
 		if (LocalPlayer.IsHoldingMe(playerId))
 			MPEventBusGame.NotifyPlayerStopInteraction(playerId);
 
-		if (info.amount <= 0) return false;
+		// 伤害值 <= 0 不造成伤害 顺便不触发无敌帧计时器
+		if (info.amount <= 0) return;
 
 		_invincibilityTimer.SetInterval(MPCore.damageRules.InvincibilityTime);
 
@@ -144,18 +161,28 @@ public class RemotePlayer : GameEntity {
 		} else if (Time.time - _burstStartTime <= MPCore.damageRules.BurstWindow) {
 			// 如果还在无敌倒计时内, 但时间处于并发窗口期 (小于 a) 允许伤害通过
 		} else {
-			return false; // 处于 (a, b) 之间, 属于无敌帧 免疫伤害
+			return; // 处于 (a, b) 之间, 属于无敌帧 免疫伤害
 		}
 
 		// 添加屏幕震动
 		CL_CameraControl.Shake(0.01f);
 		// 计算伤害倍率
 		CalculatedDamage(info);
+		// 伤害值 <= 0 不造成伤害
+		if (info.amount <= 0) return;
 		// 发送伤害通知事件
 		MPEventBusGame.NotifyPlayerDamage(playerId, info);
+	}
 
-		// 会不会死由对方决定
-		return false;
+	private void EnemyDamage(Damageable.DamageInfo info) {
+		// 不是主机 || 不是远程生物
+		if (!MPSteamworks.IsHost || !info.sourceEntity.TryGetComponent<NetworkedGameEntity>(out var identity)) return;
+		// 伤害值 <= 0 不造成伤害
+		if (info.amount <= 0) return;
+		info.tags.Add(MPKeys.REMOTE_ENEMY_DAMAGE_TAG);
+		info.tags.Add("NetEnemyId:" + identity.networkId);
+		// 发送伤害通知事件
+		MPEventBusGame.NotifyPlayerDamage(playerId, info);
 	}
 
 	public override void Kill(string type = "", Damageable.DamageInfo damageInfo = null) { }
