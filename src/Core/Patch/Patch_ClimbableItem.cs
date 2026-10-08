@@ -35,6 +35,7 @@ public class Patch_HandItem_Piton_PitonHit {
 
 		// 寻找 ldfld HandItem_Piton::pitonWorldObject 访问
 		int fieldIndex = codes.FindIndex(c => c.opcode == OpCodes.Ldfld && c.operand is FieldInfo f && f == pitonField);
+		
 		if (fieldIndex == -1) {
 			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Piton.PitonHit"));
 			return codes;
@@ -42,12 +43,13 @@ public class Patch_HandItem_Piton_PitonHit {
 
 		// 向后找第一个名为 Instantiate 且有 3 个参数的方法调用
 		int instantiateIndex = codes.FindIndex(fieldIndex, c =>
-			c.opcode == OpCodes.Call &&
-			c.operand is MethodInfo m &&
-			m.Name == "Instantiate" &&
-			m.GetParameters() is { Length: 3 } p &&
-			p[1].ParameterType == typeof(Vector3)
+			c.opcode == OpCodes.Call 
+			&& c.operand is MethodInfo m 
+			&& m.Name == "Instantiate" 
+			&& m.GetParameters() is { Length: 3 } p 
+			&& p[1].ParameterType == typeof(Vector3)
 		);
+
 		if (instantiateIndex == -1) {
 			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Piton.PitonHit"));
 			return codes;
@@ -119,11 +121,11 @@ public class Patch_Projectile_ClimbableSync {
 
 		// 查找符合特征的 Instantiate 调用位置
 		int targetIndex = codes.FindIndex(c =>
-			c.opcode == OpCodes.Call &&
-			c.operand is MethodInfo m &&
-			m.Name == "Instantiate" &&
-			m.GetParameters() is { Length: 3 } p &&
-			p[1].ParameterType == typeof(Vector3)
+			c.opcode == OpCodes.Call 
+			&& c.operand is MethodInfo m 
+			&& m.Name == "Instantiate" 
+			&& m.GetParameters() is { Length: 3 } p 
+			&& p[1].ParameterType == typeof(Vector3)
 		);
 		if (targetIndex == -1) {
 			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
@@ -202,11 +204,11 @@ public class Patch_CL_Handhold_PitonSync {
 
 		// 查找符合特征的 Instantiate 调用位置
 		int targetIndex = codes.FindIndex(c =>
-			c.opcode == OpCodes.Call &&
-			c.operand is MethodInfo m &&
-			m.Name == "Instantiate" &&
-			m.GetParameters() is { Length: 3 } p &&
-			p[1].ParameterType == typeof(Vector3)
+			c.opcode == OpCodes.Call 
+			&& c.operand is MethodInfo m 
+			&& m.Name == "Instantiate" 
+			&& m.GetParameters() is { Length: 3 } p 
+			&& p[1].ParameterType == typeof(Vector3)
 		);
 
 		if (targetIndex == -1) {

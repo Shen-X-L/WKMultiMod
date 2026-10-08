@@ -80,9 +80,9 @@ public class MPPacketRouter {
 	private static Action<ulong, DataReader> CreateAction(MethodInfo method, ParameterInfo[] parameters) {
 		try {
 			// 验证参数签名
-			if (parameters.Length == 2 &&
-				parameters[0].ParameterType == typeof(ulong) &&
-				parameters[1].ParameterType == typeof(DataReader)) {
+			if (parameters.Length == 2 
+				&& parameters[0].ParameterType == typeof(ulong) 
+				&& parameters[1].ParameterType == typeof(DataReader)) {
 
 				// 创建委托并强转为 Action
 				// Delegate.CreateDelegate 的第一个参数是委托的类型

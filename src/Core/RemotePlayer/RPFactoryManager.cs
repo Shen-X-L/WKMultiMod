@@ -130,7 +130,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		try {
 			bundle = AssetBundle.LoadFromFile(path);
 			if (bundle == null) {
-				MPMain.LogError(Localization.Get("RPFactoryManager.UnableToLoadResources") + $" 路径: {path}");
+				MPMain.LogError(Localization.Get("RPFactoryManager.UnableToLoadResources") + $" path: {path}");
 				return null;
 			}
 
@@ -153,10 +153,8 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 			MPMain.LogError($"预制体 [{assetName}] 读改异常:\n{ex}");
 			rawPrefab = null;
 		} finally {
-			// 完美保持原版的安全卸载: 传 false 意味着内存中加载出来的 GameObject 资产不会被销毁
-			if (bundle != null) {
-				bundle.Unload(false);
-			}
+			// 传 false 意味着内存中加载出来的 GameObject 资产不会被销毁
+			if (bundle != null) bundle.Unload(false);
 		}
 
 		return rawPrefab;

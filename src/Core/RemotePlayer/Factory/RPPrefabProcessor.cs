@@ -70,14 +70,13 @@ public static class RPPrefabProcessor {
 			}
 		}
 
-		// 4. 处理受击体（此时 mk.entity 依然有效，且其 GameObject 上已成功挂载 RemotePlayer）
+		// 4. 处理受击体（此时 mk.entity 依然有效, 且其 GameObject 上已成功挂载 RemotePlayer）
 		foreach (var mk in prefab.GetComponentsInChildren<MK_ENT_Hitbox>(true)) {
 			var component = mk.gameObject.AddComponent<ENT_Hitbox>();
 
 			// 安全获取目标 GameObject 上的 RemotePlayer 组件
-			if (mk.entity != null) {
+			if (mk.entity != null) 
 				component.entity = mk.entity.gameObject.GetComponent<RemotePlayer>();
-			}
 
 			component.canBlinkFrag = false;
 			component.passTags = mk.passTags != null ? new List<string>(mk.passTags) : new List<string>();

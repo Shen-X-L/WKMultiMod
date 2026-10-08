@@ -1,18 +1,13 @@
-using Unity.Entities;
 using UnityEngine;
-using UnityEngine.UIElements;
-using WKMPMod.Core;
 using WKMPMod.Data;
-using WKMPMod.Util;
 using WKMPMod.World;
-using static WKMPMod.Data.PlayerData;
 
 namespace WKMPMod.Components;
 
 public class NetworkedClimable : MonoBehaviour {
-	private const float positionEpsilonSqr = 0.0004f;       // 位置变化阈值平方
-	private const float rotationEpsilon = 0.5f;             // 旋转变化阈值 (度)
-	private const float secureAmountEpsilon = 0.01f;        // 加固值变化阈值
+	private const float POSITION_EPSILON_SQR = 0.0004f;       // 位置变化阈值平方
+	private const float ROTATION_EPSILON = 0.5f;             // 旋转变化阈值 (度)
+	private const float SECURE_AMOUNT_EPSILON = 0.01f;        // 加固值变化阈值
 
 	public ClimbableData data = new();
 	public CL_Handhold Handhold { get; private set; }
@@ -54,20 +49,22 @@ public class NetworkedClimable : MonoBehaviour {
 	/// <summary>
 	/// 检查敌人状态是否有足够明显的变化需要同步
 	/// </summary>
-	public bool HasMeaningfulChange() {
-		// 位置变化
-		if ((transform.position - data.position).sqrMagnitude > positionEpsilonSqr) return true;
+	public bool HasMeaningfulChange {
+		get {
+			// 位置变化
+			if ((transform.position - data.position).sqrMagnitude > POSITION_EPSILON_SQR) return true;
 
-		// 旋转变化
-		if (Quaternion.Angle(transform.rotation, data.rotation) > rotationEpsilon) return true;
+			// 旋转变化
+			if (Quaternion.Angle(transform.rotation, data.rotation) > ROTATION_EPSILON) return true;
 
-		// 生命值变化
-		if (Handhold != null) {
-			if (Mathf.Abs(data.secureAmount - Handhold.secureAmount) > secureAmountEpsilon) return true;
-			if (data.secure != Handhold.secure) return true;
+			// 生命值变化
+			if (Handhold != null) {
+				if (Mathf.Abs(data.secureAmount - Handhold.secureAmount) > SECURE_AMOUNT_EPSILON) return true;
+				if (data.secure != Handhold.secure) return true;
+			}
+
+			return false;
 		}
-
-		return false;
 	}
 
 	/// <summary>
@@ -86,7 +83,7 @@ public class NetworkedClimable : MonoBehaviour {
 /// <summary>
 /// 可攀爬物体的持久化数据结构 (脱离 MonoBehaviour 独立存在)
 /// </summary>
-public class ClimbableData: INetworkSerializable {
+public class ClimbableData : INetworkSerializable {
 	public ulong networkId;
 	public string prefabKey;
 	public ulong ownerId;

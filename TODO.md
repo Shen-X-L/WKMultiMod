@@ -1,10 +1,8 @@
-远程钻头没有被攀爬物同步
+模型不加载修复
 
-远程生物受伤后仇恨索敌未同步
+生物索敌进行请求,乐观索敌,受到拒绝后放弃为目标
 
 仅有吐射动画,没有射击物
-
-重构为EnemySyncModule->NetworkGameEntity->INetSerializable子类
 
 僵尸索敌坐标错误
 
@@ -15,13 +13,16 @@ DEN_EngravedDoor
 DEN_LadderNightmare.Update 
 DEN_Mother.Damage 
 DEN_VentThing.SetTarget
+DEN_Remains_Active
+DEN_RatKing
 只索敌主玩家
+DEN_Phage
 
 HUNTER在场景切换后ID不一致(记录hunter生命周期触发) TEETH无法同步 NEST中部分生物的ID无法一致(僵尸)
 
 关卡层级不使用子对象顺序
 
-重构为 1. 所有者广播 去所有者广播 所有者hash 时间戳 2. 询问所有者机制 
+远程钻头没有被攀爬物同步
 
 复活时攀爬物同步/场景物品同步
 
@@ -40,6 +41,8 @@ lobbyrestart指令
 玩家离开时 所属物品销毁同步
 
 玩家手持物品销毁同步
+
+刷新大厅时刷新大厅数据
 
 压缩玩家ID ulong->short 创建玩家ID字典类,数据储存在steamLobbyData中
 分配规则??? 时间戳+(steamId hash)去除大部分冲突+LobbyData进行二次校验来进行偏移

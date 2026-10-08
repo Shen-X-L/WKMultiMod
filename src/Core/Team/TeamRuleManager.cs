@@ -188,7 +188,7 @@ public static class TeamRuleManager {
 		string targetLower = targetTeam.ToLower();
 		var matchingTeams = new List<string>();
 
-		// 遍历所有活跃队伍，将其作为来源队伍 (teamA)
+		// 遍历所有活跃队伍, 将其作为来源队伍 (teamA)
 		foreach (var team in activeTeams)
 			if (GetRule(team.ToLower(), targetLower, type) == active) matchingTeams.Add(team);
 

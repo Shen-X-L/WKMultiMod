@@ -1173,12 +1173,20 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	}
 
 	/// <summary>
+	/// 获取指定玩家 默认自身 的所有 MemberData
+	/// </summary>
+	/// <param name="steamId">目标玩家 SteamId,留空或传入 0 则默认获取自身</param>
+	public Dictionary<string, string> GetAllMemberData(ulong steamId = 0) {
+		if (!_currentLobby.Id.IsValid) return new Dictionary<string, string>();
+
+		ulong targetId = (steamId == 0) ? UserSteamId : steamId;
+		return GetAllMemberData(new Friend(targetId));
+	}
+
+	/// <summary>
 	/// 通过索引 Key 获取指定玩家的所有个人数据
 	/// </summary>
 	public Dictionary<string, string> GetAllMemberData(Friend friend) {
-		// 直接返回本地数据
-		//if (friend.Id == UserSteamId) return new Dictionary<string, string>(MemberData);
-
 		var result = new Dictionary<string, string>();
 		if (!_currentLobby.Id.IsValid) return result;
 
@@ -1214,11 +1222,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		return null;
 	}
 
-	//public void SendAllMemberData() {
-	//	var writer = MPWriterPool.GetWriter(UserSteamId, MPProtocol.BroadcastId, PacketType.ResponseMemberData);
-	//	writer.Put(MemberData);
-	//	Broadcast(writer);
-	//}
+	public void AllMemberData() {
+
+	}
 
 	/// <summary>
 	/// 刷新大厅数据,在加入大厅或创建大厅后调用

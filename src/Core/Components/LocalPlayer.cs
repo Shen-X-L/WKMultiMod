@@ -23,11 +23,12 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	#region[字段和属性 - 更新数据状态缓存]
 
 	// 状态缓存
+	public PlayerData LastPlayerData => _lastPlayerData;
 	private PlayerData _lastPlayerData;
 	private string[] _handItemPrefabNames = new string[2];
 	private List<IDType> _farPlayersBuffer = new List<IDType>(16);
 	public List<IDType> _nearPlayersBuffer = new List<IDType>(16);  // 近处玩家,大部分数据可以仅对near发送
-	public Dictionary<string, string> _playerData = new();  // 玩家额外数据字典(背包状态 perk状态等)
+	public Dictionary<string, string> extraPlayerData = new();  // 玩家额外数据字典(背包状态 perk状态等)
 	public const float LIMIT_SENDING_DISTANCE = 2400.0f;             // 超过该距离时仅保证最小更新频率发送数据
 
 	#endregion
@@ -187,9 +188,10 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 		RPManager.Instance.GetPlayersByDistance(
 			_lastPlayerData.Position,
 			Math.Max(LIMIT_SENDING_DISTANCE/RPManager.Instance.Players.Count,100.0f),
-			ref _farPlayersBuffer,
-			ref _nearPlayersBuffer
+			_farPlayersBuffer,
+			_nearPlayersBuffer
 		);
+
 		// 发送近距离玩家位置数据
 		if (tickNormal && !tickMinFreq) {
 			var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
@@ -205,12 +207,12 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 			var writerFreq = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.PlayerDataUpdate);
 			writerFreq.Put(_lastPlayerData);
 			writerFreq.Put(true);
-			writerFreq.Put(PlayerDataDic());
+			writerFreq.Put(BuildExtraPlayerData());
 
 			foreach (ulong targetId in _nearPlayersBuffer)
-				MPSteamworks.Instance.SendToPeer(targetId, writerFreq);
+				MPSteamworks.Instance.SendToPeer(targetId, writerFreq, SendType.Unreliable | SendType.NoNagle);
 			foreach (ulong targetId in _farPlayersBuffer)
-				MPSteamworks.Instance.SendToPeer(targetId, writerFreq);
+				MPSteamworks.Instance.SendToPeer(targetId, writerFreq, SendType.Unreliable | SendType.NoNagle);
 		}
 	}
 
@@ -316,18 +318,19 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	}
 
 	// 玩家数据字典(背包物品,是否携带道具等)
-	public Dictionary<string, string> PlayerDataDic() {
-		_playerData.Clear();
+	public Dictionary<string, string> BuildExtraPlayerData() {
+		extraPlayerData.Clear();
+		// 背包物品
 		foreach (var (item, count) in InventoryManager.GetInventoryItems(checkBag:true, checkHands: false, checkPouches: true)) {
-			_playerData[item] = count.ToString();
+			extraPlayerData[item] = count.ToString();
 		}
-
+		// 胶囊判定大型
 		var playerCharacter = _cachedPlayer.GetComponent<CharacterController>();
 		var height = _cachedPlayer.transform.localScale.y * playerCharacter.height;
 		var radius = Math.Sqrt(playerCharacter.transform.localScale.x * playerCharacter.transform.localScale.z) * playerCharacter.radius;
-		_playerData[MPKeys.PLAYER_SCALE] = $"{height},{radius}";
+		extraPlayerData[MPKeys.PLAYER_SCALE] = $"{height},{radius}";
 
-		return _playerData;
+		return extraPlayerData;
 	}
 
 	#endregion

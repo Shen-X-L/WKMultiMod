@@ -133,6 +133,11 @@ public class NetworkedGameEntity : MonoBehaviour {
 
 	}
 
+	private void OnDestroy() {
+		// 实体被销毁时触发所有 Feature 的注销逻辑
+		ClearAllFeatures();
+	}
+
 	#endregion
 
 	#region [模块化注册]
@@ -142,7 +147,8 @@ public class NetworkedGameEntity : MonoBehaviour {
 	/// </summary>
 	public void Initialize(ulong id) {
 		networkId = id;
-		_syncFeatures.Clear();
+
+		ClearAllFeatures();
 
 		// 根 Transform 与血量同步
 		RegisterFeature(new RootTransformSyncFeature(this));
@@ -152,7 +158,6 @@ public class NetworkedGameEntity : MonoBehaviour {
 		for (byte i = 0; i < animators.Length; i++) {
 			var anim = animators[i];
 			var animFeature = new AnimatorSyncFeature(anim, this);
-
 			RegisterFeature(animFeature);
 		}
 
@@ -169,6 +174,12 @@ public class NetworkedGameEntity : MonoBehaviour {
 	private void RegisterFeature(ISyncFeature feature) {
 		feature.FeatureIndex = (byte)_syncFeatures.Count;
 		_syncFeatures.Add(feature);
+	}
+
+	private void ClearAllFeatures() {
+		for (int i = 0; i < _syncFeatures.Count; i++) 
+			_syncFeatures[i]?.OnDestroy();
+		_syncFeatures.Clear();
 	}
 
 	#endregion

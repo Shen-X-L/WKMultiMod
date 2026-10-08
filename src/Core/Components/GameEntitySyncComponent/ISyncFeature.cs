@@ -6,7 +6,7 @@ using WKMPMod.Data;
 namespace WKMPMod.Components;
 
 /// <summary>
-/// 实体网络同步行为的原子特征接口 (如: 血量同步、Transform 平滑插值、Animator 动画同步等)
+/// 实体网络同步行为的原子特征接口 (如: 血量同步, Transform 平滑插值, Animator 动画同步等)
 /// </summary>
 public interface ISyncFeature {
 	/// <summary>
@@ -19,7 +19,7 @@ public interface ISyncFeature {
 	string FeatureId { get; }
 
 	/// <summary>
-	/// (主机端) 检查当前 Feature 的数据是否有显著变动 (Dirty 标记)，决定本帧是否需要打包发送
+	/// (主机端) 检查当前 Feature 的数据是否有显著变动 (Dirty 标记), 决定本帧是否需要打包发送
 	/// </summary>
 	bool IsDirty { get; }
 
@@ -34,12 +34,17 @@ public interface ISyncFeature {
 	void ReadState(DataReader reader);
 
 	/// <summary>
-	/// (客户端) 逐帧更新回调 (用于 Transform 平滑插值、子部件 Lerp 旋转等)
+	/// (客户端) 逐帧更新回调 (用于 Transform 平滑插值, 子部件 Lerp 旋转等)
 	/// </summary>
 	void OnUpdate(float deltaTime);
 
 	/// <summary>
-	/// (可选) 当实体死亡、注销或断开网络接管时重置内部状态
+	/// (可选) 当实体死亡, 注销或断开网络接管时重置内部状态
 	/// </summary>
 	void OnReset();
+
+	/// <summary>
+	/// 当实体销毁, 注销或重新初始化时调用，用于释放静态注册表, 解绑事件等
+	/// </summary>
+	void OnDestroy();
 }

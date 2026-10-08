@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using WKMPMod.Components;
@@ -26,7 +27,10 @@ public static class MPEventBusGame {
 	public static void NotifyPlayerDamage(IDType steamId, Damageable.DamageInfo info)
 		=> OnPlayerDamage?.Invoke(steamId, info);
 
-	// 游戏组件事件: 受到冲击力
+	/// <summary>
+	/// 游戏组件事件: 受到冲击力 订阅者:<br/>
+	/// <see cref="MPCore.HandlePlayerAddForce"/><br/>
+	/// </summary>
 	public static event Action<IDType, Vector3, string> OnPlayerAddForce;
 	public static void NotifyPlayerAddForce(IDType steamId, Vector3 force, string source = "")
 		=> OnPlayerAddForce?.Invoke(steamId, force, source);

@@ -46,6 +46,7 @@ public class AnimatorSyncFeature : ISyncFeature {
 	public AnimatorSyncFeature(Animator animator, NetworkedGameEntity entity) {
 		TargetAnimator = animator;
 		Entity = entity;
+		Register(TargetAnimator, this);
 	}
 
 	#region[Patch状态设置API]
@@ -128,6 +129,11 @@ public class AnimatorSyncFeature : ISyncFeature {
 		_dirtyFloats.Clear();
 		_dirtyInts.Clear();
 		_dirtyLayerWeights.Clear();
+	}
+
+	public void OnDestroy() {
+		Unregister(TargetAnimator);
+		OnReset();
 	}
 
 	#endregion

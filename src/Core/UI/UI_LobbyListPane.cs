@@ -88,6 +88,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 			if (LobbyDic.TryGetValue(lobby.Id.Value, out var existingButton)) {
 				// 已存在的大厅: 强制触发一次刷新,以获取最新的房主,大厅名
 				lobby.Refresh();
+				existingButton.OnLobbyDataUpdated(lobby);
 			} else {
 				// 新发现的大厅: 创建并刷新
 				var newButton = CreateLobbyButton(lobby);

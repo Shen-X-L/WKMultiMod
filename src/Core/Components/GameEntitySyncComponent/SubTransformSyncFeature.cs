@@ -56,4 +56,8 @@ public class SubTransformSyncFeature : ISyncFeature {
 		_lastLocalPos = _targetLocalPos = Vector3.zero;
 		_lastLocalRot = _targetLocalRot = Quaternion.identity;
 	}
+
+	public void OnDestroy() {
+		SubTransform = null;
+	}
 }

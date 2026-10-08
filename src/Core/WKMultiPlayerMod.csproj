@@ -4,7 +4,7 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>WKMultiPlayerMod</AssemblyName>
 		<Product>WKMultiPlayerMod</Product>
-		<Version>1.8.2.0</Version>
+		<Version>1.8.3.0</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RootNamespace>WKMultiPlayerMod</RootNamespace>
@@ -20,10 +20,6 @@
 	<Target Name="ValidateLocalPaths" BeforeTargets="Build" Condition="'$(GamePath)' == ''">
 		<Error Text="GamePath is not set. Copy LocalPaths.props.example to LocalPaths.props and set your local game path." />
 	</Target>
-
-	<ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
-		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
-	</ItemGroup>
 
 	<!-- 在构建完成后执行 -->
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">

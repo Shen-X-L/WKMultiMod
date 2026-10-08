@@ -113,7 +113,7 @@ public class RPManager : Singleton<RPManager> {
 	/// 处理玩家数据字典
 	/// </summary>
 	public void ProcessMemberData(IDType playerId, Dictionary<string, string> data) {
-		MPMain.LogDebug($"[RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
+		MPMain.LogInfo($"[MP RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 
 		RPContainer container = GetOrCreateContainer(playerId);
 
@@ -160,13 +160,13 @@ public class RPManager : Singleton<RPManager> {
 		}
 	}
 
-	public void ProcessPlayerCustomProperties(IDType playerId, Dictionary<string, string> playerData) {
+	public void ProcessExtraPlayerData(IDType playerId, Dictionary<string, string> playerData) {
 		if (!MPCore.IsInitialized || !MPCore.IsInLobby) return;
 
 		// 以后加上时间戳处理
 		if (Players.TryGetValue(playerId, out var container)) {
 			if (!container.IsModelReady) return;
-			container.HandlePlayerDictData(playerData);
+			container.HandleExtraPlayerData(playerData);
 		} else if (_debugTick.TryTick()) {
 			MPMain.LogError(Localization.Get(
 				"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
@@ -295,7 +295,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <param name="distanceThreshold">距离阈值</param>
 	/// <param name="farPlayers">输出: 距离 >= 阈值的玩家ID集合</param>
 	/// <param name="nearPlayers">输出: 距离 < 阈值的玩家ID集合</param>
-	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, ref List<IDType> farPlayers, ref List<IDType> nearPlayers) {
+	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, List<IDType> farPlayers, List<IDType> nearPlayers) {
 		farPlayers.Clear();
 		nearPlayers.Clear();
 
@@ -307,16 +307,11 @@ public class RPManager : Singleton<RPManager> {
 			RPContainer container = kvp.Value;
 
 			// 安全检查: 忽略无效的远程玩家实体
-			if (container == null || container.PlayerObject == null) {
-				continue;
-			}
+			if (container == null || container.PlayerObject == null) continue;
 
 			float sqrDistance = (container.PlayerObject.transform.position - origin).sqrMagnitude;
-			if (sqrDistance >= sqrThreshold) {
-				farPlayers.Add(playerId);
-			} else {
-				nearPlayers.Add(playerId);
-			}
+			if (sqrDistance >= sqrThreshold) farPlayers.Add(playerId);
+			else nearPlayers.Add(playerId);
 		}
 	}
 

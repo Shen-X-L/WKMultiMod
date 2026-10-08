@@ -3,13 +3,11 @@
 	<Import Project="LocalPaths.props" Condition="Exists('LocalPaths.props')" />
 
 	<PropertyGroup>
-		<TargetFramework>net472</TargetFramework>
+		<TargetFramework>netstandard2.1</TargetFramework>
 		<LangVersion>10.0</LangVersion>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<!-- 统一输出到解决方案的 bin 目录 -->
-		<!-- <OutputPath>$(SolutionDir)bin\$(Configuration)\</OutputPath> -->
-		<!-- 项目本身的 bin 目录 -->
+
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 	</PropertyGroup>
 
@@ -32,11 +30,6 @@
 		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(GamePath)\BepInEx\plugins\MP" SkipUnchangedFiles="true" />
 
 	</Target>
-
-	<PropertyGroup>
-		<TargetFramework>netstandard2.1</TargetFramework>
-		<Nullable>enable</Nullable>
-	</PropertyGroup>
 
 	<PropertyGroup>
 		<ManagedPath>$(GamePath)\White Knuckle_Data\Managed</ManagedPath>

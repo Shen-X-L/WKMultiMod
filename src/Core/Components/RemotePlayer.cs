@@ -4,12 +4,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Unity.Entities.UniversalDelegates;
 using UnityEngine;
 using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.Util;
+using static UnityEngine.AdaptivePerformance.Provider.AdaptivePerformanceSubsystemDescriptor;
 
 namespace WKMPMod.Components;
 
@@ -84,7 +86,7 @@ public class RemotePlayer : GameEntity {
 		transform.rotation = playerData.Rotation;
 	}
 
-	// 统一重写 GameEntity 的 Teleport，彻底避免位移与平滑算法冲突
+	// 统一重写 GameEntity 的 Teleport, 彻底避免位移与平滑算法冲突
 	public override void Teleport(Vector3 pos) {
 		TeleportInternal(pos, null);
 	}
@@ -116,14 +118,21 @@ public class RemotePlayer : GameEntity {
 
 	#region [战斗与伤害判定 (GameEntity 重写)]
 
-	// 负责处理 无敌帧 的重置计时器
-	private TickTimer _invincibilityTimer = new TickTimer(0.5f);
-	// 负责记录每次 无敌帧并发窗口 的起始物理时间
-	private float _burstStartTime = -999f;
-
+	// 记录伤害来源的帧数, 用于判断是否是同一帧的伤害
+	private int _damageSourceFrame = -1;
+	// 记录伤害来源的实体
+	private GameEntity _damageSourceEntity;
+	// 负责记录每次 无敌帧并发窗口 的起始时间戳
+	private float _damageWindowStartTime = -Mathf.Infinity;
+	
 	// 对方受到伤害时调用
 	public override bool Damage(Damageable.DamageInfo info) {
-		MPMain.LogTest($"DamageInfo: {info.amount} type: {info.type} source: {info.sourceEntity?.name?? "Unknown"}");
+		_damageSourceFrame = Time.frameCount;
+		_damageSourceEntity = info.sourceEntity;
+
+		MPMain.LogTest(
+			$"[MP RP Damage] DamageInfo: {info.amount} type: {info.type} " +
+			$"source: {info.sourceEntity?.name?? "Unknown"}");
 
 		// 玩家造成的伤害 || 爆炸伤害
 		if (info.sourceEntity == ENT_Player.GetPlayer() || info.tags.Contains("explosion")) {
@@ -152,16 +161,18 @@ public class RemotePlayer : GameEntity {
 		// 伤害值 <= 0 不造成伤害 顺便不触发无敌帧计时器
 		if (info.amount <= 0) return;
 
-		_invincibilityTimer.SetInterval(MPCore.damageRules.InvincibilityTime);
+		// 计算伤害窗口时间
+		float elapsed = Time.time - _damageWindowStartTime;
 
-		// 如果无敌时间已到 (大于 b), 开启新一轮的伤害判定窗口
-		if (_invincibilityTimer.IsTickReached) {
-			_invincibilityTimer.Reset();   // 重置 TickTimer
-			_burstStartTime = Time.time;   // 记录本轮第一发子弹打中的时间
-		} else if (Time.time - _burstStartTime <= MPCore.damageRules.BurstWindow) {
-			// 如果还在无敌倒计时内, 但时间处于并发窗口期 (小于 a) 允许伤害通过
-		} else {
-			return; // 处于 (a, b) 之间, 属于无敌帧 免疫伤害
+		// [0, BurstWindow]并发期伤害允许
+		// (BurstWindow, Invincibility]无敌帧窗口期
+		// (Invincibility, nextDamage)开启新窗口
+		if (elapsed >= MPCore.damageRules.InvincibilityTime) {
+			// 如果时间超过无敌时间, 开启新一轮的伤害判定窗口
+			_damageWindowStartTime = Time.time;
+		} else if (elapsed > MPCore.damageRules.BurstWindow) {
+			// 如果时间处于 (BurstWindow, Invincibility] 之间, 属于无敌帧 免疫伤害
+			return;
 		}
 
 		// 添加屏幕震动
@@ -189,10 +200,37 @@ public class RemotePlayer : GameEntity {
 
 	// 添加力(基础实现)
 	public override void AddForce(Vector3 v, string source = "") {
-		// 关闭pvp || 不是玩家伤害帧生成的力
-		if (!pvpEnabled || Time.time - _burstStartTime > 0.1f) return;
+		GameEntity sourceEntity = null;
+
+		if (_damageSourceFrame == Time.frameCount) sourceEntity = _damageSourceEntity;
+
+		MPMain.LogTest($"[MP RP AddForce] source: {source} sourceEntity: {sourceEntity?.name ?? "Unknown"}");
+
+		
+		if (sourceEntity == ENT_Player.GetPlayer() || source == "explosion")
+			// 玩家造成的力 || 爆炸推力
+			AddPlayerForce(v, source, sourceEntity);
+		else if (sourceEntity != null)
+			// 生物造成的力
+			AddEnemyForce(v, source, sourceEntity);
+		
+		_damageSourceFrame = -1;
+		_damageSourceEntity = null;
+	}
+
+	private void AddPlayerForce(Vector3 force, string source, GameEntity sourceEntity) {
+		// 关闭pvp
+		if (!pvpEnabled) return;
 		// 发送冲击力通知事件
-		MPEventBusGame.NotifyPlayerAddForce(playerId, v / 10, source);
+		MPEventBusGame.NotifyPlayerAddForce(playerId, force / 10, source);
+	}
+
+	private void AddEnemyForce(Vector3 force, string source, GameEntity sourceEntity) {
+		// 不是主机 || 不是远程生物
+		if (!MPSteamworks.IsHost || !sourceEntity.TryGetComponent<NetworkedGameEntity>(out var identity)) return;
+		source = "NetEnemyId:" + identity.networkId;
+		// 发送冲击力通知事件
+		MPEventBusGame.NotifyPlayerAddForce(playerId, force, source);
 	}
 
 	// 在指定位置添加力

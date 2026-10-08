@@ -82,4 +82,8 @@ public class RootTransformSyncFeature : ISyncFeature {
 		_lastRotation = _targetRotation = _transform.rotation;
 		_lastHealth = _entity != null ? _entity.health : float.NaN;
 	}
+
+	public void OnDestroy() {
+		// 无需额外清理
+	}
 }

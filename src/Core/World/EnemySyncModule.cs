@@ -37,7 +37,7 @@ public enum EnemySyncAction : byte {
 /// Host-authoritative denizen/enemy transform, health and death synchronization.
 /// Existing scene enemies are matched by a stable hierarchy id, so clients do not
 /// need to instantiate enemy prefabs to stay aligned with the host.
-/// 敌人同步管理器 - 主机权威的敌人 (Denizen/GameEntity) 变换、生命值和死亡同步.
+/// 敌人同步管理器 - 主机权威的敌人 (Denizen/GameEntity) 变换, 生命值和死亡同步.
 /// 现有场景敌人通过稳定的层级结构 ID 匹配, 因此客户端无需实例化敌人预制体即可与主机保持一致.
 /// 相关网络组件 <see cref="NetworkedGameEntity"/>
 /// </summary>
@@ -108,25 +108,34 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 	#endregion
 
-	#region[	分帧发送状态机]
-	private float _syncInterval = 0.20f; // 状态同步间隔 (秒, 约5Hz)
-	private int _maxSyncPerFrame = 10; // 每次最多处理并广播的敌人数量
+	#region[	分帧更新控制]
+
+	private float _syncInterval = 0.20f;  // 状态同步间隔 (秒 约5Hz)
+	private int _maxScanPerFrame = 50;    // 单帧最多扫描/检查的敌人数量 (扫描上限)
+	private int _maxSyncPerFrame = 10;    // 单帧最多打包发送的敌人数量 (发送上限)
 	private float _timer = 0f;
+	// 扫描控制字段
+	private bool _isScanning = false;
+	private int _scanIndex = 0;
+	// 发送控制字段
 	private bool _isSweeping = false;
 	private int _sweepIndex = 0;
 
-	// Transform/Health 待发送队列
+	// 缓存与队列
 	private readonly List<NetworkedGameEntity> _sweepQueue = new();
 	private readonly List<NetworkedGameEntity> _batchBuffer;
 	private readonly List<ulong> _localKeysCache = new List<ulong>();
 	private void ResetSweepState() {
 		_timer = 0f;
+		_isScanning = false;
+		_scanIndex = 0;
 		_isSweeping = false;
 		_sweepIndex = 0;
 		_sweepQueue.Clear();
 		_batchBuffer.Clear();
 		_localKeysCache.Clear();
 	}
+
 	#endregion
 
 	#endregion
@@ -251,45 +260,72 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			return;
 		}
 
-		// 处于空闲状态:累加定时器, 等待下一个同步周期到来
-		if (!_isSweeping) {
+		// 1. 空闲阶段: 累加定时器, 等待下一个同步周期到来
+		if (!_isScanning && !_isSweeping) {
 			_timer += deltaTime;
 			if (_timer >= _syncInterval) {
-				_timer = Mathf.Max(0f, _timer - _syncInterval); // 保留余数, 保证计时精准
-				StartNewSweep();          // 开启新一轮的全局扫描
+				_timer = Mathf.Max(0f, _timer - _syncInterval); // 保留余数保证计时精准
+				StartNewScanCycle();                            // 触发新一轮扫描
 			}
 		}
 
-		// 处于处理数据包状态 连续跨帧处理数据包
+		// 2. 分帧扫描阶段: 每帧最多检查 _maxScanPerFrame 个敌人
+		if (_isScanning) StepScan();
+		
+		// 3. 分帧发送阶段: 扫描完成后, 分帧将数据冲刷给客户端
 		if (_isSweeping) FlushNextBatch();
+	}
+
+	/// <summary>
+	/// 开启新一轮同步, 拍照缓存当前所有敌人的 Key
+	/// </summary>
+	private void StartNewScanCycle() {
+		_sweepQueue.Clear();
+		_scanIndex = 0;
+		_localKeysCache.Clear();
+
+		_localKeysCache.AddRange(enemies.Keys);
+
+		// 如果当前有生物存在, 启动分帧扫描
+		if (_localKeysCache.Count > 0) _isScanning = true;
 	}
 
 	/// <summary>
 	/// 开启新一轮同步, 扫描并收集所有需要同步的敌人
 	/// </summary>
-	private void StartNewSweep() {
-		_sweepQueue.Clear();
-		_sweepIndex = 0;
+	private void StepScan() {
+		int scannedThisFrame = 0;
 
-		_localKeysCache.Clear();
+		// 逐个检查, 检查数量达到上限 50 或 遍历完列表 时停下
+		while (_scanIndex < _localKeysCache.Count && scannedThisFrame < _maxScanPerFrame) {
+			ulong networkId = _localKeysCache[_scanIndex];
+			_scanIndex++;
+			scannedThisFrame++; // 只要检查了一个敌人, 计数器就 +1
 
-		foreach (var key in enemies.Keys) {
-			_localKeysCache.Add(key);
-		}
+			// 容错: 防止因其他逻辑提前从字典中删除了 key
+			if (!enemies.TryGetValue(networkId, out var identity) || identity == null) continue;
 
-		for (int i = 0; i < _localKeysCache.Count; i++) {
-			ulong networkId = _localKeysCache[i];
-			// 容错：防止因其他逻辑提前从字典中删除了 key
-			if (!enemies.TryGetValue(networkId, out var identity)) continue;
 			// 移除检测
-			if (identity.IsRemoved()) RemoveEnemyRecord(identity);
-			// 变化检测
-			else if (identity.HasMeaningfulChange) _sweepQueue.Add(identity);
-
+			if (identity.IsRemoved()) {
+				RemoveEnemyRecord(identity);
+			}
+			// 变化检测 (只要有变动就加入待发送队列)
+			else if (identity.HasMeaningfulChange) {
+				_sweepQueue.Add(identity);
+			}
 		}
 
-		// 如果本轮有需要更新的生物, 开启冲刷标志
-		if (_sweepQueue.Count > 0) _isSweeping = true;
+		// 检查是否已扫描完全部敌人
+		if (_scanIndex >= _localKeysCache.Count) {
+			_isScanning = false;
+			_localKeysCache.Clear(); // 释放缓存引用
+
+			// 扫描完成！如果有需要同步的敌人, 进入发送冲刷阶段
+			if (_sweepQueue.Count > 0) {
+				_isSweeping = true;
+				_sweepIndex = 0;
+			}
+		}
 	}
 
 	/// <summary>
@@ -300,14 +336,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 		// 截取当前帧能容纳的上限数据
 		while (_sweepIndex < _sweepQueue.Count && _batchBuffer.Count < _maxSyncPerFrame) {
-
-			// Transform 截取
-			if (_sweepIndex < _sweepQueue.Count && _batchBuffer.Count < _maxSyncPerFrame) {
-				var identity = _sweepQueue[_sweepIndex];
-				// 跨帧二次有效性校验 (防止在前几帧冲刷期间生物被彻底 Destroy)
-				if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy)
-					_batchBuffer.Add(identity);
-			}
+			var identity = _sweepQueue[_sweepIndex];
+			// 跨帧二次有效性校验 (防止在前几帧冲刷期间生物被彻底 Destroy)
+			if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy)
+				_batchBuffer.Add(identity);
 
 			_sweepIndex++;
 		}
@@ -334,7 +366,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		while (currentIndex < total) {
 			int countToSend = Mathf.Min(ChunkItemsPerFrame, total - currentIndex);
 
-			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.EnemyStateSync);
+			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.EnemySync);
 			writer.Put((byte)EnemySyncAction.KillChunk);
 			writer.Put(countToSend);
 
@@ -369,10 +401,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 		// 获取或添加 NetworkedEnemy 组件
 		var identity = syncRoot.GetComponent<NetworkedGameEntity>() ?? syncRoot.AddComponent<NetworkedGameEntity>();
-		
-		if (identity.networkId == 0) 
-			identity.Initialize(BuildStableNetworkId(syncRoot)); 
-		
+
+		if (identity.networkId == 0)
+			identity.Initialize(BuildStableNetworkId(syncRoot));
+
 
 		// 该生物已经被记录 杀死该生物
 		if (_diedEntities.TryGetValue(identity.networkId, out var diedType)) {
@@ -424,9 +456,9 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (!IsSyncableEnemy(entity)) return;
 		var identity = EnsureIdentity(entity);
 		if (identity == null || identity.networkId == 0) return;
-		bool isSourcePlayer = info.sourceEntity != null && info.sourceEntity.TryGetComponent<ENT_Player>(out var player);
+		bool isSourcePlayer = info.sourceEntity != null && info.sourceEntity is ENT_Player;
 		// 构建并发送伤害请求数据包
-		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
 		writer.Put((byte)EnemySyncAction.Damage);
 		writer.Put(identity.networkId);
 		writer.Put(info.amount);
@@ -444,7 +476,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// </summary>
 	private void BroadcastStateBatch(List<NetworkedGameEntity> batch) {
 		if (!IsEnabled || batch == null || batch.Count == 0) return;
-		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
 		writer.Put((byte)EnemySyncAction.StateBatch);
 		writer.Put((byte)batch.Count);
 
@@ -473,7 +505,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// </summary>
 	private void BroadcastKill(NetworkedGameEntity identity, string type) {
 		if (!MPCore.CanSync || !IsEnabled) return;
-		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
 		writer.Put((byte)EnemySyncAction.Kill);
 		writer.Put(identity.networkId);
 		writer.Put(type);
@@ -486,7 +518,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// </summary>
 	private void SendKillChunkRequest() {
 		if (MPSteamworks.IsHost || !IsEnabled) return;
-		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.EnemyStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.EnemySync);
 		writer.Put((byte)EnemySyncAction.KillChunkRequest);
 
 		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
@@ -497,7 +529,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 接收函数: <see cref="HandleAnimatorTrigger"/>
 	/// </summary>
 	public void BroadcastAnimTriggerHash(ulong networkId, byte featureIndex, int hashId) {
-		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemyStateSync);
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
 		writer.Put((byte)EnemySyncAction.AnimatorTrigger);
 		writer.Put(networkId);
 		writer.Put(featureIndex);
@@ -655,7 +687,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 	/// <summary>
 	/// 检查 GameEntity 是否为可同步的敌人.
-	/// 排除: 玩家、远程实体、RP容器、物品物体.
+	/// 排除: 玩家, 远程实体, RP容器, 物品物体.
 	/// 包含: 带有 "Creature" 标签的物体, 或名称以 "Denizen_"/"DEN_" 开头.
 	/// </summary>
 	private bool IsSyncableEnemy(GameEntity entity) {

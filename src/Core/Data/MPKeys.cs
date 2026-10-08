@@ -14,6 +14,7 @@ public static partial class MPKeys {
 	public const string HANGING_TAGGER = "Handhold";
 	public const string DAMAGE_TAGGER = "Damageable";
 	public const string CREATURE_TAGGER = "Creature";
+	public const string EMPLOYEE_ID_TAGGER = "Employee-Id";
 
 
 	// 名称描述用途
@@ -52,4 +53,7 @@ public static partial class MPKeys {
 
 	// 生物伤害标签
 	public const string REMOTE_ENEMY_DAMAGE_TAG = "remoteEnemy";
+
+	// 他人物品标签
+	public const string OTHER_PLAYER_ITEM = "otherPlayerItem";
 }

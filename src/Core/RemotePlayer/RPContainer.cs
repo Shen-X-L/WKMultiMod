@@ -31,7 +31,7 @@ public class RPContainer {
 	public ulong PlayerId { get; set; }
 	public string PlayerName { get; set; }
 	public GameObject PlayerObject { get; private set; }
-	public Dictionary<string, string> PlayerData { get; private set; }
+	public Dictionary<string, string> ExtraPlayerData { get; private set; }
 
 	#endregion
 
@@ -97,9 +97,7 @@ public class RPContainer {
 			PlayerObject = playerInstance;
 			PlayerObject.name = $"RemotePlayer_{PlayerName}_{PlayerId}";
 			// 设置持久化
-			if (persistentParent != null) {
-				PlayerObject.transform.SetParent(persistentParent, false);
-			}
+			if (persistentParent != null) PlayerObject.transform.SetParent(persistentParent, false);
 			// 组件初始化
 			InitializeAllComponent(PlayerObject);
 			InitializeAllComponentData();
@@ -337,17 +335,21 @@ public class RPContainer {
 	/// <summary>
 	/// 通过额外字典进行如 背包物品显示等数据更新
 	/// </summary>
-	public void HandlePlayerDictData(Dictionary<string, string> playerData) {
-		if (playerData.TryGetValue(MPKeys.PLAYER_SCALE, out var scaleStr)) {
+	public void HandleExtraPlayerData(Dictionary<string, string> extraPlayerData) {
+		if (extraPlayerData.TryGetValue(MPKeys.PLAYER_SCALE, out var scaleStr)) {
 			var args = scaleStr.Split(',');
 			if (args.Length >= 2 && IsModelReady
 				&& float.TryParse(args[0], out var height)
 				&& float.TryParse(args[1], out var radius))
 				ApplyScale(height, radius);
 		}
-		PlayerData = playerData;
+		ExtraPlayerData = extraPlayerData;
+		// 员工ID标签赋予
+		if (ExtraPlayerData.ContainsKey("Item_Trinket_EmployeeID")) 
+			foreach(var tagger in _objectTaggers) tagger.AddTag(MPKeys.EMPLOYEE_ID_TAGGER);
+		// 传递给模型控制器处理
 		try {
-			_modelBehaviour?.HandlePlayerData(playerData);
+			_modelBehaviour?.HandlePlayerData(extraPlayerData);
 		} catch (Exception ex) {
 			MPMain.LogError($"[Debug] 使用玩家数据时出错, 错误: {ex.Message}");
 		}

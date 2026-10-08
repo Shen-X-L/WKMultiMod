@@ -314,7 +314,8 @@ public class RemoteHand : MonoBehaviour {
 		}
 
 		// 构建物品实例
-		var obj = GameObject.Instantiate(itemPrefab, transform).gameObject;
+		var itemObj = GameObject.Instantiate(itemPrefab, transform);
+		var obj = itemObj.gameObject;
 
 		// 移除所有 MeshCollider(镜像后会失效)
 		bool needBuildCollider = false;
@@ -386,8 +387,11 @@ public class RemoteHand : MonoBehaviour {
 		if (tags != null) {
 			tags.RemoveTag("Item");
 			tags.RemoveTag("Prop");
-			tags.AddTag("ItemLocked");
-			tags.AddTag("inLocker");
+		}
+		var item = itemObj.itemData;
+		if (item != null) {
+			item.itemTags.Add(MPKeys.OTHER_PLAYER_ITEM);
+			item.itemTags.Add("inLocker");
 		}
 
 		obj.SetActive(false);
@@ -418,5 +422,4 @@ public class RemoteHand : MonoBehaviour {
 			_isTeleporting = false;
 		}
 	}
-
 }

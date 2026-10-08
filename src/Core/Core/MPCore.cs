@@ -20,7 +20,6 @@ using WKMPMod.Team;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
-using static Unity.Collections.Unicode;
 using static WKMPMod.Core.MPGameModeManager;
 using static WKMPMod.Data.MPWriterPool;
 using static WKMPMod.UI.UI_Manager;
@@ -216,18 +215,18 @@ public class MPCore : MonoSingleton<MPCore> {
 	private void InitializeAllManagers() {
 		try {
 			// 创建Steamworks组件(无状态)
-			_MPSteamworks = MPSteamworks.Instance;
+			_MPSteamworks = MPSteamworks.InitializeOn(gameObject);
 
 			// 创建远程玩家管理器
 			_RPManager = RPManager.Instance;
 			_RPManager.Initialize(transform);
 
 			// 创建本地信息获取发送管理器
-			_LocalPlayer = LocalPlayer.Instance;
+			_LocalPlayer = LocalPlayer.InitializeOn(gameObject);
 			_LocalPlayer.Initialize(MPSteamworks.UserSteamId, MPConfig.RemotePlayerModel, MPConfig.RemotePlayerColor);
 
 			// 创建UI管理器
-			_UIManager = UI_Manager.Instance;
+			_UIManager = UI_Manager.InitializeOn(gameObject);
 
 			// 初始化资源管理器
 			// 必须在游戏资源加载完成后初始化
@@ -238,7 +237,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			MPPacketRouter.Initialize();
 
 			// 初始化世界同步管理器
-			_WorldSyncManager = WorldSyncManager.Instance;
+			_WorldSyncManager = WorldSyncManager.InitializeOn(gameObject);
 
 			// 订阅网络事件
 			SubscribeToEvents();
@@ -321,11 +320,16 @@ public class MPCore : MonoSingleton<MPCore> {
 		if (!_syncTick.TryTick()) return;
 		// 有连接但没有创建对象
 		foreach (var (steamId, connection) in _MPSteamworks._allConnections) {
-			if (!_RPManager.Players.ContainsKey(steamId)) {
+			if (!_RPManager.Players.TryGetValue(steamId, out var player) || !player.IsModelReady) {
 				MPMain.LogWarning(Get("MPCore.PlayerDataMissing", steamId));
 				// 从MemberData获取模型数据
-				var data = _MPSteamworks.GetAllMemberData(new Friend(steamId));
+				var data = _MPSteamworks.GetAllMemberData(steamId);
 				_RPManager.ProcessMemberData(steamId, data);
+				// 发送数据获取包
+				var writer = GetWriter(MPSteamworks.UserSteamId, steamId, PacketType.MemberDataMessage);
+				// false表示请求
+				writer.Put(false);
+				MPSteamworks.Instance.SendToPeer(steamId, writer);
 			}
 		}
 	}
@@ -393,9 +397,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		SetStatus(MPStatus.LOBBY_MASK, MPStatus.NotInLobby);
 		ClearCurrentData();
-		_MPSteamworks.DisconnectAll();
-		_RPManager.ResetAll();
-		_WorldSyncManager.LeaveAll();
+		_MPSteamworks?.DisconnectAll();
+		_RPManager?.ResetAll();
+		_WorldSyncManager?.LeaveAll();
 		TeamRuleManager.ClearCache();
 		// 是否需要重置饰品/绑定
 		if (NeedResetTrinkets && NeedResetGamemodeName != null) {
@@ -442,9 +446,7 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void HandlePlayerAddForce(IDType steamId, Vector3 force, string source) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, steamId, PacketType.PlayerAddForce);
-		writer.Put(force.x);
-		writer.Put(force.y);
-		writer.Put(force.z);
+		writer.Put(force);
 		writer.Put(source);
 		_MPSteamworks.SendToPeer(steamId, writer);
 	}
@@ -1466,12 +1468,12 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 找到多个对应id
 			if (ids.Count > 1) {
 				string idStr = string.Join("\n", ids);
-				CommandConsole.LogError(Get(
-					"CommandConsole.MultipleMatchingIds", idStr));
+				CommandConsole.LogError(Get("CommandConsole.MultipleMatchingIds", idStr));
 				return;
 			}
 			// 找到对应id,发出传送请求
-			var writer = GetWriter(MPSteamworks.UserSteamId, ids[0], PacketType.PlayerTeleportRequest);
+			var writer = GetWriter(MPSteamworks.UserSteamId, ids[0], PacketType.PlayerTeleportMessage);
+			writer.Put(false);
 			_MPSteamworks.SendToPeer(ids[0], writer);
 		}
 	}

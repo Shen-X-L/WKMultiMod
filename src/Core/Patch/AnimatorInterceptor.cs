@@ -98,7 +98,7 @@ public static class AnimatorInterceptor {
 			}
 		}
 
-		MPMain.LogInfo($"[AnimatorInterceptor] Successfully applied IL Interceptor to {Targets.Length} target scopes.");
+		MPMain.LogDebug($"[AnimatorInterceptor] Successfully applied IL Interceptor to {Targets.Length} target scopes.");
 	}
 
 	/// <summary>
@@ -251,8 +251,8 @@ public static class AnimatorInterceptor {
 	/// </summary>
 	public static IEnumerable<CodeInstruction> Transpile(IEnumerable<CodeInstruction> instructions) {
 		foreach (var inst in instructions) {
-			if ((inst.opcode == OpCodes.Call || inst.opcode == OpCodes.Callvirt) &&
-				inst.operand is MethodInfo method && MethodMap.TryGetValue(method, out var interceptor)) {
+			if ((inst.opcode == OpCodes.Call || inst.opcode == OpCodes.Callvirt) 
+				&& inst.operand is MethodInfo method && MethodMap.TryGetValue(method, out var interceptor)) {
 
 				inst.opcode = OpCodes.Call;
 				inst.operand = interceptor;
@@ -315,7 +315,7 @@ public static class AnimatorInterceptor {
 	private static bool ShouldExecuteAnimCall(Animator anim, out AnimatorSyncFeature feature) {
 		feature = null;
 		if (anim == null) return false;
-		// 如果未处于联机状态或未开启生物同步，正常播放本地动画
+		// 如果未处于联机状态或未开启生物同步, 正常播放本地动画
 		if (!MPCore.CanSync || !EnemySyncModule.Instance.IsEnabled) return true;
 		// 非同步实体正常执行
 		if (!AnimatorSyncFeature.TryGetFeature(anim, out feature)) return true;

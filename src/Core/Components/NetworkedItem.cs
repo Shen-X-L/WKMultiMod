@@ -1,24 +1,50 @@
 using UnityEngine;
+using WKMPMod.World;
 
 namespace WKMPMod.Components;
 
 public class NetworkedItem : MonoBehaviour {
-    public ulong networkId;
-    public string prefabKey = string.Empty;
-    public ulong ownerId;
-    public bool isRemote;
+	public ulong networkId;
+	public string prefabKey = string.Empty;
+	public ulong ownerId;
+
 	/// <summary>
 	/// 1是场景物品 (SceneItemManager.SCENE_ITEM)
 	/// 2是丢弃物品 (DroppedItemManager.DROPPED_ITEM)
 	/// </summary>
-	public byte sceneOrDropped;
+	public ItemType itemCreateType;
 
 	#region[本地缓存组件]
 
 	public Item_Object ItemObject { get; private set; }
 	public Rigidbody RigidBody { get; private set; }
 
-	private const float VELOCITY_EQSILON_SQR = 0.0025f; // 约 0.05 m/s 阈值
+	#endregion
+
+	#region[	位置更新]
+	private Vector3 _lastSyncPosition;
+	private Quaternion _lastSyncRotation;
+	private Vector3 _lastSyncVelocity;
+
+	public bool IsRemoteControlled { get; private set; }
+	public bool HasMeaningfulChange {
+		get {
+			if ((transform.position - _lastSyncPosition).sqrMagnitude> POSITION_EPSILON_SQR)
+				return true;
+
+			if (Quaternion.Angle(transform.rotation,_lastSyncRotation) > ROTATION_EPSILON)
+				return true;
+
+			if ((CurrentVelocity - _lastSyncVelocity).sqrMagnitude> VELOCITY_EPSILON_SQR)
+				return true;
+
+			return false;
+		}
+	}
+
+	private const float POSITION_EPSILON_SQR = 0.0004f;     // 位置变化阈值平方
+	private const float ROTATION_EPSILON = 0.5f;            // 旋转变化阈值 (度)
+	private const float VELOCITY_EPSILON_SQR = 0.0025f;     // 约 0.05 m/s 阈值
 
 	#endregion
 
@@ -43,12 +69,11 @@ public class NetworkedItem : MonoBehaviour {
 	/// <summary>
 	/// 初始化或刷新网络身份
 	/// </summary>
-	public void SetupIdentity(ulong networkId, string prefabKey, ulong ownerId, byte sceneOrDropped, bool isRemote) {
+	public void SetupIdentity(ulong networkId, string prefabKey, ulong ownerId, ItemType sceneOrDropped, bool isRemote) {
 		this.networkId = networkId;
 		this.prefabKey = prefabKey;
 		this.ownerId = ownerId;
-		this.sceneOrDropped = sceneOrDropped;
-		this.isRemote = isRemote;
+		this.itemCreateType = sceneOrDropped;
 		CacheComponents();
 	}
 
@@ -59,8 +84,7 @@ public class NetworkedItem : MonoBehaviour {
 		networkId = 0;
 		prefabKey = string.Empty;
 		ownerId = 0;
-		isRemote = false;
-		sceneOrDropped = 0;
+		itemCreateType = ItemType.NoneItem;
 	}
 
 	#endregion
@@ -73,7 +97,7 @@ public class NetworkedItem : MonoBehaviour {
 	public Vector3 CurrentVelocity {
 		get {
 			if (RigidBody == null) return Vector3.zero;
-			return RigidBody.velocity.sqrMagnitude > VELOCITY_EQSILON_SQR ? RigidBody.velocity : Vector3.zero;
+			return RigidBody.linearVelocity.sqrMagnitude > VELOCITY_EPSILON_SQR ? RigidBody.linearVelocity : Vector3.zero;
 		}
 	}
 
@@ -103,24 +127,35 @@ public class NetworkedItem : MonoBehaviour {
 
 	#region[状态应用与清理]
 
+	public void RememberSyncState() {
+		_lastSyncPosition = transform.position;
+		_lastSyncRotation = transform.rotation;
+		_lastSyncVelocity = CurrentVelocity;
+	}
+
+	/// <summary>
+	/// 设置为是否是远程接管状态
+	/// </summary>
+	public void SetRemoteControlled(bool state) {
+		IsRemoteControlled = state;
+		if (RigidBody != null) RigidBody.isKinematic = state;
+	}
+
 	/// <summary>
 	/// 应用远程发来的 Transform 与物理速度
 	/// </summary>
 	public void ApplyRemoteState(Vector3 position, Quaternion rotation, Vector3 velocity) {
 		transform.SetPositionAndRotation(position, rotation);
 
-		if (RigidBody != null) {
-			RigidBody.isKinematic = false;
-			RigidBody.velocity = velocity;
-		}
-
+		if (RigidBody != null && RigidBody.useGravity) RigidBody.linearVelocity = velocity;
+		
 		if (!gameObject.activeSelf) gameObject.SetActive(true);
 	}
 
 	/// <summary>
 	/// 强制执行自我清理：包含清理本地玩家背包内对应的 Item 数据, 并根据参数销毁世界实体
 	/// </summary>
-	public void ForceCleanup(bool destroyObject) {
+	public void ForceCleanup() {
 		if (networkId == 0) return;
 
 		// 1. 从背包中擦除对应数据
@@ -128,7 +163,7 @@ public class NetworkedItem : MonoBehaviour {
 
 		// 2. 处理世界物理实体
 		gameObject.SetActive(false);
-		if (destroyObject) Destroy(gameObject);
+		Destroy(gameObject);
 	}
 
 	/// <summary>
