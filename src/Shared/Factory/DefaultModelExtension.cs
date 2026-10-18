@@ -1,10 +1,6 @@
 ﻿using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using WKMPModa.Shared.Component;
-using WKMPModa.Shared.Data;
-using static Unity.Burst.Intrinsics.X86.Avx;
-using static UnityEngine.InputSystem.OnScreen.OnScreenStick;
 
 namespace WKMPMod.RemotePlayers;
 

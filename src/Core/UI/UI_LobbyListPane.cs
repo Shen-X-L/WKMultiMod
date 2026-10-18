@@ -56,7 +56,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 		try {
 			SetupTemplate();
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("UI_LobbyListPane.ButtonTemplateBuildFailed", ex.Message));
+			MPMain.LogError(Localization.GetLog("UI_LobbyListPane.ButtonTemplateBuildFailed", ex.Message));
 		}
 		contentTransform = transform.Find(CONTENT_PATH);
 	}
@@ -80,7 +80,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 		}
 
 		if (template == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyListPane.LobbyButtonTemplateNull"));
+			MPMain.LogError(Localization.GetLog("UI_LobbyListPane.LobbyButtonTemplateNull"));
 			return;
 		}
 
@@ -122,7 +122,7 @@ public class UI_LobbyListPane : MonoBehaviour {
 		if (template == null) return null;
 		GameObject? newButtonObj = Instantiate(template, contentTransform);
 		if (newButtonObj == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyListPane.LobbyButtonCloneFailed"));
+			MPMain.LogError(Localization.GetLog("UI_LobbyListPane.LobbyButtonCloneFailed"));
 			return null;
 		};
 		newButtonObj.name = $"LobbyButton_{lobby.Id}";
@@ -137,13 +137,13 @@ public class UI_LobbyListPane : MonoBehaviour {
 			try{ 
 				lobbyBtn.Initialize(lobby); 
 			}catch(Exception ex) {
-				MPMain.LogError(Localization.Get("UI_LobbyListPane.InitializeLobbyButtonFailed", lobby.Id, ex.Message));
+				MPMain.LogError(Localization.GetLog("UI_LobbyListPane.InitializeLobbyButtonFailed", lobby.Id, ex.Message));
 				Destroy(newButtonObj);
 				return null;
 			}
 			return lobbyBtn;
 		} else {
-			MPMain.LogError(Localization.Get("UI_LobbyListPane.LobbyButtonComponentNotFound",newButtonObj.name));
+			MPMain.LogError(Localization.GetLog("UI_LobbyListPane.LobbyButtonComponentNotFound",newButtonObj.name));
 			Destroy(newButtonObj);
 			return null;
 		}
@@ -222,15 +222,15 @@ public class UI_LobbyListPane : MonoBehaviour {
 		if (lobbyButton.lobbyName == null) throw new Exception("Mode Name component missing");
 		lobbyButton.hostAvatar = template.transform.Find("Roach Counter")?.GetComponent<UnityEngine.UI.Image>();
 		if (lobbyButton.hostAvatar == null) 
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterNotFound"));
+			MPMain.LogError(Localization.GetLog("UI_LobbyJoinButton.RoachCounterNotFound"));
 		
 		lobbyButton.hostName = template.transform.Find("Roach Counter/Roaches")?.GetComponent<TMP_Text>();
 		if (lobbyButton.hostName == null) 
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterRoachesNotFound"));
+			MPMain.LogError(Localization.GetLog("UI_LobbyJoinButton.RoachCounterRoachesNotFound"));
 		lobbyButton.btnComp = template.GetComponent<Button>() ?? template.AddComponent<Button>();
 		lobbyButton.lobbyImage = GetComponent<UnityEngine.UI.Image>();
 		if (lobbyButton.lobbyImage == null)
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.RoachCounterNotFound"));
+			MPMain.LogError(Localization.GetLog("UI_LobbyJoinButton.RoachCounterNotFound"));
 
 		// 初始化一些基础状态
 		lobbyButton.btnComp.onClick.RemoveAllListeners();

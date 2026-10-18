@@ -110,10 +110,10 @@ public class RPContainer {
 			// 暂时关闭对象
 			_isDead = true;
 			PlayerObject.SetActive(false);
-			MPMain.LogInfo(Localization.Get("RPContainer.MappingSucceeded", PlayerId.ToString()));
+			MPMain.LogInfo(Localization.GetLog("RPContainer.MappingSucceeded", PlayerId.ToString()));
 			return true;
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("RPContainer.MappingFailed", PlayerId.ToString(), ex.Message));
+			MPMain.LogError(Localization.GetLog("RPContainer.MappingFailed", PlayerId.ToString(), ex.Message));
 
 			if (PlayerObject != null) Object.Destroy(PlayerObject);
 			PlayerObject = null;
@@ -212,6 +212,16 @@ public class RPContainer {
 				_pending.prefabId = pid;
 				Extension = extension;
 				return true;
+			} else {
+				MPMain.LogWarning($"[Debug] 无法找到 prefabId 为 {pid} 的模型 回退为默认模型");
+				if (RPFactoryManager.Instance.TryGetExtension(MPKeys.DEFAULT_PREFAB_ID, out var defaultExtension)) {
+					_pending.prefabId = MPKeys.DEFAULT_PREFAB_ID;
+					Extension = defaultExtension;
+					return true;
+				} else {
+					MPMain.LogError($"[Debug] 无法找到默认模型 prefabId 为 {MPKeys.DEFAULT_PREFAB_ID} 的模型, 请检查模型注册是否正确");
+					return false;
+				}
 			}
 		}
 		return false;
@@ -361,7 +371,7 @@ public class RPContainer {
 	public void HandleNameTag(string text) {
 		if (string.IsNullOrEmpty(text)) { return; }
 		if (_remoteTag == null) {
-			MPMain.LogError(Localization.Get("RPContainer.NameTagComponentMissing"));
+			MPMain.LogError(Localization.GetLog("RPContainer.NameTagComponentMissing"));
 			return;
 		}
 		_remoteTag.Message = text;

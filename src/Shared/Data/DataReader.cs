@@ -309,4 +309,11 @@ public class DataReader {
 	}
 
 	#endregion
+
+	// 读取 ulong (64 位无符号整数)
+	public ulong GetIDType() {
+		ulong val = BinaryPrimitives.ReadUInt64LittleEndian(_data.Span.Slice(_position));
+		_position += 8;
+		return val;
+	}
 }

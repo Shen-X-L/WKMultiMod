@@ -37,7 +37,7 @@ public class Patch_UI_GamemodeScreen_Initialize {
 
 			// 修改文本
 			var tmp = lobbyBtnObj.GetComponentInChildren<TMP_Text>();
-			if (tmp != null) tmp.text = Localization.GetSmart("UI_Manager.GamemodeScreen Multi Play");
+			if (tmp != null) tmp.text = Localization.Get("UI_Manager.GamemodeScreen Multi Play");
 
 			// 处理存档显示逻辑
 			panel.noSaveObjects.Add(lobbyBtnObj);

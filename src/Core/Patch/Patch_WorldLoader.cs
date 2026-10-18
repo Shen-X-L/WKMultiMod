@@ -67,13 +67,13 @@ public class Patch_WorldLoader {
 		yield return new WaitUntil(() => WorldLoader.isLoaded == true);
 
 		if (targetBranch == null) {
-			MPMain.LogError(Localization.Get("Patch.TargetBranchIsNull"));
+			MPMain.LogError(Localization.GetLog("Patch.TargetBranchIsNull"));
 			yield break;
 		}
 		if (isGenerationBranch) {
 			yield return null;
 
-			MPMain.LogInfo(Localization.Get("Patch.StartCorrectingSideRouteCoords"));
+			MPMain.LogInfo(Localization.GetLog("Patch.StartCorrectingSideRouteCoords"));
 
 			// 获取核心组件
 			var worldRoot = GameObject.Find("World_Root(Clone)");
@@ -90,7 +90,7 @@ public class Patch_WorldLoader {
 				.FirstOrDefault(x => x.Level != null && targetDataDict.ContainsKey(x.Level.gameObject.name));
 
 			if (match == null) {
-				MPMain.LogError(Localization.Get("Patch.NoMatchingLevelDataForCorrection"));
+				MPMain.LogError(Localization.GetLog("Patch.NoMatchingLevelDataForCorrection"));
 				yield break;
 			}
 
@@ -142,7 +142,7 @@ public class Patch_WorldLoader {
 			// 给低帧率留出至少一个固定的物理帧安全垫, 阻断游戏引擎的动态剔除误判
 			yield return new WaitForFixedUpdate();
 
-			MPMain.LogInfo(Localization.Get("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
+			MPMain.LogInfo(Localization.GetLog("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
 
 		} else {
 			levelWorldTransformDatas = targetBranch.levelTracker
@@ -156,7 +156,7 @@ public class Patch_WorldLoader {
 					};
 				}).ToList();
 
-			MPMain.LogInfo(Localization.Get("Patch.LevelDataRetrieved", levelWorldTransformDatas.Count));
+			MPMain.LogInfo(Localization.GetLog("Patch.LevelDataRetrieved", levelWorldTransformDatas.Count));
 		}
 	}
 

@@ -1,4 +1,46 @@
-模型不加载修复
+发现接管流程
+发现本地实体, 注册网络实体 ID
+    -> 检查本地所有权记录
+        -> 已有有效所有者 向所有者发送订阅请求
+        -> 没有所有者 向当前 Steam Lobby Owner 请求接管 (需要网络延迟窗口 避免每帧请求)
+            -> Host 裁决新所有者
+            -> Host广播所有权变更
+            -> 所有客户端 更新本地所有权记录
+            -> 根据新所有者建立数据同步关系
+
+放弃接管流程
+成员离开事件/停止接管广播
+    -> 检查该玩家拥有的实体/检查对应实体
+    -> 使旧所有权记录失效
+    -> 停止接受旧所有者的数据
+    -> 所有订阅者请求当前 Host 重新裁决 (分帧或批量打包)
+        -> Host 选择新所有者
+        -> Host 广播所有权变更 
+        -> 所有客户端 更新本地所有权记录
+        -> 根据新所有者建立数据同步关系
+
+数据广播流程
+    -> 客机 B 发现实体
+    -> 查询本地所有权记录
+        -> 直接获取所有者 A
+        -> 记录缺失或失效 向当前 Host 查询所有者
+            -> Host 返回所有者 A
+            -> 客机 B 更新本地记录
+    -> 客机 B 向所有者 A 请求订阅
+    -> 所有者 A 登记 B 的订阅
+    -> 所有者 A 发送实体初始化数据
+    -> 所有者 A 持续广播实体更新
+    -> 客机 B 接收并应用实体数据
+
+新玩家加入 Steam Lobby
+    -> 请求同步所有权记录
+    -> 现有同步架构 Host 创建分包同步协程
+        -> 分批序列化所有权记录
+        -> 逐包发送给新玩家
+        -> 等待或按现有机制调度下一批
+    -> 新玩家 接收并组装所有权记录
+    -> 根据记录建立数据订阅
+    -> 缺失记录的实体 进入发现接管流程
 
 生物索敌进行请求,乐观索敌,受到拒绝后放弃为目标
 
@@ -9,18 +51,16 @@
 DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
 DEN_Face.Start .Damage.HitShift
 DEN_Hunter.TrackPlayerPosition .Start .TargetCollisionCheck
-DEN_EngravedDoor
+DEN_EngravedDoor(忽略)
 DEN_LadderNightmare.Update 
 DEN_Mother.Damage 
 DEN_VentThing.SetTarget
 DEN_Remains_Active
 DEN_RatKing
-只索敌主玩家
 DEN_Phage
+只索敌主玩家
 
 HUNTER在场景切换后ID不一致(记录hunter生命周期触发) TEETH无法同步 NEST中部分生物的ID无法一致(僵尸)
-
-关卡层级不使用子对象顺序
 
 远程钻头没有被攀爬物同步
 
@@ -76,3 +116,4 @@ PerkModule ItemModule变成不可读
 
 可以修改AI队伍
 API:生成投射物
+

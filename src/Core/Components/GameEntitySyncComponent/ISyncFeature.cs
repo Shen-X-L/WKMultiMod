@@ -44,7 +44,7 @@ public interface ISyncFeature {
 	void OnReset();
 
 	/// <summary>
-	/// 当实体销毁, 注销或重新初始化时调用，用于释放静态注册表, 解绑事件等
+	/// 当实体销毁, 注销或重新初始化时调用, 用于释放静态注册表, 解绑事件等
 	/// </summary>
 	void OnDestroy();
 }

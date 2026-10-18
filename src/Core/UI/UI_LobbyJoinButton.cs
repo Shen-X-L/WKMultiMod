@@ -83,7 +83,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 				}
 			} catch (Exception ex) {
 				// 连接过程中发生异常,记录错误并恢复按钮交互
-				MPMain.LogError(Localization.Get("UI_LobbyJoinButton.JoinLobbyFailed", ex.Message));
+				MPMain.LogError(Localization.GetLog("UI_LobbyJoinButton.JoinLobbyFailed", ex.Message));
 				JoinFailed();
 			}
 		});
@@ -152,7 +152,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
 		} catch (JsonException ex) {
 			gameModeData = null;
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.GamemodeParseError",rawData,ex.Message));
+			MPMain.LogError(Localization.GetLog("UI_LobbyJoinButton.GamemodeParseError",rawData,ex.Message));
 		}
 		// 检查兼容性 模式检测 版本检测
 		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
@@ -161,7 +161,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		if (!isOfficialGamemodes) {
 			// 自定义游戏模式显示锁定图标,显示未知游戏模式文本
 			unlockIcon?.gameObject.SetActive(true);
-			unlockText?.text = Localization.GetSmart("UI_LobbyJoinButton.UnknownGamemode");
+			unlockText?.text = Localization.Get("UI_LobbyJoinButton.UnknownGamemode");
 		} else if (!isCompatible) {
 			// 官方游戏模式但版本不兼容,显示锁定图标和版本不兼容文本
 			unlockIcon?.gameObject.SetActive(true);
@@ -298,12 +298,12 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	#region[版本对比]
 	private (bool compatible, string displayText) CheckVersionCompatibility(string currentVersion, string lobbyVersion) {
 		if (string.IsNullOrEmpty(lobbyVersion)) {
-			return (false, Localization.GetSmart("UI_LobbyJoinButton.UnableToRetrieveLobbyVersion"));
+			return (false, Localization.Get("UI_LobbyJoinButton.UnableToRetrieveLobbyVersion"));
 		}
 
 		var v1 = new Version(currentVersion);
 		if (!Version.TryParse(lobbyVersion, out var v2)) {
-			return (false, Localization.GetSmart("UI_LobbyJoinButton.InvalidLobbyVersion", lobbyVersion));
+			return (false, Localization.Get("UI_LobbyJoinButton.InvalidLobbyVersion", lobbyVersion));
 		}
 
 		bool majorMatch = v1.Major == v2.Major;
@@ -329,7 +329,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			key = "VersionMatch";
 		}
 
-		string status = Localization.GetSmart($"UI_LobbyJoinButton.{key}", versionText);
+		string status = Localization.Get($"UI_LobbyJoinButton.{key}", versionText);
 		return (compatible, status);
 	}
 

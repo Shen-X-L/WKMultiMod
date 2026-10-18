@@ -16,6 +16,7 @@ namespace WKMPMod.Core;
 
 public class MPGameModeManager {
 	public const string CHIMNEY_GAME_MODE = "Chimney";
+	public const string CAMPAIGN_GAME_MODE = "Campaign";
 
 	[Serializable]
 	public record class GameModeData : INetworkSerializable {
@@ -47,6 +48,7 @@ public class MPGameModeManager {
 
 	public static Dictionary<string, M_Gamemode> gameModeDict = new Dictionary<string, M_Gamemode>();
 	public static GameModeData? CurrentData { get; private set; }
+	public static bool IsCampaignMode { get; private set; }
 
 	/// <summary>
 	/// 获取全部游戏模式
@@ -55,7 +57,7 @@ public class MPGameModeManager {
 		FieldInfo field = typeof(CL_AssetManager).GetField(
 			"activeDatabases", BindingFlags.NonPublic | BindingFlags.Static);
 		if (field == null) {
-			MPMain.LogError(Localization.Get("MPGameModeManager.FieldNotFound"));
+			MPMain.LogError(Localization.GetLog("MPGameModeManager.FieldNotFound"));
 			return;
 		}
 		var dict = (Dictionary<string, WKDatabaseHolder>)field.GetValue(null);
@@ -73,6 +75,7 @@ public class MPGameModeManager {
 	/// </summary>
 	public static void ClearCurrentData() {
 		CurrentData = null;
+		IsCampaignMode = false;
 	}
 
 	/// <summary>
@@ -87,6 +90,7 @@ public class MPGameModeManager {
 			needBindSync = MPConfig.BindSync,
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
+		IsCampaignMode = CL_GameManager.gamemode.name == CAMPAIGN_GAME_MODE;
 		return CurrentData;
 	}
 
@@ -104,9 +108,10 @@ public class MPGameModeManager {
 		if (gameModeDict.Count == 0) Initialize();
 		// 保存当前数据
 		CurrentData = data;
+		IsCampaignMode = data.gameModeName == CAMPAIGN_GAME_MODE;
 		// 更改游戏模式
 		if (!gameModeDict.TryGetValue(data.gameModeName, out var m_Gamemode)) {
-			MPMain.LogError(Localization.Get("MPGameModeManager.GameModeNotFound", data.gameModeName));
+			MPMain.LogError(Localization.GetLog("MPGameModeManager.GameModeNotFound", data.gameModeName));
 			return;
 		}
 		// 设置游戏模式
@@ -137,7 +142,7 @@ public class MPGameModeManager {
 			LoadGameMode(CurrentData);
 			MPCore.Instance.StartCoroutine(ExecuteRestartCMD());
 		} else {
-			MPMain.LogWarning(Localization.Get("MPGameModeManager.NoCurrentGameModeData"));
+			MPMain.LogWarning(Localization.GetLog("MPGameModeManager.NoCurrentGameModeData"));
 		}
 
 		IEnumerator ExecuteRestartCMD() {
@@ -156,8 +161,7 @@ public class MPGameModeManager {
 	/// 尝试获取游戏模式
 	/// </summary>
 	public static bool TryGetGameMode(string name, out M_Gamemode gamemode) {
-		if (gameModeDict.Count == 0)
-			Initialize();
+		if (gameModeDict.Count == 0) Initialize();
 		return gameModeDict.TryGetValue(name, out gamemode);
 	}
 }

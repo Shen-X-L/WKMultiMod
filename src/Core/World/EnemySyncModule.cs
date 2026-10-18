@@ -1,7 +1,9 @@
 using Steamworks.Data;
 using System;
+using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.VisualScripting;
 using UnityEngine;
 using WKMPMod.Components;
@@ -14,6 +16,152 @@ using static WKMPMod.Data.MPWriterPool;
 
 namespace WKMPMod.World;
 
+#region[优化实体订阅者分组]
+
+/// <summary>
+/// 自定义结构体 List<T> 用于作为 Dictionary 的键
+/// </summary>
+public readonly struct GroupKey<T> : IEquatable<GroupKey<T>> where T : struct {
+	private readonly T[] _array;
+	private readonly int _length;
+	private readonly int _hashCode;
+
+	public GroupKey(T[] array, int length, int hashCode) {
+		_array = array;
+		_length = length;
+		_hashCode = hashCode;
+	}
+
+	public ReadOnlySpan<T> Span => new ReadOnlySpan<T>(_array, 0, _length);
+
+	public bool Equals(GroupKey<T> other) {
+		if (_length != other._length) return false;
+		for (int i = 0; i < _length; i++)
+			if (!EqualityComparer<T>.Default.Equals(_array[i], other._array[i])) return false;
+		return true;
+	}
+
+	public override bool Equals(object obj) => obj is GroupKey<T> other && Equals(other);
+	public override int GetHashCode() => _hashCode;
+}
+
+/// <summary>
+/// 实体订阅者分组管理器
+/// </summary>
+public class CollectionGroupingManager<K, V> : IDisposable where K : struct, IEquatable<K>, IComparable<K> {
+	// 反转后的字典：Key是订阅者组合(Struct), Value是拥有该组合的EntityId集合
+	private Dictionary<GroupKey<K>, List<V>> _groupedData;
+
+	// 跟踪记录所有从 ArrayPool 借来的 Key 数组, 防止内存泄漏, 并在 Clear 时统一归还
+	private readonly List<K[]> _rentedArrays = new();
+
+	// HashSet 对象池, 用于复用 Value 中的 HashSet<V>
+	private readonly Stack<List<V>> _listPool = new();
+
+	#region[生命周期 API]
+
+	// 创建 / 初始化
+	public CollectionGroupingManager(int capacity = 32) {
+		_groupedData = new Dictionary<GroupKey<K>, List<V>>(capacity);
+	}
+
+	// 清空对象与内存 复用底层容器 归还数组和 HashSet 到池中
+	public void Clear() {
+		// 归还所有 Value 的 HashSet 到对象池
+		foreach (var kvp in _groupedData) {
+			var set = kvp.Value;
+			set.Clear();
+			if (_listPool.Count < 1024) // 防止池无限膨胀
+				_listPool.Push(set);
+		}
+		_groupedData.Clear();
+
+		// 归还 Key 内部借用的临时数组到 ArrayPool
+		foreach (var arr in _rentedArrays)
+			System.Buffers.ArrayPool<K>.Shared.Return(arr);
+		_rentedArrays.Clear();
+	}
+
+	// 清空内存并析构 (Dispose)
+	public void Dispose() {
+		Clear();
+		_groupedData = null;
+		_listPool.Clear();
+	}
+
+	#endregion
+
+	#region[循环记录 API]
+
+	/// <summary>
+	/// 传入实体 ID 及其订阅者集合
+	/// </summary>
+	public void Record(V entityId, HashSet<K> subscribers) {
+		if (subscribers == null || subscribers.Count == 0) return;
+		int count = subscribers.Count;
+		// 从 ArrayPool 借一个临时数组来排序和计算哈希, 避免每次 new 数组产生 GC
+		K[] tempArr = System.Buffers.ArrayPool<K>.Shared.Rent(count);
+		subscribers.CopyTo(tempArr, 0);
+		// 确保顺序无关
+		Array.Sort(tempArr, 0, count);
+		// 计算独立于顺序的哈希码
+		int hash = 17;
+		for (int i = 0; i < count; i++) {
+			hash = hash * 31 + tempArr[i].GetHashCode();
+		}
+		// 记录该数组, 因为字典的 Key 持有它, 不能立即归还, 必须等到 Clear()
+		_rentedArrays.Add(tempArr);
+		var key = new GroupKey<K>(tempArr, count, hash);
+		// 获取或创建对应的实体 ID 集合
+		if (!_groupedData.TryGetValue(key, out var entityIds)) {
+			if (_listPool.Count > 0) entityIds = _listPool.Pop();
+			else entityIds = new List<V>();
+			_groupedData[key] = entityIds;
+		}
+		entityIds.Add(entityId);
+	}
+
+	#endregion
+
+	#region[迭代器 API]
+
+	/// <summary>
+	/// 提供无额外分配的结构体迭代器
+	/// </summary>
+	public Enumerator GetEnumerator() => new Enumerator(_groupedData.GetEnumerator());
+
+	public struct Enumerator : IEnumerator<KeyValuePair<GroupKey<K>, List<V>>> {
+		private Dictionary<GroupKey<K>, List<V>>.Enumerator _inner;
+
+		public Enumerator(Dictionary<GroupKey<K>, List<V>>.Enumerator inner) {
+			_inner = inner;
+		}
+
+		public KeyValuePair<GroupKey<K>, List<V>> Current => _inner.Current;
+		object IEnumerator.Current => Current;
+		public bool MoveNext() => _inner.MoveNext();
+		public void Reset() => ((IEnumerator)_inner).Reset();
+		public void Dispose() => _inner.Dispose();
+	}
+
+	#endregion
+
+	#region[仿Dic API]
+
+	public int Count => _groupedData.Count;
+
+	/// <summary>
+	/// 根据分组 Key 获取对应的实体集合
+	/// </summary>
+	public bool TryGetValue(GroupKey<K> key, out List<V> valueList) {
+		return _groupedData.TryGetValue(key, out valueList);
+	}
+
+	#endregion
+}
+
+#endregion
+
 #region[枚举 - 敌人同步操作类型]
 
 /// <summary>
@@ -21,14 +169,20 @@ namespace WKMPMod.World;
 /// SnapshotReset=快照重置, State=状态更新, Remove=移除, DamageRequest=伤害请求.
 /// </summary>
 public enum EnemySyncAction : byte {
-	StateBatch = 1,     // 状态更新包: 主机发送同步位置/旋转/生命值
-	Damage = 2,         // 伤害广播: 客机广播对实体造成伤害
-	Kill = 3,           // 实体死亡: 杀死实体
-	KillChunkRequest = 5,   // 生物死亡记录请求: 客机向主机请求所有的死亡生物
-	KillChunk = 6,      // 生物死亡: 主机发送的生物死亡记录包
-	Create = 7,         // 生物创建: 暂时不实现
-	AnimatorTrigger = 8,    // 动画同步: 主机广播 Animator SetTrigger
-	AnimStateBatch = 9   // 动画同步分块: 主机广播 Animator 的SetBool SetFloat SetInt后的状态
+
+	OwnerRequest = 1,   // 所有权请求: 客机请求主机分配所有权
+	OwnerResponse = 2, // 所有权响应: 主机响应/广播实体所有权
+	OwnerAbandon = 3,   // 所有权放弃: 所有者广播放弃所有权, 其他客户端可以请求所有权
+	SubscriptionRequest = 4, // 订阅请求: 客机向所有者进行订阅请求, 所有者会记录订阅者并广播状态给订阅者
+	UnsubscriptionRequest = 5, // 取消订阅请求: 客机向所有者进行取消订阅请求, 所有者会移除订阅者并停止广播状态给该订阅者
+	SnapshotRequest = 6,    // 生物同步快照请求: 客机请求主机发送 (生物死亡 生物所有者)
+	SnapshotChunk = 7,      // 生物同步快照响应: 主机发送的 (生物死亡 生物所有者) 记录包
+
+	StateBatch = 10,     // 状态更新包: 实体所有者发送同步位置/旋转/生命值
+	Damage = 11,         // 伤害广播: 客机广播对实体造成伤害
+	Kill = 12,           // 实体死亡: 杀死实体
+	Create = 13,        // 生物创建: 暂时不实现
+	AnimatorTrigger = 14,   // 动画同步: 实体所有者广播 Animator SetTrigger
 }
 
 #endregion
@@ -61,10 +215,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		// 停止残留的异步协程
 		_diedEntities.Clear();
 		if (WorldSyncManager.Instance != null)
-			foreach (var coroutine in _diedEntityRoutines.Values)
+			foreach (var coroutine in _snapshotSyncRoutines.Values)
 				if (coroutine != null) WorldSyncManager.Instance.StopCoroutine(coroutine);
 
-		_diedEntityRoutines.Clear();
+		_snapshotSyncRoutines.Clear();
 		ResetState();
 	}
 
@@ -82,14 +236,24 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	private readonly Dictionary<ulong, string> _diedEntities = new();
 
 	/// <summary>
+	/// 实体所有者
+	/// </summary>
+	private readonly Dictionary<ulong, IDType> _entityOwners = new();
+
+	/// <summary>
 	/// 每个客户端对应的快照发送协程. Key=客户端SteamId, Value=协程引用.
 	/// </summary>
-	private readonly Dictionary<IDType, Coroutine> _diedEntityRoutines = new();
-	private const int ChunkItemsPerFrame = 10; // 每帧补发死亡记录数量上限
+	private readonly Dictionary<IDType, Coroutine> _snapshotSyncRoutines = new();
+	private const int ChunkItemsPerFrame = 20; // 每帧补发死亡记录数量上限
 
 	#endregion
 
 	#region[	同步时数据]
+
+	/// <summary>
+	/// 有所有权的实体和订阅者列表
+	/// </summary>
+	private readonly Dictionary<ulong, HashSet<IDType>> _entitySubscribers = new();
 
 	/// <summary>
 	/// 所有已注册的敌人字典. Key=NetworkId, Value=NetworkedEnemy 组件.
@@ -102,6 +266,11 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	private readonly Dictionary<int, NetworkedGameEntity> _byInstanceId = new();
 
 	/// <summary>
+	/// 记录暂未确认所有权的待处理订阅 (Key: networkId, Value: 客户端SteamId集合)
+	/// </summary>
+	private readonly Dictionary<ulong, List<IDType>> _pendingSubscriptions = new();
+
+	/// <summary>
 	/// 是否正在应用远程状态. 用于防止应用远程数据时再次触发本地广播造成循环.
 	/// </summary>
 	public bool ApplyingRemoteState { get; private set; }
@@ -112,28 +281,33 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 	private float _syncInterval = 0.20f;  // 状态同步间隔 (秒 约5Hz)
 	private int _maxScanPerFrame = 50;    // 单帧最多扫描/检查的敌人数量 (扫描上限)
-	private int _maxSyncPerFrame = 10;    // 单帧最多打包发送的敌人数量 (发送上限)
+	private int _maxSyncPerFrame = 20;    // 单帧最多打包发送的敌人数量 (发送上限)
 	private float _timer = 0f;
 	// 扫描控制字段
 	private bool _isScanning = false;
 	private int _scanIndex = 0;
 	// 发送控制字段
 	private bool _isSweeping = false;
-	private int _sweepIndex = 0;
+	private int _groupIndex = 0;              // 当前发送到第几个 GroupKey
+	private int _entityIndexWithinGroup = 0;  // 当前 GroupKey 内部发送到了第几个实体
 
 	// 缓存与队列
-	private readonly List<NetworkedGameEntity> _sweepQueue = new();
 	private readonly List<NetworkedGameEntity> _batchBuffer;
 	private readonly List<ulong> _localKeysCache = new List<ulong>();
+	// 更新广播订阅者分组器
+	private readonly CollectionGroupingManager<IDType, NetworkedGameEntity> _groupManager = new();
+	private readonly List<GroupKey<IDType>> _activeGroupKeys = new();
 	private void ResetSweepState() {
 		_timer = 0f;
 		_isScanning = false;
 		_scanIndex = 0;
 		_isSweeping = false;
-		_sweepIndex = 0;
-		_sweepQueue.Clear();
+		_groupIndex = 0;
+		_entityIndexWithinGroup = 0;
 		_batchBuffer.Clear();
 		_localKeysCache.Clear();
+		_groupManager.Clear();
+		_activeGroupKeys.Clear();
 	}
 
 	#endregion
@@ -159,13 +333,16 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		ResetSweepState();
 		// 清空已同步生物字典
 		enemies.Clear();
+		_entitySubscribers.Clear();
 		_byInstanceId.Clear();
 		ApplyingRemoteState = false;
+		// 广播所有权放弃
+		BroadcastOwnerAbandon(abandonAll: true);
 	}
 
 	#endregion
 
-	#region[API Hook 事件接入]
+	#region[Hook 事件接入 接口]
 
 	/// <summary>
 	/// 实体启用时的增量回调 (由 Harmony Patch 调用)
@@ -185,8 +362,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (entity == null || ApplyingRemoteState) return;
 
 		int instanceId = entity.GetInstanceID();
-		if (_byInstanceId.TryGetValue(instanceId, out var identity))
+		if (_byInstanceId.TryGetValue(instanceId, out var identity)) {
 			RemoveEnemyRecord(identity);
+			AbandonOwnerOrUnsubscribe(identity);
+		}
 	}
 
 	/// <summary>
@@ -197,7 +376,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 		if (entity.TryGetComponent<NetworkedGameEntity>(out var identity)
 			&& !_diedEntities.ContainsKey(identity.networkId)
-			&& MPSteamworks.IsHost) {
+			&& identity.IsOwnedByMe) {
 
 			// 进行额外记录并广播
 			_diedEntities[identity.networkId] = type;
@@ -206,7 +385,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 		// 消除生物记录
 		int instanceId = entity.GetInstanceID();
-		if (_byInstanceId.TryGetValue(instanceId, out var existingIdentity)) RemoveEnemyRecord(existingIdentity);
+		if (_byInstanceId.TryGetValue(instanceId, out var existingIdentity)) {
+			RemoveEnemyRecord(existingIdentity);
+			AbandonOwnerOrUnsubscribe(existingIdentity);
+		}
 	}
 
 	#endregion
@@ -221,7 +403,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		try {
 			switch (action) {
 				case EnemySyncAction.StateBatch:
-					HandleState(reader);
+					HandleState(senderId, reader);
 					break;
 				case EnemySyncAction.Damage:
 					HandleDamage(senderId, reader);
@@ -229,11 +411,11 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 				case EnemySyncAction.Kill:
 					HandleKill(reader);
 					break;
-				case EnemySyncAction.KillChunkRequest:
-					HandleChunkRequest(senderId);
+				case EnemySyncAction.SnapshotRequest:
+					HandleSnapshotRequest(senderId);
 					break;
-				case EnemySyncAction.KillChunk:
-					HandleChunk(reader);
+				case EnemySyncAction.SnapshotChunk:
+					HandleSnapshotChunk(reader);
 					break;
 				case EnemySyncAction.AnimatorTrigger:
 					HandleAnimatorTrigger(reader);
@@ -255,7 +437,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 由 WorldSyncManager 每帧在 LateUpdate 调用
 	/// </summary>
 	public void OnSyncUpdate(float deltaTime) {
-		if (!MPSteamworks.IsHost || !MPCore.CanSync || !IsEnabled) {
+		if (!MPCore.CanSync || !IsEnabled) {
 			ResetSweepState();
 			return;
 		}
@@ -271,7 +453,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 		// 2. 分帧扫描阶段: 每帧最多检查 _maxScanPerFrame 个敌人
 		if (_isScanning) StepScan();
-		
+
 		// 3. 分帧发送阶段: 扫描完成后, 分帧将数据冲刷给客户端
 		if (_isSweeping) FlushNextBatch();
 	}
@@ -280,11 +462,11 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 开启新一轮同步, 拍照缓存当前所有敌人的 Key
 	/// </summary>
 	private void StartNewScanCycle() {
-		_sweepQueue.Clear();
 		_scanIndex = 0;
 		_localKeysCache.Clear();
+		_groupManager.Clear();
 
-		_localKeysCache.AddRange(enemies.Keys);
+		_localKeysCache.AddRange(_entitySubscribers.Where(kvp => kvp.Value != null).Select(kvp => kvp.Key));
 
 		// 如果当前有生物存在, 启动分帧扫描
 		if (_localKeysCache.Count > 0) _isScanning = true;
@@ -304,15 +486,14 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 			// 容错: 防止因其他逻辑提前从字典中删除了 key
 			if (!enemies.TryGetValue(networkId, out var identity) || identity == null) continue;
-
 			// 移除检测
 			if (identity.IsRemoved()) {
 				RemoveEnemyRecord(identity);
+				AbandonOwnerOrUnsubscribe(identity);
 			}
-			// 变化检测 (只要有变动就加入待发送队列)
-			else if (identity.HasMeaningfulChange) {
-				_sweepQueue.Add(identity);
-			}
+			// 有变动 && 有监听者
+			else if (identity.HasMeaningfulChange && _entitySubscribers.TryGetValue(identity.networkId, out var subs))
+				_groupManager.Record(identity, subs);
 		}
 
 		// 检查是否已扫描完全部敌人
@@ -320,10 +501,16 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			_isScanning = false;
 			_localKeysCache.Clear(); // 释放缓存引用
 
-			// 扫描完成！如果有需要同步的敌人, 进入发送冲刷阶段
-			if (_sweepQueue.Count > 0) {
+			// 如果有需要同步的敌人, 进入发送冲刷阶段
+			_activeGroupKeys.Clear();
+			foreach (var kvp in _groupManager)
+				if (kvp.Value != null && kvp.Value.Count > 0)
+					_activeGroupKeys.Add(kvp.Key);
+
+			if (_activeGroupKeys.Count > 0) {
 				_isSweeping = true;
-				_sweepIndex = 0;
+				_groupIndex = 0;
+				_entityIndexWithinGroup = 0;
 			}
 		}
 	}
@@ -331,81 +518,146 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// <summary>
 	/// 连续分帧打包 单帧最多打包并发送 _maxSyncPerFrame 个敌人
 	/// </summary>
+	/// <summary>
+	/// 连续分帧打包：单帧最多打包并发送 _maxSyncPerFrame 个敌人
+	/// </summary>
 	private void FlushNextBatch() {
 		_batchBuffer.Clear();
+		int remainingQuota = _maxSyncPerFrame;
+		bool hasSentDataThisFrame = false;
 
-		// 截取当前帧能容纳的上限数据
-		while (_sweepIndex < _sweepQueue.Count && _batchBuffer.Count < _maxSyncPerFrame) {
-			var identity = _sweepQueue[_sweepIndex];
-			// 跨帧二次有效性校验 (防止在前几帧冲刷期间生物被彻底 Destroy)
-			if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy)
-				_batchBuffer.Add(identity);
-
-			_sweepIndex++;
+		while (_groupIndex < _activeGroupKeys.Count) {
+			var currentGroupKey = _activeGroupKeys[_groupIndex];
+			if (!_groupManager.TryGetValue(currentGroupKey, out var entityList) || entityList == null || entityList.Count == 0) {
+				// 如果组为空或已经处理完, 直接跳到下一组
+				_groupIndex++;
+				_entityIndexWithinGroup = 0;
+				continue;
+			}
+			// 计算当前组中还剩下多少个未发送的实体
+			int remainingInGroup = entityList.Count - _entityIndexWithinGroup;
+			// 剩余配额足够装下当前组的所有剩余实体 -> 整组发送
+			if (remainingQuota >= remainingInGroup) {
+				// 收集组内未发送的实体到 _batchBuffer
+				for (int i = _entityIndexWithinGroup; i < entityList.Count; i++) {
+					var identity = entityList[i];
+					if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy)
+						_batchBuffer.Add(identity);
+				}
+				// 发送当前整组数据
+				if (_batchBuffer.Count > 0) {
+					BroadcastStateBatch(currentGroupKey, _batchBuffer);
+					hasSentDataThisFrame = true;
+				}
+				// 扣减当前帧剩余配额, 并推进到下一个组
+				remainingQuota -= remainingInGroup;
+				_groupIndex++;
+				_entityIndexWithinGroup = 0;
+				_batchBuffer.Clear();
+			} else if (hasSentDataThisFrame) {
+				// 配额不够, 且本帧已经发送过数据 -> 放弃凑包, 剩余数据留到下一帧发送
+				break;
+				// 配额不够, 且本帧尚未发送过数据 -> 单组自身超出了 _maxSyncPerFrame, 强行分帧截取
+			} else {
+				int targetIndex = _entityIndexWithinGroup + remainingQuota;
+				for (int i = _entityIndexWithinGroup; i < targetIndex; i++) {
+					var identity = entityList[i];
+					if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy) 
+						_batchBuffer.Add(identity);
+				}
+				// 发送截取的部分数据
+				if (_batchBuffer.Count > 0) BroadcastStateBatch(currentGroupKey, _batchBuffer);
+				// 游标停留在当前组的未发送位置, 下一帧继续发送当前组
+				_entityIndexWithinGroup = targetIndex;
+				_batchBuffer.Clear();
+				// 本帧配额用尽, 直接退出循环
+				break;
+			}
 		}
 
-		// 发送 Transform/Health 批量包
-		if (_batchBuffer.Count > 0) BroadcastStateBatch(_batchBuffer);
-
-		// 如果队列已经全部发完, 关闭冲刷, 等待下一个 _syncInterval 触发
-		if (_sweepIndex >= _sweepQueue.Count) {
+		// 如果所有组都已经全部发送完毕, 关闭冲刷, 等待下一个 _syncInterval 触发
+		if (_groupIndex >= _activeGroupKeys.Count) {
 			_isSweeping = false;
-			_sweepQueue.Clear();
+			_activeGroupKeys.Clear();
+			_groupManager.Clear();
+			_groupIndex = 0;
+			_entityIndexWithinGroup = 0;
 		}
 	}
 
 	/// <summary>
-	/// 分帧向客户端补发死亡生物表
-	/// 接收函数: <see cref="HandleChunk"/>
+	/// 分帧向客户端补发快照 (生物死亡表 生物所有者表)
+	/// 接收函数: <see cref="HandleSnapshotChunk"/>
 	/// </summary>
-	private IEnumerator SendDiedEnemiesChunksRoutine(IDType clientId) {
-		var list = new List<KeyValuePair<ulong, string>>(_diedEntities);
-		int total = list.Count;
-		int currentIndex = 0;
+	private IEnumerator SendSnapshotRoutine(IDType clientId) {
+		var ownerList = new List<KeyValuePair<ulong, IDType>>(_entityOwners);
+		int ownerTotal = ownerList.Count;
+		int ownerIndex = 0;
 
-		while (currentIndex < total) {
-			int countToSend = Mathf.Min(ChunkItemsPerFrame, total - currentIndex);
-
+		while (ownerIndex < ownerTotal) {
+			int countToSend = Mathf.Min(ChunkItemsPerFrame, ownerTotal - ownerIndex);
 			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.EnemySync);
-			writer.Put((byte)EnemySyncAction.KillChunk);
+
+			writer.Put((byte)EnemySyncAction.SnapshotChunk);
+			writer.Put((byte)(0)); // 标记类型：0 = 所有权映射
 			writer.Put(countToSend);
 
 			for (int i = 0; i < countToSend; i++) {
-				var item = list[currentIndex + i];
+				var item = ownerList[ownerIndex + i];
+				writer.Put(item.Key);
+				writer.Put(item.Value);
+			}
+
+			MPSteamworks.Instance.SendToPeer(clientId, writer, SendType.Reliable);
+			ownerIndex += countToSend;
+			yield return null;
+		}
+
+		var diedList = new List<KeyValuePair<ulong, string>>(_diedEntities);
+		int diedTotal = diedList.Count;
+		int diedIndex = 0;
+
+		while (diedIndex < diedTotal) {
+			int countToSend = Mathf.Min(ChunkItemsPerFrame, diedTotal - diedIndex);
+			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.EnemySync);
+
+			writer.Put((byte)EnemySyncAction.SnapshotChunk);
+			writer.Put((byte)(1)); // 标记类型：1 = 死亡记录
+			writer.Put(countToSend);
+
+			for (int i = 0; i < countToSend; i++) {
+				var item = diedList[diedIndex + i];
 				writer.Put(item.Key);
 				writer.Put(item.Value ?? string.Empty);
 			}
 
 			MPSteamworks.Instance.SendToPeer(clientId, writer, SendType.Reliable);
-			currentIndex += countToSend;
+			diedIndex += countToSend;
 			yield return null;
 		}
 
-		_diedEntityRoutines.Remove(clientId);
+		_snapshotSyncRoutines.Remove(clientId);
 	}
 
 	#endregion
 
-	#region[扫描与身份注册]
+	#region[扫描与生物网络身份]
 
 	/// <summary>
-	/// 确保敌人有 NetworkedEnemy 组件: 从缓存查找或创建, 分配稳定 NetworkId.
+	/// 确保敌人有 NetworkedEnemy 组件
+	/// 从缓存查找或创建, 分配稳定 NetworkId.
+	/// 如果该生物已经被记录为死亡, 则立即杀死该生物. 并且不会再注册到字典中.
 	/// </summary>
 	private NetworkedGameEntity EnsureIdentity(GameEntity entity) {
 		var syncRoot = entity.transform;
 		if (syncRoot == null) return null;
-
 		// 按实例ID缓存查找
 		int instanceId = syncRoot.GetInstanceID();
 		if (_byInstanceId.TryGetValue(instanceId, out var existing) && existing != null) return existing;
-
 		// 获取或添加 NetworkedEnemy 组件
 		var identity = syncRoot.GetComponent<NetworkedGameEntity>() ?? syncRoot.AddComponent<NetworkedGameEntity>();
-
-		if (identity.networkId == 0)
-			identity.Initialize(BuildStableNetworkId(syncRoot));
-
-
+		// 构建稳定的 NetworkId
+		if (identity.networkId == 0) identity.Initialize(BuildStableNetworkId(syncRoot));
 		// 该生物已经被记录 杀死该生物
 		if (_diedEntities.TryGetValue(identity.networkId, out var diedType)) {
 			if (string.IsNullOrEmpty(diedType)) entity.Kill("diedSync");
@@ -413,14 +665,19 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			entity.health = 0f;
 			return identity;
 		}
-
+		// 如果有所有者记录, 则设置当前所有者
+		if (_entityOwners.TryGetValue(identity.networkId, out var ownerId)) {
+			identity.CurrentOwnerId = ownerId;
+		}
 		// 注册到字典
 		RegisterEnemyRecord(identity);
+		// 请求主机分配所有权或订阅状态
+		RequestOwnerOrSubscription(identity);
 		return identity;
 	}
 
 	/// <summary>
-	/// 注册映射
+	/// 注册标准映射
 	/// </summary>
 	public void RegisterEnemyRecord(NetworkedGameEntity identity) {
 		enemies[identity.networkId] = identity;
@@ -438,11 +695,125 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 	/// <summary>
 	/// 构建稳定的 Hash NetworkId: "{层级路径}".
+	/// 战役模式使用 BuildNamePath(不会出现重复关卡,不需要排序)
+	/// 其他模式使用 BuildFullPath(可能出现重复关卡,需要对象间排序)
 	/// </summary>
 	private ulong BuildStableNetworkId(Transform transform) {
-		return MPUtil.Hash64(MPUtil.BuildTransformPath(transform));
+		return MPUtil.Hash64(MPGameModeManager.IsCampaignMode ? MPUtil.BuildNamePath(transform) : MPUtil.BuildFullPath(transform));
 	}
 
+	#endregion
+
+	#region[所有权管理]
+
+	/// <summary>
+	/// 设置实体新所有权
+	/// </summary>
+	/// <returns>
+	/// 所有者 ID 无效 || 实体网络 ID 无效 || 本机成为所有者但实体 ID 无效,则返回 false<br/>
+	/// 其他情况下返回 true
+	/// </returns>
+	private bool SetEntityOwner(ulong networkId, IDType newOwnerId) {
+		if (networkId == 0 || newOwnerId == 0) return false;
+		// 是否为所有者
+		bool isLocalOwner = newOwnerId == MPSteamworks.UserSteamId;
+		// 是否存在实体
+		enemies.TryGetValue(networkId, out var identity);
+		// 本机成为所有者时, 必须存在可管理的实体
+		if (isLocalOwner && identity == null) return false;
+		// 设置新所有者
+		_entityOwners[networkId] = newOwnerId;
+		if (identity != null) identity.CurrentOwnerId = newOwnerId;
+		if (isLocalOwner) {
+			// 本机成为所有者, 确保订阅者列表存在
+			if (!_entitySubscribers.TryGetValue(networkId, out var subscribers)) {
+				subscribers = new HashSet<IDType>();
+				_entitySubscribers[networkId] = subscribers;
+			}
+			// 将缓存写入
+			if (_pendingSubscriptions.TryGetValue(networkId, out var pendingSet)) {
+				subscribers.AddRange(pendingSet);
+				_pendingSubscriptions.Remove(networkId); // 清空暂存
+				MPMain.LogTest($"[EnemySync] Processed buffered subscriptions for entity {networkId}.");
+			}
+		} else {
+			// 本机不再是所有者, 清除本机维护的订阅者列表
+			_entitySubscribers.Remove(networkId);
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// 其他客机接收实体所有者放弃所有权信息
+	/// </summary>
+	public void ClearEntityOwner(ulong networkId) {
+		_entityOwners.Remove(networkId);
+		if (enemies.TryGetValue(networkId, out var identity) && identity != null) {
+			identity.CurrentOwnerId = 0;
+			RequestOwnerOrSubscription(identity);
+		}
+	}
+
+	/// <summary>
+	/// 所有者放弃实体所有权
+	/// </summary>
+	public void AbandonOwnership(NetworkedGameEntity identity) {
+		if (identity == null || !identity.IsOwnedByMe) return;
+		identity.CurrentOwnerId = 0;
+		_entityOwners.Remove(identity.networkId);
+		_entitySubscribers.Remove(identity.networkId);
+		BroadcastOwnerAbandon(networkId: identity.networkId);
+	}
+
+	/// <summary>
+	/// 请求所有权或向所有者请求订阅
+	/// </summary>
+	public void RequestOwnerOrSubscription(NetworkedGameEntity identity) {
+		if (identity == null || identity.networkId == 0 || identity.IsOwnedByMe) return;
+
+		if (identity.HasOwner && MPSteamworks.Instance.Members.Any(f => f.Id == identity.CurrentOwnerId)) {
+			// 有所有者 && 所有者在成员列表中, 客机向所有者请求订阅状态
+			SendSubscriptionRequest(identity.networkId, identity.CurrentOwnerId);
+		} else {
+			// 没有所有者 || 所有者不在成员列表中 分配所有权
+			if (MPSteamworks.IsHost) {
+				// 主机优先自行分配所有权给自己
+				SetEntityOwner(identity.networkId, MPSteamworks.UserSteamId);
+				BroadcastOwnerResponse(identity.networkId, MPSteamworks.UserSteamId);
+			} else {
+				identity.CurrentOwnerId = 0;
+				// 客机向主机请求分配所有权
+				SendOwnerRequest(identity.networkId);
+			}
+		}
+	}
+
+	/// <summary>
+	/// 放弃实体所有权或取消订阅
+	/// </summary>
+	public void AbandonOwnerOrUnsubscribe(NetworkedGameEntity identity) {
+		if (identity == null || identity.networkId == 0) return;
+		if (identity.IsOwnedByMe) {
+			// 如果是所有者, 放弃所有权
+			AbandonOwnership(identity);
+		} else if (identity.HasOwner) {
+			// 如果是订阅者, 向所有者发送取消订阅请求
+			SendUnsubscriptionRequest(identity.networkId, identity.CurrentOwnerId);
+		}
+	}
+
+	/// <summary>
+	/// 作为所有者接受其他玩家对实体的订阅
+	/// </summary>
+	private void AddSubscriber(ulong networkId, IDType subscriberId) {
+		if (!_entitySubscribers.TryGetValue(networkId, out var subscribers)) {
+			subscribers = new HashSet<IDType>();
+			_entitySubscribers[networkId] = subscribers;
+		}
+		if (subscribers.Add(subscriberId)) {
+			// TODO: 可以在这里顺便立即发一帧当前实体的快照给新订阅者, 保证同步效果
+		}
+	}
 	#endregion
 
 	#region[网络数据发送]
@@ -470,11 +841,12 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
 	}
 
+	// TODO: 不使用全员广播,进行一次广播时只需要订阅其中一个就会收到一组包,如果收到的一组包内没有一个是需要同步的,发送去订阅包
 	/// <summary>
-	/// 主机广播敌人状态包
+	/// 所有者广播敌人状态包
 	/// 接收函数: <see cref="HandleState"/>
 	/// </summary>
-	private void BroadcastStateBatch(List<NetworkedGameEntity> batch) {
+	private void BroadcastStateBatch(GroupKey<IDType> subGroup, List<NetworkedGameEntity> batch) {
 		if (!IsEnabled || batch == null || batch.Count == 0) return;
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
 		writer.Put((byte)EnemySyncAction.StateBatch);
@@ -496,7 +868,11 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			writer.PutUShortAt(lengthOffset, payloadSize);
 		}
 
-		MPSteamworks.Instance.Broadcast(writer, SendType.Unreliable | SendType.NoNagle);
+		ReadOnlySpan<IDType> span = subGroup.Span;
+		for (int i = 0; i < span.Length; i++) {
+			IDType subscriberId = span[i];
+			MPSteamworks.Instance.SendToPeer(subscriberId, writer, SendType.Unreliable | SendType.NoNagle);
+		}
 	}
 
 	/// <summary>
@@ -513,19 +889,19 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	}
 
 	/// <summary>
-	/// 客机向主机请求生物死亡表 (NeedRemoveChunk)
-	/// 接收函数: <see cref="HandleChunkRequest"/>
+	/// 客机向主机请求生物快照 (生物死亡表 生物所有者表)
+	/// 接收函数: <see cref="HandleSnapshotRequest"/>
 	/// </summary>
-	private void SendKillChunkRequest() {
+	public void SendSnapshotRequest() {
 		if (MPSteamworks.IsHost || !IsEnabled) return;
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.EnemySync);
-		writer.Put((byte)EnemySyncAction.KillChunkRequest);
+		writer.Put((byte)EnemySyncAction.SnapshotRequest);
 
 		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
 	}
 
 	/// <summary>
-	/// 主机广播 Animator SetTrigger 事件
+	/// 所有者广播 Animator SetTrigger 事件
 	/// 接收函数: <see cref="HandleAnimatorTrigger"/>
 	/// </summary>
 	public void BroadcastAnimTriggerHash(ulong networkId, byte featureIndex, int hashId) {
@@ -535,6 +911,82 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		writer.Put(featureIndex);
 		writer.Put(hashId);
 		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+	}
+
+	/// <summary>
+	/// 客机向主机请求成为实体的新所有者
+	/// 接收函数: <see cref="HandleOwnerRequest"/>
+	/// </summary>
+	public void SendOwnerRequest(ulong networkId) {
+		if (!MPCore.CanSync || !IsEnabled || MPSteamworks.IsHost) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.EnemySync);
+		writer.Put((byte)EnemySyncAction.OwnerRequest);
+		writer.Put(networkId);
+		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
+	}
+
+	/// <summary>
+	/// 主机广播实体的新所有者
+	/// 接收函数: <see cref="HandleOwnerResponse"/>
+	/// </summary>
+	public void BroadcastOwnerResponse(ulong networkId, IDType ownerId) {
+		if (!MPCore.CanSync || !IsEnabled || !MPSteamworks.IsHost) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
+		writer.Put((byte)EnemySyncAction.OwnerResponse);
+		writer.Put(networkId);
+		writer.Put(ownerId);
+		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+	}
+
+	/// <summary>
+	/// 主机向目标单发实体的新所有者
+	/// 接收函数: <see cref="HandleOwnerResponse"/>
+	/// </summary>
+	public void SendOwnerResponse(ulong networkId, IDType ownerId, IDType targetId) {
+		if (!MPCore.CanSync || !IsEnabled || !MPSteamworks.IsHost) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.EnemySync);
+		writer.Put((byte)EnemySyncAction.OwnerResponse);
+		writer.Put(networkId);
+		writer.Put(ownerId);
+		MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
+	}
+
+	/// <summary>
+	/// 所有者广播 所有权放弃事件
+	/// 接收函数: <see cref="HandleOwnerAbandon"/>
+	/// </summary>
+	public void BroadcastOwnerAbandon(ulong networkId = 0, bool abandonAll = false) {
+		if (!MPCore.CanSync || !IsEnabled) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
+		writer.Put((byte)EnemySyncAction.OwnerAbandon);
+		writer.Put(abandonAll);
+		writer.Put(networkId);
+		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+	}
+
+	/// <summary>
+	/// 客机向所有者申请订阅
+	/// 接收函数: <see cref="HandleSubscriptionRequest"/>
+	/// </summary>
+	public void SendSubscriptionRequest(ulong networkId, IDType ownerId) {
+		if (networkId == default) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, ownerId, PacketType.EnemySync);
+		writer.Put((byte)EnemySyncAction.SubscriptionRequest);
+		writer.Put(networkId);
+		MPSteamworks.Instance.SendToPeer(ownerId, writer, SendType.Reliable);
+	}
+
+
+	/// <summary>
+	/// 客机向所有者申请退订阅
+	/// 接收函数: <see cref="HandleUnsubscriptionRequest"/>
+	/// </summary>
+	public void SendUnsubscriptionRequest(ulong networkId, IDType ownerId) {
+		if (networkId == default) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, ownerId, PacketType.EnemySync);
+		writer.Put((byte)EnemySyncAction.UnsubscriptionRequest);
+		writer.Put(networkId);
+		MPSteamworks.Instance.SendToPeer(ownerId, writer, SendType.Reliable);
 	}
 
 	#endregion
@@ -575,13 +1027,12 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		}
 	}
 
+	// TODO: 不使用全员广播,进行一次广播时只需要订阅其中一个就会收到一组包,如果收到的一组包内没有一个是需要同步的,发送去订阅包
 	/// <summary>
 	/// 客机接收生物同步数据包
 	/// 发送函数: <see cref="BroadcastStateBatch"/>
 	/// </summary>
-	private void HandleState(DataReader reader) {
-		if (MPSteamworks.IsHost) return;
-
+	private void HandleState(IDType senderId, DataReader reader) {
 		byte count = reader.GetByte();
 		ApplyingRemoteState = true;
 		try {
@@ -590,16 +1041,15 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 				ushort payloadSize = reader.GetUShort(); // 读取当前实体的数据包 Payload 字节长度
 				if (enemies.TryGetValue(networkId, out var identity) && identity != null) {
 					int startPos = reader.Position;
-
 					// 反序列化变动的 Feature 模块
 					identity.ReadSyncState(reader);
-
 					// 若 Feature 读写不一致,强制将游标修正到正确位置
 					int readBytes = reader.Position - startPos;
 					if (readBytes != payloadSize) reader.Position = startPos + payloadSize;
 				} else {
-					// 客机未找到实体时,跳过该实体的字节数
+					// 客机未找到实体时,跳过该实体的字节数,并发送退订阅请求
 					reader.Skip(payloadSize);
+					SendUnsubscriptionRequest(networkId, senderId);
 				}
 			}
 		} finally {
@@ -624,41 +1074,55 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	}
 
 	/// <summary>
-	/// 主机收到客机生物死亡表请求
-	/// 发送函数: <see cref="SendKillChunkRequest"/>
+	/// 主机收到客机快照请求
+	/// 发送函数: <see cref="SendSnapshotRequest"/>
 	/// </summary>
-	public void HandleChunkRequest(IDType senderId) {
-		if (!MPCore.CanSync || !MPSteamworks.IsHost || WorldSyncManager.Instance == null || !IsEnabled) return;
+	public void HandleSnapshotRequest(IDType senderId) {
+		if (!MPCore.CanSync || !IsEnabled || !MPSteamworks.IsHost) return;
 		if (senderId == 0 || senderId == MPSteamworks.UserSteamId) return;
 		// 停止旧协程
-		if (_diedEntityRoutines.TryGetValue(senderId, out var existing) && existing != null)
+		if (_snapshotSyncRoutines.TryGetValue(senderId, out var existing) && existing != null)
 			WorldSyncManager.Instance.StopCoroutine(existing);
 		// 启动协程分帧发送
-		_diedEntityRoutines[senderId] = WorldSyncManager.Instance.StartCoroutine(SendDiedEnemiesChunksRoutine(senderId));
+		_snapshotSyncRoutines[senderId] = WorldSyncManager.Instance.StartCoroutine(SendSnapshotRoutine(senderId));
 	}
 
 	/// <summary>
-	/// 客机获取生物死亡记录表
-	/// 发送函数: <see cref="SendDiedEnemiesChunksRoutine"/>
+	/// 客机获取快照 (生物死亡表 生物所有者表)
+	/// 发送函数: <see cref="SendSnapshotRoutine"/>
 	/// </summary>
-	private void HandleChunk(DataReader reader) {
+	private void HandleSnapshotChunk(DataReader reader) {
 		if (MPSteamworks.IsHost) return;
 
-		int count = reader.GetInt();
+		byte snapshotType = reader.GetByte(); // 0=所有权映射, 1=死亡记录
 
-		for (int i = 0; i < count; i++) {
-			ulong networkId = reader.GetULong();
-			string diedType = reader.GetString();
-
-			_diedEntities[networkId] = diedType;
-
-			if (enemies.TryGetValue(networkId, out var identity)
-				&& identity != null
-				&& identity.TryGetComponent<GameEntity>(out var entity)) {
-
-				if (string.IsNullOrEmpty(diedType)) entity.Kill("diedSync");
-				else entity.Kill(diedType);
+		if (snapshotType == 0) {
+			int count = reader.GetInt();
+			for (int i = 0; i < count; i++) {
+				ulong networkId = reader.GetULong();
+				IDType ownerId = reader.GetULong();
+				_entityOwners[networkId] = ownerId;
+				if (enemies.TryGetValue(networkId, out var identity) && identity != null) {
+					identity.CurrentOwnerId = ownerId;
+					RequestOwnerOrSubscription(identity);
+				}
 			}
+
+			return;
+		} else if (snapshotType == 1) {
+			int count = reader.GetInt();
+			for (int i = 0; i < count; i++) {
+				ulong networkId = reader.GetULong();
+				string diedType = reader.GetString();
+				_diedEntities[networkId] = diedType;
+				// 客机收到死亡记录后, 如果本地有该生物, 立即杀死
+				if (enemies.TryGetValue(networkId, out var identity)
+					&& identity != null && identity.TryGetComponent<GameEntity>(out var entity)) {
+					if (string.IsNullOrEmpty(diedType)) entity.Kill("diedSync");
+					else entity.Kill(diedType);
+				}
+			}
+			return;
 		}
 	}
 
@@ -681,6 +1145,98 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		}
 	}
 
+	/// <summary>
+	/// 主机接受客机请求成为实体的新所有者
+	/// 发送函数: <see cref="SendOwnerRequest"/>
+	/// </summary>
+	private void HandleOwnerRequest(IDType senderId, DataReader reader) {
+		if (!MPCore.CanSync || !IsEnabled || !MPSteamworks.IsHost) return;
+		ulong networkId = reader.GetULong();
+		if (!_entityOwners.TryGetValue(networkId, out var currentOwnerId)
+			|| !MPSteamworks.Instance.Members.Any(f => f.Id == currentOwnerId)) {
+			// 没有所有者 || 所有者不在成员列表中, 主机直接分配给请求者
+			SetEntityOwner(networkId, senderId);
+			BroadcastOwnerResponse(networkId, senderId);
+		} else {
+			// 存在所有者, 主机向请求者发送当前所有者信息
+			SendOwnerResponse(networkId, currentOwnerId, senderId);
+		}
+	}
+
+	/// <summary>
+	/// 客机接受主机广播实体的新所有者
+	/// 发送函数: <see cref="BroadcastOwnerResponse"/>
+	/// 发送函数: <see cref="SendOwnerResponse"/>
+	/// </summary>
+	private void HandleOwnerResponse(DataReader reader) {
+		if (!MPCore.CanSync || !IsEnabled) return;
+		ulong networkId = reader.GetULong();
+		IDType ownerId = reader.GetULong();
+		// 客机成为实体新所有者, 记录并创建订阅列表
+		if (!SetEntityOwner(networkId, ownerId)) {
+			// 成为所有者失败 进行放弃
+			BroadcastOwnerAbandon(networkId);
+		}
+		if (ownerId != MPSteamworks.UserSteamId && enemies.TryGetValue(networkId, out var identity)) {
+			// 不是所有者 && 存在实体 向所有者请求订阅
+			SendSubscriptionRequest(networkId, ownerId);
+		}
+	}
+
+	/// <summary>
+	/// 客机接收实体所有者广播放弃所有权事件
+	/// 发送函数: <see cref="BroadcastOwnerAbandon"/>
+	/// </summary>
+	private void HandleOwnerAbandon(IDType senderId, DataReader reader) {
+		if (!MPCore.CanSync || !IsEnabled) return;
+		bool abandonAll = reader.GetBool();
+		ulong networkId = reader.GetULong();
+		if (abandonAll) {
+			// 只清除该发送者拥有的实体
+			var abandonedIds = _entityOwners
+				.Where(pair => pair.Value == senderId)
+				.Select(pair => pair.Key).ToList();
+			foreach (ulong id in abandonedIds) ClearEntityOwner(id);
+		} else if (_entityOwners.TryGetValue(networkId, out var ownerId) && ownerId == senderId) {
+			// 该发送者指定的实体
+			ClearEntityOwner(networkId);
+		}
+	}
+
+	/// <summary>
+	/// 客机向实体所有者请求订阅实体更新数据
+	/// 发送函数: <see cref="SendSubscriptionRequest"/>
+	/// </summary>
+	private void HandleSubscriptionRequest(IDType senderId, DataReader reader) {
+		if (!MPCore.CanSync || !IsEnabled) return;
+		ulong networkId = reader.GetULong();
+		// 检查自己当前是不是该实体的合法所有者
+		bool amIOwner = _entityOwners.TryGetValue(networkId, out var ownerId) && ownerId == MPSteamworks.UserSteamId;
+		if (amIOwner) {
+			// 确认是所有者了, 直接处理订阅
+			AddSubscriber(networkId, senderId);
+		} else {
+			// 还不是所有者, 放入暂存缓冲区
+			if (!_pendingSubscriptions.TryGetValue(networkId, out var pending)) {
+				pending = new List<IDType>();
+				_pendingSubscriptions[networkId] = pending;
+			}
+			if (!pending.Contains(senderId)) pending.Add(senderId);
+			MPMain.LogTest($"[EnemySync] Received early subscription request for {networkId} from {senderId}, but I am not owner yet. Buffered.");
+		}
+	}
+
+	/// <summary>
+	/// 客机向实体所有者请求退订阅实体更新数据
+	/// 发送函数: <see cref="SendUnsubscriptionRequest"/>
+	/// </summary>
+	private void HandleUnsubscriptionRequest(IDType senderId, DataReader reader) {
+		if (!MPCore.CanSync || !IsEnabled) return;
+		ulong networkId = reader.GetULong();
+		if (_entitySubscribers.TryGetValue(networkId, out var subscribers))
+			subscribers.Remove(senderId);
+	}
+
 	#endregion
 
 	#region[黑名单]
@@ -694,7 +1250,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (entity == null || entity.gameObject == null) return false;
 		// 已经有网络标签
 		if (entity.GetComponent<NetworkedGameEntity>() != null) return true;
-
 		// 暂时排除物品(仅CL_Prop) 但有AI生物有CL_Prop
 		if (entity.GetComponent<CL_Prop>() != null && entity.GetComponent<AIGameEntity>() == null) return false;
 		// 排除道具物体
@@ -711,7 +1266,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (entity.GetComponent<DEN_Roach>() != null) return false;
 		// 居民生物进行同步
 		if (entity.GetComponent<Denizen>() != null) return true;
-
 		// 检查 "Creature" 标签
 		var tagger = entity.GetComponent<ObjectTagger>();
 		if (tagger != null && tagger.tags.Contains(MPKeys.CREATURE_TAGGER)) return true; // CREATURE_TAGGER (生物标签)

@@ -40,7 +40,7 @@ public class Patch_CL_GameManager {
 		// 死亡切换发生前通知总线
 		if (MPCore.IsInLobby && !CL_GameManager.gMan.IsReviving()) {
 			MPEventBusGame.NotifyPlayerDeath(type, Patch_ENT_Player.killDamageInfo);
-			MPMain.LogInfo(Localization.Get("Patch.PlayerDeath", type));
+			MPMain.LogInfo(Localization.GetLog("Patch.PlayerDeath", type));
 			Patch_ENT_Player.killDamageInfo = null;
 		}
 	}

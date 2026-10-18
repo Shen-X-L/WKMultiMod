@@ -79,7 +79,7 @@ public class RPManager : Singleton<RPManager> {
 		// 从工厂拿新实例
 		GameObject instance = RPFactoryManager.Instance.Create(prefabId);
 		if (instance == null) {
-			MPMain.LogError(Localization.Get("RPManager.FactoryCreateObjectFailed"));
+			MPMain.LogError(Localization.GetLog("RPManager.FactoryCreateObjectFailed"));
 			return false;
 		}
 
@@ -155,7 +155,7 @@ public class RPManager : Singleton<RPManager> {
 			if (!container.IsModelReady) return;
 			container.HandlePlayerData(ref playerData);
 		} else if (_debugTick.TryTick()) {
-			MPMain.LogError(Localization.Get(
+			MPMain.LogError(Localization.GetLog(
 				"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 		}
 	}
@@ -168,7 +168,7 @@ public class RPManager : Singleton<RPManager> {
 			if (!container.IsModelReady) return;
 			container.HandleExtraPlayerData(playerData);
 		} else if (_debugTick.TryTick()) {
-			MPMain.LogError(Localization.Get(
+			MPMain.LogError(Localization.GetLog(
 				"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 		}
 	}
@@ -182,7 +182,7 @@ public class RPManager : Singleton<RPManager> {
 			RPcontainer.HandleNameTag(tagMessage);
 			return;
 		}
-		MPMain.LogError(Localization.Get(
+		MPMain.LogError(Localization.GetLog(
 			"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 	}
 
@@ -194,7 +194,7 @@ public class RPManager : Singleton<RPManager> {
 
 		if (_lastDeathTime.TryGetValue(playerId, out float lastTime)) {
 			if (currentTime - lastTime < DEATH_COOLDOWN) {
-				MPMain.LogWarning(Localization.Get("RPManager.PlayerDeathRateExceeded", playerId.ToString()));
+				MPMain.LogWarning(Localization.GetLog("RPManager.PlayerDeathRateExceeded", playerId.ToString()));
 				return;
 			}
 		}
@@ -278,7 +278,7 @@ public class RPManager : Singleton<RPManager> {
 		if (Players.TryGetValue(playerId, out var container)) {
 			return container.PlayerObject;
 		}
-		MPMain.LogError(Localization.Get(
+		MPMain.LogError(Localization.GetLog(
 			"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 		return null;
 	}

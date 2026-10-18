@@ -83,7 +83,7 @@ public static class MPUtil {
 	/// <summary>
 	/// 构建变换层级路径. 例如 "Root[0]/Child[1]/Grandchild[0]".
 	/// </summary>
-	public static string BuildTransformPath(Transform transform) {
+	public static string BuildFullPath(Transform transform) {
 		if (transform == null) return string.Empty;
 		var stack = new Stack<string>();
 		var current = transform;
@@ -95,14 +95,45 @@ public static class MPUtil {
 	}
 
 	/// <summary>
-	/// 从父对象向下构建到子对象的路径名称序列
+	/// 构建变换层级路径. 指定父子对象. 例如 "Parent[0]/Child[1]/Grandchild[0]".
 	/// </summary>
-	public static string BuildTransformPathNames(Transform child, Transform parent) {
+	public static string BuildFullPath(Transform child, Transform parent) {
 		if (child == null) return string.Empty;
 		var stack = new Stack<string>();
 		Transform current = child;
 		while (current != null && current != parent) {
 			stack.Push($"{CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
+			current = current.parent;
+		}
+		if (current == parent) {
+			stack.Push(CleanCloneName(parent.name));
+		}
+		return string.Join("/", stack);
+	}
+
+	/// <summary>
+	/// 构建变换层级路径. 例如 "Root[0]/Child[1]/Grandchild[0]".
+	/// </summary>
+	public static string BuildNamePath(Transform transform) {
+		if (transform == null) return string.Empty;
+		var stack = new Stack<string>();
+		var current = transform;
+		while (current != null) {
+			stack.Push(CleanCloneName(current.name));
+			current = current.parent;
+		}
+		return string.Join("/", stack);
+	}
+
+	/// <summary>
+	/// 构建变换层级路径. 指定父子对象. 例如 "Parent[0]/Child[1]/Grandchild[0]".
+	/// </summary>
+	public static string BuildNamePath(Transform child, Transform parent) {
+		if (child == null) return string.Empty;
+		var stack = new Stack<string>();
+		Transform current = child;
+		while (current != null && current != parent) {
+			stack.Push(CleanCloneName(current.name));
 			current = current.parent;
 		}
 		if (current == parent) {

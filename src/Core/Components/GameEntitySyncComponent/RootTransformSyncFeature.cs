@@ -66,9 +66,6 @@ public class RootTransformSyncFeature : ISyncFeature {
 
 		if (_entity != null && !float.IsNaN(hp)) 
 			_entity.health = hp;
-
-		if (!_netEntity.IsNetworkControlled && !MPSteamworks.IsHost) 
-			_netEntity.SetNetworkControl(true);
 	}
 
 	public void OnUpdate(float deltaTime) {

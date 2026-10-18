@@ -37,7 +37,7 @@ public class Patch_HandItem_Piton_PitonHit {
 		int fieldIndex = codes.FindIndex(c => c.opcode == OpCodes.Ldfld && c.operand is FieldInfo f && f == pitonField);
 		
 		if (fieldIndex == -1) {
-			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Piton.PitonHit"));
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Piton.PitonHit"));
 			return codes;
 		}
 
@@ -51,7 +51,7 @@ public class Patch_HandItem_Piton_PitonHit {
 		);
 
 		if (instantiateIndex == -1) {
-			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Piton.PitonHit"));
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Piton.PitonHit"));
 			return codes;
 		}
 
@@ -128,7 +128,7 @@ public class Patch_Projectile_ClimbableSync {
 			&& p[1].ParameterType == typeof(Vector3)
 		);
 		if (targetIndex == -1) {
-			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
 			return codes;
 		}
 
@@ -212,7 +212,7 @@ public class Patch_CL_Handhold_PitonSync {
 		);
 
 		if (targetIndex == -1) {
-			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
 			return codes;
 		}
 

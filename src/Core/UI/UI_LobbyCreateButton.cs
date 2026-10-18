@@ -46,7 +46,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 	// 创建大厅的异步方法
 	public async void CreateLobby() {
 		var name = SteamClient.Name;
-		MPMain.LogInfo(Localization.Get("MPCore.CreatingLobby", name));
+		MPMain.LogInfo(Localization.GetLog("MPCore.CreatingLobby", name));
 
 		// 预设置大厅数据
 		var lobbyData = new Dictionary<string, string>() {
@@ -73,7 +73,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 			if (this == null) return;
 			// 捕获任何未预料的崩溃
 			CreateFailed();
-			MPMain.LogError(Localization.Get("UI_LobbyCreateButton.CreateLobbyFailed", ex.Message));
+			MPMain.LogError(Localization.GetLog("UI_LobbyCreateButton.CreateLobbyFailed", ex.Message));
 		}
 	}
 
@@ -112,7 +112,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 		MPEventBusGame.NotifyHideLoading();
 		// 加载游戏模式
 		if (gamemodePanel == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyCreateButton.GameModeDetailPanelNull"));
+			MPMain.LogError(Localization.GetLog("UI_LobbyCreateButton.GameModeDetailPanelNull"));
 			return;
 		}
 		gamemodePanel.LoadGamemode();

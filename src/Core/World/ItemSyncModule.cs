@@ -202,7 +202,7 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 		if (identity != null && identity.itemCreateType == ItemType.SceneItem)
 			return identity.networkId;
 
-		string path = MPUtil.BuildTransformPath(itemObject.transform);
+		string path = MPUtil.BuildFullPath(itemObject.transform);
 		return MPUtil.Hash64("sceneItem:" + path);
 	}
 

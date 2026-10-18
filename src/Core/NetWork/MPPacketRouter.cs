@@ -41,7 +41,7 @@ public class MPPacketRouter {
 
 			if (handlerId >= 0 && handlerId < FastHandlers.Length) {
 				if (FastHandlers[handlerId] != null) {
-					Localization.Get("MPPacketRouter.PacketHandlerOverridden", 
+					Localization.GetLog("MPPacketRouter.PacketHandlerOverridden", 
 						packetType, FastHandlers[handlerId].Method.Name, action.Method.Name);
 				}
 
@@ -51,7 +51,7 @@ public class MPPacketRouter {
 
 				//MPMain.LogInfo(Localization.GetByPath("MPPacketRouter.ShowAllRouteTable", packetType, action.Method.Name));
 			} else {
-				Localization.Get("MPPacketRouter.PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
+				Localization.GetLog("MPPacketRouter.PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
 			}
 
 		}
@@ -94,7 +94,7 @@ public class MPPacketRouter {
 			}
 			throw new InvalidOperationException($"Unsupported parameter signature for {method.Name}. Expected (ulong, DataReader).");
 		} catch (Exception e) {
-			MPMain.LogError(Localization.Get(
+			MPMain.LogError(Localization.GetLog(
 				"MPPacketRouter.FailedToBind", method.Name, e.Message));
 			return null;
 		}
@@ -108,13 +108,13 @@ public class MPPacketRouter {
 		// 前64个ID保留给内置处理器,用户注册的处理器必须从64开始
 		if (handlerId >= 64 && handlerId < FastHandlers.Length) {
 			if (FastHandlers[handlerId] != null) {
-				Localization.Get("MPPacketRouter.PacketHandlerOverridden",
+				Localization.GetLog("MPPacketRouter.PacketHandlerOverridden",
 					packetType, FastHandlers[handlerId].Method.Name, handler.Method.Name);
 			}
 			FastHandlers[handlerId] = handler;
-			MPMain.LogInfo(Localization.Get("MPPacketRouter.RegisterRouteSuccess", packetType, handler.Method.Name));
+			MPMain.LogInfo(Localization.GetLog("MPPacketRouter.RegisterRouteSuccess", packetType, handler.Method.Name));
 		} else {
-			Localization.Get("MPPacketRouter.PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
+			Localization.GetLog("MPPacketRouter.PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
 		}
 	}
 
@@ -171,7 +171,7 @@ public class MPPacketRouter {
 		}
 
 		if (packetType < 0 || packetType >= FastHandlers.Length || FastHandlers[packetType] == null) {
-			MPMain.LogError(Localization.Get("MPPacketRouter.NoServiceFound", packetType));
+			MPMain.LogError(Localization.GetLog("MPPacketRouter.NoServiceFound", packetType));
 			return;
 		}
 
@@ -181,9 +181,9 @@ public class MPPacketRouter {
 			FastHandlers[packetType](senderId, reader);
 		} catch (Exception e) {
 			if (DebugTick.TryTick()) {
-				MPMain.LogError(Localization.Get("MPPacketRouter.HandlerException", packetType, e));
-				MPMain.LogError(Localization.Get("MPPacketRouter.ReceivePacketDebug", connectionId, senderId, targetId, packetType));
-				MPMain.LogError(Localization.Get("MPPacketRouter.HexadecimalData", BitConverter.ToString(data.Array, data.Offset + 18, data.Count - 18)));
+				MPMain.LogError(Localization.GetLog("MPPacketRouter.HandlerException", packetType, e));
+				MPMain.LogError(Localization.GetLog("MPPacketRouter.ReceivePacketDebug", connectionId, senderId, targetId, packetType));
+				MPMain.LogError(Localization.GetLog("MPPacketRouter.HexadecimalData", BitConverter.ToString(data.Array, data.Offset + 18, data.Count - 18)));
 			}
 		}
 	}

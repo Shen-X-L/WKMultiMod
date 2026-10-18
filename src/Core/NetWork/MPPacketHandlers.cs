@@ -328,7 +328,7 @@ public class MPPacketHandlers {
 	[MPPacketHandler(PacketType.RemoteCommand)]
 	private static void HandleRemoteCommand(IDType senderId, DataReader reader) {
 		string command = reader.GetString();
-		CommandConsole.Log(Localization.Get("CommandConsole.PlayerIssuedCommand", new Friend(senderId).Name, command));
+		CommandConsole.Log(Localization.GetLog("CommandConsole.PlayerIssuedCommand", new Friend(senderId).Name, command));
 		Patch_CommandConsole.ExecuteCommandForcefully(command);
 	}
 

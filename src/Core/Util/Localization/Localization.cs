@@ -227,20 +227,20 @@ public static class Localization {
 	}
 
 	/// <summary>
-	/// 获取单行文本
+	/// 获取单行文本 判断字体补丁 不可渲染时回退英文
 	/// </summary>
 	/// <param name="key">格式: category.key</param>
 	public static string Get(string key, params object[] args) {
-		if (!TryGetValue(key, out var val)) return val.AsString;
+		if (!TryGetValueSmart(key, out var val)) return val.AsString;
 		return SafeFormat(val.AsString, args);
 	}
 
 	/// <summary>
-	/// 获取单行文本
+	/// 获取单行文本 直接读取当前语言配置
 	/// </summary>
 	/// <param name="key">格式: category.key</param>
-	public static string GetSmart(string key, params object[] args) {
-		if (!TryGetValueSmart(key, out var val)) return val.AsString;
+	public static string GetLog(string key, params object[] args) {
+		if (!TryGetValue(key, out var val)) return val.AsString;
 		return SafeFormat(val.AsString, args);
 	}
 

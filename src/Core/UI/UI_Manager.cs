@@ -140,16 +140,16 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 					Initialize();
 				} catch (Exception ex) {
 					// 捕获所有未预期的崩溃, 并记录日志
-					MPMain.LogError(Localization.Get("UI_Manager.CreateMenuUIFailed", ex.Message));
+					MPMain.LogError(Localization.GetLog("UI_Manager.CreateMenuUIFailed", ex.Message));
 				}
 				try {
 					// 初始化等待按钮
 					CreateLoadingScreen();
 				} catch (Exception ex) {
 					// 捕获所有未预期的崩溃, 并记录日志
-					MPMain.LogError(Localization.Get("UI_Manager.CreateMenuUIFailed", ex.Message));
+					MPMain.LogError(Localization.GetLog("UI_Manager.CreateMenuUIFailed", ex.Message));
 				}
-				MPMain.LogInfo(Localization.Get("UI_Manager.MultiplayerLobbyUIBuildComplete"));
+				MPMain.LogInfo(Localization.GetLog("UI_Manager.MultiplayerLobbyUIBuildComplete"));
 				break;
 			}
 			default:
@@ -178,13 +178,13 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 找到现有的菜单容器
 		GameObject menuContent = _mainMenu!.Find(MAIN_MENU_BUTTONS_PATH).gameObject;
 		if (menuContent == null) {
-			MPMain.LogError(Localization.Get("UI_Manager.MainMenuContainerNotFound"));
+			MPMain.LogError(Localization.GetLog("UI_Manager.MainMenuContainerNotFound"));
 			return;
 		}
 		// 找到一个现有的按钮作为模版
 		GameObject? templateButton = menuContent.transform.Find("Cosmetics")?.gameObject;
 		if (templateButton == null) {
-			MPMain.LogError(Localization.Get("UI_Manager.ButtonTemplateNotFound"));
+			MPMain.LogError(Localization.GetLog("UI_Manager.ButtonTemplateNotFound"));
 			return;
 		}
 		// 克隆并修改名称
@@ -194,7 +194,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		_mpButton.transform.SetSiblingIndex(2);
 		// 修改文字
 		_mpButton.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>()?.text 
-			= Localization.GetSmart("UI_Manager.Main Menu Multi Play");
+			= Localization.Get("UI_Manager.Main Menu Multi Play");
 	}
 
 	#endregion
@@ -217,10 +217,10 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	// 准备和克隆UI容器, 返回是否成功
 	private bool PrepareRootContainers() {
 		GameObject screenContent = _screens!.Find(CANVAS_SCREEN_PLAY_PATH).gameObject;
-		if (screenContent == null) return Error(Localization.Get("UI_Manager.PlayScreenContainerNotFound"));
+		if (screenContent == null) return Error(Localization.GetLog("UI_Manager.PlayScreenContainerNotFound"));
 
 		GameObject? templateScreen = screenContent.transform.Find("Play Menu")?.gameObject;
-		if (templateScreen == null) return Error(Localization.Get("UI_Manager.PlayMenuTemplateNotFound"));
+		if (templateScreen == null) return Error(Localization.GetLog("UI_Manager.PlayMenuTemplateNotFound"));
 
 		// 克隆大厅屏幕
 		IsCloningMultiplayerMenu = true; // 开启拦截标记
@@ -231,7 +231,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 		// 缓存核心容器
 		_lobbyPaneContainer = _mpScreen.transform.Find(PLAY_PANE_PATH)?.gameObject;
-		if (_lobbyPaneContainer == null) return Error(Localization.Get("UI_Manager.LobbyPaneContainerPathError"));
+		if (_lobbyPaneContainer == null) return Error(Localization.GetLog("UI_Manager.LobbyPaneContainerPathError"));
 		_lobbyPaneContainer.name = "Lobby Pane";
 
 		// 清理不需要的元素
@@ -245,7 +245,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 		// 缓存模式变体容器
 		_mutators = _lobbyPaneContainer.transform.Find("Mutators")?.gameObject;
-		if (_mutators == null) return Error(Localization.Get("UI_Manager.MutatorsContainerPathError"));
+		if (_mutators == null) return Error(Localization.GetLog("UI_Manager.MutatorsContainerPathError"));
 
 		return true;
 	}
@@ -255,10 +255,10 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		_screenTabs = _lobbyPaneContainer!.transform.Find("Tabs")?.gameObject;
 		_screenTabButtons = _screenTabs?.transform.Find("Tab Buttons")?.gameObject;
 
-		if (_screenTabButtons == null) return Error(Localization.Get("UI_Manager.TabButtonContainerNotFound"));
+		if (_screenTabButtons == null) return Error(Localization.GetLog("UI_Manager.TabButtonContainerNotFound"));
 
 		_tabButtonTemplate = _screenTabButtons.transform.Find("ModeButton_Custom")?.gameObject;
-		if (_tabButtonTemplate == null) return Error(Localization.Get("UI_Manager.TabButtonTemplateNotFound"));
+		if (_tabButtonTemplate == null) return Error(Localization.GetLog("UI_Manager.TabButtonTemplateNotFound"));
 
 		// 配置模板
 		_tabButtonTemplate.name = "ModeButton_Template";
@@ -271,7 +271,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		_newTabButton.name = "ModeButton_Lobby";
 		_newTabButton.transform.Find("Text (TMP)")
 			?.gameObject.GetComponent<TextMeshProUGUI>()
-			?.text = Localization.GetSmart("UI_Manager.LOBBY");
+			?.text = Localization.Get("UI_Manager.LOBBY");
 
 		_tabButtonTemplate.transform.SetSiblingIndex(1);
 		_newTabButton.transform.SetSiblingIndex(2);
@@ -291,11 +291,11 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	private bool SetupTabContents() {
 		// 缓存标签页内容容器
 		_screenTabObjects = _lobbyPaneContainer!.transform.Find("Tab Objects")?.gameObject;
-		if (_screenTabObjects == null) return Error(Localization.Get("UI_Manager.TabContentContainerNotFound"));
+		if (_screenTabObjects == null) return Error(Localization.GetLog("UI_Manager.TabContentContainerNotFound"));
 
 		// 缓存内容模板
 		_lobbyPaneTemplate = _screenTabObjects.transform.Find("Play Pane - Scroll View Tab - Challenge")?.gameObject;
-		if (_lobbyPaneTemplate == null) return Error(Localization.Get("UI_Manager.ContentTemplateNotFound"));
+		if (_lobbyPaneTemplate == null) return Error(Localization.GetLog("UI_Manager.ContentTemplateNotFound"));
 
 		// 重命名模板并修改顺序
 		_lobbyPaneTemplate.name = "Lobby Pane - Scroll View Tab - Template";
@@ -328,7 +328,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 
 	// 配置模式变体标签页
 	private bool SetupMutators() {
-		if (_mutators == null) return Error(Localization.Get("UI_Manager.MutatorsContainerNotFound"));
+		if (_mutators == null) return Error(Localization.GetLog("UI_Manager.MutatorsContainerNotFound"));
 		// 强制启动变体标签页
 		_mutators.SetActive(true);
 
@@ -346,7 +346,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		refreshText.enableWordWrapping = false;
 		refreshText.overflowMode = TextOverflowModes.Overflow;
 		refreshText.font = _mutators.transform.Find("Ironman Toggle/Background/Label (1)")?.GetComponent<TextMeshProUGUI>()?.font;
-		refreshText.text = Localization.GetSmart("UI_Manager.Refresh");
+		refreshText.text = Localization.Get("UI_Manager.Refresh");
 		refreshText.fontSize = 24;
 
 		// 添加点击事件
@@ -441,7 +441,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		// 修改关联菜单
 		var menuButtonComponent = _mpButton?.GetComponent<UI_MenuButton>();
 		if (menuButtonComponent == null) {
-			MPMain.LogError(Localization.Get("UI_Manager.MenuButtonComponentNotFound"));
+			MPMain.LogError(Localization.GetLog("UI_Manager.MenuButtonComponentNotFound"));
 			return;
 		}
 		menuButtonComponent.screen = _mpScreen?.GetComponent<UI_MenuScreen>();
@@ -459,7 +459,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 	public void CreateLoadingScreen() {
 		loadingTemplate = _mainMenu!.Find("Loading")?.gameObject;
 		if (loadingTemplate == null) {
-			MPMain.LogError(Localization.Get("UI_Manager.LoadingTemplateNotFound"));
+			MPMain.LogError(Localization.GetLog("UI_Manager.LoadingTemplateNotFound"));
 			return;
 		}
 		var screenTransform = _screens!.Find(LOADING_SCREEN_PATH);

@@ -305,9 +305,9 @@ public class RemoteHand : MonoBehaviour {
 	/// </summary>
 	private GameObject? BuildItem(string prefabName) {
 		if (!MPUtil.TryGetItemPrefab(prefabName, out var itemPrefab)) {
-			MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", prefabName));
+			MPMain.LogError(Localization.GetLog("MPMessageHandlers.PrefabDoesNotExist", prefabName));
 			if (!MPUtil.TryGetItemPrefab(ITEM_TEMP, out var itemPrefabTemp)) {
-				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", ITEM_TEMP));
+				MPMain.LogError(Localization.GetLog("MPMessageHandlers.PrefabDoesNotExist", ITEM_TEMP));
 				return null;
 			}
 			itemPrefab = itemPrefabTemp;

@@ -23,7 +23,20 @@ public class NetworkedGameEntity : MonoBehaviour {
 	}
 	#endregion
 
+	#region [网络标签与身份判断]
+
 	public ulong networkId;
+	// 默认为无主状态 (0 或特定的无效 ID)
+	public IDType CurrentOwnerId { get; set { 
+		CurrentOwnerId = value; 
+		IsOwnedByMe = value == MPSteamworks.UserSteamId; 
+	} } = 0;
+
+	// 便捷判断属性
+	public bool HasOwner => CurrentOwnerId != 0;
+	public bool IsOwnedByMe { get; private set; } = false;
+
+	#endregion
 
 	#region[组件缓存]
 	public GameEntity Entity { get; private set; }
@@ -37,6 +50,8 @@ public class NetworkedGameEntity : MonoBehaviour {
 	#endregion
 
 	#region [网络接管与模块管理]
+	private const float TIMEOUT_DURATION = 2.0f; // 2 秒未收到任何网络包则超时
+	private float _lastDataRecvTime;
 	public bool IsNetworkControlled { get; private set; } = false;
 	private bool _lastUseGravity = false;
 
@@ -124,8 +139,12 @@ public class NetworkedGameEntity : MonoBehaviour {
 	}
 
 	private void Update() {
-		if (!IsNetworkControlled) return;
-		// 逐帧驱动所有 Feature 自身的 Update (例如平滑插值)
+		// 超时检测: 如果超过 TIMEOUT_DURATION 秒未收到任何网络包, 则取消网络接管
+		if (!MPSteamworks.IsHost && IsNetworkControlled)
+			if (Time.time - _lastDataRecvTime > TIMEOUT_DURATION) 
+				SetNetworkControl(false);
+
+		// 逐帧驱动所有 Feature 自身的 OnUpdate (例如平滑插值)
 		float dt = Time.deltaTime;
 		for (int i = 0; i < _syncFeatures.Count; i++) {
 			_syncFeatures[i].OnUpdate(dt);
@@ -212,6 +231,13 @@ public class NetworkedGameEntity : MonoBehaviour {
 	/// (Client 侧) 仅反序列化包内包含的变动模块
 	/// </summary>
 	public void ReadSyncState(DataReader reader) {
+		// 刷新数据接收时间
+		_lastDataRecvTime = Time.time;
+		// 客机端开启网络接管
+		if (!MPSteamworks.IsHost && !IsNetworkControlled) {
+			SetNetworkControl(true);
+		}
+		// 反序列化包内包含的变动 Feature 模块
 		byte dirtyCount = reader.GetByte();
 
 		for (int i = 0; i < dirtyCount; i++) {
@@ -233,6 +259,7 @@ public class NetworkedGameEntity : MonoBehaviour {
 	#endregion
 
 	#region [网络控制与 AI 修改]
+
 	/// <summary>
 	/// 设置/切换网络控制接管状态
 	/// true 为关闭本地 AI 与物理控制,由网络数据驱动运动

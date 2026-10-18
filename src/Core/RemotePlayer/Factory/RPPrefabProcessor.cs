@@ -35,7 +35,7 @@ public static class RPPrefabProcessor {
 				if (internalShader != null) {
 					mat.shader = internalShader;
 				} else {
-					MPMain.LogError(Localization.Get("RPPrefabProcessor.ShaderNotFoundOnRenderer", mat.shader.name, renderer.name));
+					MPMain.LogError(Localization.GetLog("RPPrefabProcessor.ShaderNotFoundOnRenderer", mat.shader.name, renderer.name));
 				}
 			}
 		}

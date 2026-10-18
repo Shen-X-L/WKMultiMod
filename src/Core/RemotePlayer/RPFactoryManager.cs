@@ -64,7 +64,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		if (extension == null || string.IsNullOrEmpty(extension.ModelId)) return;
 
 		if (_registry.ContainsKey(extension.ModelId)) {
-			MPMain.LogWarning(Localization.Get("RPFactoryManager.FactoryAlreadyRegistered", extension.ModelId));
+			MPMain.LogWarning(Localization.GetLog("RPFactoryManager.FactoryAlreadyRegistered", extension.ModelId));
 			return;
 		}
 
@@ -72,7 +72,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 			Extension = extension,
 			BundlePath = bundlePath
 		};
-		MPMain.LogInfo(Localization.Get("RPFactoryManager.FactoryRegistered", extension.ModelId));
+		MPMain.LogInfo(Localization.GetLog("RPFactoryManager.FactoryRegistered", extension.ModelId));
 	}
 
 	#endregion
@@ -111,7 +111,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		try {
 			extension?.OnPlayerInstanceCreated(instance);
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("RPFactoryManager.ModelInstanceCallbackCrash", modelId, ex.Message));
+			MPMain.LogError(Localization.GetLog("RPFactoryManager.ModelInstanceCallbackCrash", modelId, ex.Message));
 		}
 
 		return instance;
@@ -130,13 +130,13 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		try {
 			bundle = AssetBundle.LoadFromFile(path);
 			if (bundle == null) {
-				MPMain.LogError(Localization.Get("RPFactoryManager.UnableToLoadResources") + $" path: {path}");
+				MPMain.LogError(Localization.GetLog("RPFactoryManager.UnableToLoadResources") + $" path: {path}");
 				return null;
 			}
 
 			rawPrefab = bundle.LoadAsset<GameObject>(assetName);
 			if (rawPrefab == null) {
-				MPMain.LogError(Localization.Get("RPFactoryManager.PrefabNotLoaded", assetName));
+				MPMain.LogError(Localization.GetLog("RPFactoryManager.PrefabNotLoaded", assetName));
 				return null;
 			}
 
@@ -171,7 +171,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		foreach (var (factoryId, registration) in _registry) {
 			// 现在完美映射自内嵌的 ModelRegistration 结构
 			var ext = registration.Extension;
-			MPMain.LogWarning(Localization.Get("RPFactoryManager.DebugFactoryInfo",
+			MPMain.LogWarning(Localization.GetLog("RPFactoryManager.DebugFactoryInfo",
 				factoryId, ext?.PrefabAssetName ?? "None", registration.BundlePath));
 		}
 	}
