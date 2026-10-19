@@ -168,10 +168,8 @@ public class NetworkedGameEntity : MonoBehaviour {
 		networkId = id;
 
 		ClearAllFeatures();
-
 		// 根 Transform 与血量同步
 		RegisterFeature(new RootTransformSyncFeature(this));
-
 		// 扫描注册所有 Animator Feature
 		var animators = GetComponentsInChildren<Animator>(true);
 		for (byte i = 0; i < animators.Length; i++) {
@@ -179,7 +177,6 @@ public class NetworkedGameEntity : MonoBehaviour {
 			var animFeature = new AnimatorSyncFeature(anim, this);
 			RegisterFeature(animFeature);
 		}
-
 		// VentThing 特化处理子 Transform (手部)
 		if (Entity is DEN_VentThing) {
 			var handTransform = transform.Find("Hand_Root");
@@ -195,6 +192,7 @@ public class NetworkedGameEntity : MonoBehaviour {
 		_syncFeatures.Add(feature);
 	}
 
+	// 清理所有模块
 	private void ClearAllFeatures() {
 		for (int i = 0; i < _syncFeatures.Count; i++) 
 			_syncFeatures[i]?.OnDestroy();

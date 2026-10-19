@@ -625,7 +625,7 @@ public class MPCore : MonoSingleton<MPCore> {
 				return;
 			}
 			if (ulong.TryParse(args[0], out ulong playerId)) {
-				var ids = DictionaryExtensions.FindByKeySuffix(_MPSteamworks.Members.Select(friend => friend.Id.Value), playerId);
+				var ids = DictionaryExtensions.FindByKeySuffix(_MPSteamworks.MemberIDs, playerId);
 				// 未找到对应id
 				if (ids.Count == 0) {
 					CommandConsole.LogError(GetLog("CommandConsole.TargetIdNotFound"));

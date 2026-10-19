@@ -321,7 +321,7 @@ public class DataWriter : IDisposable {
 
 	#endregion
 
-	#region[写入自定义类型]
+	#region[写入容器类型]
 
 	/// <summary>
 	/// 写入 Dictionary&lt;string, byte&gt; 用于(物品名称,数量)

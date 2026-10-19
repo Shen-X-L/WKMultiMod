@@ -48,7 +48,31 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	private readonly HashSet<string> _knownKeysCache = new HashSet<string>();
 
 	// 获取全部在线玩家
-	public IEnumerable<Friend> Members { get => _currentLobby.Members; }
+	private ISet<Friend> _membersCache;
+	private ISet<IDType> _memberIDsCache;
+	private bool _isMembersCacheDirty = true;
+
+	public ISet<Friend> Members {
+		get {
+			if (_isMembersCacheDirty || _membersCache == null || _memberIDsCache == null) {
+				_membersCache = new HashSet<Friend>(_currentLobby.Members);
+				_memberIDsCache = _currentLobby.Members.Select(f => f.Id.Value).ToHashSet();
+				_isMembersCacheDirty = false;
+			}
+			return _membersCache;
+		}
+	}
+
+	public ISet<IDType> MemberIDs {
+		get {
+			if (_isMembersCacheDirty || _membersCache == null || _memberIDsCache == null) {
+				_membersCache = new HashSet<Friend>(_currentLobby.Members);
+				_memberIDsCache = _currentLobby.Members.Select(f => f.Id.Value).ToHashSet();
+				_isMembersCacheDirty = false;
+			}
+			return _memberIDsCache;
+		}
+	}
 
 	// 检查是否在大厅中
 	public bool IsInLobby {
@@ -680,6 +704,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// LobbyEntered总线订阅者: <see cref="MPCore.HandleLobbyEntered"/><br/>
 	/// </summary>
 	private void HandleLobbyEntered(Lobby lobby) {
+		_isMembersCacheDirty = true;
 		_currentLobby = lobby;
 		HostSteamId = lobby.Owner.Id;
 		MPMain.LogInfo(Localization.GetLog("MPSteamworks.EnteredLobby", lobby.Id.ToString()));
@@ -691,10 +716,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		// 8人分组 每组进行连接协程创建
 		for (int i = 0; i < members.Count; ++i) {
 			var friend = members[i];
-
 			if (_allConnections.ContainsKey(friend.Id) || _connectionCoroutines.ContainsKey(friend.Id))
 				continue;
-
 			var waitTime = i / MAX_PEER_CONNECTIONS * SCAN_INTERVAL + CONN_CLEANUP_FIRST;
 			if (!_allConnections.ContainsKey(friend.Id) && !_connectionCoroutines.ContainsKey(friend.Id))
 				_connectionCoroutines[friend.Id] = StartCoroutine(ConnectionController(friend.Id, waitTime));
@@ -709,9 +732,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	private void HandleLobbyMemberJoined(Lobby lobby, Friend friend) {
 		if (lobby.Id == _currentLobby.Id) {
+			_isMembersCacheDirty = true;
 			_currentLobby = lobby;
 			MPMain.LogInfo(Localization.GetLog("MPSteamworks.PlayerJoinedRoom", friend.Name));
-
 			// 排除自己
 			if (friend.Id != UserSteamId) {
 				if (!_allConnections.ContainsKey(friend.Id) && !_connectionCoroutines.ContainsKey(friend.Id)) {
@@ -724,7 +747,6 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 					_connectionCoroutines[friend.Id] = StartCoroutine(ConnectionController(friend.Id, waitTime));
 				}
 			}
-
 			// 发布事件到总线
 			MPEventBusNet.NotifyLobbyMemberJoined(friend);
 		}
@@ -735,12 +757,11 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	private void HandleLobbyMemberLeave(Lobby lobby, Friend friend) {
 		if (lobby.Id == _currentLobby.Id) {
+			_isMembersCacheDirty = true;
 			_currentLobby = lobby;
 			MPMain.LogInfo(Localization.GetLog("MPSteamworks.PlayerLeftRoom", friend.Name));
-
 			// 发布事件到总线
 			MPEventBusNet.NotifyLobbyMemberLeave(friend);
-
 			// 只在这里处理连接清理
 			OnPlayerDisconnected(friend.Id);
 		}
@@ -751,8 +772,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	private void HandleLobbyMemberDisconnected(Lobby lobby, Friend friend) {
 		if (lobby.Id == _currentLobby.Id) {
+			_isMembersCacheDirty = true;
 			MPMain.LogInfo(Localization.GetLog("MPSteamworks.PlayerDisconnectedFromLobby", friend.Name));
-
 			// 重复分发
 			// 发布断开事件到总线
 			//MPEventBusNet.NotifyPlayerDisconnected(friend.Id);
@@ -1236,17 +1257,19 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 	}
 
-
 	/// <summary>
 	/// 移交大厅权限
 	/// </summary>
 	public void SetLobbyHost(IDType playerId) {
-		if (!IsHost)
-			return;
+		if (!IsHost) return;
 		var newHost = new Friend(playerId);
 		_currentLobby.Owner = newHost;
 	}
 
+	public static bool ContainsMemberID(IDType playerId) {
+		if (Instance.MemberIDs == null || !Instance.MemberIDs.Contains(playerId)) return false;
+		return true;
+	}
 	#endregion
 
 	#region[大厅检索]
