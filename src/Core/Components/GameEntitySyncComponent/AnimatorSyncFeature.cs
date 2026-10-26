@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using WKMPMod.Data;
+using WKMPMod.NetWork;
 using WKMPMod.World;
 
 namespace WKMPMod.Components;
 
-public class AnimatorSyncFeature : ISyncFeature {
+public class AnimatorSyncFeature : ISyncFeature,ICustomSyncFeature {
 	#region[查找表]
 
 	// 静态快速查找表：Animator -> 对应的 AnimatorSyncFeature
@@ -30,18 +31,12 @@ public class AnimatorSyncFeature : ISyncFeature {
 
 	#endregion
 
-	public byte FeatureIndex { get; set; }
-	public string FeatureId => $"Animator_{TargetAnimator?.name}";
-
 	public Animator TargetAnimator { get; private set; }
 	public NetworkedGameEntity Entity { get; }
-
 	private readonly Dictionary<int, bool> _dirtyBools = new();
 	private readonly Dictionary<int, float> _dirtyFloats = new();
 	private readonly Dictionary<int, int> _dirtyInts = new();
 	private readonly Dictionary<int, float> _dirtyLayerWeights = new();
-
-	public bool IsDirty => _dirtyBools.Count > 0 || _dirtyFloats.Count > 0 || _dirtyInts.Count > 0 || _dirtyLayerWeights.Count > 0;
 
 	public AnimatorSyncFeature(Animator animator, NetworkedGameEntity entity) {
 		TargetAnimator = animator;
@@ -58,7 +53,13 @@ public class AnimatorSyncFeature : ISyncFeature {
 
 	#endregion
 
-	#region[接口实现]
+	#region[ISyncFeature接口实现]
+
+	public byte FeatureIndex { get; set; }
+
+	public string FeatureId => $"Animator_{TargetAnimator?.name}";
+
+	public bool IsDirty => _dirtyBools.Count > 0 || _dirtyFloats.Count > 0 || _dirtyInts.Count > 0 || _dirtyLayerWeights.Count > 0;
 
 	public void WriteState(DataWriter writer) {
 		// 1. Bool
@@ -138,8 +139,30 @@ public class AnimatorSyncFeature : ISyncFeature {
 
 	#endregion
 
+	#region[ICustomSyncFeature接口实现]
+
+	public void HandleCustomMessage(ulong senderId, DataReader reader, bool needReply) {
+		if (Entity.IsOwnedByMe) return;
+		int hashId = reader.GetInt();
+		ApplyTrigger(hashId);
+	}
+
+	public void HandleCustomReply(IDType senderId) {
+		
+	}
+
+	#endregion
+
+	public void SetTrigger(int hashId) {
+		if (TargetAnimator == null) return;
+		TargetAnimator.SetTrigger(hashId);
+		if (Entity.IsOwnedByMe) EnemySyncModule.Instance.BroadcastCustomFeature(
+			Entity.networkId, FeatureIndex, writer => writer.Put(hashId));
+	}
+
 	public void ApplyTrigger(int hashId) {
 		if (TargetAnimator == null) return;
 		TargetAnimator.SetTrigger(hashId);
 	}
+
 }

@@ -2,13 +2,10 @@ using DarkMachine.AI;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using Unity.Entities;
 using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
-using WKMPMod.Util;
-using WKMPMod.World;
 
 namespace WKMPMod.Components;
 
@@ -27,13 +24,15 @@ public class NetworkedGameEntity : MonoBehaviour {
 
 	public ulong networkId;
 	// 默认为无主状态 (0 或特定的无效 ID)
-	public IDType CurrentOwnerId { get; set { 
-		CurrentOwnerId = value; 
-		IsOwnedByMe = value == MPSteamworks.UserSteamId; 
-	} } = 0;
-
+	public IDType CurrentOwnerId { 
+		get => _currentOwnerId; 
+		set {
+			_currentOwnerId = value; 
+			IsOwnedByMe = value == MPSteamworks.UserSteamId; 
+		} }
+	private IDType _currentOwnerId = 0;
 	// 便捷判断属性
-	public bool HasOwner => CurrentOwnerId != 0;
+	public bool HasOwner => _currentOwnerId != 0;
 	public bool IsOwnedByMe { get; private set; } = false;
 
 	#endregion
@@ -72,43 +71,6 @@ public class NetworkedGameEntity : MonoBehaviour {
 	}
 	#endregion
 
-	#region[AITargetComponent反射]
-
-	// 反射缓存
-	private static readonly Dictionary<Type, FieldInfo> _targetCompFieldCache = new();
-
-	/// <summary>
-	/// 从 GameEntity 及其挂载组件中查找并提取 AITargetComponent
-	/// </summary>
-	public static bool TryGetAITargetComponent(GameEntity entity, out AITargetComponent targetComp) {
-		targetComp = null;
-		if (entity == null) return false;
-		Type type = entity.GetType();
-
-		// 查表或反射获取 FieldInfo (沿继承链向上查找)
-		if (!_targetCompFieldCache.TryGetValue(type, out var fieldInfo)) {
-			for (var current = type; current != null && current != typeof(object); current = current.BaseType) {
-				foreach (var field in current.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)) {
-					if (typeof(AITargetComponent).IsAssignableFrom(field.FieldType)) {
-						fieldInfo = field;
-						break;
-					}
-				}
-				if (fieldInfo != null) break;
-			}
-			_targetCompFieldCache[type] = fieldInfo;
-		}
-
-		// 如果存在匹配字段且成功取到实例, 直接返回 true
-		if (fieldInfo != null && fieldInfo.GetValue(entity) is AITargetComponent result) {
-			targetComp = result;
-			return true;
-		}
-		return false;
-	}
-
-	#endregion
-
 	#region[Unity生命周期]
 
 	private void Awake() {
@@ -133,9 +95,6 @@ public class NetworkedGameEntity : MonoBehaviour {
 		}
 
 		Rb = GetComponent<Rigidbody>();
-
-		// 主机启动生物对远端玩家扩展
-		if (MPSteamworks.IsHost) EnableRemotePlayerTargeting();
 	}
 
 	private void Update() {
@@ -170,6 +129,11 @@ public class NetworkedGameEntity : MonoBehaviour {
 		ClearAllFeatures();
 		// 根 Transform 与血量同步
 		RegisterFeature(new RootTransformSyncFeature(this));
+		// AI 目标行为统一由 TargetSyncFeature 管理
+		if (AIEntity != null) {
+			TargetSyncFeature.TryGetAITargetComponent(Entity, out var targetComponent);
+			RegisterFeature(new TargetSyncFeature(targetComponent, this));
+		}
 		// 扫描注册所有 Animator Feature
 		var animators = GetComponentsInChildren<Animator>(true);
 		for (byte i = 0; i < animators.Length; i++) {
@@ -203,7 +167,7 @@ public class NetworkedGameEntity : MonoBehaviour {
 
 	#region [分模块网络序列化与反序列化]
 	/// <summary>
-	/// (Host 侧) 只序列化发生变动 (IsDirty == true) 的模块数据
+	/// 只序列化发生变动 (IsDirty == true) 的模块数据
 	/// </summary>
 	public void WriteSyncState(DataWriter writer) {
 		// 统计脏模块数量
@@ -226,13 +190,28 @@ public class NetworkedGameEntity : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// (Client 侧) 仅反序列化包内包含的变动模块
+	/// 序列化所有模块的完整数据
+	/// </summary>
+	public void WriteFullSyncState(DataWriter writer) {
+		// 写入全部模块总数
+		writer.Put((byte)_syncFeatures.Count);
+
+		// 全量写入：无视 IsDirty，强制写入所有 [FeatureIndex + 模块数据]
+		for (int i = 0; i < _syncFeatures.Count; i++) {
+			var feature = _syncFeatures[i];
+			writer.Put(feature.FeatureIndex);
+			feature.WriteState(writer);
+		}
+	}
+
+	/// <summary>
+	/// 仅反序列化包内包含的变动模块
 	/// </summary>
 	public void ReadSyncState(DataReader reader) {
 		// 刷新数据接收时间
 		_lastDataRecvTime = Time.time;
 		// 客机端开启网络接管
-		if (!MPSteamworks.IsHost && !IsNetworkControlled) {
+		if (!IsOwnedByMe && !IsNetworkControlled) {
 			SetNetworkControl(true);
 		}
 		// 反序列化包内包含的变动 Feature 模块
@@ -243,15 +222,6 @@ public class NetworkedGameEntity : MonoBehaviour {
 			if (featureIndex < _syncFeatures.Count) 
 				_syncFeatures[featureIndex].ReadState(reader);
 		}
-	}
-
-	#endregion
-
-	#region [AnimatorInterceptor 接口适配]
-
-	public void ApplyRemoteTrigger(byte featureIndex, int hashId) {
-		if (featureIndex < _syncFeatures.Count && _syncFeatures[featureIndex] is AnimatorSyncFeature animFeature) 
-			animFeature.ApplyTrigger(hashId);
 	}
 
 	#endregion
@@ -294,58 +264,6 @@ public class NetworkedGameEntity : MonoBehaviour {
 				Rb.useGravity = false;
 			} else Rb.useGravity = _lastUseGravity;
 			Rb.isKinematic = state;
-		}
-	}
-
-	/// <summary>
-	/// 使生物可以索敌其他远程玩家
-	/// </summary>
-	private void EnableRemotePlayerTargeting() {
-		// 视线组件修改：添加图层 15(Creature) 到 AI 视线检测
-		if (AIEntity?.sight != null) {
-			AIEntity.sight.sightMask.value |= (1 << 15);
-		}
-
-		// 目标追踪组件修改
-		// 无人机特化
-		if (AIEntity is DEN_Drone drone) {
-			// 添加 "RemotePlayer" 扫描标签
-			if (drone.targetTags == null) {
-				drone.targetTags = new[] { "RemotePlayer" };
-			} else if (Array.IndexOf(drone.targetTags, "RemotePlayer") < 0) {
-				int oldLen = drone.targetTags.Length;
-				Array.Resize(ref drone.targetTags, oldLen + 1);
-				drone.targetTags[oldLen] = "RemotePlayer";
-			}
-			return;
-		}
-
-		// 气囊特化
-		if (AIEntity is DEN_Gasbag gasbag) {
-			// 添加 "RemotePlayer" 扫描标签
-			if (gasbag.explodeTags == null) {
-				gasbag.explodeTags = new[] { "RemotePlayer" };
-			} else if (Array.IndexOf(gasbag.explodeTags, "RemotePlayer") < 0) {
-				int oldLen = gasbag.explodeTags.Length;
-				Array.Resize(ref gasbag.explodeTags, oldLen + 1);
-				gasbag.explodeTags[oldLen] = "RemotePlayer";
-			}
-			return;
-		}
-
-		// 通用AITargetComponent搜寻修改
-		if (TryGetAITargetComponent(Entity, out var targetComp)) {
-			targetComp.targetScanMask.value |= (1 << 15);
-
-			// 添加 "RemotePlayer" 扫描标签
-			if (targetComp.targetScanTags == null) {
-				targetComp.targetScanTags = new[] { "RemotePlayer" };
-			} else if (Array.IndexOf(targetComp.targetScanTags, "RemotePlayer") < 0) {
-				int oldLen = targetComp.targetScanTags.Length;
-				Array.Resize(ref targetComp.targetScanTags, oldLen + 1);
-				targetComp.targetScanTags[oldLen] = "RemotePlayer";
-			}
-			return;
 		}
 	}
 

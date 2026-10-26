@@ -57,4 +57,6 @@ public static partial class MPKeys {
 
 	// 他人物品标签
 	public const string OTHER_PLAYER_ITEM = "otherPlayerItem";
+
+	public const string REMOTE_PLAYER_TAG = "RemotePlayer";
 }

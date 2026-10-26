@@ -186,8 +186,8 @@ public class RemotePlayer : GameEntity {
 	}
 
 	private void EnemyDamage(Damageable.DamageInfo info) {
-		// 不是主机 || 不是远程生物
-		if (!MPSteamworks.IsHost || !info.sourceEntity.TryGetComponent<NetworkedGameEntity>(out var identity)) return;
+		// 不是远程生物 || 没有所有权
+		if (!info.sourceEntity.TryGetComponent<NetworkedGameEntity>(out var identity) || !identity.IsOwnedByMe) return;
 		// 伤害值 <= 0 不造成伤害
 		if (info.amount <= 0) return;
 		info.tags.Add(MPKeys.REMOTE_ENEMY_DAMAGE_TAG);
@@ -226,8 +226,8 @@ public class RemotePlayer : GameEntity {
 	}
 
 	private void AddEnemyForce(Vector3 force, string source, GameEntity sourceEntity) {
-		// 不是主机 || 不是远程生物
-		if (!MPSteamworks.IsHost || !sourceEntity.TryGetComponent<NetworkedGameEntity>(out var identity)) return;
+		// 不是远程生物 || 没有所有权
+		if (!sourceEntity.TryGetComponent<NetworkedGameEntity>(out var identity) || !identity.IsOwnedByMe) return;
 		source = "NetEnemyId:" + identity.networkId;
 		// 发送冲击力通知事件
 		MPEventBusGame.NotifyPlayerAddForce(playerId, force, source);

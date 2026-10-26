@@ -48,3 +48,15 @@ public interface ISyncFeature {
 	/// </summary>
 	void OnDestroy();
 }
+
+public interface ICustomSyncFeature {
+	/// <summary>
+	/// 收到针对该 Feature 的自定义消息。
+	/// </summary>
+	void HandleCustomMessage(IDType senderId, DataReader reader, bool needReply);
+
+	/// <summary>
+	/// 收到目标实体或 Feature 不存在的失败响应。
+	/// </summary>
+	void HandleCustomReply(IDType senderId);
+}
