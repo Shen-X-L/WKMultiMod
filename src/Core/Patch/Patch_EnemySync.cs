@@ -39,7 +39,7 @@ public class Patch_GameEntity {
 	[HarmonyPatch(nameof(GameEntity.OnEnable))]
 	[HarmonyPostfix]
 	public static void Patch_OnEnable(GameEntity __instance) {
-		EnemySyncModule.Instance.OnEntityEnabled(__instance);
+		EnemySyncModule.Instance?.OnEntityEnabled(__instance);
 	}
 
 	/// <summary>
@@ -48,7 +48,7 @@ public class Patch_GameEntity {
 	[HarmonyPatch(nameof(GameEntity.OnDisable))]
 	[HarmonyPrefix]
 	public static void Patch_OnDisable(GameEntity __instance) {
-		EnemySyncModule.Instance.OnEntityDisabled(__instance);
+		EnemySyncModule.Instance?.OnEntityDisabled(__instance);
 	}
 
 	#endregion
@@ -484,7 +484,7 @@ public static class Patch_AITargetComponent {
 	[HarmonyPostfix]
 	[HarmonyPatch(nameof(AITargetComponent.CheckForTarget))]
 	public static void Patch_CheckForTarget(AITargetComponent __instance) {
-		if(__instance?.target==null) return;
+		if(__instance?.target?.targetTagger == null) return;
 		// 未锁定远程玩家
 		if (!__instance.target.targetTagger.HasTag(MPKeys.REMOTE_PLAYER_TAG)) return;
 		if (__instance.target.targetEntity is not RemotePlayer remotePlayer) return;

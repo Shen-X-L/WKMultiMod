@@ -15,7 +15,7 @@ namespace WKMPMod.NetWork;
 
 public class MPPacketRouter {
 	// 路由表
-	private static readonly Action<ulong, DataReader>[] FastHandlers = new Action<ulong, DataReader>[64];
+	private static readonly Action<IDType, DataReader>[] FastHandlers = new Action<IDType, DataReader>[64];
 	public static TickTimer DebugTick = new TickTimer(1);
 
 	#region[初始化路由表]
@@ -103,7 +103,7 @@ public class MPPacketRouter {
 
 	#region[注册路由接口]
 
-	public static void RegisterRoute(PacketType packetType, Action<ulong, DataReader> handler) {
+	public static void RegisterRoute(PacketType packetType, Action<IDType, DataReader> handler) {
 		ushort handlerId = (ushort)packetType;
 		// 前64个ID保留给内置处理器,用户注册的处理器必须从64开始
 		if (handlerId >= 64 && handlerId < FastHandlers.Length) {

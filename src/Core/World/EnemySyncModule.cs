@@ -384,9 +384,8 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 实体启用时的增量回调 (由 Harmony Patch 调用)
 	/// </summary>
 	public void OnEntityEnabled(GameEntity entity) {
-		if (entity == null || !MPCore.IsReady) return;
+		if (entity == null || !MPCore.IsReady || !IsEnabled) return;
 		if (!IsSyncableEnemy(entity)) return;
-
 		// 主机与客机均在实体启用时直接建立身份绑定
 		EnsureIdentity(entity);
 	}
@@ -395,8 +394,8 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 实体禁用/销毁时的增量回调 (由 Harmony Patch 调用)
 	/// </summary>
 	public void OnEntityDisabled(GameEntity entity) {
-		if (entity == null || ApplyingRemoteState) return;
-		int instanceId = entity.GetInstanceID();
+		if (entity == null || !MPCore.IsReady || ApplyingRemoteState ) return;
+		int instanceId = entity.gameObject.GetInstanceID();
 		if (_byInstanceId.TryGetValue(instanceId, out var identity)) {
 			RemoveEnemyRecord(identity);
 			AbandonOwnerOrUnsubscribe(identity);
@@ -416,7 +415,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			BroadcastKill(identity, type);
 		}
 		// 消除生物记录
-		int instanceId = entity.GetInstanceID();
+		int instanceId = entity.gameObject.GetInstanceID();
 		if (_byInstanceId.TryGetValue(instanceId, out var existingIdentity)) {
 			RemoveEnemyRecord(existingIdentity);
 			AbandonOwnerOrUnsubscribe(existingIdentity);
@@ -436,39 +435,51 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			switch (action) {
 				case EnemySyncAction.OwnerRequest:
 					HandleOwnerRequest(senderId, reader);
+					MPMain.LogTest("[MP EnemySync] HandleOwnerRequest");
 					break;
 				case EnemySyncAction.OwnerResponse:
 					HandleOwnerResponse(reader);
+					MPMain.LogTest("[MP EnemySync] HandleOwnerResponse");
 					break;
 				case EnemySyncAction.OwnerAbandon:
 					HandleOwnerAbandon(senderId, reader);
+					MPMain.LogTest("[MP EnemySync] HandleOwnerAbandon");
 					break;
 				case EnemySyncAction.SubscriptionRequest:
 					HandleSubscriptionRequest(senderId, reader);
+					MPMain.LogTest("[MP EnemySync] HandleSubscriptionRequest");
 					break;
 				case EnemySyncAction.UnsubscriptionRequest:
 					HandleUnsubscriptionRequest(senderId, reader);
+					MPMain.LogTest("[MP EnemySync] HandleUnsubscriptionRequest");
 					break;
 				case EnemySyncAction.StateBatch:
 					HandleState(senderId, reader);
+					MPMain.LogTest("[MP EnemySync] HandleState");
 					break;
 				case EnemySyncAction.Damage:
 					HandleDamage(senderId, reader);
+					MPMain.LogTest("[MP EnemySync] HandleDamage");
 					break;
 				case EnemySyncAction.Kill:
 					HandleKill(reader);
+					MPMain.LogTest("[MP EnemySync] HandleKill");
 					break;
 				case EnemySyncAction.SnapshotRequest:
 					HandleSnapshotRequest(senderId);
+					MPMain.LogTest("[MP EnemySync] HandleSnapshotRequest");
 					break;
 				case EnemySyncAction.SnapshotChunk:
 					HandleSnapshotChunk(reader);
+					MPMain.LogTest("[MP EnemySync] HandleSnapshotChunk");
 					break;
 				case EnemySyncAction.CustomFeature:
 					HandleCustomFeature(senderId, reader);
+					MPMain.LogTest("[MP EnemySync] HandleCustomFeature");
 					break;
 				case EnemySyncAction.CustomFeatureReply:
 					HandleCustomFeatureReply(senderId, reader);
+					MPMain.LogTest("[MP EnemySync] HandleCustomFeatureReply");
 					break;
 				default:
 					MPMain.LogWarning($"[MP EnemySync] Unknown action: {action}");
@@ -718,7 +729,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		var syncRoot = entity.transform;
 		if (syncRoot == null) return null;
 		// 按实例ID缓存查找
-		int instanceId = syncRoot.GetInstanceID();
+		int instanceId = entity.gameObject.GetInstanceID();
 		if (_byInstanceId.TryGetValue(instanceId, out var existing) && existing != null) return existing;
 		// 获取或添加 NetworkedEnemy 组件
 		var identity = syncRoot.GetComponent<NetworkedGameEntity>() ?? syncRoot.AddComponent<NetworkedGameEntity>();
@@ -730,6 +741,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 				networkId++;
 			}
 			identity.Initialize(networkId);
+			MPMain.LogDebug($"EnsureIdentity hash: {networkId}");
 		}
 		// 该生物已经被记录 杀死该生物
 		if (_diedEntities.TryGetValue(identity.networkId, out var diedType)) {
@@ -765,7 +777,9 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 其他模式使用 BuildFullPath(可能出现重复关卡,需要对象间排序)
 	/// </summary>
 	private ulong BuildStableNetworkId(Transform transform) {
-		return MPUtil.Hash64(MPGameModeManager.IsCampaignMode ? MPUtil.BuildNamePath(transform) : MPUtil.BuildFullPath(transform));
+		string path = MPGameModeManager.IsCampaignMode ? MPUtil.BuildNamePath(transform) : MPUtil.BuildFullPath(transform);
+		MPMain.LogDebug($"BuildStableNetworkId NetworkId: {path}");
+		return MPUtil.Hash64(path);
 	}
 
 	#endregion
@@ -783,12 +797,12 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (networkId == 0 || newOwnerId == 0) return false;
 		// 是否为所有者
 		bool isLocalOwner = newOwnerId == MPSteamworks.UserSteamId;
+		// 记录所有者
+		_entityOwners[networkId] = newOwnerId;
 		// 没有对应实体
 		if (!enemies.TryGetValue(networkId, out var identity) || identity == null) {
 			// 是所有者 返回错误并要求调用方放弃所有权
 			if (isLocalOwner) return false;
-			// 不是所有者 仅记录
-			_entityOwners[networkId] = newOwnerId;
 			return true;
 		}
 		// 设置新所有者

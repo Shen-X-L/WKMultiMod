@@ -8,8 +8,6 @@ using WKMPMod.Data;
 using WKMPMod.NetWork;
 
 namespace WKMPMod.Components;
-
-
 public class NetworkedGameEntity : MonoBehaviour {
 	#region [类型信息类]
 	public enum EntityType {

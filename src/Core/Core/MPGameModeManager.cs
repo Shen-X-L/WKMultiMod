@@ -20,7 +20,7 @@ public class MPGameModeManager {
 
 	[Serializable]
 	public record class GameModeData : INetworkSerializable {
-		public string gameModeName;         // 可能重名
+		public string gamemodeName;         // 可能重名
 		public string gameModeObjectName;   // 可能重名
 		public List<string> activeTrinkets; // 包含饰品和绑定的名称列表
 		public List<string> activeSettings; // 包含铁人, 困难等设置的名称列表
@@ -28,7 +28,7 @@ public class MPGameModeManager {
 		public int? seed;
 
 		public void Serialize(DataWriter writer) {
-			writer.Put(gameModeName);
+			writer.Put(gamemodeName);
 			writer.Put(gameModeObjectName);
 			writer.Put(activeTrinkets);
 			writer.Put(activeSettings);
@@ -37,7 +37,7 @@ public class MPGameModeManager {
 		}
 
 		public void Deserialize(DataReader reader) {
-			this.gameModeName = reader.GetString();
+			this.gamemodeName = reader.GetString();
 			this.gameModeObjectName = reader.GetString();
 			this.activeTrinkets = reader.GetStringList();
 			this.activeSettings = reader.GetStringList();
@@ -46,7 +46,7 @@ public class MPGameModeManager {
 		}
 	}
 
-	public static Dictionary<string, M_Gamemode> gameModeDict = new Dictionary<string, M_Gamemode>();
+	public static Dictionary<string, M_Gamemode> gamemodeDict = new Dictionary<string, M_Gamemode>();
 	public static GameModeData? CurrentData { get; private set; }
 	public static bool IsCampaignMode { get; private set; }
 
@@ -64,8 +64,8 @@ public class MPGameModeManager {
 
 		foreach (var (key, value) in dict) {
 			foreach (var gamemode in value.database.gamemodeAssets) {
-				gameModeDict[gamemode.name] = gamemode;
-				gameModeDict[gamemode.gamemodeName] = gamemode;
+				gamemodeDict[gamemode.name] = gamemode;
+				gamemodeDict[gamemode.gamemodeName] = gamemode;
 			}
 		}
 	}
@@ -83,20 +83,19 @@ public class MPGameModeManager {
 	/// </summary>
 	public static GameModeData CaptureCurrentModeData() {
 		CurrentData = new GameModeData {
-			gameModeName = CL_GameManager.gamemode.name,
+			gamemodeName = CL_GameManager.gamemode.gamemodeName,
 			gameModeObjectName = CL_GameManager.gamemode.ToString(),
 			activeTrinkets = StatManager.saveData.GetGameMode(CL_GameManager.GetGamemodeName()).activeTrinkets,
 			activeSettings = StatManager.saveData.GetGameMode(CL_GameManager.GetBaseGamemode().gamemodeName).activeSettings,
 			needBindSync = MPConfig.BindSync,
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
-		IsCampaignMode = CL_GameManager.gamemode.name == CAMPAIGN_GAME_MODE;
+		IsCampaignMode = CL_GameManager.gamemode.gamemodeName == CAMPAIGN_GAME_MODE;
 		return CurrentData;
 	}
 
 	public static void LoadGameModeIfChanged(GameModeData data) {
-		if (CurrentData != null && CurrentData == data)
-			return;
+		if (CurrentData != null && CurrentData == data) return;
 		LoadGameMode(data);
 	}
 
@@ -105,13 +104,13 @@ public class MPGameModeManager {
 	/// </summary>
 	public static void LoadGameMode(GameModeData data) {
 		// 字典内没有数据时重初始化字典
-		if (gameModeDict.Count == 0) Initialize();
+		if (gamemodeDict.Count == 0) Initialize();
 		// 保存当前数据
 		CurrentData = data;
-		IsCampaignMode = data.gameModeName == CAMPAIGN_GAME_MODE;
+		IsCampaignMode = data.gamemodeName == CAMPAIGN_GAME_MODE;
 		// 更改游戏模式
-		if (!gameModeDict.TryGetValue(data.gameModeName, out var m_Gamemode)) {
-			MPMain.LogError(Localization.GetLog("MPGameModeManager.GameModeNotFound", data.gameModeName));
+		if (!gamemodeDict.TryGetValue(data.gamemodeName, out var m_Gamemode)) {
+			MPMain.LogError(Localization.GetLog("MPGameModeManager.GameModeNotFound", data.gamemodeName));
 			return;
 		}
 		// 设置游戏模式
@@ -161,7 +160,7 @@ public class MPGameModeManager {
 	/// 尝试获取游戏模式
 	/// </summary>
 	public static bool TryGetGameMode(string name, out M_Gamemode gamemode) {
-		if (gameModeDict.Count == 0) Initialize();
-		return gameModeDict.TryGetValue(name, out gamemode);
+		if (gamemodeDict.Count == 0) Initialize();
+		return gamemodeDict.TryGetValue(name, out gamemode);
 	}
 }

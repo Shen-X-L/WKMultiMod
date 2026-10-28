@@ -130,8 +130,7 @@ public class RemotePlayer : GameEntity {
 		_damageSourceFrame = Time.frameCount;
 		_damageSourceEntity = info.sourceEntity;
 
-		MPMain.LogTest(
-			$"[MP RP Damage] DamageInfo: {info.amount} type: {info.type} " +
+		MPMain.LogTest($"[MP RP Damage] DamageInfo: {info.amount} type: {info.type} " +
 			$"source: {info.sourceEntity?.name?? "Unknown"}");
 
 		// 玩家造成的伤害 || 爆炸伤害

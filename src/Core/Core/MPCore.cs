@@ -1027,7 +1027,7 @@ public class MPCore : MonoSingleton<MPCore> {
 					var gamemode = lobby.GetData(MPKeys.GAMEMODE_JSON);
 					try {
 						GameModeData gameModeData = JsonConvert.DeserializeObject<GameModeData>(gamemode);
-						if (gameModeData != null) gamemode = gameModeData.gameModeName;
+						if (gameModeData != null) gamemode = gameModeData.gamemodeName;
 					} catch (Exception ex) {
 						MPMain.LogError(GetLog("MPCore.GamemodeParseError", gamemode, ex.Message));
 					}
@@ -1487,7 +1487,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			var gamemode = lobby.GetData(MPKeys.GAMEMODE_JSON);
 			try {
 				GameModeData gameModeData = JsonConvert.DeserializeObject<GameModeData>(gamemode);
-				if (gameModeData != null) gamemode = gameModeData.gameModeName;
+				if (gameModeData != null) gamemode = gameModeData.gamemodeName;
 			} catch (Exception ex) {
 				MPMain.LogError(GetLog("MPCore.GamemodeParseError", gamemode, ex.Message));
 			}

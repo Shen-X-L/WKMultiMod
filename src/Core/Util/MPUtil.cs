@@ -112,7 +112,7 @@ public static class MPUtil {
 	}
 
 	/// <summary>
-	/// 构建变换层级路径. 例如 "Root[0]/Child[1]/Grandchild[0]".
+	/// 构建变换层级路径. 例如 "Root/Child/Grandchild".
 	/// </summary>
 	public static string BuildNamePath(Transform transform) {
 		if (transform == null) return string.Empty;
@@ -126,7 +126,7 @@ public static class MPUtil {
 	}
 
 	/// <summary>
-	/// 构建变换层级路径. 指定父子对象. 例如 "Parent[0]/Child[1]/Grandchild[0]".
+	/// 构建变换层级路径. 指定父子对象. 例如 "Parent/Child/Grandchild".
 	/// </summary>
 	public static string BuildNamePath(Transform child, Transform parent) {
 		if (child == null) return string.Empty;

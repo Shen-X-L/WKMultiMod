@@ -155,7 +155,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			MPMain.LogError(Localization.GetLog("UI_LobbyJoinButton.GamemodeParseError",rawData,ex.Message));
 		}
 		// 检查兼容性 模式检测 版本检测
-		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
+		isOfficialGamemodes = TryGetGameMode(gameModeData?.gamemodeName ?? "", out var gamemode);
 		var (isCompatible, versionDisplay) = CheckVersionCompatibility(MPMain.PLUGIN_VERSION, lobby.GetData(MPKeys.MOD_VERSION));
 		// 是否锁定的UI' 状态
 		if (!isOfficialGamemodes) {

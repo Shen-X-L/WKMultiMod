@@ -88,7 +88,7 @@ internal class TargetSyncFeature : ISyncFeature, ICustomSyncFeature {
 		if (TargetComponent == null) return;
 
 		TargetComponent.targetScanMask.value |= 1 << 15;
-		AddTag(ref TargetComponent.targetScanTags, MPKeys.REMOTE_PLAYER_TAG;
+		AddTag(ref TargetComponent.targetScanTags, MPKeys.REMOTE_PLAYER_TAG);
 		AddTag(ref TargetComponent.targetIgnoreTags, $"Ignore:{Entity.networkId}");
 	}
 
@@ -156,6 +156,7 @@ internal class TargetSyncFeature : ISyncFeature, ICustomSyncFeature {
 		if (!tagger.HasTag(removeTag)) yield break;
 		yield return new WaitForSeconds(2f);
 		tagger.RemoveTag(removeTag);
+		yield break;
 	}
 
 	#endregion

@@ -283,21 +283,21 @@ public static class RuleConfigLoader {
 
 		// 读取并反序列化 JSON
 		string jsonStr = File.ReadAllText(configPath);
-		MPMain.LogTest(jsonStr);
+		//MPMain.LogTest(jsonStr);
 		var config = JsonConvert.DeserializeObject<ServerRuleConfig>(jsonStr);
 		if (config == null) return lobbyDataPairs;
 
 		// 处理全局默认规则
 		string globalKey = TeamRuleManager.GetRuleKey(MPKeys.DEFAULT_TEAM, MPKeys.DEFAULT_TEAM);
 		lobbyDataPairs[globalKey] = ConvertDictToString(config.GlobalDefault);
-		MPMain.LogTest(string.Join(", ", config.GlobalDefault.Select(kvp => $"{kvp.Key}={kvp.Value}")));
-		MPMain.LogTest(config.SpecificRules.Count.ToString());
+		//MPMain.LogTest(string.Join(", ", config.GlobalDefault.Select(kvp => $"{kvp.Key}={kvp.Value}")));
+		//MPMain.LogTest(config.SpecificRules.Count.ToString());
 		// 处理特定队伍规则
 		foreach (var spec in config.SpecificRules) {
 			string key = TeamRuleManager.GetRuleKey(spec.sourceTeam, spec.targetTeam);
 			lobbyDataPairs[key] = ConvertDictToString(spec.rules);
-			MPMain.LogTest($"{spec.sourceTeam}->{spec.targetTeam}");
-			MPMain.LogTest(string.Join(", ", spec.rules.Select(kvp => $"{kvp.Key}={kvp.Value}")));
+			//MPMain.LogTest($"{spec.sourceTeam}->{spec.targetTeam}");
+			//MPMain.LogTest(string.Join(", ", spec.rules.Select(kvp => $"{kvp.Key}={kvp.Value}")));
 		}
 
 		return lobbyDataPairs;
