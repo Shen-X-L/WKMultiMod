@@ -6,13 +6,14 @@ using System.Reflection;
 using System.Text;
 using Unity.Entities;
 using UnityEngine;
+using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
 using WKMPMod.World;
 
 namespace WKMPMod.Components;
 
-internal class TargetSyncFeature : ISyncFeature, ICustomSyncFeature {
+public class TargetSyncFeature : ISyncFeature, ICustomSyncFeature {
 	#region[Component对应Feature查找表]
 
 	// 静态快速查找表：AITargetComponent -> 对应的 TargetSyncFeature
@@ -106,6 +107,7 @@ internal class TargetSyncFeature : ISyncFeature, ICustomSyncFeature {
 
 	public AITargetComponent TargetComponent { get; private set; }
 	public NetworkedGameEntity Entity { get; }
+
 	public TargetSyncFeature(AITargetComponent component, NetworkedGameEntity entity) {
 		TargetComponent = component;
 		Entity = entity;
@@ -142,28 +144,35 @@ internal class TargetSyncFeature : ISyncFeature, ICustomSyncFeature {
 	}
 
 	public void HandleCustomReply(IDType senderId) {
-		if (TargetComponent?.target?.targetEntity is not RemotePlayer remotePlayer
-			|| remotePlayer.playerId != senderId) return;
+		RemotePlayer remotePlayer = null;
+		// 类型判断
+		if (TargetComponent?.target?.targetEntity is RemotePlayer rp && rp.playerId == senderId)
+			remotePlayer = rp;
+		else if (TargetComponent?.target?.targetEntity is RemoteProp prop && prop.remoteEntity.playerId == senderId)
+			remotePlayer = prop.remoteEntity;
+		else return;
+		// 设置不被锁定标志位, 然后清空当前目标
 		string removeTag = $"Ignore:{Entity.networkId}";
-		// 设置不被锁定标志位，然后清空当前目标。
-		TargetComponent.target.targetTagger.AddTag(removeTag);
+		remotePlayer.container.AddTags(removeTag);
 		TargetComponent.target.Clear();
+		Entity.AIEntity?.target = null;
 		// 启动不被锁定标志位定时清空协程
-		remotePlayer.StartCoroutine(ClearIgnoreTag(remotePlayer, remotePlayer.GetTagger(), removeTag));
+		remotePlayer.StartCoroutine(ClearIgnoreTag(remotePlayer, removeTag));
 	}
 
-	public IEnumerator ClearIgnoreTag(RemotePlayer player,ObjectTagger tagger,string removeTag) {
-		if (!tagger.HasTag(removeTag)) yield break;
-		yield return new WaitForSeconds(2f);
-		tagger.RemoveTag(removeTag);
+	public IEnumerator ClearIgnoreTag(RemotePlayer player, string removeTag) {
+		if (!player.GetTagger().HasTag(removeTag)) yield break;
+		yield return new WaitForSeconds(5f);
+		player.container.RemoveTags(removeTag);
 		yield break;
 	}
 
 	#endregion
 
 	public void SetRPAsTarget(IDType targetId) {
+		MPMain.LogDebug("");
 		if (TargetComponent == null) return;
 		if (Entity.IsOwnedByMe)
-			EnemySyncModule.Instance.SendCustomFeature(targetId, Entity.networkId, FeatureIndex,writer => { }, needReply: true);
+			EnemySyncModule.Instance.SendCustomFeature(targetId, Entity.networkId, FeatureIndex, writer => { }, needReply: true);
 	}
 }

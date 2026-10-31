@@ -287,13 +287,14 @@ public class RPContainer {
 			if (hand.handType == 0) _remoteLeftHand = hand;
 			else if (hand.handType == 1) _remoteRightHand = hand;
 		}
+
 		// 获取全部子对象
 		Transform[] allChildren = instance.GetComponentsInChildren<Transform>(true);
 		// 添加容器引用组件
 		foreach (Transform child in allChildren) {
 			if (child.TryGetComponent<RPContainerRef>(out var containerRef))
 				containerRef.container = this;
-			else if(child.GetComponent<ObjectTagger>() != null) 
+			else if (child.GetComponent<ObjectTagger>() != null)
 				child.gameObject.AddComponent<RPContainerRef>().container = this;
 		}
 	}
@@ -304,6 +305,7 @@ public class RPContainer {
 		_remoteTag.Initialize(PlayerId, PlayerName);
 		// 实体标签赋予玩家Id
 		remotePlayer?.playerId = PlayerId;
+		remotePlayer?.container = this;
 		_remoteLeftHand?.playerId = PlayerId;
 		_remoteRightHand?.playerId = PlayerId;
 		var transform = _modelBehaviour?.HandItemTransform ?? new Dictionary<string, ItemPoseData>();
@@ -355,8 +357,8 @@ public class RPContainer {
 		}
 		ExtraPlayerData = extraPlayerData;
 		// 员工ID标签赋予
-		if (ExtraPlayerData.ContainsKey("Item_Trinket_EmployeeID")) 
-			foreach(var tagger in _objectTaggers) tagger.AddTag(MPKeys.EMPLOYEE_ID_TAGGER);
+		if (ExtraPlayerData.ContainsKey("Item_Trinket_EmployeeID"))
+			AddTags(MPKeys.EMPLOYEE_ID_TAGGER);
 		// 传递给模型控制器处理
 		try {
 			_modelBehaviour?.HandlePlayerData(extraPlayerData);
@@ -438,41 +440,44 @@ public class RPContainer {
 		remotePlayer.pvpEnabled = actionRule.pvp;
 
 		if (actionRule.pvp) {
-			foreach (var tagger in _objectTaggers) {
-				tagger.AddTag(MPKeys.DAMAGE_TAGGER);
-				tagger.AddTag(MPKeys.CREATURE_TAGGER);
-			}
+			AddTags(MPKeys.DAMAGE_TAGGER);
+			AddTags(MPKeys.CREATURE_TAGGER);
 		} else {
-			foreach (var tagger in _objectTaggers) {
-				tagger.RemoveTag(MPKeys.DAMAGE_TAGGER);
-				tagger.RemoveTag(MPKeys.CREATURE_TAGGER);
-			}
+			RemoveTags(MPKeys.DAMAGE_TAGGER);
+			RemoveTags(MPKeys.CREATURE_TAGGER);
 		}
 
 		// 更新碰撞权限
-		if (_colliders != null) foreach (var col in _colliders)
-			// 只处理非触发器的实体碰撞体
-			if (!col.isTrigger) col.enabled = actionRule.collision;// true 开启碰撞, false 关闭碰撞
+		// 只处理非触发器的实体碰撞体
+		if (_colliders != null)
+			foreach (var col in _colliders) if (!col.isTrigger)
+				col.enabled = actionRule.collision;// true 开启碰撞, false 关闭碰撞
 	}
 
 	/// <summary>
 	/// 处理动作权限变更 - 根据当前规则和权限状态更新玩家对象的标签组件, 以控制玩家的交互能力
 	/// </summary>
 	public void ChangeGrabOrHang(ENT_Player.InteractType interactType) {
-		foreach (var tagger in _objectTaggers) {
-			if (interactType == ENT_Player.InteractType.grab && actionRule.grab == true)
-				tagger.AddTag(MPKeys.GRAB_TAGGER);
-			else tagger.RemoveTag(MPKeys.GRAB_TAGGER);
+		if (interactType == ENT_Player.InteractType.grab && actionRule.grab == true)
+			AddTags(MPKeys.GRAB_TAGGER);
+		else RemoveTags(MPKeys.GRAB_TAGGER);
 
-			if (interactType == ENT_Player.InteractType.hanging && actionRule.hang == true)
-				tagger.AddTag(MPKeys.HANGING_TAGGER);
-			else tagger.RemoveTag(MPKeys.HANGING_TAGGER);
-		}
+		if (interactType == ENT_Player.InteractType.hanging && actionRule.hang == true)
+			AddTags(MPKeys.HANGING_TAGGER);
+		else RemoveTags(MPKeys.HANGING_TAGGER);
 	}
 
 	#endregion
 
-	#region[DEBUG]
+	#region[工具函数/DEBUG]
+
+	public void AddTags(string tag) {
+		foreach (var tagger in _objectTaggers) if (!tagger.tags.Contains(tag)) tagger.tags.Add(tag);
+	}
+
+	public void RemoveTags(string tag) {
+		foreach (var tagger in _objectTaggers) if (tagger.tags.Contains(tag)) tagger.tags.Remove(tag);
+	}
 
 	public void ChangeLayer(int layer) {
 		if (PlayerObject == null) return;

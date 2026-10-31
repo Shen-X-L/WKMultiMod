@@ -23,7 +23,7 @@ public class Patch_GameEntity {
 	[HarmonyPatch(nameof(GameEntity.Damage))]
 	[HarmonyPrefix]
 	public static void Patch_Damage(GameEntity __instance, Damageable.DamageInfo info) {
-		EnemySyncModule.Instance.BroadcastEnemyDamage(__instance, info);
+		EnemySyncModule.Instance.SendEnemyDamage(__instance, info);
 	}
 
 	#endregion
@@ -81,7 +81,7 @@ public class Patch_DEN_VentThing {
 	[HarmonyPatch(nameof(DEN_VentThing.Damage))]
 	[HarmonyPrefix]
 	public static void Patch_Damage(DEN_VentThing __instance, Damageable.DamageInfo info) {
-		EnemySyncModule.Instance.BroadcastEnemyDamage(__instance, info);
+		EnemySyncModule.Instance.SendEnemyDamage(__instance, info);
 	}
 }
 
@@ -158,7 +158,7 @@ public static class Patch_DEN_Phage {
 	[HarmonyPatch(nameof(DEN_Phage.Damage))]
 	[HarmonyPrefix]
 	public static void Patch_Damage(DEN_Phage __instance, Damageable.DamageInfo info) {
-		EnemySyncModule.Instance.BroadcastEnemyDamage(__instance, info);
+		EnemySyncModule.Instance.SendEnemyDamage(__instance, info);
 	}
 }
 
@@ -266,9 +266,9 @@ public static class AnimatorInterceptor {
 			MPMain.HarmonyInstance.Patch(targetMethod, transpiler: transpiler);
 
 			if (targetMethod != rawMethod) {
-				MPMain.LogInfo($"[AnimatorInterceptor] Patched Coroutine: {typeName}.{rawMethod.Name} -> {targetMethod.DeclaringType?.Name}.MoveNext()");
+				MPMain.LogDebug($"[AnimatorInterceptor] Patched Coroutine: {typeName}.{rawMethod.Name} -> {targetMethod.DeclaringType?.Name}.MoveNext()");
 			} else {
-				MPMain.LogInfo($"[AnimatorInterceptor] Patched Method: {typeName}.{rawMethod.Name}");
+				MPMain.LogDebug($"[AnimatorInterceptor] Patched Method: {typeName}.{rawMethod.Name}");
 			}
 		} catch (Exception ex) {
 			MPMain.LogError($"[AnimatorInterceptor] Failed to patch {typeName}.{rawMethod.Name}: {ex.Message}");
@@ -487,12 +487,15 @@ public static class Patch_AITargetComponent {
 		if(__instance?.target?.targetTagger == null) return;
 		// 未锁定远程玩家
 		if (!__instance.target.targetTagger.HasTag(MPKeys.REMOTE_PLAYER_TAG)) return;
-		if (__instance.target.targetEntity is not RemotePlayer remotePlayer) return;
 		// 玩家没有接管
-		if (!TargetSyncFeature.TryGetFeature(__instance, out var feature)
-			|| !feature.Entity.IsOwnedByMe) return;
+		if (!TargetSyncFeature.TryGetFeature(__instance, out var feature) || !feature.Entity.IsOwnedByMe) return;
 		// 锁定远程玩家 发送成为目标请求
-		feature.SetRPAsTarget(remotePlayer.playerId);
+		if (__instance.target.targetEntity is RemotePlayer remotePlayer) {
+			feature.SetRPAsTarget(remotePlayer.playerId);
+		} else if (__instance.target.targetEntity is RemoteProp remoteProp) {
+			feature.SetRPAsTarget(remoteProp.remoteEntity.playerId);
+		}
+		return;
 	}
 }
 

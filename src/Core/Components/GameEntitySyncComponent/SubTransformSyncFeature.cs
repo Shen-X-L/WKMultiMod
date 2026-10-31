@@ -3,8 +3,6 @@ using WKMPMod.Components;
 using WKMPMod.Data;
 
 public class SubTransformSyncFeature : ISyncFeature {
-	public byte FeatureIndex { get; set; }
-	public string FeatureId { get; }
 	public Transform SubTransform { get; private set; }
 
 	private Vector3 _lastLocalPos;
@@ -15,12 +13,6 @@ public class SubTransformSyncFeature : ISyncFeature {
 	private const float PosEpsilonSqr = 0.001f;
 	private const float LERP_SPEED = 15f;
 
-	// 主机端检查脏数据：局部位置或旋转是否变化
-	public bool IsDirty => SubTransform != null && (
-		(SubTransform.localPosition - _lastLocalPos).sqrMagnitude > PosEpsilonSqr ||
-		Quaternion.Angle(SubTransform.localRotation, _lastLocalRot) > 0.5f
-	);
-
 	public SubTransformSyncFeature(Transform subTransform) {
 		SubTransform = subTransform;
 		FeatureId = $"SubTransform_{subTransform?.name}";
@@ -29,6 +21,17 @@ public class SubTransformSyncFeature : ISyncFeature {
 			_lastLocalRot = _targetLocalRot = subTransform.localRotation;
 		}
 	}
+
+	#region[ISyncFeature接口实现]
+
+	public byte FeatureIndex { get; set; }
+	public string FeatureId { get; }
+
+	// 主机端检查脏数据：局部位置或旋转是否变化
+	public bool IsDirty => SubTransform != null && (
+		(SubTransform.localPosition - _lastLocalPos).sqrMagnitude > PosEpsilonSqr ||
+		Quaternion.Angle(SubTransform.localRotation, _lastLocalRot) > 0.5f
+	);
 
 	public void WriteState(DataWriter writer) {
 		if (SubTransform == null) return;
@@ -60,4 +63,6 @@ public class SubTransformSyncFeature : ISyncFeature {
 	public void OnDestroy() {
 		SubTransform = null;
 	}
+
+	#endregion
 }

@@ -53,13 +53,6 @@ public class RemoteProp : CL_Prop, Clickable {
 
 	#region[CL_Prop重写]
 
-		// 对方受到伤害时调用RemoteEntity结算
-	public override bool Damage(Damageable.DamageInfo info) {
-		MPMain.LogError("RemoteProp.Damage");
-		remoteEntity.Damage(info);
-		return false;
-	}
-
 	public override void Kill(string type = "", Damageable.DamageInfo damageInfo = null) {
 	}
 
@@ -103,6 +96,16 @@ public class RemoteProp : CL_Prop, Clickable {
 		if (MPCore.IsGrabOrHangState == ENT_Player.InteractType.hanging)
 			return MPAssetManager.hangSprite;
 		return null;
+	}
+
+	#endregion
+
+	#region[Hitbox重写]
+
+	// 对方受到伤害时调用RemoteEntity结算
+	public override bool Damage(Damageable.DamageInfo info) {
+		remoteEntity.Damage(info);
+		return false;
 	}
 
 	#endregion

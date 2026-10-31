@@ -14,6 +14,10 @@ namespace WKMPMod.RemotePlayers;
 /// </summary>
 public static class RPPrefabProcessor {
 
+	private const string DefaultShaderName ="Dark Machine/SHDR_Base";
+
+	private const string ErrorShaderName = "Hidden/InternalErrorShader";
+
 	/// <summary>
 	/// 执行主Mod标准修复流水线
 	/// </summary>
@@ -22,20 +26,67 @@ public static class RPPrefabProcessor {
 		FixShaders(prefab);
 	}
 
+	///// <summary>
+	///// TMP shader资源链接
+	///// </summary>
+	//private static void FixTMPShaders(GameObject prefab) {
+	//	foreach (var renderer in prefab.GetComponentsInChildren<Renderer>(true)) {
+	//		if (renderer.GetComponent<TMP_Text>() != null) continue;
+
+	//		foreach (var mat in renderer.sharedMaterials) {
+	//			if (mat == null) continue;
+	//			var internalShader = Shader.Find(mat.shader.name);
+	//			if (internalShader != null) mat.shader = internalShader;
+	//			else MPMain.LogError(Localization.GetLog("RPPrefabProcessor.ShaderNotFoundOnRenderer", mat.shader.name, renderer.name));
+	//		}
+	//	}
+	//}
+
 	/// <summary>
-	/// shader资源链接
+	/// 修复材质 Shader 引用
+	/// 连接失败的材质统一使用游戏默认 Shader
 	/// </summary>
 	private static void FixShaders(GameObject prefab) {
+		if (prefab == null) return;
+		Shader defaultShader = Shader.Find(DefaultShaderName);
+		if (defaultShader == null) {
+			MPMain.LogError($"无法找到默认 Shader: {DefaultShaderName}");
+			return;
+		}
+		var processedMaterials = new HashSet<Material>();
 		foreach (var renderer in prefab.GetComponentsInChildren<Renderer>(true)) {
 			if (renderer.GetComponent<TMP_Text>() != null) continue;
-
 			foreach (var mat in renderer.sharedMaterials) {
-				if (mat == null) continue;
-				var internalShader = Shader.Find(mat.shader.name);
+				if (mat == null || !processedMaterials.Add(mat)) continue;
+				Shader currentShader = mat.shader;
+				string originalShaderName = currentShader != null ? currentShader.name : "<null>";
+				// 检查 Shader 是否已经出现引用解析错误
+				if (currentShader == null || originalShaderName == ErrorShaderName) {
+					MPMain.LogWarning(
+						$"[RPPrefabProcessor] 材质 Shader 连接失败," +
+						$"正在使用默认 Shader 连接\n" +
+						$"  Renderer: {renderer.name}\n" +
+						$"  Material: {mat.name}\n" +
+						$"  Original Shader: {originalShaderName}\n" +
+						$"  Fallback Shader: {DefaultShaderName}"
+					);
+					mat.shader = defaultShader;
+					continue;
+				}
+				// 正常 Shader 尝试重新绑定游戏内的 Shader 对象
+				Shader internalShader = Shader.Find(originalShaderName);
 				if (internalShader != null) {
 					mat.shader = internalShader;
 				} else {
-					MPMain.LogError(Localization.GetLog("RPPrefabProcessor.ShaderNotFoundOnRenderer", mat.shader.name, renderer.name));
+					// 原 Shader 对象仍然有效，不强制替换，
+					// 避免误伤游戏中无法通过 Shader.Find 查询的 Shader。
+					MPMain.LogWarning(
+						$"[RPPrefabProcessor] 无法通过 Shader.Find 重新获取 Shader\n" +
+						$"  Renderer: {renderer.name}\n" +
+						$"  Material: {mat.name}\n" +
+						$"  Shader: {originalShaderName}\n" +
+						"  保留当前 Shader 引用"
+					);
 				}
 			}
 		}
@@ -43,12 +94,10 @@ public static class RPPrefabProcessor {
 
 	private static void ProcessPrefabMarkers(GameObject prefab) {
 		var rootRigidbody = prefab.GetComponent<Rigidbody>();
-
 		// 1. 处理玩家和受击实体（先添加 RemotePlayer）
 		foreach (var mk in prefab.GetComponentsInChildren<MK_RemotePlayer>(true)) {
 			mk.gameObject.AddComponent<RemotePlayer>();
 		}
-
 		// 2. 处理远程手
 		foreach (var mk in prefab.GetComponentsInChildren<MK_RemoteHand>(true)) {
 			var component = mk.gameObject.AddComponent<RemoteHand>();
@@ -59,7 +108,6 @@ public static class RPPrefabProcessor {
 			component.shoulderTransform = mk.shoulderTransform;
 			component.bodyTransform = mk.bodyTransform;
 		}
-
 		// 3. 处理标签
 		foreach (var mk in prefab.GetComponentsInChildren<MK_ObjectTagger>(true)) {
 			var component = mk.gameObject.GetComponent<ObjectTagger>() ?? mk.gameObject.AddComponent<ObjectTagger>();
@@ -69,7 +117,6 @@ public static class RPPrefabProcessor {
 				}
 			}
 		}
-
 		// 4. 处理受击体（此时 mk.entity 依然有效, 且其 GameObject 上已成功挂载 RemotePlayer）
 		foreach (var mk in prefab.GetComponentsInChildren<MK_ENT_Hitbox>(true)) {
 			var component = mk.gameObject.AddComponent<ENT_Hitbox>();
@@ -90,7 +137,6 @@ public static class RPPrefabProcessor {
 				}).ToList() 
 				: new List<Damageable.DamageEffect>();
 		}
-
 		// 5. 处理攀爬
 		foreach (var mk in prefab.GetComponentsInChildren<MK_CL_Handhold>(true)) {
 			var component = mk.gameObject.AddComponent<CL_Handhold>();
@@ -101,7 +147,6 @@ public static class RPPrefabProcessor {
 				component.useSharedHandholdMaterial = false;
 			}
 		}
-
 		// 6. 处理远程拖拽
 		foreach (var mk in prefab.GetComponentsInChildren<MK_RemoteProp>(true)) {
 			var component = mk.gameObject.AddComponent<RemoteProp>();
@@ -109,12 +154,10 @@ public static class RPPrefabProcessor {
 				component.remoteEntity = mk.entity.gameObject.GetComponent<RemotePlayer>();
 			}
 		}
-
 		// 7. 处理 LookAt
 		foreach (var la in prefab.GetComponentsInChildren<LookAt>(true)) {
 			la.userScale = MPConfig.NameTagScale;
 		}
-
 		// 统一销毁所有 Marker
 		DestroyMarkers<MK_RemotePlayer>(prefab);
 		DestroyMarkers<MK_RemoteHand>(prefab);
@@ -130,5 +173,4 @@ public static class RPPrefabProcessor {
 			Object.DestroyImmediate(markers[i]);
 		}
 	}
-
 }

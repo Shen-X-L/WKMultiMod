@@ -7,26 +7,29 @@ using UnityEngine;
 namespace WKMPMod.Components;
 
 public class FieldSyncFeature<T, F> : ISyncFeature {
-	#region [接口字段]
+
+	#region [ISyncFeature接口实现]
 
 	public byte FeatureIndex { get; set; }
 	public string FeatureId { get; }
 	public bool IsDirty => !AreEquals(_fieldAccessor(_target), _lastValue);
-
-	/// <summary>
-	/// 相等性比较
-	/// </summary>
-	private static bool AreEquals(F a, F b) {
-		if (IsUnityObjectType) {
-			// 通过 object 中转安全转换为 UnityEngine.Object, 并调用 Unity 的 op_Equality
-			UnityEngine.Object objA = a as object as UnityEngine.Object;
-			UnityEngine.Object objB = b as object as UnityEngine.Object;
-			return objA == objB;
-		} else {
-			return EqualityComparer<F>.Default.Equals(a, b);
-		}
+	public void WriteState(DataWriter writer) {
+		_lastValue = _fieldAccessor(_target);
+		_writerAction(writer, _lastValue);
 	}
 
+	public void ReadState(DataReader reader) {
+		_lastValue = _readerAction(reader);
+		_fieldAccessor(_target) = _lastValue;
+	}
+
+	public void OnUpdate(float deltaTime) { }
+
+	public void OnReset() {
+		if (_target != null) _lastValue = _fieldAccessor(_target);
+	}
+
+	public void OnDestroy() { }
 	#endregion
 
 	#region[反射/序列化]
@@ -83,6 +86,20 @@ public class FieldSyncFeature<T, F> : ISyncFeature {
 	private T _target;// 目标对象
 	private F _lastValue;// 上一帧的字段值
 
+	/// <summary>
+	/// 相等性比较
+	/// </summary>
+	private static bool AreEquals(F a, F b) {
+		if (IsUnityObjectType) {
+			// 通过 object 中转安全转换为 UnityEngine.Object, 并调用 Unity 的 op_Equality
+			UnityEngine.Object objA = a as object as UnityEngine.Object;
+			UnityEngine.Object objB = b as object as UnityEngine.Object;
+			return objA == objB;
+		} else {
+			return EqualityComparer<F>.Default.Equals(a, b);
+		}
+	}
+
 	public FieldSyncFeature(T targetObject, string fieldName) {
 		_target = targetObject;
 		FeatureId = $"FieldSync_{fieldName}";
@@ -93,21 +110,4 @@ public class FieldSyncFeature<T, F> : ISyncFeature {
 		_lastValue = _fieldAccessor(targetObject);
 	}
 
-	public void WriteState(DataWriter writer) {
-		_lastValue = _fieldAccessor(_target);
-		_writerAction(writer, _lastValue);
-	}
-
-	public void ReadState(DataReader reader) { 
-		_lastValue = _readerAction(reader);
-		_fieldAccessor(_target) = _lastValue;
-	}
-
-	public void OnUpdate(float deltaTime) { }
-
-	public void OnReset() {
-		if (_target != null) _lastValue = _fieldAccessor(_target);
-	}
-
-	public void OnDestroy() { }
 }

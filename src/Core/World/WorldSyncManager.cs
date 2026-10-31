@@ -36,12 +36,16 @@ public class WorldSyncManager : MonoSingleton<WorldSyncManager> {
 
 	private void LateUpdate() {
 		// 全局调度前置条件校验
-		if (!MPCore.CanSync) return;
-
-		float deltaTime = Time.unscaledDeltaTime; // 不受游戏暂停影响
-
+		if (!MPCore.IsReady) return;
+		float deltaTime = Time.unscaledDeltaTime;
+		// Ready 阶段: 不依赖连接。
 		foreach (var module in _modules.Values) {
-			if (module.IsEnabled) module.OnSyncUpdate(deltaTime); // 每帧分发
+			if (module.IsEnabled) module.OnReadyUpdate(deltaTime);
+		}
+		// Sync 阶段: 依赖连接
+		if (!MPCore.CanSync) return;
+		foreach (var module in _modules.Values) {
+			if (module.IsEnabled) module.OnSyncUpdate(deltaTime);
 		}
 	}
 
@@ -64,7 +68,9 @@ public interface ISyncModule {
 	/// <summary>
 	/// 定频 Tick 执行 (发送/定时校验)
 	/// </summary>
-	void OnSyncUpdate(float deltaTime);
+	void OnSyncUpdate(float deltaTime) { }
+
+	void OnReadyUpdate(float deltaTime) { }
 
 	/// <summary>
 	/// 场景重启状态重置 

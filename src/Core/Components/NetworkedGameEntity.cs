@@ -272,4 +272,18 @@ public class NetworkedGameEntity : MonoBehaviour {
 	}
 
 	#endregion
+
+	#region[Debug]
+
+	public string Debug() {
+		return
+			$"GameObjetName: {gameObject.name}, " +
+			$"NetworkId: {networkId}, " +
+			$"OwnerId: {_currentOwnerId}, " +
+			$"HasOwner: {HasOwner}, " +
+			$"IsOwnedByMe: {IsOwnedByMe}, " +
+			$"EntityType: {Type}";
+	}
+
+	#endregion
 }

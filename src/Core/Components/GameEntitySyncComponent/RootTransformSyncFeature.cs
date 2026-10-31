@@ -5,10 +5,6 @@ using UnityEngine;
 namespace WKMPMod.Components;
 
 public class RootTransformSyncFeature : ISyncFeature {
-	// 模块索引与模块名
-	public byte FeatureIndex { get; set; }
-	public string FeatureId => "RootTransform";
-
 	// 所属实体
 	private readonly NetworkedGameEntity _netEntity;
 	private readonly Transform _transform;
@@ -29,16 +25,6 @@ public class RootTransformSyncFeature : ISyncFeature {
 	private const float RotationEpsilonDegrees = 1.0f;
 	private const float HealthEpsilon = 0.01f;
 
-	public bool IsDirty {
-		get {
-			float currentHp = _entity != null ? _entity.health : float.NaN;
-			return (_transform.position - _lastPosition).sqrMagnitude > PositionEpsilonSqr
-				|| Quaternion.Angle(_transform.rotation, _lastRotation) > RotationEpsilonDegrees
-				|| float.IsNaN(currentHp) != float.IsNaN(_lastHealth)
-				|| (!float.IsNaN(currentHp) && Mathf.Abs(currentHp - _lastHealth) > HealthEpsilon);
-		}
-	}
-
 	public RootTransformSyncFeature(NetworkedGameEntity netEntity) {
 		_netEntity = netEntity;
 		_transform = netEntity.transform;
@@ -49,6 +35,21 @@ public class RootTransformSyncFeature : ISyncFeature {
 		_lastHealth = _entity != null ? _entity.health : float.NaN;
 	}
 
+	#region[ISyncFeature接口实现]
+
+	// 模块索引与模块名
+	public byte FeatureIndex { get; set; }
+	public string FeatureId => "RootTransform";
+
+	public bool IsDirty {
+		get {
+			float currentHp = _entity != null ? _entity.health : float.NaN;
+			return (_transform.position - _lastPosition).sqrMagnitude > PositionEpsilonSqr
+				|| Quaternion.Angle(_transform.rotation, _lastRotation) > RotationEpsilonDegrees
+				|| float.IsNaN(currentHp) != float.IsNaN(_lastHealth)
+				|| (!float.IsNaN(currentHp) && Mathf.Abs(currentHp - _lastHealth) > HealthEpsilon);
+		}
+	}
 	public void WriteState(DataWriter writer) {
 		_lastPosition = _transform.position;
 		_lastRotation = _transform.rotation;
@@ -64,7 +65,7 @@ public class RootTransformSyncFeature : ISyncFeature {
 		_targetRotation = reader.GetQuaternion();
 		float hp = reader.GetFloat();
 
-		if (_entity != null && !float.IsNaN(hp)) 
+		if (_entity != null && !float.IsNaN(hp))
 			_entity.health = hp;
 	}
 
@@ -83,4 +84,6 @@ public class RootTransformSyncFeature : ISyncFeature {
 	public void OnDestroy() {
 		// 无需额外清理
 	}
+
+	#endregion
 }

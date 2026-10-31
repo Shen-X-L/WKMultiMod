@@ -465,7 +465,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			// 库存物品字典
 			writerDeath.Put(InventoryManager.GetDeathInventoryItems());
 		} catch (Exception ex) {
-			MPMain.LogError($"[MP Core] Exception in the MPCore.HandlePlayerDeath build PlayerDeath: {ex}");
+			MPMain.LogError($"Exception in the MPCore.HandlePlayerDeath build PlayerDeath: {ex}");
 		} finally {
 			// 发送背包道具
 			_MPSteamworks.Broadcast(writerDeath);

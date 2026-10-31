@@ -10,6 +10,7 @@ using WKMPMod.Asset;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
+using WKMPMod.RemotePlayers;
 using WKMPMod.Util;
 using static UnityEngine.AdaptivePerformance.Provider.AdaptivePerformanceSubsystemDescriptor;
 
@@ -20,6 +21,8 @@ public class RemotePlayer : GameEntity {
 	public IDType playerId;
 	// 是否启用PVP伤害判定, 可通过玩家数据更新
 	public bool pvpEnabled = false;
+
+	public RPContainer container;
 
 	#region [位移与旋转同步]
 

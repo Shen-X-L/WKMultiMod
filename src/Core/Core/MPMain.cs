@@ -3,6 +3,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using UnityEngine.SceneManagement;
 using WKMPMod.Patch;
 using WKMPMod.Util;
@@ -84,12 +85,13 @@ public class MPMain : BaseUnityPlugin {
 	public static void LogWarning(string log = "") {
 		Logger.LogWarning(log);
 	}
-	public static void LogError(string log = "") {
-		Logger.LogError(log);
+
+	public static void LogError(string log = "", [CallerMemberName] string member = "", [CallerLineNumber] int number = 0) {
+		Logger.LogError($"[MP {member} {number}]" + log);
 	}
 
-	public static void LogDebug(string log = "") {
-		Logger.LogDebug("[MP Debug] "+log);
+	public static void LogDebug(string log = "", [CallerMemberName] string member = "", [CallerLineNumber] int number = 0) {
+		Logger.LogDebug($"[MP {member} {number}]" + log);
 	}
 
 	public static void LogTest(string log = "") {
