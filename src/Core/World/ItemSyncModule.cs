@@ -413,29 +413,30 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 	/// 收到其他对等端发来的物品同步包时, 按 action 类型分发给对应处理函数.
 	/// 由 MPPacketHandlers.HandleItemStateSync 调用.
 	/// </summary>
-	public void HandleItemState(IDType senderId, DataReader reader) {
+	[MPPacketHandler(PacketType.SceneItemSync)]
+	private static void HandleItemState(IDType senderId, DataReader reader) {
 		var action = (SceneItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
 				case SceneItemSyncAction.Create:
 					MPMain.LogDebug("[MP SceneItemSync] Create");
-					HandleSceneCreate(senderId, reader);
+					Instance.HandleSceneCreate(senderId, reader);
 					break;
 				case SceneItemSyncAction.Remove:
 					MPMain.LogDebug("[MP SceneItemSync] Remove");
-					HandleSceneRemove(senderId, reader);
+					Instance.HandleSceneRemove(senderId, reader);
 					break;
 				case SceneItemSyncAction.RemoveChunk:
 					MPMain.LogDebug("[MP SceneItemSync] RemoveChunk");
-					HandleSceneRemoveChunk(reader);
+					Instance.HandleSceneRemoveChunk(reader);
 					break;
 				case SceneItemSyncAction.RemoveChunkRequest:
 					MPMain.LogDebug("[MP SceneItemSync] RemoveChunkRequest");
-					HandleSceneRemoveChunkRequest(senderId);
+					Instance.HandleSceneRemoveChunkRequest(senderId);
 					break;
 				case SceneItemSyncAction.SceneToDropped:
 					MPMain.LogDebug("[MP SceneItemSync] SceneToDropped");
-					HandleSceneToDropped(senderId, reader);
+					Instance.HandleSceneToDropped(senderId, reader);
 					break;
 			}
 		} catch (Exception e) {
@@ -483,6 +484,9 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 		"Item_Handgun",			// 手枪
 		"Item_Handgun_Debug",	// 手枪
 		"Item_10mm_Ammo",		// 手枪子弹
+		"Item_EntityScanner",	// 扫描仪
+		"Item_Powercell",		// 电池
+		"Item_Inoculator",		// 注射器
 	};
 
 	private static readonly HashSet<string> _blacklistedItemTags = new(StringComparer.OrdinalIgnoreCase) {
@@ -505,13 +509,12 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 	/// <summary>检查 Item 数据是否在黑名单 (物品标签).</summary>
 	public static bool IsBlacklisted(Item item) {
 		if (item == null) return false;
-
 		if (item.itemTags != null)
 			foreach (var tag in item.itemTags)
 				if (_blacklistedItemTags.Contains(tag)) return true;
-
-		return false;
+		return IsBlacklisted(item.prefabName);
 	}
+
 
 	/// <summary>检查 ObjectTagger 是否在黑名单.</summary>
 	public static bool IsBlacklisted(ObjectTagger tagger) {
@@ -525,19 +528,12 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 
 	public static bool IsBlacklisted(GameObject go) {
 		if (go == null) return false;
-
 		// 检查对象名称
-		if (IsBlacklisted(go.name))
-			return true;
-
+		if (IsBlacklisted(go.name))return true;
 		// 检查数据组件 Item_Object
-		if (go.TryGetComponent<Item_Object>(out var itemObj) && IsBlacklisted(itemObj.itemData))
-			return true;
-
+		if (go.TryGetComponent<Item_Object>(out var itemObj) && IsBlacklisted(itemObj.itemData))return true;
 		// 检查标签组件 ObjectTagger
-		if (go.TryGetComponent<ObjectTagger>(out var tagger) && IsBlacklisted(tagger))
-			return true;
-
+		if (go.TryGetComponent<ObjectTagger>(out var tagger) && IsBlacklisted(tagger))return true;
 		return false;
 	}
 
@@ -1271,41 +1267,42 @@ public class DroppedItemModule : Singleton<DroppedItemModule>, ISyncModule {
 	/// 收到其他对等端发来的物品同步包时, 按 action 类型分发给对应处理函数.
 	/// 由 MPPacketHandlers.HandleItemStateSync 调用.
 	/// </summary>
-	public void HandleItemState(IDType senderId, DataReader reader) {
+	[MPPacketHandler(PacketType.DroppedItemSync)]
+	public static void HandleItemState(IDType senderId, DataReader reader) {
 		var action = (DroppedItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
 				case DroppedItemSyncAction.Create:
-					MPMain.LogDebug("[MP DropItemSync] Create");
-					HandleDropCreate(senderId, reader);
+					MPMain.LogDebug("Create");
+					Instance.HandleDropCreate(senderId, reader);
 					break;
 				case DroppedItemSyncAction.PickupRequest:
-					MPMain.LogDebug("[MP DropItemSync] PickupRequest");
-					HandlePickupRequest(senderId, reader);
+					MPMain.LogDebug("PickupRequest");
+					Instance.HandlePickupRequest(senderId, reader);
 					break;
 				case DroppedItemSyncAction.Remove:
-					MPMain.LogDebug("[MP DropItemSync] PickupRemove");
-					HandleRemove(senderId, reader);
+					MPMain.LogDebug("PickupRemove");
+					Instance.HandleRemove(senderId, reader);
 					break;
 				case DroppedItemSyncAction.PickupReject:
-					MPMain.LogDebug("[MP DropItemSync] PickupReject");
-					HandlePickupReject(reader);
+					MPMain.LogDebug("PickupReject");
+					Instance.HandlePickupReject(reader);
 					break;
 				case DroppedItemSyncAction.TransferRequest:
-					MPMain.LogDebug("[MP DropItemSync] TransferRequest");
-					HandleTransferRequest(senderId, reader);
+					MPMain.LogDebug("TransferRequest");
+					Instance.HandleTransferRequest(senderId, reader);
 					break;
 				case DroppedItemSyncAction.TransferConfirm:
-					MPMain.LogDebug("[MP DropItemSync] TransferConfirm");
-					HandleTransferConfirm(reader);
+					MPMain.LogDebug("TransferConfirm");
+					Instance.HandleTransferConfirm(reader);
 					break;
 				case DroppedItemSyncAction.TransferReject:
-					MPMain.LogDebug("[MP DropItemSync] TransferReject");
-					HandleTransferReject(reader);
+					MPMain.LogDebug("TransferReject");
+					Instance.HandleTransferReject(reader);
 					break;
 				case DroppedItemSyncAction.UpdateTransform:
-					MPMain.LogDebug("[MP DropItemSync] UpdateTransform");
-					HandleUpdateTransform(reader);
+					MPMain.LogDebug("UpdateTransform");
+					Instance.HandleUpdateTransform(reader);
 					break;
 			}
 		} catch (Exception e) {
@@ -1518,9 +1515,7 @@ public static class ItemSyncBridge {
 		} else if (identity.itemCreateType == ItemType.DroppedItem) {
 			// P2P 掉落物被拾取
 			DroppedItemModule.Instance.NotifyLocalRemove(identity);
-		} else {
-			MPMain.LogError($"[MP ItemSync] 未知物品创建方式");
-		}
+		} else MPMain.LogError($"未知物品创建方式");
 	}
 
 	/// <summary>
@@ -1549,10 +1544,8 @@ public static class ItemSyncBridge {
 				DroppedItemModule.Instance.NotifyLocalTransfer(identity);
 				return false;
 			} else return true;
-		} else {
-			MPMain.LogError($"[MP ItemSync] 未知物品创建方式");
-		}
-
+		} else MPMain.LogError($"未知物品创建方式");
+		
 		return false;
 	}
 
@@ -1576,7 +1569,7 @@ public static class ItemSyncBridge {
 				return true;
 			}
 		} else {
-			MPMain.LogError($"[MP ItemSync] 未知物品创建方式 HasTag:{itemObject.itemData.HasTag(MPKeys.OTHER_PLAYER_ITEM)} ownerId:{identity.ownerId}");
+			MPMain.LogError($"未知物品创建方式 HasTag:{itemObject.itemData.HasTag(MPKeys.OTHER_PLAYER_ITEM)} ownerId:{identity.ownerId}");
 		}
 
 		return false;

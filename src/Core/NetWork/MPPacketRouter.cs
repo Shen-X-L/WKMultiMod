@@ -8,111 +8,128 @@ using System.Text.RegularExpressions;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
-using static WKMPMod.Data.MPReaderPool;
+using WKMPMod.World;
 using static System.Buffers.Binary.BinaryPrimitives;
+using static WKMPMod.Data.MPReaderPool;
 
 namespace WKMPMod.NetWork;
 
 public class MPPacketRouter {
 	// 路由表
-	private static readonly Action<IDType, DataReader>[] FastHandlers = new Action<IDType, DataReader>[64];
+	private static Action<IDType, DataReader>[] FastHandlers = new Action<IDType, DataReader>[64];
 	public static TickTimer DebugTick = new TickTimer(1);
 
 	#region[初始化路由表]
+
 	/// <summary>
 	/// 初始化字典
 	/// </summary>
 	static MPPacketRouter() {
-		// 反射MPPacketService类
-		// 返回迭代器<PacketType, Action<ulong, DataReader>>
-		var handlerEntries = typeof(MPPacketHandlers)
-			// 获取所有静态方法, 包括非公共的
-			.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
-			// 获取带有 MPPacketHandlerAttribute 特性的 方法. false表示不搜索继承链, 只看当前方法
-			.Where(method => method.GetCustomAttributes(typeof(MPPacketHandlerAttribute), false).Length > 0)
-			// 对每个方法进行处理, 其生成多个IEnumerable<(PacketType, Delegate)>并扁平化
-			.SelectMany(method => ProcessMethod(method));
-
-		int count = 0;
-
-		// 将反射获取的结果存入数组
-		foreach (var (packetType, action) in handlerEntries) { 
-			ushort handlerId = (ushort)packetType;
-
-			if (handlerId >= 0 && handlerId < FastHandlers.Length) {
-				if (FastHandlers[handlerId] != null) {
-					Localization.GetLog("MPPacketRouter.PacketHandlerOverridden", 
-						packetType, FastHandlers[handlerId].Method.Name, action.Method.Name);
-				}
-
-				// 将 Action 存入数组
-				FastHandlers[handlerId] = (Action<ulong, DataReader>)action;
-				count++;
-
-				//MPMain.LogInfo(Localization.GetByPath("MPPacketRouter.ShowAllRouteTable", packetType, action.Method.Name));
-			} else {
-				Localization.GetLog("MPPacketRouter.PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
-			}
-
-		}
+		// 默认自动扫描内置的 MPPacketHandlers
+		RegisterRoutesInternal(typeof(MPPacketHandlers));
+		RegisterRoutesInternal(typeof(SceneItemModule));
+		RegisterRoutesInternal(typeof(DroppedItemModule));
+		RegisterRoutesInternal(typeof(EnemySyncModule));
 	}
 
 	/// <summary>
-	/// 处理反射获取的方法,转为IEnumerable &lt;(PacketType, Action&lt;ulong, DataReader&gt;)&gt; <br/>迭代器 &lt;包类型,无返回值委托&gt;
+	/// 处理反射获取的方法,转为IEnumerable &lt;(PacketType, Action&lt;IDType, DataReader&gt;)&gt; <br/>
+	/// 迭代器 &lt;包类型,无返回值委托&gt;
 	/// </summary>
-	private static IEnumerable<(PacketType, Action<ulong, DataReader>)> ProcessMethod(MethodInfo method) {
+	private static IEnumerable<(PacketType, Action<IDType, DataReader>)> ProcessMethod(MethodInfo method) {
 		// 获取方法上的所有 MPPacketHandlerAttribute 特性
 		var attrs = method.GetCustomAttributes<MPPacketHandlerAttribute>();
 		// 获取方法的参数信息
 		var parameters = method.GetParameters();
-
+		// 将方法转为委托
 		var action = CreateAction(method, parameters);
 		if (action == null) yield break;
-
-		foreach (var attr in attrs) {
-			yield return (attr.packetType, action);
-		}
+		// 将委托与每个包类型组合,返回迭代器
+		foreach (var attr in attrs) yield return (attr.packetType, action);
 	}
 
 	/// <summary>
 	/// 将方法转为委托
 	/// </summary>
-	private static Action<ulong, DataReader> CreateAction(MethodInfo method, ParameterInfo[] parameters) {
+	private static Action<IDType, DataReader> CreateAction(MethodInfo method, ParameterInfo[] parameters) {
 		try {
 			// 验证参数签名
 			if (parameters.Length == 2 
-				&& parameters[0].ParameterType == typeof(ulong) 
+				&& parameters[0].ParameterType == typeof(IDType) 
 				&& parameters[1].ParameterType == typeof(DataReader)) {
-
 				// 创建委托并强转为 Action
 				// Delegate.CreateDelegate 的第一个参数是委托的类型
-				return (Action<ulong, DataReader>)Delegate.CreateDelegate(
-					typeof(Action<ulong, DataReader>),
-					null, // 如果是静态方法,这里传 null
-					method
-				);
+				// 如果是静态方法,第二参数传 null
+				return (Action<IDType, DataReader>)Delegate.CreateDelegate(
+					typeof(Action<IDType, DataReader>),
+					null, method);
 			}
-			throw new InvalidOperationException($"Unsupported parameter signature for {method.Name}. Expected (ulong, DataReader).");
+			throw new InvalidOperationException($"Unsupported parameter signature for {method.Name}. Expected (IDType, DataReader).");
 		} catch (Exception e) {
-			MPMain.LogError(Localization.GetLog(
-				"MPPacketRouter.FailedToBind", method.Name, e.Message));
+			MPMain.LogError(Localization.GetLog("MPPacketRouter.FailedToBind", method.Name, e.Message));
 			return null;
 		}
 	}
+
+	#endregion
+
+	#region[扩容接口和内部注册]
+
+	/// <summary>
+	/// 检查并自动扩容 FastHandlers 数组以容纳指定的 ID
+	/// </summary>
+	public static void EnsureCapacity(int requiredIndex) {
+		if (requiredIndex >= FastHandlers.Length) {
+			int newSize = FastHandlers.Length;
+			while (newSize <= requiredIndex) {
+				newSize *= 2; // 按 2 倍几何级数扩容
+			}
+			Array.Resize(ref FastHandlers, newSize);
+			MPMain.LogInfo(Localization.GetLog("MPPacketRouter.FastHandlersExpanded", newSize));
+		}
+	}
+
+	/// <summary>
+	/// 内部无检查注册
+	/// </summary>
+	private static void RegisterRoutesInternal(Type handlerType) {
+		if (handlerType == null) return;
+		try {
+			var handlerEntries = handlerType
+				.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
+				.Where(method => method.GetCustomAttributes(typeof(MPPacketHandlerAttribute), false).Length > 0)
+				.SelectMany(method => ProcessMethod(method));
+			int count = 0;
+			foreach (var (packetType, action) in handlerEntries) {
+				ushort handlerId = (ushort)packetType;
+				FastHandlers[handlerId] = action;
+				count++;
+				MPMain.LogDebug($"Route {packetType} registered handler function {action.Method.Name}");
+			}
+			MPMain.LogDebug($"Successfully registered {count} handlers from type {handlerType.Name}.");
+		} catch (Exception ex) {
+			MPMain.LogError($"Failed to internal register routes from type {handlerType.Name}: {ex.Message}");
+		}
+	}
+
 	#endregion
 
 	#region[注册路由接口]
 
 	public static void RegisterRoute(PacketType packetType, Action<IDType, DataReader> handler) {
+		if (handler == null) {
+			MPMain.LogError("RegisterRoute failed: handler cannot be null.");
+			return;
+		}
 		ushort handlerId = (ushort)packetType;
+		// 确保数组容量足够
+		EnsureCapacity(handlerId);
 		// 前64个ID保留给内置处理器,用户注册的处理器必须从64开始
 		if (handlerId >= 64 && handlerId < FastHandlers.Length) {
-			if (FastHandlers[handlerId] != null) {
-				Localization.GetLog("MPPacketRouter.PacketHandlerOverridden",
-					packetType, FastHandlers[handlerId].Method.Name, handler.Method.Name);
-			}
+			if (FastHandlers[handlerId] != null) 
+				Localization.GetLog("MPPacketRouter.PacketHandlerOverridden", packetType, FastHandlers[handlerId].Method.Name, handler.Method.Name);
 			FastHandlers[handlerId] = handler;
-			MPMain.LogInfo(Localization.GetLog("MPPacketRouter.RegisterRouteSuccess", packetType, handler.Method.Name));
+			MPMain.LogDebug($"Route {packetType} registered handler function {handler.Method.Name}");
 		} else {
 			Localization.GetLog("MPPacketRouter.PacketTypeOutOfRange", (ushort)packetType, FastHandlers.Length - 1);
 		}
@@ -120,18 +137,48 @@ public class MPPacketRouter {
 
 	public static void RegisterRoute(MethodInfo method) {
 		var handlers = ProcessMethod(method);
-		foreach (var (packetType, handler) in handlers) {
-			RegisterRoute(packetType, handler);
-		}
+		foreach (var (packetType, handler) in handlers) RegisterRoute(packetType, handler);
 	}
 
 	public static void RegisterRoute(MethodInfo method, params PacketType[] packetTypes) {
 		var parameters = method.GetParameters();
 		var action = CreateAction(method, parameters);
 		if (action == null) return;
-		foreach (var packetType in packetTypes) {
-			RegisterRoute(packetType, action);
+		foreach (var packetType in packetTypes) RegisterRoute(packetType, action);
+	}
+
+	/// <summary>
+	/// 扫描并注册指定类型中的所有包处理静态方法
+	/// </summary>
+	/// <param name="handlerType">包含 MPPacketHandler 特性的类类型</param>
+	public static void RegisterRoutes(Type handlerType) {
+		if (handlerType == null) return;
+		try {
+			// 反射获取指定类型中的所有静态方法
+			var handlerEntries = handlerType
+				// 获取所有静态方法, 包括非公共的
+				.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
+				// 获取带有 MPPacketHandlerAttribute 特性的 方法. false表示不搜索继承链, 只看当前方法
+				.Where(method => method.GetCustomAttributes(typeof(MPPacketHandlerAttribute), false).Length > 0)
+				// 对每个方法进行处理, 其生成多个IEnumerable<(PacketType, Delegate)>并扁平化
+				.SelectMany(method => ProcessMethod(method));
+			int count = 0;
+			// 将解析结果存入 FastHandlers 数组
+			foreach (var (packetType, action) in handlerEntries) {
+				RegisterRoute(packetType, (Action<ulong, DataReader>)action);
+				count++;
+			}
+			MPMain.LogDebug($"Successfully registered {count} handlers from type {handlerType.Name}.");
+		} catch (Exception ex) {
+			MPMain.LogError($"Failed to register routes from type {handlerType.Name}: {ex.Message}");
 		}
+	}
+
+	/// <summary>
+	/// 泛型重载版本，支持直接传入类名进行注册：MPPacketRouter.RegisterRoutes&lt;MyCustomHandlers&gt;();
+	/// </summary>
+	public static void RegisterRoutes<T>() {
+		RegisterRoutes(typeof(T));
 	}
 
 	#endregion
@@ -143,7 +190,7 @@ public class MPPacketRouter {
 	#endregion
 
 	#region[数据转换+路由]
-	public static void Route(ulong connectionId, ArraySegment<byte> data) {
+	public static void Route(IDType connectionId, ArraySegment<byte> data) {
 		// 确保数据足够读取一个整数(数据包类型)
 		if (data.Array == null || data.Count < 18) return;
 
@@ -193,7 +240,7 @@ public class MPPacketRouter {
 	/// <summary>
 	/// 转发网络数据包到指定的客户端
 	/// </summary>
-	private static void ProcessForwardToPeer(ulong targetId, PacketType type,ArraySegment<byte> data) {
+	private static void ProcessForwardToPeer(IDType targetId, PacketType type,ArraySegment<byte> data) {
 		// 解析类型
 		SendType st = (type == PacketType.PlayerDataUpdate)
 			? SendType.Unreliable : SendType.Reliable;
@@ -223,7 +270,7 @@ public class MPPacketRouter {
 	/// 广播数据包到所有客户端 (除了发送者)
 	/// </summary>
 	/// <param name="senderId">发送方ID</param>
-	public static void ProcessBroadcastExcept(ulong senderId, ArraySegment<byte> data) {
+	public static void ProcessBroadcastExcept(IDType senderId, ArraySegment<byte> data) {
 		// 直接从 segment 获取偏移和长度
 		int offset = data.Offset;
 		int count = data.Count;

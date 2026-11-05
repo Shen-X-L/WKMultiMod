@@ -460,56 +460,57 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// <summary>
 	/// 处理接收到的敌人同步数据包: 根据操作类型分发到对应处理方法.
 	/// </summary>
-	public void HandleEnemyState(IDType senderId, DataReader reader) {
+	[MPPacketHandler(PacketType.EnemySync)]
+	public static void HandleEnemyState(IDType senderId, DataReader reader) {
 		var action = (EnemySyncAction)reader.GetByte();
 		try {
 			switch (action) {
 				case EnemySyncAction.OwnerRequest:
-					HandleOwnerRequest(senderId, reader);
 					MPMain.LogDebug("HandleOwnerRequest");
+					Instance.HandleOwnerRequest(senderId, reader);
 					break;
 				case EnemySyncAction.OwnerResponse:
-					HandleOwnerResponse(reader);
 					MPMain.LogDebug("HandleOwnerResponse");
+					Instance.HandleOwnerResponse(reader);
 					break;
 				case EnemySyncAction.OwnerAbandon:
-					HandleOwnerAbandon(senderId, reader);
 					MPMain.LogDebug("HandleOwnerAbandon");
+					Instance.HandleOwnerAbandon(senderId, reader);
 					break;
 				case EnemySyncAction.SubscriptionRequest:
-					HandleSubscriptionRequest(senderId, reader);
 					MPMain.LogDebug("HandleSubscriptionRequest");
+					Instance.HandleSubscriptionRequest(senderId, reader);
 					break;
 				case EnemySyncAction.UnsubscriptionRequest:
-					HandleUnsubscriptionRequest(senderId, reader);
 					MPMain.LogDebug("HandleUnsubscriptionRequest");
+					Instance.HandleUnsubscriptionRequest(senderId, reader);
 					break;
 				case EnemySyncAction.StateBatch:
-					HandleState(senderId, reader);
+					Instance.HandleState(senderId, reader);
 					break;
 				case EnemySyncAction.Damage:
-					HandleDamage(senderId, reader);
 					MPMain.LogDebug("HandleDamage");
+					Instance.HandleDamage(senderId, reader);
 					break;
 				case EnemySyncAction.Kill:
-					HandleKill(reader);
 					MPMain.LogDebug("HandleKill");
+					Instance.HandleKill(reader);
 					break;
 				case EnemySyncAction.SnapshotRequest:
-					HandleSnapshotRequest(senderId);
 					MPMain.LogDebug("HandleSnapshotRequest");
+					Instance.HandleSnapshotRequest(senderId);
 					break;
 				case EnemySyncAction.SnapshotChunk:
-					HandleSnapshotChunk(reader);
 					MPMain.LogDebug("HandleSnapshotChunk");
+					Instance.HandleSnapshotChunk(reader);
 					break;
 				case EnemySyncAction.CustomFeature:
-					HandleCustomFeature(senderId, reader);
 					MPMain.LogDebug("HandleCustomFeature");
+					Instance.HandleCustomFeature(senderId, reader);
 					break;
 				case EnemySyncAction.CustomFeatureReply:
-					HandleCustomFeatureReply(senderId, reader);
 					MPMain.LogDebug("HandleCustomFeatureReply");
+					Instance.HandleCustomFeatureReply(senderId, reader);
 					break;
 				default:
 					MPMain.LogWarning($"[MP EnemySync] Unknown action: {action}");
@@ -1043,9 +1044,26 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// </summary>
 	private void HandleOwnerLeave(Friend friend) {
 		if (!MPCore.CanSync || !IsEnabled) return;
-		// 只清除该发送者拥有的实体
-		var abandonedIds = _entityOwners.Where(pair => pair.Value == friend.Id).Select(pair => pair.Key).ToList();
+		// 清除该玩家拥有的实体
+		var abandonedIds = _entityOwners
+			.Where(pair => pair.Value == friend.Id)
+			.Select(pair => pair.Key).ToList();
 		ClearEntityOwner(abandonedIds);
+		// 移除该玩家在所有实体上的订阅关系
+		var emptySubscriberIds = new List<ulong>();
+		foreach (var (networkId, subscribers) in _entitySubscribers) {
+			subscribers.Remove(friend.Id);
+			if (subscribers.Count == 0) 
+				emptySubscriberIds.Add(networkId);
+		}
+		// 已经没有订阅者的集合
+		foreach (var networkId in emptySubscriberIds) {
+			_entitySubscribers.Remove(networkId);
+		}
+		// 清理该玩家尚未确认的待处理订阅
+		foreach (var pending in _pendingSubscriptions.Values) {
+			pending.RemoveAll(id => id == friend.Id);
+		}
 	}
 
 	#endregion
@@ -1256,7 +1274,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 接收函数: <see cref="HandleCustomFeature"/>
 	/// </summary>
 	public void SendCustomFeature(
-		IDType targetId, ulong networkId, byte featureIndex,
+		IDType targetId, ulong networkId, byte customIndex,
 		Action<DataWriter> action, bool needReply = false
 	) {
 		if (networkId == 0 || action == null) return;
@@ -1264,7 +1282,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 		writer.Put((byte)EnemySyncAction.CustomFeature);
 		writer.Put(networkId);
-		writer.Put(featureIndex);
+		writer.Put(customIndex);
 		writer.Put(needReply);
 
 		action(writer);
@@ -1277,7 +1295,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 接收函数: <see cref="HandleCustomFeature"/>
 	/// </summary>
 	public void BroadcastCustomFeature(
-		ulong networkId, byte featureIndex, Action<DataWriter> action, bool needReply = false
+		ulong networkId, byte customIndex, Action<DataWriter> action, bool needReply = false
 	) {
 		if (networkId == 0 || action == null) return;
 		if (!_entitySubscribers.TryGetValue(networkId, out var subscribers) || subscribers.Count == 0)
@@ -1287,7 +1305,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 		writer.Put((byte)EnemySyncAction.CustomFeature);
 		writer.Put(networkId);
-		writer.Put(featureIndex);
+		writer.Put(customIndex);
 		writer.Put(needReply);
 
 		action(writer);
@@ -1300,12 +1318,12 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 回复 自定义模块数据失败 (对象不存在/模块不存在)
 	/// 接收函数: <see cref="HandleCustomFeatureReply"/>
 	/// </summary>
-	private void SendCustomFeatureReply(IDType targetId, ulong networkId, byte featureIndex) {
+	private void SendCustomFeatureReply(IDType targetId, ulong networkId, byte customIndex) {
 		var writer = GetWriter(MPSteamworks.UserSteamId, targetId, PacketType.EnemySync);
 
 		writer.Put((byte)EnemySyncAction.CustomFeatureReply);
 		writer.Put(networkId);
-		writer.Put(featureIndex);
+		writer.Put(customIndex);
 
 		MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
 	}
@@ -1623,17 +1641,13 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// </summary>
 	private void HandleCustomFeature(IDType senderId, DataReader reader) {
 		ulong networkId = reader.GetULong();
-		byte featureIndex = reader.GetByte();
+		byte customIndex = reader.GetByte();
 		bool needReply = reader.GetBool();
-
-		if (!enemies.TryGetValue(networkId, out var identity) || identity == null) {
-			if (needReply) SendCustomFeatureReply(senderId, networkId, featureIndex);
-			return;
-		}
-
-		if (featureIndex >= identity.SyncFeatures.Count
-			|| identity.SyncFeatures[featureIndex] is not ICustomSyncFeature feature) {
-			if (needReply) SendCustomFeatureReply(senderId, networkId, featureIndex);
+		// 组件不存在 || 模块不存在
+		if (!enemies.TryGetValue(networkId, out var identity) || identity == null
+			|| !identity.TryGetCustomFeature(customIndex, out var feature)) {
+			// 需要回复 -> 回复失败
+			if (needReply) SendCustomFeatureReply(senderId, networkId, customIndex);
 			return;
 		}
 		ApplyingRemoteState = true;
@@ -1650,11 +1664,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// </summary>
 	private void HandleCustomFeatureReply(IDType senderId, DataReader reader) {
 		ulong networkId = reader.GetULong();
-		byte featureIndex = reader.GetByte();
+		byte customIndex = reader.GetByte();
 
 		if (!enemies.TryGetValue(networkId, out var identity) || identity == null) return;
-		if (featureIndex >= identity.SyncFeatures.Count) return;
-		if (identity.SyncFeatures[featureIndex] is ICustomSyncFeature feature)
+		if (identity.TryGetCustomFeature(customIndex, out var feature))
 			feature.HandleCustomReply(senderId);
 	}
 

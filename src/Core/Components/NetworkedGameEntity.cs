@@ -16,6 +16,7 @@ public class NetworkedGameEntity : MonoBehaviour {
 		BasicDenizen,   // 包含 DEN_BasicDenizen 完整 AI 运动
 		BasicNavigator  // 包含 DEN_BasicNavigator 完整 AI 运动
 	}
+
 	#endregion
 
 	#region [网络标签与身份判断]
@@ -47,26 +48,35 @@ public class NetworkedGameEntity : MonoBehaviour {
 	#endregion
 
 	#region [网络接管与模块管理]
+
 	private const float TIMEOUT_DURATION = 2.0f; // 2 秒未收到任何网络包则超时
 	private float _lastDataRecvTime;
 	public bool IsNetworkControlled { get; private set; } = false;
 	private bool _lastUseGravity = false;
 
 	// 统一同步模块列表
-	private readonly List<ISyncFeature> _syncFeatures = new();
-	public IReadOnlyList<ISyncFeature> SyncFeatures => _syncFeatures;
+	private readonly List<ISyncFeature> _features = new();
+	// 状态发送模块
+	private readonly List<IStateSyncFeature> _stateSyncFeatures = new();
+	// 帧更新模块
+	private readonly List<IFrameUpdateFeature> _frameUpdateFeatures = new();
+	// 自定义消息 类RPC模块
+	private readonly List<ICustomSyncFeature> _customSyncFeatures = new();
+	public IReadOnlyList<ISyncFeature> Features => _features;
+	public IReadOnlyList<IStateSyncFeature> StateSyncFeatures => _stateSyncFeatures;
 
+	public IReadOnlyList<ICustomSyncFeature> CustomSyncFeatures => _customSyncFeatures;
 	/// <summary>
 	/// 检查实体是否有任意子模块是否需要更新
 	/// </summary>
 	public bool HasMeaningfulChange {
 		get {
-			for (int i = 0; i < _syncFeatures.Count; i++) {
-				if (_syncFeatures[i].IsDirty) return true;
-			}
+			for (int i = 0; i < _stateSyncFeatures.Count; i++) 
+				if (_stateSyncFeatures[i].IsDirty) return true;
 			return false;
 		}
 	}
+
 	#endregion
 
 	#region[Unity生命周期]
@@ -97,16 +107,14 @@ public class NetworkedGameEntity : MonoBehaviour {
 
 	private void Update() {
 		// 超时检测: 如果超过 TIMEOUT_DURATION 秒未收到任何网络包, 则取消网络接管
-		if (!MPSteamworks.IsHost && IsNetworkControlled)
+		if (!IsOwnedByMe && IsNetworkControlled)
 			if (Time.time - _lastDataRecvTime > TIMEOUT_DURATION) 
 				SetNetworkControl(false);
 
 		// 逐帧驱动所有 Feature 自身的 OnUpdate (例如平滑插值)
 		float dt = Time.deltaTime;
-		for (int i = 0; i < _syncFeatures.Count; i++) {
-			_syncFeatures[i].OnUpdate(dt);
-		}
-
+		for (int i = 0; i < _frameUpdateFeatures.Count; i++)
+			_frameUpdateFeatures[i].OnUpdate(dt);
 	}
 
 	private void OnDestroy() {
@@ -129,61 +137,75 @@ public class NetworkedGameEntity : MonoBehaviour {
 		RegisterFeature(new RootTransformSyncFeature(this));
 		// AI 目标行为统一由 TargetSyncFeature 管理
 		if (AIEntity != null) {
-			TargetSyncFeature.TryGetAITargetComponent(Entity, out var targetComponent);
-			RegisterFeature(new TargetSyncFeature(targetComponent, this));
+			RegisterFeature(new TargetSyncFeature(AIEntity, this));
 		}
 		// 扫描注册所有 Animator Feature
 		var animators = GetComponentsInChildren<Animator>(true);
 		for (byte i = 0; i < animators.Length; i++) {
 			var anim = animators[i];
-			var animFeature = new AnimatorSyncFeature(anim, this);
-			RegisterFeature(animFeature);
+			RegisterFeature(new AnimatorSyncFeature(anim, this));
 		}
-		// VentThing 特化处理子 Transform (手部)
-		if (Entity is DEN_VentThing) {
-			var handTransform = transform.Find("Hand_Root");
-			if (handTransform != null) {
-				RegisterFeature(new SubTransformSyncFeature(handTransform));
-			}
+
+		switch (Entity) {
+			// Phage 特化处理子
+			case DEN_Phage phage:
+				RegisterFeature(new PhageSyncFeature(phage, this));
+				break;
+			// VentThing 特化处理子 Transform (手部)
+			case DEN_VentThing:
+				var handTransform = transform.Find("Hand_Root");
+				if (handTransform != null) RegisterFeature(new SubTransformSyncFeature(handTransform));
+				break;
 		}
 	}
 
 	// 注册模块
 	private void RegisterFeature(ISyncFeature feature) {
-		feature.FeatureIndex = (byte)_syncFeatures.Count;
-		_syncFeatures.Add(feature);
+		if (feature == null) return;
+		if (_features.Contains(feature)) return;
+		// 添加模块
+		_features.Add(feature);
+		if (feature is IStateSyncFeature stateFeature) {
+			stateFeature.StateIndex = (byte)_stateSyncFeatures.Count;
+			_stateSyncFeatures.Add(stateFeature);
+		}
+		if (feature is IFrameUpdateFeature frameFeature) _frameUpdateFeatures.Add(frameFeature);
+		if (feature is ICustomSyncFeature customFeature) {
+			customFeature.CustomIndex = (byte)_customSyncFeatures.Count;
+			_customSyncFeatures.Add(customFeature);
+		}
 	}
 
 	// 清理所有模块
 	private void ClearAllFeatures() {
-		for (int i = 0; i < _syncFeatures.Count; i++) 
-			_syncFeatures[i]?.OnDestroy();
-		_syncFeatures.Clear();
+		for (int i = 0; i < _features.Count; i++) _features[i]?.OnDestroy();
+		_features.Clear();
+		_stateSyncFeatures.Clear();
+		_frameUpdateFeatures.Clear();
+		_customSyncFeatures.Clear();
 	}
 
 	#endregion
 
-	#region [分模块网络序列化与反序列化]
+	#region [IState网络序列化与反序列化]
+
 	/// <summary>
 	/// 只序列化发生变动 (IsDirty == true) 的模块数据
 	/// </summary>
 	public void WriteSyncState(DataWriter writer) {
 		// 统计脏模块数量
 		byte dirtyCount = 0;
-		for (int i = 0; i < _syncFeatures.Count; i++) {
-			if (_syncFeatures[i].IsDirty) dirtyCount++;
-		}
-
+		for (int i = 0; i < _stateSyncFeatures.Count; i++) 
+			if (_stateSyncFeatures[i].IsDirty) dirtyCount++;
 		// 写入脏模块总数
 		writer.Put(dirtyCount);
-
 		// 稀疏写入：仅写入 [FeatureIndex + 模块数据]
-		for (int i = 0; i < _syncFeatures.Count; i++) {
-			var feature = _syncFeatures[i];
-			if (feature.IsDirty) {
-				writer.Put(feature.FeatureIndex);
-				feature.WriteState(writer);
-			}
+		for (int i = 0; i < _stateSyncFeatures.Count; i++) {
+			var feature = _stateSyncFeatures[i];
+			if (!feature.IsDirty) continue;
+			// 写入数据
+			writer.Put(feature.StateIndex);
+			feature.WriteState(writer);
 		}
 	}
 
@@ -192,12 +214,11 @@ public class NetworkedGameEntity : MonoBehaviour {
 	/// </summary>
 	public void WriteFullSyncState(DataWriter writer) {
 		// 写入全部模块总数
-		writer.Put((byte)_syncFeatures.Count);
-
+		writer.Put((byte)_stateSyncFeatures.Count);
 		// 全量写入：无视 IsDirty，强制写入所有 [FeatureIndex + 模块数据]
-		for (int i = 0; i < _syncFeatures.Count; i++) {
-			var feature = _syncFeatures[i];
-			writer.Put(feature.FeatureIndex);
+		for (int i = 0; i < _stateSyncFeatures.Count; i++) {
+			var feature = _stateSyncFeatures[i];
+			writer.Put(feature.StateIndex);
 			feature.WriteState(writer);
 		}
 	}
@@ -209,22 +230,32 @@ public class NetworkedGameEntity : MonoBehaviour {
 		// 刷新数据接收时间
 		_lastDataRecvTime = Time.time;
 		// 客机端开启网络接管
-		if (!IsOwnedByMe && !IsNetworkControlled) {
-			SetNetworkControl(true);
-		}
+		if (!IsOwnedByMe && !IsNetworkControlled) SetNetworkControl(true);
 		// 反序列化包内包含的变动 Feature 模块
 		byte dirtyCount = reader.GetByte();
-
 		for (int i = 0; i < dirtyCount; i++) {
 			byte featureIndex = reader.GetByte();
-			if (featureIndex < _syncFeatures.Count) 
-				_syncFeatures[featureIndex].ReadState(reader);
+			if (featureIndex < _stateSyncFeatures.Count)
+				_stateSyncFeatures[featureIndex].ReadState(reader);
 		}
 	}
 
 	#endregion
 
-	#region [网络控制与 AI 修改]
+	#region[ICustom查询]
+
+	public bool TryGetCustomFeature(byte index, out ICustomSyncFeature feature) {
+		feature = null;
+		if (index >= 0 && index < _customSyncFeatures.Count) {
+			feature = _customSyncFeatures[index];
+			return true;
+		}
+		return false;
+	}
+
+	#endregion
+
+	#region [AI 修改]
 
 	/// <summary>
 	/// 设置/切换网络控制接管状态

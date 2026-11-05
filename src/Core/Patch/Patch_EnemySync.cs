@@ -144,21 +144,48 @@ public static class Patch_DEN_Drone {
 /// </summary>
 [HarmonyPatch(typeof(DEN_Phage))]
 public static class Patch_DEN_Phage {
+	public static readonly AccessTools.FieldRef<DEN_Phage, bool> canSeeTargetField =
+		AccessTools.FieldRefAccess<DEN_Phage, bool>("canSeeTarget");
+	public static readonly AccessTools.FieldRef<DEN_Phage, bool> canRememberTargetField =
+		AccessTools.FieldRefAccess<DEN_Phage, bool>("canRememberTarget");
+	public static readonly AccessTools.FieldRef<DEN_Phage, float> _lookBlendField =
+		AccessTools.FieldRefAccess<DEN_Phage, float>("lookBlend");
+	public static readonly AccessTools.FieldRef<DEN_Phage, BuffContainer> _lookDebuffField =
+		AccessTools.FieldRefAccess<DEN_Phage, BuffContainer>("lookDebuff");
+
+	public static readonly Action<DEN_Phage> InvokeDataLerp =
+		AccessTools.MethodDelegate<Action<DEN_Phage>>(AccessTools.Method(typeof(DEN_Phage), "DataLerp"));
 
 	[HarmonyPatch("OnAttackHit")]
 	[HarmonyPrefix]
 	public static void Patch_OnAttackHit(DEN_Phage __instance, GameEntity hitEntity) {
-		if (!hitEntity.GetTagger().HasTag(MPKeys.REMOTE_PLAYER_TAG)) return;
-		// 进行特殊攻击模块调用
-		if (!__instance.TryGetComponent<NetworkedGameEntity>(out var identity)) return;
-
-		return;
+		PhageSyncFeature.PhageOnAttackHit(__instance, hitEntity);
 	}
 
 	[HarmonyPatch(nameof(DEN_Phage.Damage))]
 	[HarmonyPrefix]
 	public static void Patch_Damage(DEN_Phage __instance, Damageable.DamageInfo info) {
 		EnemySyncModule.Instance.SendEnemyDamage(__instance, info);
+	}
+
+	[HarmonyPatch(nameof(DEN_Phage.LookCheck))]
+	[HarmonyPrefix]
+	public static bool Patch_LookCheck(DEN_Phage __instance) {
+		MPMain.LogDebug($"target: {__instance.target} player: {ENT_Player.GetPlayer()?.transform} isEqual: {__instance.target == ENT_Player.GetPlayer().transform}");
+		// 索敌为玩家时 正常执行
+		if (__instance.target == ENT_Player.GetPlayer().transform) return true;
+		// 获取并更新 lookBlend (等价于 lookBlend = Mathf.Lerp(lookBlend, 0, Time.deltaTime))
+		float currentBlend = _lookBlendField(__instance);
+		float newBlend = Mathf.Lerp(currentBlend, 0f, Time.deltaTime);
+		_lookBlendField(__instance) = newBlend;
+		// 获取 lookDebuff 并调用 SetMultiplier
+		BuffContainer debuff = _lookDebuffField(__instance);
+		if (debuff != null) debuff.SetMultiplier(newBlend);
+		// 相机抖动: 视线丢失时抖动相机,抖动幅度随 lookBlend 变化
+		ENT_Player.playerObject.camRoot.ShakeCamera(__instance.lookCamShake * newBlend * (Mathf.Sin(Time.time * 3f) + 1f) * Time.deltaTime);
+		// 调用私有方法 DataLerp()
+		InvokeDataLerp(__instance);
+		return false;
 	}
 }
 
@@ -189,7 +216,7 @@ public static class AnimatorInterceptor {
 		TargetScope.All(typeof(DEN_Ravelin)),// 大螃蟹 含内部函数+协程
 		TargetScope.All(typeof(DEN_Crawler)),// 小螃蟹 含内部函数+协程
 		// 噬菌体
-		new TargetScope(typeof(DEN_Phage),nameof(DEN_Phage.Damage)),
+		new TargetScope(typeof(DEN_Phage),nameof(DEN_Phage.Damage),"OnKillPlayer.KillPlayerAnimation"),
 		// 基础生物
 		new TargetScope(typeof(DEN_BasicDenizen),
 			nameof(DEN_BasicDenizen.AnimationUpdate),nameof(DEN_BasicDenizen.Damage),
@@ -233,7 +260,7 @@ public static class AnimatorInterceptor {
 
 	public static void Apply() {
 		if (MPMain.HarmonyInstance == null) {
-			MPMain.LogError("[AnimatorInterceptor] HarmonyInstance in MPMain is null!");
+			MPMain.LogError("HarmonyInstance in MPMain is null!");
 			return;
 		}
 
@@ -243,12 +270,11 @@ public static class AnimatorInterceptor {
 			if (scope.TargetType == null) continue;
 
 			// 一次性查出当前 scope 对应的所有目标 MethodInfo
-			foreach (var rawMethod in FindMethodsForScope(scope)) {
+			foreach (var rawMethod in FindMethodsForScope(scope))
 				PatchSingleMethod(rawMethod, transpilerMethod, scope.TargetType.Name);
-			}
 		}
 
-		MPMain.LogDebug($"[AnimatorInterceptor] Successfully applied IL Interceptor to {Targets.Length} target scopes.");
+		MPMain.LogDebug($"Successfully applied IL Interceptor to {Targets.Length} target scopes.");
 	}
 
 	/// <summary>
@@ -264,14 +290,10 @@ public static class AnimatorInterceptor {
 
 		try {
 			MPMain.HarmonyInstance.Patch(targetMethod, transpiler: transpiler);
-
-			if (targetMethod != rawMethod) {
-				MPMain.LogDebug($"[AnimatorInterceptor] Patched Coroutine: {typeName}.{rawMethod.Name} -> {targetMethod.DeclaringType?.Name}.MoveNext()");
-			} else {
-				MPMain.LogDebug($"[AnimatorInterceptor] Patched Method: {typeName}.{rawMethod.Name}");
-			}
+			if (targetMethod != rawMethod) MPMain.LogDebug($"Patched Coroutine: {typeName}.{rawMethod.Name} -> {targetMethod.DeclaringType?.Name}.MoveNext()");
+			else MPMain.LogDebug($"Patched Method: {typeName}.{rawMethod.Name}");
 		} catch (Exception ex) {
-			MPMain.LogError($"[AnimatorInterceptor] Failed to patch {typeName}.{rawMethod.Name}: {ex.Message}");
+			MPMain.LogError($"Failed to patch {typeName}.{rawMethod.Name}: {ex.Message}");
 		}
 	}
 
@@ -279,7 +301,7 @@ public static class AnimatorInterceptor {
 	/// 查找 MethodInfo
 	/// </summary>
 	/// <summary>
-	/// 一次性获取 Scope 下所有匹配的 MethodInfo（兼顾全扫描与精准匹配）
+	/// 一次性获取 Scope 下所有匹配的 MethodInfo (兼顾全扫描与精准匹配)
 	/// </summary>
 	private static IEnumerable<MethodInfo> FindMethodsForScope(TargetScope scope) {
 		const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
@@ -329,9 +351,8 @@ public static class AnimatorInterceptor {
 			}
 
 			// 未查找到对应函数时打印日志
-			if (!foundAny) {
-				MPMain.LogWarning($"[AnimatorInterceptor] Method '{methodName}' not found in {scope.TargetType.Name}");
-			}
+			if (!foundAny) 
+				MPMain.LogError($"Method '{methodName}' not found in {scope.TargetType.Name}");
 		}
 	}
 
@@ -390,6 +411,16 @@ public static class AnimatorInterceptor {
 			AccessTools.Method(typeof(Animator), nameof(Animator.SetLayerWeight), new[] { typeof(int), typeof(float) }),
 			AccessTools.Method(typeof(AnimatorInterceptor), nameof(OnSetLayerWeight))
 		);
+
+		// Play 映射
+		RegisterMap(
+			AccessTools.Method(typeof(Animator), nameof(Animator.Play), new[] { typeof(string), typeof(int), typeof(float) }),
+			AccessTools.Method(typeof(AnimatorInterceptor), nameof(OnPlayStr))
+		);
+		RegisterMap(
+			AccessTools.Method(typeof(Animator), nameof(Animator.Play), new[] { typeof(int), typeof(int), typeof(float) }),
+			AccessTools.Method(typeof(AnimatorInterceptor), nameof(OnPlayHash))
+		);
 	}
 
 	private static void RegisterMap(MethodInfo target, MethodInfo interceptor) {
@@ -419,6 +450,8 @@ public static class AnimatorInterceptor {
 		if (string.IsNullOrEmpty(name)) return 0;
 		return HashCache.GetOrAdd(name, Animator.StringToHash);
 	}
+
+	#region[替换执行函数]
 
 	public static void OnSetTriggerStr(Animator anim, string name) {
 		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
@@ -460,6 +493,25 @@ public static class AnimatorInterceptor {
 		if (feature != null && feature.Entity.IsOwnedByMe) feature.SetLayerWeightDirty(layer, weight);
 	}
 
+	public static void OnPlayStr(Animator anim, string stateName, int layer, float normalizedTime) {
+		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
+		int stateHash = GetHash(stateName);
+		if (feature != null) feature.Play(stateHash, layer, normalizedTime);
+		else anim.Play(stateHash, layer, normalizedTime);
+	}
+
+	public static void OnPlayHash(Animator anim, int stateHash, int layer, float normalizedTime) {
+		if (!ShouldExecuteAnimCall(anim, out var feature)) return;
+		if (feature != null) feature.Play(stateHash, layer, normalizedTime);
+		else anim.Play(stateHash, layer, normalizedTime);
+	}
+
+	#endregion
+
+	/// <summary>
+	/// 获取Animator对应SyncFeature 并获取是否可进行本地动画调用
+	/// </summary>
+	/// <returns>false表示禁止本地动画调用 true表示可以进行本地动画调用</returns>
 	private static bool ShouldExecuteAnimCall(Animator anim, out AnimatorSyncFeature feature) {
 		feature = null;
 		if (anim == null) return false;
@@ -484,18 +536,7 @@ public static class Patch_AITargetComponent {
 	[HarmonyPostfix]
 	[HarmonyPatch(nameof(AITargetComponent.CheckForTarget))]
 	public static void Patch_CheckForTarget(AITargetComponent __instance) {
-		if(__instance?.target?.targetTagger == null) return;
-		// 未锁定远程玩家
-		if (!__instance.target.targetTagger.HasTag(MPKeys.REMOTE_PLAYER_TAG)) return;
-		// 玩家没有接管
-		if (!TargetSyncFeature.TryGetFeature(__instance, out var feature) || !feature.Entity.IsOwnedByMe) return;
-		// 锁定远程玩家 发送成为目标请求
-		if (__instance.target.targetEntity is RemotePlayer remotePlayer) {
-			feature.SetRPAsTarget(remotePlayer.playerId);
-		} else if (__instance.target.targetEntity is RemoteProp remoteProp) {
-			feature.SetRPAsTarget(remoteProp.remoteEntity.playerId);
-		}
-		return;
+		TargetSyncFeature.OnCheckForTarget(__instance);
 	}
 }
 

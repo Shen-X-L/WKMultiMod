@@ -112,7 +112,8 @@ public class MPPacketHandlers {
 		IDType source = reader.GetULong();
 
 		// 玩家造成的伤害 && 存在玩家
-		if (tags.Contains("player") && RPManager.Instance.Players.TryGetValue(source, out var container) && container?.remotePlayer != null) {
+		if (tags.Contains("player") && RPManager.Instance.Players.TryGetValue(source, out var container) 
+			&& container?.remotePlayer != null && container?.remotePlayer.pvpEnabled == true) {
 			GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, container.remotePlayer));
 			// 有远程生物伤害标签 && 有对应ID 
 		} else if (tags.Contains(MPKeys.REMOTE_ENEMY_DAMAGE_TAG)
@@ -124,7 +125,7 @@ public class MPPacketHandlers {
 				GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, identity.Entity));
 			}
 		} else {
-			GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
+			//GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
 		}
 	}
 
@@ -266,30 +267,6 @@ public class MPPacketHandlers {
 				GetPlayer().Teleport(pos);
 			}
 		}
-	}
-
-	/// <summary>
-	/// 主机/客户端接收ItemStateSync: 通过物品同步管理器来进行物品同步
-	/// </summary>
-	[MPPacketHandler(PacketType.SceneItemSync)]
-	private static void HandleSceneItemStateSync(IDType senderId, DataReader reader) {
-		SceneItemModule.Instance.HandleItemState(senderId, reader);
-	}
-
-	/// <summary>
-	/// 主机/客户端接收ItemStateSync: 通过物品同步管理器来进行物品同步
-	/// </summary>
-	[MPPacketHandler(PacketType.DroppedItemSync)]
-	private static void HandleDroppedItemStateSync(IDType senderId, DataReader reader) {
-		DroppedItemModule.Instance.HandleItemState(senderId, reader);
-	}
-
-	/// <summary>
-	/// 主机/客户端接收EnemyStateSync: 同步敌人位置, 生命值, 伤害请求和死亡状态
-	/// </summary>
-	[MPPacketHandler(PacketType.EnemySync)]
-	private static void HandleEnemyStateSync(IDType senderId, DataReader reader) {
-		EnemySyncModule.Instance.HandleEnemyState(senderId, reader);
 	}
 
 	/// <summary>

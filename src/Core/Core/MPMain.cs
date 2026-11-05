@@ -15,7 +15,7 @@ public class MPMain : BaseUnityPlugin {
 
 	public const string PLUGIN_GUID = "shenxl.MultiPlayerMod";
 	public const string PLUGIN_NAME = "MultiPlayer Mod";
-	public const string PLUGIN_VERSION = "1.8.4.0";
+	public const string PLUGIN_VERSION = "1.8.4.5";
 	//Assembly.GetExecutingAssembly().Location -> BepInEx\plugins\MultiPlayer\WKMultiPlayerMod.dll
 	//Path.GetDirectoryName -> BepInEx\plugins\MultiPlayer
 	public static string path = Path.GetDirectoryName(typeof(MPMain).Assembly.Location) ?? string.Empty;
@@ -86,12 +86,22 @@ public class MPMain : BaseUnityPlugin {
 		Logger.LogWarning(log);
 	}
 
-	public static void LogError(string log = "", [CallerMemberName] string member = "", [CallerLineNumber] int number = 0) {
-		Logger.LogError($"[MP {member} {number}]" + log);
+	public static void LogError(string log = "",
+		[CallerMemberName] string member = "",
+		[CallerLineNumber] int number = 0,
+		[CallerFilePath] string filePath = "") {
+		// 从文件路径中提取出类名(即不带后缀的文件名，通常约定文件名与类名一致)
+		string className = Path.GetFileNameWithoutExtension(filePath);
+		Logger.LogError($"[MP {className}.{member} {number}] {log}");
 	}
 
-	public static void LogDebug(string log = "", [CallerMemberName] string member = "", [CallerLineNumber] int number = 0) {
-		Logger.LogDebug($"[MP {member} {number}]" + log);
+	public static void LogDebug(string log = "",
+		[CallerMemberName] string member = "",
+		[CallerLineNumber] int number = 0,
+		[CallerFilePath] string filePath = "") {
+		// 从文件路径中提取出类名(即不带后缀的文件名，通常约定文件名与类名一致)
+		string className = Path.GetFileNameWithoutExtension(filePath);
+		Logger.LogDebug($"[MP {className}.{member} {number}] {log}");
 	}
 
 	public static void LogTest(string log = "") {

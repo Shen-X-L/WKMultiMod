@@ -2,14 +2,14 @@
 using WKMPMod.Components;
 using WKMPMod.Data;
 
-public class SubTransformSyncFeature : ISyncFeature {
+public class SubTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 	public Transform SubTransform { get; private set; }
-
+	// 更新前位置 接收数据后目标更新位置
 	private Vector3 _lastLocalPos;
 	private Quaternion _lastLocalRot;
 	private Vector3 _targetLocalPos;
 	private Quaternion _targetLocalRot;
-
+	// 更新范围判定
 	private const float PosEpsilonSqr = 0.001f;
 	private const float LERP_SPEED = 15f;
 
@@ -22,22 +22,29 @@ public class SubTransformSyncFeature : ISyncFeature {
 		}
 	}
 
-	#region[ISyncFeature接口实现]
+	#region[ISyncFeature 基础实现]
 
-	public byte FeatureIndex { get; set; }
 	public string FeatureId { get; }
+	public void OnReset() {
+		if (SubTransform == null) return;
+		_lastLocalPos = _targetLocalPos = Vector3.zero;
+		_lastLocalRot = _targetLocalRot = Quaternion.identity;
+	}
+	public void OnDestroy() { SubTransform = null; }
 
-	// 主机端检查脏数据：局部位置或旋转是否变化
-	public bool IsDirty => SubTransform != null && (
-		(SubTransform.localPosition - _lastLocalPos).sqrMagnitude > PosEpsilonSqr ||
-		Quaternion.Angle(SubTransform.localRotation, _lastLocalRot) > 0.5f
-	);
+	#endregion
+
+	#region[IStateSyncFeature 状态同步实现]
+
+	public byte StateIndex { get; set; }
+	public bool IsDirty => SubTransform != null 
+		&& ((SubTransform.localPosition - _lastLocalPos).sqrMagnitude > PosEpsilonSqr 
+			|| Quaternion.Angle(SubTransform.localRotation, _lastLocalRot) > 0.5f);
 
 	public void WriteState(DataWriter writer) {
 		if (SubTransform == null) return;
 		_lastLocalPos = SubTransform.localPosition;
 		_lastLocalRot = SubTransform.localRotation;
-
 		writer.Put(_lastLocalPos);
 		writer.Put(_lastLocalRot);
 	}
@@ -47,22 +54,15 @@ public class SubTransformSyncFeature : ISyncFeature {
 		_targetLocalRot = reader.GetQuaternion();
 	}
 
+	#endregion
+
+	#region[IFrameUpdateFeature 帧更新实现]
+
 	public void OnUpdate(float deltaTime) {
 		if (SubTransform == null) return;
-		// 客户端逐帧平滑插值
 		SubTransform.localPosition = Vector3.Lerp(SubTransform.localPosition, _targetLocalPos, deltaTime * LERP_SPEED);
 		SubTransform.localRotation = Quaternion.Slerp(SubTransform.localRotation, _targetLocalRot, deltaTime * LERP_SPEED);
 	}
-
-	public void OnReset() {
-		if (SubTransform == null) return;
-		_lastLocalPos = _targetLocalPos = Vector3.zero;
-		_lastLocalRot = _targetLocalRot = Quaternion.identity;
-	}
-
-	public void OnDestroy() {
-		SubTransform = null;
-	}
-
+	
 	#endregion
 }

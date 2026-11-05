@@ -1,6 +1,10 @@
-气笑了 DEN_BasicDenizen 光TargetComponent.target.Clear()并不能完全清空target
+tmd弱智吧holly DEN_BasicNavigator对基类Target模块进行隐藏,重构TargetSyncFeature
 
-创建攻击同步功能 DEN_Phage.OnAttackHit DenizenAttackModule_Basic远程攻击等进行类RPC调用
+DEN_Phage 攻击时前后反了(有什么触发了动画使其旋转180度)
+
+可能重构AnimatorSyncFeature为检测Animator状态机参数而不是拦截IL
+
+添加IStateSyncFeature的全量更新接口
 
 ENV_BearTrap
 DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
@@ -12,7 +16,6 @@ DEN_Mother.Damage
 DEN_VentThing.SetTarget
 DEN_Remains_Active
 DEN_RatKing
-DEN_Phage
 只索敌主玩家
 
 仅有吐射动画,没有射击物

@@ -6,32 +6,7 @@ using UnityEngine;
 
 namespace WKMPMod.Components;
 
-public class FieldSyncFeature<T, F> : ISyncFeature {
-
-	#region [ISyncFeature接口实现]
-
-	public byte FeatureIndex { get; set; }
-	public string FeatureId { get; }
-	public bool IsDirty => !AreEquals(_fieldAccessor(_target), _lastValue);
-	public void WriteState(DataWriter writer) {
-		_lastValue = _fieldAccessor(_target);
-		_writerAction(writer, _lastValue);
-	}
-
-	public void ReadState(DataReader reader) {
-		_lastValue = _readerAction(reader);
-		_fieldAccessor(_target) = _lastValue;
-	}
-
-	public void OnUpdate(float deltaTime) { }
-
-	public void OnReset() {
-		if (_target != null) _lastValue = _fieldAccessor(_target);
-	}
-
-	public void OnDestroy() { }
-	#endregion
-
+public class FieldSyncFeature<T, F> : IStateSyncFeature {
 	#region[反射/序列化]
 
 	// 静态缓存字段访问器, 避免每次创建新的委托
@@ -102,7 +77,7 @@ public class FieldSyncFeature<T, F> : ISyncFeature {
 
 	public FieldSyncFeature(T targetObject, string fieldName) {
 		_target = targetObject;
-		FeatureId = $"FieldSync_{fieldName}";
+		FeatureId = $"Field_{fieldName}";
 		if (!_accessorCache.TryGetValue(fieldName, out _fieldAccessor)) {
 			_fieldAccessor = AccessTools.FieldRefAccess<T, F>(fieldName);
 			_accessorCache[fieldName] = _fieldAccessor;
@@ -110,4 +85,26 @@ public class FieldSyncFeature<T, F> : ISyncFeature {
 		_lastValue = _fieldAccessor(targetObject);
 	}
 
+	#region [ISyncFeature 基础实现]
+
+	public string FeatureId { get; }
+	public void OnReset() { if (_target != null) _lastValue = _fieldAccessor(_target); }
+	public void OnDestroy() { }
+
+	#endregion
+
+	#region [IStateSyncFeature 状态同步实现]
+
+	public byte StateIndex { get; set; }
+	public bool IsDirty => !AreEquals(_fieldAccessor(_target), _lastValue);
+	public void WriteState(DataWriter writer) {
+		_lastValue = _fieldAccessor(_target);
+		_writerAction(writer, _lastValue);
+	}
+	public void ReadState(DataReader reader) {
+		_lastValue = _readerAction(reader);
+		_fieldAccessor(_target) = _lastValue;
+	}
+
+	#endregion
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace WKMPMod.Components;
 
-public class RootTransformSyncFeature : ISyncFeature {
+public class RootTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 	// 所属实体
 	private readonly NetworkedGameEntity _netEntity;
 	private readonly Transform _transform;
@@ -35,11 +35,22 @@ public class RootTransformSyncFeature : ISyncFeature {
 		_lastHealth = _entity != null ? _entity.health : float.NaN;
 	}
 
-	#region[ISyncFeature接口实现]
+	#region[ISyncFeature 基础实现]
+
+	public string FeatureId => "RootTransform";
+	public void OnReset() {
+		_lastPosition = _targetPosition = _transform.position;
+		_lastRotation = _targetRotation = _transform.rotation;
+		_lastHealth = _entity != null ? _entity.health : float.NaN;
+	}
+	public void OnDestroy() { }
+
+	#endregion
+
+	#region[IStateSyncFeature 状态同步实现]
 
 	// 模块索引与模块名
-	public byte FeatureIndex { get; set; }
-	public string FeatureId => "RootTransform";
+	public byte StateIndex { get; set; }
 
 	public bool IsDirty {
 		get {
@@ -65,24 +76,17 @@ public class RootTransformSyncFeature : ISyncFeature {
 		_targetRotation = reader.GetQuaternion();
 		float hp = reader.GetFloat();
 
-		if (_entity != null && !float.IsNaN(hp))
-			_entity.health = hp;
+		if (_entity != null && !float.IsNaN(hp)) _entity.health = hp;
 	}
+
+	#endregion
+
+	#region[IFrameUpdateFeature 帧更新实现]
 
 	public void OnUpdate(float deltaTime) {
 		if (!_netEntity.IsNetworkControlled) return;
 		_transform.position = Vector3.Lerp(_transform.position, _targetPosition, deltaTime * LERP_SPEED);
 		_transform.rotation = Quaternion.Slerp(_transform.rotation, _targetRotation, deltaTime * LERP_SPEED);
-	}
-
-	public void OnReset() {
-		_lastPosition = _targetPosition = _transform.position;
-		_lastRotation = _targetRotation = _transform.rotation;
-		_lastHealth = _entity != null ? _entity.health : float.NaN;
-	}
-
-	public void OnDestroy() {
-		// 无需额外清理
 	}
 
 	#endregion

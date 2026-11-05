@@ -155,17 +155,12 @@ public class RemotePlayer : GameEntity {
 	private void PlayerDamage(Damageable.DamageInfo info) {
 		// 关闭pvp || 伤害来源非同步因素伤害 不造成伤害
 		if (!pvpEnabled|| !DamageRules.whitelistDamage.Contains(info.type)) return;
-
 		// 如果对方正在抓着我, 强制对方放手
-		if (LocalPlayer.IsHoldingMe(playerId))
-			MPEventBusGame.NotifyPlayerStopInteraction(playerId);
-
+		if (LocalPlayer.IsHoldingMe(playerId))MPEventBusGame.NotifyPlayerStopInteraction(playerId);
 		// 伤害值 <= 0 不造成伤害 顺便不触发无敌帧计时器
 		if (info.amount <= 0) return;
-
 		// 计算伤害窗口时间
 		float elapsed = Time.time - _damageWindowStartTime;
-
 		// [0, BurstWindow]并发期伤害允许
 		// (BurstWindow, Invincibility]无敌帧窗口期
 		// (Invincibility, nextDamage)开启新窗口
@@ -176,7 +171,6 @@ public class RemotePlayer : GameEntity {
 			// 如果时间处于 (BurstWindow, Invincibility] 之间, 属于无敌帧 免疫伤害
 			return;
 		}
-
 		// 添加屏幕震动
 		CL_CameraControl.Shake(0.01f);
 		// 计算伤害倍率
@@ -184,6 +178,7 @@ public class RemotePlayer : GameEntity {
 		// 伤害值 <= 0 不造成伤害
 		if (info.amount <= 0) return;
 		// 发送伤害通知事件
+		if (!info.tags.Contains("player")) info.tags.Add("player");
 		MPEventBusGame.NotifyPlayerDamage(playerId, info);
 	}
 

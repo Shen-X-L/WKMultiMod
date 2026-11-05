@@ -8,7 +8,7 @@ using WKMPMod.World;
 
 namespace WKMPMod.Components;
 
-public class AnimatorSyncFeature : ISyncFeature,ICustomSyncFeature {
+public class AnimatorSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 	#region[查找表]
 
 	// 静态快速查找表：Animator -> 对应的 AnimatorSyncFeature
@@ -53,85 +53,15 @@ public class AnimatorSyncFeature : ISyncFeature,ICustomSyncFeature {
 
 	#endregion
 
-	#region[ISyncFeature接口实现]
+	#region[ISyncFeature 基础实现]
 
-	public byte FeatureIndex { get; set; }
-
-	public string FeatureId => $"Animator_{TargetAnimator?.name}";
-
-	public bool IsDirty => _dirtyBools.Count > 0 || _dirtyFloats.Count > 0 || _dirtyInts.Count > 0 || _dirtyLayerWeights.Count > 0;
-
-	public void WriteState(DataWriter writer) {
-		// 1. Bool
-		writer.Put((byte)_dirtyBools.Count);
-		foreach (var kvp in _dirtyBools) {
-			writer.Put(kvp.Key);
-			writer.Put(kvp.Value);
-		}
-		_dirtyBools.Clear();
-
-		// 2. Float
-		writer.Put((byte)_dirtyFloats.Count);
-		foreach (var kvp in _dirtyFloats) {
-			writer.Put(kvp.Key);
-			writer.Put(kvp.Value);
-		}
-		_dirtyFloats.Clear();
-
-		// 3. Int
-		writer.Put((byte)_dirtyInts.Count);
-		foreach (var kvp in _dirtyInts) {
-			writer.Put(kvp.Key);
-			writer.Put(kvp.Value);
-		}
-		_dirtyInts.Clear();
-
-		// 4. LayerWeight
-		writer.Put((byte)_dirtyLayerWeights.Count);
-		foreach (var kvp in _dirtyLayerWeights) {
-			writer.Put(kvp.Key);
-			writer.Put(kvp.Value);
-		}
-		_dirtyLayerWeights.Clear();
-	}
-
-	public void ReadState(DataReader reader) {
-		if (TargetAnimator == null) return;
-
-		// Bool
-		byte boolCount = reader.GetByte();
-		for (int i = 0; i < boolCount; i++) {
-			TargetAnimator.SetBool(reader.GetInt(), reader.GetBool());
-		}
-
-		// Float
-		byte floatCount = reader.GetByte();
-		for (int i = 0; i < floatCount; i++) {
-			TargetAnimator.SetFloat(reader.GetInt(), reader.GetFloat());
-		}
-
-		// Int
-		byte intCount = reader.GetByte();
-		for (int i = 0; i < intCount; i++) {
-			TargetAnimator.SetInteger(reader.GetInt(), reader.GetInt());
-		}
-
-		// LayerWeight
-		byte layerCount = reader.GetByte();
-		for (int i = 0; i < layerCount; i++) {
-			TargetAnimator.SetLayerWeight(reader.GetInt(), reader.GetFloat());
-		}
-	}
-
-	public void OnUpdate(float deltaTime) { }
-
+	public string FeatureId => $"Animator";
 	public void OnReset() {
 		_dirtyBools.Clear();
 		_dirtyFloats.Clear();
 		_dirtyInts.Clear();
 		_dirtyLayerWeights.Clear();
 	}
-
 	public void OnDestroy() {
 		Unregister(TargetAnimator);
 		OnReset();
@@ -139,12 +69,66 @@ public class AnimatorSyncFeature : ISyncFeature,ICustomSyncFeature {
 
 	#endregion
 
-	#region[ICustomSyncFeature接口实现]
+	#region[IStateSyncFeature 状态同步实现]
 
+	public byte StateIndex { get; set; }
+	public bool IsDirty => _dirtyBools.Count > 0 || _dirtyFloats.Count > 0 || _dirtyInts.Count > 0 || _dirtyLayerWeights.Count > 0;
+
+	public void WriteState(DataWriter writer) {
+		// 1. Bool
+		writer.Put((byte)_dirtyBools.Count);
+		foreach (var kvp in _dirtyBools) { writer.Put(kvp.Key); writer.Put(kvp.Value); }
+		_dirtyBools.Clear();
+		// 2. Float
+		writer.Put((byte)_dirtyFloats.Count);
+		foreach (var kvp in _dirtyFloats) { writer.Put(kvp.Key); writer.Put(kvp.Value); }
+		_dirtyFloats.Clear();
+		// 3. Int
+		writer.Put((byte)_dirtyInts.Count);
+		foreach (var kvp in _dirtyInts) { writer.Put(kvp.Key); writer.Put(kvp.Value); }
+		_dirtyInts.Clear();
+		// 4. LayerWeight
+		writer.Put((byte)_dirtyLayerWeights.Count);
+		foreach (var kvp in _dirtyLayerWeights) { writer.Put(kvp.Key); writer.Put(kvp.Value); }
+		_dirtyLayerWeights.Clear();
+	}
+
+	public void ReadState(DataReader reader) {
+		if (TargetAnimator == null) return;
+		byte boolCount = reader.GetByte();
+		for (int i = 0; i < boolCount; i++) TargetAnimator.SetBool(reader.GetInt(), reader.GetBool());
+		byte floatCount = reader.GetByte();
+		for (int i = 0; i < floatCount; i++) TargetAnimator.SetFloat(reader.GetInt(), reader.GetFloat());
+		byte intCount = reader.GetByte();
+		for (int i = 0; i < intCount; i++) TargetAnimator.SetInteger(reader.GetInt(), reader.GetInt());
+		byte layerCount = reader.GetByte();
+		for (int i = 0; i < layerCount; i++) TargetAnimator.SetLayerWeight(reader.GetInt(), reader.GetFloat());
+	}
+
+	#endregion
+
+	#region[ICustomSyncFeature 信号式交互实现]
+
+	public byte CustomIndex { get; set; }
 	public void HandleCustomMessage(ulong senderId, DataReader reader, bool needReply) {
 		if (Entity.IsOwnedByMe) return;
-		int hashId = reader.GetInt();
-		ApplyTrigger(hashId);
+		var command = (AnimatorCommand)reader.GetByte();
+
+		switch (command) {
+			case AnimatorCommand.Trigger: {
+				int hashId = reader.GetInt();
+				ApplyTrigger(hashId);
+				break;
+			}
+
+			case AnimatorCommand.Play: {
+				int stateHash = reader.GetInt();
+				int layer = reader.GetInt();
+				float normalizedTime = reader.GetFloat();
+				ApplyPlay(stateHash, layer, normalizedTime);
+				break;
+			}
+		}
 	}
 
 	public void HandleCustomReply(IDType senderId) {
@@ -153,11 +137,37 @@ public class AnimatorSyncFeature : ISyncFeature,ICustomSyncFeature {
 
 	#endregion
 
+	#region[网络消息]
+
+	private enum AnimatorCommand : byte {
+		Trigger, Play
+	}
+
 	public void SetTrigger(int hashId) {
-		if (TargetAnimator == null) return;
+		if (TargetAnimator == null)return;
 		TargetAnimator.SetTrigger(hashId);
-		if (Entity.IsOwnedByMe) EnemySyncModule.Instance.BroadcastCustomFeature(
-			Entity.networkId, FeatureIndex, writer => writer.Put(hashId));
+		if (Entity.IsOwnedByMe) {
+			EnemySyncModule.Instance.BroadcastCustomFeature(
+				Entity.networkId,CustomIndex,
+				writer => {
+					writer.Put((byte)AnimatorCommand.Trigger);
+					writer.Put(hashId);});
+		}
+	}
+
+	public void Play(int stateHash, int layer, float normalizedTime) {
+		if (TargetAnimator == null)return;
+		TargetAnimator.Play(stateHash, layer, normalizedTime);
+		if (Entity.IsOwnedByMe) {
+			EnemySyncModule.Instance.BroadcastCustomFeature(
+				Entity.networkId,CustomIndex,
+				writer => {
+					writer.Put((byte)AnimatorCommand.Play);
+					writer.Put(stateHash);
+					writer.Put(layer);
+					writer.Put(normalizedTime);
+				});
+		}
 	}
 
 	public void ApplyTrigger(int hashId) {
@@ -165,4 +175,9 @@ public class AnimatorSyncFeature : ISyncFeature,ICustomSyncFeature {
 		TargetAnimator.SetTrigger(hashId);
 	}
 
+	public void ApplyPlay(int stateHash, int layer, float normalizedTime) {
+		if (TargetAnimator == null)return;
+		TargetAnimator.Play(stateHash, layer, normalizedTime);
+	}
+	#endregion
 }
