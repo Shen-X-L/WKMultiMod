@@ -3,7 +3,13 @@ using WKMPMod.Components;
 using WKMPMod.Data;
 
 public class SubTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
-	public Transform SubTransform { get; private set; }
+
+	#region[运行时状态]
+
+	// 引用
+	private readonly NetworkedGameEntity _netEntity;
+	private Transform _subTransform;
+
 	// 更新前位置 接收数据后目标更新位置
 	private Vector3 _lastLocalPos;
 	private Quaternion _lastLocalRot;
@@ -13,9 +19,11 @@ public class SubTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 	private const float PosEpsilonSqr = 0.001f;
 	private const float LERP_SPEED = 15f;
 
-	public SubTransformSyncFeature(Transform subTransform) {
-		SubTransform = subTransform;
-		FeatureId = $"SubTransform_{subTransform?.name}";
+	#endregion
+
+	public SubTransformSyncFeature(Transform subTransform, NetworkedGameEntity netEntity) {
+		_subTransform = subTransform;
+		_netEntity = netEntity;
 		if (subTransform != null) {
 			_lastLocalPos = _targetLocalPos = subTransform.localPosition;
 			_lastLocalRot = _targetLocalRot = subTransform.localRotation;
@@ -24,27 +32,27 @@ public class SubTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 
 	#region[ISyncFeature 基础实现]
 
-	public string FeatureId { get; }
+	public string FeatureId => "SubTransform";
 	public void OnReset() {
-		if (SubTransform == null) return;
+		if (_subTransform == null) return;
 		_lastLocalPos = _targetLocalPos = Vector3.zero;
 		_lastLocalRot = _targetLocalRot = Quaternion.identity;
 	}
-	public void OnDestroy() { SubTransform = null; }
+	public void OnDestroy() { _subTransform = null; }
 
 	#endregion
 
 	#region[IStateSyncFeature 状态同步实现]
 
 	public byte StateIndex { get; set; }
-	public bool IsDirty => SubTransform != null 
-		&& ((SubTransform.localPosition - _lastLocalPos).sqrMagnitude > PosEpsilonSqr 
-			|| Quaternion.Angle(SubTransform.localRotation, _lastLocalRot) > 0.5f);
+	public bool IsDirty => _subTransform != null 
+		&& ((_subTransform.localPosition - _lastLocalPos).sqrMagnitude > PosEpsilonSqr 
+			|| Quaternion.Angle(_subTransform.localRotation, _lastLocalRot) > 0.5f);
 
 	public void WriteState(DataWriter writer) {
-		if (SubTransform == null) return;
-		_lastLocalPos = SubTransform.localPosition;
-		_lastLocalRot = SubTransform.localRotation;
+		if (_subTransform == null) return;
+		_lastLocalPos = _subTransform.localPosition;
+		_lastLocalRot = _subTransform.localRotation;
 		writer.Put(_lastLocalPos);
 		writer.Put(_lastLocalRot);
 	}
@@ -59,10 +67,38 @@ public class SubTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 	#region[IFrameUpdateFeature 帧更新实现]
 
 	public void OnUpdate(float deltaTime) {
-		if (SubTransform == null) return;
-		SubTransform.localPosition = Vector3.Lerp(SubTransform.localPosition, _targetLocalPos, deltaTime * LERP_SPEED);
-		SubTransform.localRotation = Quaternion.Slerp(SubTransform.localRotation, _targetLocalRot, deltaTime * LERP_SPEED);
+		if (!_netEntity.IsNetworkControlled) return;
+		_subTransform.localPosition = Vector3.Lerp(_subTransform.localPosition, _targetLocalPos, deltaTime * LERP_SPEED);
+		_subTransform.localRotation = Quaternion.Slerp(_subTransform.localRotation, _targetLocalRot, deltaTime * LERP_SPEED);
 	}
-	
+
+	#endregion
+
+	#region [IInitialSyncFeature 初始化状态实现]
+
+	public byte InitialIndex { get; set; }
+
+	public void WriteInitialState(DataWriter writer) {
+		if (_subTransform == null) {
+			writer.Put(Vector3.zero);
+			writer.Put(Quaternion.identity);
+			return;
+		}
+		writer.Put(_subTransform.localPosition);
+		writer.Put(_subTransform.localRotation);
+	}
+
+	public void ReadInitialState(DataReader reader) {
+		if (_subTransform == null) return;
+		_targetLocalPos = reader.GetVector3();
+		_targetLocalRot = reader.GetQuaternion();
+
+		// 初始状态直接 Snap, 并同步更新历史缓存
+		_subTransform.localPosition = _targetLocalPos;
+		_subTransform.localRotation = _targetLocalRot;
+		_lastLocalPos = _targetLocalPos;
+		_lastLocalRot = _targetLocalRot;
+	}
+
 	#endregion
 }

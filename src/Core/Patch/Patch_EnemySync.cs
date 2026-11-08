@@ -1,4 +1,5 @@
 using DarkMachine.AI;
+using DG.Tweening.Plugins.Core;
 using HarmonyLib;
 using System;
 using System.Collections.Concurrent;
@@ -144,16 +145,18 @@ public static class Patch_DEN_Drone {
 /// </summary>
 [HarmonyPatch(typeof(DEN_Phage))]
 public static class Patch_DEN_Phage {
-	public static readonly AccessTools.FieldRef<DEN_Phage, bool> canSeeTargetField =
-		AccessTools.FieldRefAccess<DEN_Phage, bool>("canSeeTarget");
-	public static readonly AccessTools.FieldRef<DEN_Phage, bool> canRememberTargetField =
-		AccessTools.FieldRefAccess<DEN_Phage, bool>("canRememberTarget");
-	public static readonly AccessTools.FieldRef<DEN_Phage, float> _lookBlendField =
+	public static readonly AccessTools.FieldRef<DEN_BasicNavigator, bool> canSeeTargetField =
+		AccessTools.FieldRefAccess<DEN_BasicNavigator, bool>("canSeeTarget");
+	public static readonly AccessTools.FieldRef<DEN_BasicNavigator, bool> canRememberTargetField =
+		AccessTools.FieldRefAccess<DEN_BasicNavigator, bool>("canRememberTarget");
+	private static readonly AccessTools.FieldRef<DEN_Phage, float> _lookBlendField =
 		AccessTools.FieldRefAccess<DEN_Phage, float>("lookBlend");
-	public static readonly AccessTools.FieldRef<DEN_Phage, BuffContainer> _lookDebuffField =
+	private static readonly AccessTools.FieldRef<DEN_Phage, BuffContainer> _lookDebuffField =
 		AccessTools.FieldRefAccess<DEN_Phage, BuffContainer>("lookDebuff");
+	private static readonly AccessTools.FieldRef<DEN_Phage, float> _stunTimeField = 
+		AccessTools.FieldRefAccess<DEN_Phage, float>("stunTime");
 
-	public static readonly Action<DEN_Phage> InvokeDataLerp =
+	private static readonly Action<DEN_Phage> InvokeDataLerp =
 		AccessTools.MethodDelegate<Action<DEN_Phage>>(AccessTools.Method(typeof(DEN_Phage), "DataLerp"));
 
 	[HarmonyPatch("OnAttackHit")]
@@ -187,7 +190,21 @@ public static class Patch_DEN_Phage {
 		InvokeDataLerp(__instance);
 		return false;
 	}
+
+	[HarmonyPatch(nameof(DEN_Phage.Update))]
+	[HarmonyPrefix]
+	public static bool Patch_Update(DEN_Phage __instance) {
+		if (!__instance.locked) return true;
+		float stunTime = _stunTimeField(__instance);
+		if (stunTime > 0f) {
+			stunTime -= Time.deltaTime;
+			if (stunTime <= 0f) __instance.stunRecoverEvent.Invoke();
+			_stunTimeField(__instance) = stunTime;
+		}
+		return false;
+	}
 }
+
 
 #region[动画同步]
 

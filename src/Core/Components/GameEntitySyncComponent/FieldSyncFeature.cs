@@ -7,7 +7,7 @@ using UnityEngine;
 namespace WKMPMod.Components;
 
 public class FieldSyncFeature<T, F> : IStateSyncFeature {
-	#region[反射/序列化]
+	#region[反射缓存]
 
 	// 静态缓存字段访问器, 避免每次创建新的委托
 	private static readonly Dictionary<string, AccessTools.FieldRef<T, F>> _accessorCache = new();
@@ -58,8 +58,12 @@ public class FieldSyncFeature<T, F> : IStateSyncFeature {
 
 	#endregion
 
+	#region[运行时状态]
+
 	private T _target;// 目标对象
 	private F _lastValue;// 上一帧的字段值
+
+	#endregion
 
 	/// <summary>
 	/// 相等性比较
@@ -104,6 +108,23 @@ public class FieldSyncFeature<T, F> : IStateSyncFeature {
 	public void ReadState(DataReader reader) {
 		_lastValue = _readerAction(reader);
 		_fieldAccessor(_target) = _lastValue;
+	}
+
+	#endregion
+
+	#region [IInitialSyncFeature 初始化状态实现]
+
+	public byte InitialIndex { get; set; }
+
+	public void WriteInitialState(DataWriter writer) {
+		F val = _fieldAccessor(_target);
+		_writerAction(writer, val);
+	}
+
+	public void ReadInitialState(DataReader reader) {
+		F val = _readerAction(reader);
+		if (_target != null) _fieldAccessor(_target) = val;
+		_lastValue = val;
 	}
 
 	#endregion

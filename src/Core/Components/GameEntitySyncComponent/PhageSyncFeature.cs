@@ -10,25 +10,35 @@ using WKMPMod.World;
 namespace WKMPMod.Components;
 
 public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
+	#region[静态反射缓存]
+
 	private static readonly Action<DEN_Phage> _onKillPlayer =
 		AccessTools.MethodDelegate<Action<DEN_Phage>>(AccessTools.Method(typeof(DEN_Phage), "OnKillPlayer"));
 	// 动画重置hashID
 	private const int RESET_ANIMA_HASH = -554291977;
 
+	#endregion
+
+	#region[运行时状态]
+
+	// 引用
 	private readonly NetworkedGameEntity _netEntity;
 	private readonly DEN_Phage _phage;
+	// 缓存状态
 	private bool _killAnimationStarted;
-
-	#region[注视状态]
-
 	private bool _canSeeTarget;
 	private bool _canRememberTarget;
+	private Quaternion _lastSyncedRot = Quaternion.identity;// eyeLamp 同步缓存
+	private const float RotEpsilonDegrees = 5.0f; // 旋转变化阈值，避免每帧无限发包
 
 	#endregion
 
 	public PhageSyncFeature(DEN_Phage phage, NetworkedGameEntity netEntity) {
 		_phage = phage;
 		_netEntity = netEntity;
+		_lastSyncedRot = _phage.eyeLamp.transform.rotation;
+		_phage.stunEvent?.AddListener(SendStunEvent);
+		_phage.stunRecoverEvent?.AddListener(SendStunRecoverEvent);
 	}
 
 	#region[ISyncFeature 基础实现]
@@ -39,7 +49,8 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 	public void OnReset() { }
 
 	public void OnDestroy() {
-
+		_phage?.stunEvent?.RemoveListener(SendStunEvent);
+		_phage?.stunRecoverEvent?.RemoveListener(SendStunRecoverEvent);
 	}
 
 	#endregion
@@ -47,21 +58,29 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 	#region[IStateSyncFeature 状态同步实现]
 
 	public byte StateIndex { get; set; }
-	public bool IsDirty => 
+	public bool IsDirty =>
 		_canSeeTarget != Patch_DEN_Phage.canSeeTargetField(_phage)
-		|| _canRememberTarget != Patch_DEN_Phage.canRememberTargetField(_phage);
+		|| _canRememberTarget != Patch_DEN_Phage.canRememberTargetField(_phage)
+		|| Quaternion.Angle(_lastSyncedRot, _phage.eyeLamp.transform.rotation) > RotEpsilonDegrees;
+
 	public void WriteState(DataWriter writer) {
 		_canSeeTarget = Patch_DEN_Phage.canSeeTargetField(_phage);
 		_canRememberTarget = Patch_DEN_Phage.canRememberTargetField(_phage);
+		_lastSyncedRot = _phage.eyeLamp.transform.rotation;
 		writer.Put((byte)((_canSeeTarget ? 1 : 0) | ((_canRememberTarget ? 1 : 0) << 1)));
+		writer.Put(_lastSyncedRot);
 	}
-	public void ReadState(DataReader reader) { 
+
+	public void ReadState(DataReader reader) {
 		if (_phage == null) return;
 		byte state = reader.GetByte();
+		Quaternion remoteRot = reader.GetQuaternion();
 		_canSeeTarget = (state & 1) != 0;
 		_canRememberTarget = (state & 2) != 0;
-		Patch_DEN_Phage.canSeeTargetField(_phage)= _canSeeTarget;
+		Patch_DEN_Phage.canSeeTargetField(_phage) = _canSeeTarget;
 		Patch_DEN_Phage.canRememberTargetField(_phage) = _canRememberTarget;
+		_phage.eyeLamp.transform.rotation = remoteRot;
+		_lastSyncedRot = remoteRot;
 	}
 
 	#endregion
@@ -69,17 +88,23 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 	#region[ICustomSyncFeature 信号式交互实现]
 
 	public byte CustomIndex { get; set; }
-	public void HandleCustomMessage(IDType senderId,DataReader reader,bool needReply) {
-		byte option = reader.GetByte();
-		switch (option) {
-			case 0:
+	public void HandleCustomMessage(IDType senderId, DataReader reader, bool needReply) {
+		var message = (PhageMessage)reader.GetByte();
+		switch (message) {
+			case PhageMessage.AttackHit:
 				HandleAttackHit(senderId);
 				break;
-			case 1:
+			case PhageMessage.VictimKillTriggered:
 				HandleVictimKillTriggered(senderId);
 				break;
+			case PhageMessage.Stun:
+				HandleRemoteStun();
+				break;
+			case PhageMessage.StunRecover:
+				HandleRemoteStunRecover();
+				break;
 			default:
-				MPMain.LogWarning($"[MP PhageSF] Unknown PhageSync message: {option}");
+				MPMain.LogWarning($"[MP PhageSF] Unknown PhageSync message: {message}");
 				break;
 		}
 	}
@@ -92,13 +117,38 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 
 	#region[网络消息]
 
+	private enum PhageMessage : byte {
+		AttackHit = 0,
+		VictimKillTriggered = 1,
+		Stun = 2,
+		StunRecover = 3
+	}
+
 	private void SendAttackHit(IDType targetId) {
 		if (_netEntity == null || _phage == null || !_netEntity.IsOwnedByMe) return;
-		// 发送攻击实施包 0
 		EnemySyncModule.Instance.SendCustomFeature(
 			targetId, _netEntity.networkId, CustomIndex,
-			// 攻击实施包 0, 模块缺失时不进行回复
-			writer => { writer.Put((byte)0); },needReply: false);
+			writer => { writer.Put((byte)PhageMessage.AttackHit); }, needReply: false);
+	}
+
+	private void SendStunEvent() {
+		if (_netEntity == null || !_netEntity.IsOwnedByMe) return;
+		// 主机触发眩晕，向所有客户端广播
+		EnemySyncModule.Instance.BroadcastCustomFeature(
+			_netEntity.networkId, CustomIndex,
+			writer => writer.Put((byte)PhageMessage.Stun),
+			needReply: false
+		);
+	}
+
+	private void SendStunRecoverEvent() {
+		if (_netEntity == null || !_netEntity.IsOwnedByMe) return;
+		// 主机触发眩晕恢复，向所有客户端广播
+		EnemySyncModule.Instance.BroadcastCustomFeature(
+			_netEntity.networkId, CustomIndex,
+			writer => writer.Put((byte)PhageMessage.StunRecover),
+			needReply: false
+		);
 	}
 
 	/// <summary>
@@ -115,7 +165,7 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 			// 通知 Phage 所有者, 玩家已经进入 Phage 击杀流程	
 			EnemySyncModule.Instance.SendCustomFeature(
 				senderId, _netEntity.networkId, CustomIndex,
-				writer => { writer.Put((byte)1); }, needReply: false);
+				writer => { writer.Put((byte)PhageMessage.VictimKillTriggered); }, needReply: false);
 			// 本地玩家进入 Phage 击杀流程, 直接调用原版 OnKillPlayer 方法
 			_onKillPlayer(_phage);
 			return;
@@ -148,6 +198,20 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 			// 重置状态
 			AnimatorInterceptor.OnPlayHash(_phage.animator, RESET_ANIMA_HASH, 0, 0f);
 		}
+	}
+
+	private void HandleRemoteStun() {
+		if (_phage == null || _netEntity.IsOwnedByMe) return;
+		// 客户端接收到主机的眩晕同步，执行本地表现
+		_phage.clipHandler?.PlaySound("phage:stun");
+		CL_CameraControl.Shake(0.2f);
+		_phage.stunEvent?.Invoke();
+	}
+
+	private void HandleRemoteStunRecover() {
+		if (_phage == null || _netEntity.IsOwnedByMe) return;
+		// 客户端接收到主机的眩晕恢复同步
+		_phage.stunRecoverEvent?.Invoke();
 	}
 
 	#endregion

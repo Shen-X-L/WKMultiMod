@@ -1,10 +1,10 @@
 tmd弱智吧holly DEN_BasicNavigator对基类Target模块进行隐藏,重构TargetSyncFeature
 
-DEN_Phage 攻击时前后反了(有什么触发了动画使其旋转180度)
+DEN_Phage eyeLamp同步
+
+AIGameEntitySyncFeature模块 同步AIStateComponent currentState,AITargetComponent targetComponent
 
 可能重构AnimatorSyncFeature为检测Animator状态机参数而不是拦截IL
-
-添加IStateSyncFeature的全量更新接口
 
 ENV_BearTrap
 DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
@@ -23,6 +23,9 @@ DEN_RatKing
 僵尸索敌坐标错误
 
 HUNTER在场景切换后ID不一致(记录hunter生命周期触发) TEETH无法同步 NEST中部分生物的ID无法一致(僵尸)
+
+借鉴 https://github.com/MirrorNetworking/Mirror/blob/master/Assets/Mirror/Core/NetworkWriter.cs 改进DataWriter显示重载
+比如使用*(T*)ptr = value; 直接写入内存
 
 远程钻头没有被攀爬物同步
 

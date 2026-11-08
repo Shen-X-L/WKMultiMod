@@ -84,3 +84,23 @@ public interface ICustomSyncFeature : ISyncFeature {
 	/// </summary>
 	void HandleCustomReply(IDType senderId);
 }
+
+/// <summary>
+/// #region[IInitialSyncFeature 初始化状态实现]
+/// </summary>
+public interface IInitialSyncFeature : ISyncFeature {
+	/// <summary>
+	/// 该 InitialFeature 在实体内部的唯一索引编号 (0~255)
+	/// </summary>
+	byte InitialIndex { get; set; }
+
+	/// <summary>
+	/// 写入当前完整状态
+	/// </summary>
+	void WriteInitialState(DataWriter writer);
+
+	/// <summary>
+	/// 应用所有者发送的完整状态
+	/// </summary>
+	void ReadInitialState(DataReader reader);
+}

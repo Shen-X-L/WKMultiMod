@@ -5,7 +5,10 @@ using UnityEngine;
 namespace WKMPMod.Components;
 
 public class RootTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
-	// 所属实体
+
+	#region[运行时状态]
+
+	// 引用
 	private readonly NetworkedGameEntity _netEntity;
 	private readonly Transform _transform;
 	private readonly GameEntity _entity;
@@ -24,6 +27,8 @@ public class RootTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 	private const float PositionEpsilonSqr = 0.01f;
 	private const float RotationEpsilonDegrees = 1.0f;
 	private const float HealthEpsilon = 0.01f;
+
+	#endregion
 
 	public RootTransformSyncFeature(NetworkedGameEntity netEntity) {
 		_netEntity = netEntity;
@@ -87,6 +92,38 @@ public class RootTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 		if (!_netEntity.IsNetworkControlled) return;
 		_transform.position = Vector3.Lerp(_transform.position, _targetPosition, deltaTime * LERP_SPEED);
 		_transform.rotation = Quaternion.Slerp(_transform.rotation, _targetRotation, deltaTime * LERP_SPEED);
+	}
+
+	#endregion
+
+	#region [IInitialSyncFeature 初始化状态实现]
+
+	public byte InitialIndex { get; set; }
+
+	public void WriteInitialState(DataWriter writer) {
+		writer.Put(_transform.position);
+		writer.Put(_transform.rotation);
+		float currentHp = _entity != null ? _entity.health : float.NaN;
+		writer.Put(currentHp);
+	}
+
+	public void ReadInitialState(DataReader reader) {
+		_targetPosition = reader.GetVector3();
+		_targetRotation = reader.GetQuaternion();
+		float hp = reader.GetFloat();
+
+		// 新玩家或对象生成时, 直接瞬移到位, 防止从原点插值过去
+		if (_transform != null) {
+			_transform.position = _targetPosition;
+			_transform.rotation = _targetRotation;
+			_lastPosition = _targetPosition;
+			_lastRotation = _targetRotation;
+		}
+
+		if (_entity != null && !float.IsNaN(hp)) {
+			_entity.health = hp;
+			_lastHealth = hp;
+		}
 	}
 
 	#endregion

@@ -172,20 +172,21 @@ public class CollectionGroupingManager<K, V> : IDisposable where K : struct, IEq
 /// </summary>
 public enum EnemySyncAction : byte {
 
-	OwnerRequest = 1,   // 所有权请求: 客机请求主机分配所有权
-	OwnerResponse = 2, // 所有权响应: 主机响应/广播实体所有权
-	OwnerAbandon = 3,   // 所有权放弃: 所有者广播放弃所有权, 其他客户端可以请求所有权
-	SubscriptionRequest = 4, // 订阅请求: 客机向所有者进行订阅请求, 所有者会记录订阅者并广播状态给订阅者
-	UnsubscriptionRequest = 5, // 取消订阅请求: 客机向所有者进行取消订阅请求, 所有者会移除订阅者并停止广播状态给该订阅者
+	OwnerRequest = 1,	// 所有权请求: 客机请求主机分配所有权
+	OwnerResponse = 2,		// 所有权响应: 主机响应/广播实体所有权
+	OwnerAbandon = 3,		// 所有权放弃: 所有者广播放弃所有权, 其他客户端可以请求所有权
+	SubscriptionRequest = 4,	// 订阅请求: 客机向所有者进行订阅请求, 所有者会记录订阅者并广播状态给订阅者
+	UnsubscriptionRequest = 5,	// 取消订阅请求: 客机向所有者进行取消订阅请求, 所有者会移除订阅者并停止广播状态给该订阅者
 	SnapshotRequest = 6,    // 生物同步快照请求: 客机请求主机发送 (生物死亡 生物所有者)
-	SnapshotChunk = 7,      // 生物同步快照响应: 主机发送的 (生物死亡 生物所有者) 记录包
+	SnapshotChunk = 7,		// 生物同步快照响应: 主机发送的 (生物死亡 生物所有者) 记录包
 
-	StateBatch = 10,     // 状态更新包: 实体所有者发送同步位置/旋转/生命值
-	Damage = 11,         // 伤害广播: 客机广播对实体造成伤害
-	Kill = 12,           // 实体死亡: 杀死实体
+	StateBatch = 10,	// 状态更新包: 实体所有者发送同步位置/旋转/生命值
+	Damage = 11,		// 伤害广播: 客机广播对实体造成伤害
+	Kill = 12,			// 实体死亡: 杀死实体
 	Create = 13,        // 生物创建: 暂时不实现
-	CustomFeature = 14,   // 自定义模块同步消息
+	CustomFeature = 14,		// 自定义模块同步消息
 	CustomFeatureReply = 15,    // 自定义模块同步失败消息 (对象不存在/模块不存在)
+	InitialStateBatch = 16,	// 初始状态: 订阅者接受所有者初始化数据
 }
 
 #endregion
@@ -511,6 +512,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 				case EnemySyncAction.CustomFeatureReply:
 					MPMain.LogDebug("HandleCustomFeatureReply");
 					Instance.HandleCustomFeatureReply(senderId, reader);
+					break;
+				case EnemySyncAction.InitialStateBatch:
+					MPMain.LogDebug("HandleInitialStateBatch");
+					Instance.HandleInitialStateBatch(senderId, reader);
 					break;
 				default:
 					MPMain.LogWarning($"[MP EnemySync] Unknown action: {action}");
@@ -871,7 +876,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 				subscribers.AddRange(pendingSet);
 				_pendingSubscriptions.Remove(networkId); // 清空暂存
 				MPMain.LogTest($"[EnemySync] SetEntityOwner. Processed buffered subscriptions for entity {networkId}.");
-				BroadcastFullStateBatch(pendingSet, new List<NetworkedGameEntity> { identity });
+				BroadcastInitialStateBatch(pendingSet, new List<NetworkedGameEntity> { identity });
 			}
 		} else {
 			// 本机不再是所有者, 清除本机维护的订阅者列表
@@ -1035,7 +1040,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			}
 		}
 		// 广播(单发)实体状态
-		BroadcastFullStateBatch(new List<IDType> { subscriberId }, identityList);
+		BroadcastInitialStateBatch(new List<IDType> { subscriberId }, identityList);
 		ReturnList(identityList);
 	}
 
@@ -1116,6 +1121,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			int endDataPos = writer.Position;
 			// 计算实际 Payload 长度并原地回填到 lengthOffset
 			ushort payloadSize = (ushort)(endDataPos - startDataPos);
+			if (payloadSize > ushort.MaxValue) {
+				MPMain.LogError($"InitialState payload too large: {identity.networkId}, {payloadSize}");
+				return;
+			}
 			writer.PutUShortAt(lengthOffset, payloadSize);
 		}
 
@@ -1123,34 +1132,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		for (int i = 0; i < span.Length; i++) {
 			IDType subscriberId = span[i];
 			MPSteamworks.Instance.SendToPeer(subscriberId, writer, SendType.Unreliable | SendType.NoNagle);
-		}
-	}
-
-	/// <summary>
-	/// 所有者广播敌人的全量状态包
-	/// 接收函数: <see cref="HandleState"/>
-	/// </summary>
-	private void BroadcastFullStateBatch(List<IDType> subGroup, List<NetworkedGameEntity> batch) {
-		if (!IsEnabled || batch == null || batch.Count == 0) return;
-		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
-		writer.Put((byte)EnemySyncAction.StateBatch);
-		writer.Put((byte)batch.Count);
-
-		for (int i = 0; i < batch.Count; i++) {
-			var identity = batch[i];
-			writer.Put(identity.networkId);
-			int lengthOffset = writer.Position;
-			writer.Put((ushort)0); // 占位符
-			int startDataPos = writer.Position;
-			// 调用全量序列化方法，强制写入所有模块
-			identity.WriteFullSyncState(writer);
-			int endDataPos = writer.Position;
-			ushort payloadSize = (ushort)(endDataPos - startDataPos);
-			writer.PutUShortAt(lengthOffset, payloadSize);
-		}
-
-		foreach (var subscriberId in subGroup) {
-			MPSteamworks.Instance.SendToPeer(subscriberId, writer, SendType.Reliable | SendType.NoNagle); // 全量包通常用 Reliable 更安全
 		}
 	}
 
@@ -1328,6 +1309,42 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		MPSteamworks.Instance.SendToPeer(targetId, writer, SendType.Reliable);
 	}
 
+	/// <summary>
+	/// 所有者向新订阅者广播敌人的初始完整状态
+	/// 接收函数: <see cref="HandleInitialStateBatch"/>
+	/// </summary>
+	private void BroadcastInitialStateBatch(List<IDType> subGroup, List<NetworkedGameEntity> batch) {
+		if (!IsEnabled || subGroup == null || subGroup.Count == 0 || batch == null || batch.Count == 0) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.EnemySync);
+		writer.Put((byte)EnemySyncAction.InitialStateBatch);
+		writer.Put((byte)batch.Count);
+
+		for (int i = 0; i < batch.Count; i++) {
+			var identity = batch[i];
+			if (identity == null) continue;
+			writer.Put(identity.networkId);
+			// 记录长度前缀保存的偏移位置
+			int lengthOffset = writer.Position;
+			// 先写入 2 字节占位符 (ushort)
+			writer.Put((ushort)0);
+			// 记录数据段起始位置并写入 Entity 变动状态
+			int startDataPos = writer.Position;
+			// 写入所有实现 IInitialSyncFeature 的模块
+			identity.WriteInitialSync(writer);
+			int endDataPos = writer.Position;
+			int payloadSize = endDataPos - startDataPos;
+			if (payloadSize > ushort.MaxValue) {
+				MPMain.LogError($"InitialState payload too large: {identity.networkId}, {payloadSize}");
+				return;
+			}
+			// 计算实际 Payload 长度并原地回填到 lengthOffset
+			writer.PutUShortAt(lengthOffset, (ushort)payloadSize);
+		}
+
+		foreach (var subscriberId in subGroup) 
+			MPSteamworks.Instance.SendToPeer(subscriberId,writer,SendType.Reliable | SendType.NoNagle);
+	}
+
 	#endregion
 
 	#region[网络数据处理]
@@ -1366,7 +1383,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// <summary>
 	/// 客机接收生物同步数据包
 	/// 发送函数: <see cref="BroadcastStateBatch"/>
-	/// 发送函数: <see cref="BroadcastFullStateBatch"/>
 	/// </summary>
 	private void HandleState(IDType senderId, DataReader reader) {
 		byte count = reader.GetByte();
@@ -1669,6 +1685,39 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (!enemies.TryGetValue(networkId, out var identity) || identity == null) return;
 		if (identity.TryGetCustomFeature(customIndex, out var feature))
 			feature.HandleCustomReply(senderId);
+	}
+
+	/// <summary>
+	/// 客机接收实体初始完整状态包
+	/// 发送函数: <see cref="BroadcastInitialStateBatch"/>
+	/// </summary>
+	private void HandleInitialStateBatch(IDType senderId, DataReader reader) {
+		byte count = reader.GetByte();
+		var unsubList = RentList<ulong>();
+		ApplyingRemoteState = true;
+		try {
+			for (int i = 0; i < count; i++) {
+				ulong networkId = reader.GetULong();
+				ushort payloadSize = reader.GetUShort();
+				if (enemies.TryGetValue(networkId, out var identity) && identity != null) {
+					int startPos = reader.Position;
+					// 读取所有 IInitialSyncFeature 的初始状态
+					identity.ReadInitialSync(reader);
+					// 修正读取游标，避免单个 Feature 的读写不一致
+					int readBytes = reader.Position - startPos;
+					if (readBytes != payloadSize) reader.Position = startPos + payloadSize;
+				} else {
+					// 实体不存在，跳过其 Payload 并请求取消订阅
+					reader.Skip(payloadSize);
+					unsubList.Add(networkId);
+				}
+			}
+		} finally {
+			ApplyingRemoteState = false;
+			if (unsubList.Count > 0)
+				SendUnsubscriptionRequest(unsubList, senderId);
+			ReturnList(unsubList);
+		}
 	}
 
 	#endregion

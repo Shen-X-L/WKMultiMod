@@ -2,9 +2,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Text;
-using Unity.Entities;
 using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.Data;
@@ -105,11 +102,16 @@ public class TargetSyncFeature : IFrameUpdateFeature, ICustomSyncFeature {
 
 	#endregion
 
+	#region[运行时状态]
+
+	// 引用
 	public AITargetComponent TargetComponent { get; private set; }
 	public NetworkedGameEntity Identity { get; }
 
 	private IDType _lastTargetPlayerId;
 	private Transform? _lastTarget;
+
+	#endregion
 
 	public TargetSyncFeature(AIGameEntity aiGameEntity, NetworkedGameEntity identity) {
 		if(aiGameEntity is DEN_RatKing ratKing)
@@ -236,8 +238,8 @@ public class TargetSyncFeature : IFrameUpdateFeature, ICustomSyncFeature {
 		// 是否有新目标
 		bool hasNewTarget = TryGetRemoteTargetId(out var currentTargetId);
 		// 无新目标 && 无旧目标 || 有新目标 && 新旧目标相同, 则无需发送消息
-		if (hasNewTarget == (_lastTargetPlayerId != default) 
-			&& (!hasNewTarget || currentTargetId == _lastTargetPlayerId)) return;
+		if (!hasNewTarget && _lastTargetPlayerId == default
+			 || (hasNewTarget || currentTargetId == _lastTargetPlayerId)) return;
 		// 旧玩家目标存在, 发送遗忘
 		if (_lastTargetPlayerId != default) {
 			// 发送遗忘

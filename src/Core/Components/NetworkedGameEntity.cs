@@ -62,10 +62,12 @@ public class NetworkedGameEntity : MonoBehaviour {
 	private readonly List<IFrameUpdateFeature> _frameUpdateFeatures = new();
 	// 自定义消息 类RPC模块
 	private readonly List<ICustomSyncFeature> _customSyncFeatures = new();
+	private readonly List<IInitialSyncFeature> _initialSyncFeatures = new();
 	public IReadOnlyList<ISyncFeature> Features => _features;
 	public IReadOnlyList<IStateSyncFeature> StateSyncFeatures => _stateSyncFeatures;
-
 	public IReadOnlyList<ICustomSyncFeature> CustomSyncFeatures => _customSyncFeatures;
+	public IReadOnlyList<IInitialSyncFeature> InitialSyncFeatures => _initialSyncFeatures;
+
 	/// <summary>
 	/// 检查实体是否有任意子模块是否需要更新
 	/// </summary>
@@ -112,9 +114,7 @@ public class NetworkedGameEntity : MonoBehaviour {
 				SetNetworkControl(false);
 
 		// 逐帧驱动所有 Feature 自身的 OnUpdate (例如平滑插值)
-		float dt = Time.deltaTime;
-		for (int i = 0; i < _frameUpdateFeatures.Count; i++)
-			_frameUpdateFeatures[i].OnUpdate(dt);
+		OnFrameUpdate(Time.deltaTime);
 	}
 
 	private void OnDestroy() {
@@ -149,12 +149,14 @@ public class NetworkedGameEntity : MonoBehaviour {
 		switch (Entity) {
 			// Phage 特化处理子
 			case DEN_Phage phage:
+				var phageSubTransform = transform.Find("DEN_Phage");
 				RegisterFeature(new PhageSyncFeature(phage, this));
+				RegisterFeature(new SubTransformSyncFeature(phageSubTransform,this));
 				break;
 			// VentThing 特化处理子 Transform (手部)
 			case DEN_VentThing:
 				var handTransform = transform.Find("Hand_Root");
-				if (handTransform != null) RegisterFeature(new SubTransformSyncFeature(handTransform));
+				if (handTransform != null) RegisterFeature(new SubTransformSyncFeature(handTransform, this));
 				break;
 		}
 	}
@@ -174,6 +176,10 @@ public class NetworkedGameEntity : MonoBehaviour {
 			customFeature.CustomIndex = (byte)_customSyncFeatures.Count;
 			_customSyncFeatures.Add(customFeature);
 		}
+		if (feature is IInitialSyncFeature initialFeature) {
+			initialFeature.InitialIndex = (byte)_initialSyncFeatures.Count;
+			_initialSyncFeatures.Add(initialFeature);
+		}
 	}
 
 	// 清理所有模块
@@ -183,11 +189,12 @@ public class NetworkedGameEntity : MonoBehaviour {
 		_stateSyncFeatures.Clear();
 		_frameUpdateFeatures.Clear();
 		_customSyncFeatures.Clear();
+		_initialSyncFeatures.Clear();
 	}
 
 	#endregion
 
-	#region [IState网络序列化与反序列化]
+	#region [IState序列化]
 
 	/// <summary>
 	/// 只序列化发生变动 (IsDirty == true) 的模块数据
@@ -204,20 +211,6 @@ public class NetworkedGameEntity : MonoBehaviour {
 			var feature = _stateSyncFeatures[i];
 			if (!feature.IsDirty) continue;
 			// 写入数据
-			writer.Put(feature.StateIndex);
-			feature.WriteState(writer);
-		}
-	}
-
-	/// <summary>
-	/// 序列化所有模块的完整数据
-	/// </summary>
-	public void WriteFullSyncState(DataWriter writer) {
-		// 写入全部模块总数
-		writer.Put((byte)_stateSyncFeatures.Count);
-		// 全量写入：无视 IsDirty，强制写入所有 [FeatureIndex + 模块数据]
-		for (int i = 0; i < _stateSyncFeatures.Count; i++) {
-			var feature = _stateSyncFeatures[i];
 			writer.Put(feature.StateIndex);
 			feature.WriteState(writer);
 		}
@@ -251,6 +244,41 @@ public class NetworkedGameEntity : MonoBehaviour {
 			return true;
 		}
 		return false;
+	}
+
+	#endregion
+
+	#region[IFrameUpdate更新]
+
+	public void OnFrameUpdate(float deltaTime) {
+		for (int i = 0; i < _frameUpdateFeatures.Count; i++)
+			_frameUpdateFeatures[i].OnUpdate(deltaTime);
+	}
+
+	#endregion
+
+	#region[IInitial初始化]
+
+	public void WriteInitialSync(DataWriter writer) {
+		// 序列化数据
+		writer.Put((byte)_initialSyncFeatures.Count);
+		for (int i = 0; i < _initialSyncFeatures.Count; i++) {
+			var feature = _initialSyncFeatures[i];
+			writer.Put(feature.InitialIndex);
+			feature.WriteInitialState(writer);
+		}
+	}
+
+	public void ReadInitialSync(DataReader reader) {
+		// 切换为网络接管模式
+		if (!IsOwnedByMe && !IsNetworkControlled) SetNetworkControl(true);
+		// 反序列化并应用数据
+		byte featureCount = reader.GetByte();
+		for (int i = 0; i < featureCount; i++) {
+			byte featureIndex = reader.GetByte();
+			if (featureIndex < _initialSyncFeatures.Count)
+				_initialSyncFeatures[featureIndex].ReadInitialState(reader);
+		}
 	}
 
 	#endregion
