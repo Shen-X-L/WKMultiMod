@@ -653,16 +653,28 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// <summary>
 	/// 规则相关命令注册
 	/// </summary>
+	/// <summary>
+	/// 开关类指令的参数解析: 带 true/false 时直接使用; 不带参数时对当前值取反
+	/// (当前值优先取大厅数据, 没有时取本地配置). 原先不带参数且大厅无数据时会读取 args[0] 越界.
+	/// </summary>
+	private bool TryResolveToggle(string[] args, string lobbyKey, bool localValue, out bool value) {
+		if (args.Length == 0) {
+			bool current = bool.TryParse(_MPSteamworks.LobbyData?.GetValueOrDefault(lobbyKey), out bool lobbyValue)
+				? lobbyValue : localValue;
+			value = !current;
+			return true;
+		}
+		if (bool.TryParse(args[0], out value)) return true;
+		CommandConsole.LogError(Get("CommandConsole.ExpectedBoolean", args[0]));
+		return false;
+	}
+
 	public void RegisterRuleCommands() {
 
 		// 设置是否可开启作弊模式
 		CommandConsole.BuildCommand("allowcheats", (args) => {
 			if (!EnsureHostPrivileges()) return;
-			bool enabled = false;
-			if (args.Length == 0 && bool.TryParse(_MPSteamworks.LobbyData?.GetValueOrDefault(MPKeys.ALLOW_CHEATS), out bool result1)) {
-				enabled = !result1;     // 如果没有参数 获取大厅数据并取反 || 取否
-			} else if (bool.TryParse(args[0], out bool result2))
-				enabled = result2;      // 有参数直接使用参数
+			if (!TryResolveToggle(args, MPKeys.ALLOW_CHEATS, MPConfig.AllowCheats, out bool enabled)) return;
 			MPConfig.AllowCheats = IsAllowCheats = enabled;
 			_MPSteamworks.SetLobbyData(MPKeys.ALLOW_CHEATS, enabled.ToString());
 		})
@@ -679,11 +691,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 设置是否需要饰品/绑定同步
 		CommandConsole.BuildCommand("bindsync", (args) => {
 			if (!EnsureHostPrivileges()) return;
-			bool enabled = false;
-			if (args.Length == 0 && bool.TryParse(_MPSteamworks.LobbyData?.GetValueOrDefault(MPKeys.BIND_SYNC), out bool result1))
-				enabled = !result1; // 如果没有参数 获取大厅数据并取反 || 取否
-			else if (bool.TryParse(args[0], out bool result2))
-				enabled = result2;  // 有参数直接使用参数
+			if (!TryResolveToggle(args, MPKeys.BIND_SYNC, MPConfig.BindSync, out bool enabled)) return;
 			MPConfig.BindSync = enabled;
 		})
 			.NotCheat().Description(Get("CommandHelp.BindSync"))
@@ -697,16 +705,17 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 设置敌人实体同步
 		CommandConsole.BuildCommand("enemysync", (args) => {
 			if (!EnsureHostPrivileges()) return;
-			bool enabled = false;
-			if (args.Length == 0 && bool.TryParse(_MPSteamworks.LobbyData?.GetValueOrDefault(MPKeys.ENEMY_SYNC), out bool result1))
-				enabled = !result1; // 如果没有参数 获取大厅数据并取反 || 取否
-			else if (bool.TryParse(args[0], out bool result2))
-				enabled = result2;  // 有参数直接使用参数
+			if (!TryResolveToggle(args, MPKeys.ENEMY_SYNC, MPConfig.EnemySync, out bool enabled)) return;
 			MPConfig.EnemySync = enabled;
 			if (_WorldSyncManager.TryGetModule("EnemySync", out var module)) module.IsEnabled = enabled;
+			// 写入大厅数据, 客机在 HandleLobbyDataChanged 中跟随 (原先只改了主机本地)
+			_MPSteamworks.SetLobbyData(MPKeys.ENEMY_SYNC, enabled.ToString());
+			MPMain.LogInfo(GetLog("MPCore.EnemySyncSet", enabled));
 		})
 			.NotCheat().Description(Get("CommandHelp.EnemySync"))
-			.OverValue(() => _MPSteamworks.IsInLobby ? (MPConfig.EnemySync.ToString()) : NOT_IN_LOBBY)
+			.OverValue(() => _MPSteamworks.IsInLobby
+				? (_MPSteamworks.LobbyData?.GetValueOrDefault(MPKeys.ENEMY_SYNC) ?? MPConfig.EnemySync.ToString())
+				: NOT_IN_LOBBY)
 			.AutocompleteCustom(autocomplete => {
 				NotHostAutocomplete(autocomplete);
 				if (autocomplete.activeArg == 0 && MPSteamworks.IsHost)
@@ -1967,10 +1976,13 @@ public class MPCore : MonoSingleton<MPCore> {
 			damageRules = JsonConvert.DeserializeObject<DamageRules>(damageValue) ?? new DamageRules();
 
 		// 生物同步切换
+		// (原先误把 MonoBehaviour.enabled 赋给开关, 客机的生物同步状态与主机设置无关)
 		if (changedData.TryGetValue(MPKeys.ENEMY_SYNC, out var enemySyncValue)
 			&& bool.TryParse(enemySyncValue, out var enemySync)
-			&& _WorldSyncManager.TryGetModule("EnemySync", out var enemyModule))
-			enemyModule.IsEnabled = enabled;
+			&& _WorldSyncManager.TryGetModule("EnemySync", out var enemyModule)) {
+			if (enemyModule.IsEnabled != enemySync) MPMain.LogInfo(GetLog("MPCore.EnemySyncFollowHost", enemySync));
+			enemyModule.IsEnabled = enemySync;
+		}
 	}
 
 	/// <summary>

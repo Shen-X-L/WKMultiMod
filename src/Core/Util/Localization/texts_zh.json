@@ -268,6 +268,7 @@
     ]
   },
   "CommandConsole": {
+    "ExpectedBoolean": "参数 {0} 无效, 请输入 true 或 false",
     "AllPlayer": "名称: {0} Id: {1} 距离: {2} 坐标: {3}",
     "AlreadyInOnlineMode": "您已处于在线模式, \n请使用 leave 命令离开后再进行联机",
     "AutoCommandInsufficientParams": "参数不足! ",
@@ -359,6 +360,8 @@
     "LoadAsset": "[MP AssetMan] 缓存游戏内资源: {0} {1}"
   },
   "MPCore": {
+    "EnemySyncFollowHost": "[MPCore] 生物同步跟随主机设置: {0}",
+    "EnemySyncSet": "[MPCore] 生物同步已设为 {0} (已写入大厅数据)",
     "AllConnectionLog": "[MPCore] 全部连接 SteamId: {0} 连接Id: {1}",
     "AllManagersInitialized": "[MPCore] 所有管理器初始化完成",
     "Awake": "[MPCore] MultiplayerCore Awake",
@@ -423,6 +426,7 @@
     "ShowAllRouteTable": "[MP Router] 包类型: {0} 函数名: {1}"
   },
   "MPSteamworks": {
+    "ConnectionCoroutineSkipped": "[MPSW] 断线清理: 玩家 {0} 的连接协程记录为 {1}, 跳过停止",
     "AccessDenied": "[MPSW] 权限不足,可能是被封禁或当前区域/环境受限",
     "AllConnectionsDisconnected": "[MPSW] 所有网络连接已断开",
     "AlreadyActiveConnected": "[MPSW] 已经主动连接玩家. SteamId: {0} 连接状态: {1}",

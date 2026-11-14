@@ -232,6 +232,7 @@
     ]
   },
   "CommandConsole": {
+    "ExpectedBoolean": "Invalid argument {0}, expected true or false",
     "AllPlayer": "Name: {0} Id: {1} Distance: {2} Position: {3}",
     "AlreadyInOnlineMode": "You are already in online mode, \nplease use the leave command to leave and then go online",
     "AutoCommandInsufficientParams": "Insufficient parameters!",
@@ -323,6 +324,8 @@
     "LoadAsset": "[MP AssetMan] Loaded asset: {0} {1}"
   },
   "MPCore": {
+    "EnemySyncFollowHost": "[MPCore] Enemy sync follows the host: {0}",
+    "EnemySyncSet": "[MPCore] Enemy sync set to {0} (written to lobby data)",
     "AllConnectionLog": "[MPCore] All connections SteamId: {0} connections Id: {1}",
     "AllManagersInitialized": "[MPCore] All managers initialized.",
     "Awake": "[MPCore] MultiplayerCore Awake",
@@ -387,6 +390,7 @@
     "ShowAllRouteTable": "[MP Router] PacketType: {0} Handler: {1}"
   },
   "MPSteamworks": {
+    "ConnectionCoroutineSkipped": "[MPSW] Disconnect cleanup: connection coroutine for {0} is {1}, skipped stopping it",
     "AccessDenied": "[MPSW] Access denied, possibly banned or restricted by region/environment",
     "AllConnectionsDisconnected": "[MPSW] All network connections have been disconnected.",
     "AlreadyActiveConnected": "[MPSW] Already actively connected to the player. SteamId: {0} Connection state: {1}",

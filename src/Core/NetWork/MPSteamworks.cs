@@ -485,8 +485,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			_allConnections.Remove(steamId);
 			_outgoingConnections.Remove(steamId);
-			StopCoroutine(_connectionCoroutines[steamId]);
-			_connectionCoroutines.Remove(steamId);
+			StopConnectionCoroutine(steamId);
 
 			// 重连检测
 			if (IsInLobby && IsMemberInLobby(steamId) && !_connectionCoroutines.ContainsKey(steamId))
@@ -506,6 +505,18 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	#endregion
 
 	#region[连接器管理函数]
+
+	/// <summary>
+	/// 停止并移除玩家的连接协程.
+	/// 记录可能不存在 (连接未经协程建立) 或为 null (协程同步结束时 StartCoroutine 返回 null),
+	/// 直接索引/StopCoroutine(null) 会抛异常并中断断线清理.
+	/// </summary>
+	private void StopConnectionCoroutine(SteamId steamId) {
+		bool found = _connectionCoroutines.TryGetValue(steamId, out var routine);
+		if (routine != null) StopCoroutine(routine);
+		else MPMain.LogInfo(Localization.GetLog("MPSteamworks.ConnectionCoroutineSkipped", steamId.ToString(), found ? "null" : "missing"));
+		_connectionCoroutines.Remove(steamId);
+	}
 
 	/// <summary>
 	/// 创建监听socket
@@ -1034,8 +1045,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		var steamId = info.Identity.SteamId;
 		MPMain.LogInfo(Localization.GetLog("MPSteamworks.PlayerConnected", steamId.ToString(), connection.Id, info.State));
 		_allConnections[steamId] = connection;
-		StopCoroutine(_connectionCoroutines[steamId]);
-		_connectionCoroutines.Remove(steamId);
+		StopConnectionCoroutine(steamId);
 		HasConnections = true;
 		MPMain.LogTest("ISocketManager.MPSteamworks.OnConnected");
 		MPEventBusNet.NotifyPlayerConnected(steamId);
@@ -1071,8 +1081,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogInfo(Localization.GetLog("MPSteamworks.AlreadyActiveConnected", steamId.ToString(), info.State));
 			_instance._outgoingConnections[steamId] = this;
 			_instance._allConnections[steamId] = this.Connection;
-			Instance.StopCoroutine(Instance._connectionCoroutines[steamId]);
-			Instance._connectionCoroutines.Remove(steamId);
+			Instance.StopConnectionCoroutine(steamId);
 			Instance.HasConnections = true;
 			MPMain.LogTest("SteamConnectionManager.OnConnected");
 			MPEventBusNet.NotifyPlayerConnected(steamId);
@@ -1104,6 +1113,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		dict[MPKeys.OWNER_NAME] = UserSteamId.ToString();
 		dict[MPKeys.LOBBY_VISIBILITY] = "public";
 		dict[MPKeys.ALLOW_CHEATS] = MPConfig.AllowCheats.ToString();
+		dict[MPKeys.ENEMY_SYNC] = MPConfig.EnemySync.ToString();
 		// 伤害倍率
 		dict[MPKeys.DAMAGE_CONFIG] = JsonConvert.SerializeObject(MPCore.damageRules.FloatFieldValues);
 		// 队伍规则配置
