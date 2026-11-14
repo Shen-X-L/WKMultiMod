@@ -487,6 +487,7 @@
     "ConnectVerifySuccess_Receiver": "[MPSW] 接收方成功捕获来自 {0} 的主动连接"
   },
   "Patch": {
+    "ForceDropHandsCleared": "[MP Patch] 抓点 {0} 销毁时有 {1} 只手未能正常松开, 已强制移除 (防止卡死)",
     "CoreAlreadyInjected": "[MP Patch] Core已经注入过,跳过",
     "CoreInjectionFailed": "[MP Patch] 注入核心失败: {0}",
     "CoreInjectionSuccess": "[MP Patch] MPCore 对象已成功注入 SteamManager",

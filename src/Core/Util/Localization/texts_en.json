@@ -451,6 +451,7 @@
     "ReverseConnectionAttempt": "[MPSW] Passive listening to connection {0} failed, starting reverse attempt"
   },
   "Patch": {
+    "ForceDropHandsCleared": "[MP Patch] Handhold {0} was destroyed with {1} hand(s) that did not let go; removed them (prevents a hang)",
     "CoreAlreadyInjected": "[MP Patch] MPCore already injected, skipping.",
     "CoreInjectionFailed": "[MP Patch] Failed to inject MPCore: {0}",
     "CoreInjectionSuccess": "[MP Patch] MPCore object successfully injected into SteamManager.",
