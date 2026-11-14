@@ -396,6 +396,18 @@
   "MPMain": {
     "Destroy": "[MPMain] MPMain (启动器) 已被销毁."
   },
+  "MPMapSync": {
+    "DateChecked": "[MP MapSync] 日期检查 {0} ~ {1}: 使用时间 {2}, 结果 {3}",
+    "FlagOverridden": "[MP MapSync] 生成标记 {0}: 本机 {1} -> 按主机 {2}",
+    "HostInputsParseFailed": "[MP MapSync] 主机地图输入解析失败: {0}",
+    "HostInputsUnavailable": "[MP MapSync] 本次生成没有可用的主机输入 (种子 {0}), 按本机数据生成",
+    "Published": "[MP MapSync] 已发布本局地图输入: {0} 个生成标记, 主路线 {1} 关",
+    "RouteBeyondHost": "[MP MapSync] 本机路线从 {0} 开始, 不在主机已发布的 {1} 关路线内, 跳过比对",
+    "RouteMatch": "[MP MapSync] 地图与主机一致 (比对 {0} 关)",
+    "RouteMismatch": "[MP MapSync] 地图与主机不一致: 第 {0} 关 本机 {1} / 主机 {2}",
+    "RouteMismatchMessage": "地图与房主不一致 (从第 {0} 关开始), 之后可能看不见其他玩家",
+    "UsingHostInputs": "[MP MapSync] 本次生成使用主机输入: 种子 {0}, {1} 个生成标记, 主机时间 {2}, 主机主路线 {3} 关"
+  },
   "MPMessageHandlers": {
     "PrefabIsNotItem": "[MP Handlers] 预制体: {0} 不是可拾取物,不能放入背包",
     "SentInitData": "[MP Handlers] 已向新玩家发送初始化数据"

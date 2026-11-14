@@ -360,6 +360,18 @@
   "MPMain": {
     "Destroy": "[MPMain] MPMain (Launcher) has been destroyed."
   },
+  "MPMapSync": {
+    "DateChecked": "[MP MapSync] Date check {0} ~ {1}: time used {2}, result {3}",
+    "FlagOverridden": "[MP MapSync] Generation flag {0}: local {1} -> host {2}",
+    "HostInputsParseFailed": "[MP MapSync] Failed to parse host map inputs: {0}",
+    "HostInputsUnavailable": "[MP MapSync] No host inputs for this generation (seed {0}), generating from local data",
+    "Published": "[MP MapSync] Published map inputs: {0} generation flags, main route {1} levels",
+    "RouteBeyondHost": "[MP MapSync] Local route starts at {0}, outside the host's published {1}-level route; comparison skipped",
+    "RouteMatch": "[MP MapSync] Map matches the host ({0} levels compared)",
+    "RouteMismatch": "[MP MapSync] Map differs from the host at level {0}: local {1} / host {2}",
+    "RouteMismatchMessage": "Your map differs from the host's from level {0}; you may not see other players past it",
+    "UsingHostInputs": "[MP MapSync] Generating with host inputs: seed {0}, {1} generation flags, host time {2}, host main route {3} levels"
+  },
   "MPMessageHandlers": {
     "PrefabIsNotItem": "[MP Handlers] Prefab: {0} is not an item and cannot be put into inventory",
     "SentInitData": "[MP Handlers] Initialization data has been sent to the new player."
