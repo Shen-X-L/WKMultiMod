@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Unity.Entities.UniversalDelegates;
 using UnityEngine;
+using UnityEngine.InputSystem.Utilities;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Team;
@@ -1320,7 +1321,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			// 搜索公开大厅
 			var query = new Steamworks.Data.LobbyQuery()
 				.FilterDistanceWorldwide()
-				.WithKeyValue(MPKeys.GAME_KEY, "White Knuckle") // 确保是同一款游戏的
+				.WithKeyValue(MPKeys.GAME_KEY, MPKeys.GAME_VALUE) // 确保是同一款游戏的
 				.WithMaxResults(50);
 			var publicLobbies = await query.RequestAsync();
 

@@ -30,6 +30,7 @@ public class MPPacketRouter {
 		RegisterRoutesInternal(typeof(SceneItemModule));
 		RegisterRoutesInternal(typeof(DroppedItemModule));
 		RegisterRoutesInternal(typeof(EnemySyncModule));
+		RegisterRoutesInternal(typeof(ProjectileSyncModule));
 	}
 
 	/// <summary>

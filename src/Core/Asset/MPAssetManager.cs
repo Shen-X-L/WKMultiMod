@@ -80,15 +80,18 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 	}
 
 	public static GameObject? GetFXPrefab(string name) { 
-		if (!Instance.IsInitialized)
-			Instance.Initialize();
+		if (!Instance.IsInitialized) Instance.Initialize();
 		return Instance.FX_PrefabDic.TryGetValue(name, out var obj) ? obj : null;
 	}
 
 	public static GameObject? GetHandholdPrefab(string name) {
-		if (!Instance.IsInitialized)
-			Instance.Initialize();
+		if (!Instance.IsInitialized) Instance.Initialize();
 		return Instance.handholdPrefabDic.TryGetValue(name, out var obj) ? obj : null;
+	}
+
+	public static GameObject? GetProjectilePrefab(string name) {
+		if (!Instance.IsInitialized) Instance.Initialize();
+		return Instance.projectilePrefabDic.TryGetValue(name, out var obj) ? obj : null;
 	}
 
 	/// <summary>

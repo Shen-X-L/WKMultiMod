@@ -14,7 +14,8 @@ public class NetworkedGameEntity : MonoBehaviour {
 		GenericEntity,  // 仅 GameEntity
 		AIEntity,       // 继承 AIGameEntity
 		BasicDenizen,   // 包含 DEN_BasicDenizen 完整 AI 运动
-		BasicNavigator  // 包含 DEN_BasicNavigator 完整 AI 运动
+		BasicNavigator,	// 包含 DEN_BasicNavigator 完整 AI 运动
+		Teeth,          // 包含 DEN_Teeth
 	}
 
 	#endregion
@@ -94,6 +95,9 @@ public class NetworkedGameEntity : MonoBehaviour {
 			BasicNavigator = basicNavigator;
 			AIEntity = basicNavigator;
 			Type = EntityType.BasicNavigator;
+		}else if(Entity is DEN_Teeth teeth) {
+			AIEntity = teeth;
+			Type = EntityType.Teeth;
 		} else if (Entity is AIGameEntity aiGameEntity) {
 			AIEntity = aiGameEntity;
 			Type = EntityType.AIEntity;
@@ -304,6 +308,10 @@ public class NetworkedGameEntity : MonoBehaviour {
 			case EntityType.BasicNavigator:
 				BasicNavigator.locked = state;
 				BasicNavigator.disableAI = state;
+				break;
+			case EntityType.Teeth:
+				if(AIEntity is DEN_Teeth Teeth) Teeth.disableAI = state;
+				AIEntity.disableAI = state;
 				break;
 			case EntityType.AIEntity:
 				// AIGameEntity 提供了原生 disableAI 字段

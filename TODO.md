@@ -1,17 +1,18 @@
 tmd弱智吧holly DEN_BasicNavigator对基类Target模块进行隐藏,重构TargetSyncFeature
 
-DEN_Phage eyeLamp同步
+存档死亡/重开地图不同步 hook unity.random
 
-AIGameEntitySyncFeature模块 同步AIStateComponent currentState,AITargetComponent targetComponent
+解决管道区生成不同步 9443457
+
+投射物同步(无伤害,伤害由远程调用决定)
 
 可能重构AnimatorSyncFeature为检测Animator状态机参数而不是拦截IL
 
-ENV_BearTrap
+DEN_EngravedDoor(忽略)
 DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
+ENV_BearTrap
 DEN_Face.Start .Damage.HitShift
 DEN_Hunter.TrackPlayerPosition .Start .TargetCollisionCheck
-DEN_EngravedDoor(忽略)
-DEN_LadderNightmare.Update 
 DEN_Mother.Damage 
 DEN_VentThing.SetTarget
 DEN_Remains_Active
@@ -31,6 +32,8 @@ HUNTER在场景切换后ID不一致(记录hunter生命周期触发) TEETH无法�
 
 复活时攀爬物同步/场景物品同步
 
+重构地图同步机制
+
 重进指令 如果种子相同不刷新地图 仅同步
 
 Noita和星际拓荒是怎么实现的盗版
@@ -39,15 +42,11 @@ lobbyrestart指令
 
 支持Lua自定义命令
 
-投射物同步
-
 修改死亡物品掉落 尝试同步
 
 玩家离开时 所属物品销毁同步
 
 玩家手持物品销毁同步
-
-刷新大厅时刷新大厅数据
 
 压缩玩家ID ulong->short 创建玩家ID字典类,数据储存在steamLobbyData中
 分配规则??? 时间戳+(steamId hash)去除大部分冲突+LobbyData进行二次校验来进行偏移

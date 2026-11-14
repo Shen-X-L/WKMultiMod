@@ -40,8 +40,7 @@ public class Patch_WorldLoader {
 	[HarmonyPatch(("IncrementSeed"))]
 	[HarmonyPrefix]
 	public static bool IncrementSeed_Off() {
-		if (MPCore.IsInLobby)
-			return false;
+		if (MPCore.IsInLobby) return false;
 		return true;
 	}
 
