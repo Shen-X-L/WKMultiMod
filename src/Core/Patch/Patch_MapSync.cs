@@ -315,23 +315,23 @@ public static class MapSync {
 [HarmonyPatch]
 public static class Patch_MapSync_GenerationList {
 	// 所有关卡生成器 (战役模式、捷径分支等) 的 GetGenerationList
-	static IEnumerable<MethodBase> TargetMethods() {
+	private static IEnumerable<MethodBase> TargetMethods() {
 		foreach (var type in typeof(WorldGenerator).Assembly.GetTypes()) {
 			if (type.IsInterface || !typeof(WorldGenerator).IsAssignableFrom(type)) continue;
 			var method = AccessTools.Method(type, nameof(WorldGenerator.GetGenerationList));
 			if (method != null && method.DeclaringType == type) yield return method;
 		}
 	}
-	static void Prefix() => MapSync.EnterGenerationList();
-	// 读档复活时保持原路线 (仅在本次生成为 saveLoad 时生效, 用后即清)
-	static void Postfix(List<M_Level.LevelAssetHolder> __result) {
+	private static void Prefix() => MapSync.EnterGenerationList();
+	//读档复活时保持原路线(仅在本次生成为 saveLoad 时生效, 用后即清)
+	private static void Postfix(List<M_Level.LevelAssetHolder> __result) {
 		try {
 			MapSync.KeepSavedRoute(__result);
 		} catch (Exception ex) {
 			MPMain.LogError($"[MP MapSync] {ex}");
 		}
 	}
-	static Exception? Finalizer(Exception? __exception) {
+	private static Exception? Finalizer(Exception? __exception) {
 		MapSync.ExitGenerationList();
 		return __exception;
 	}
