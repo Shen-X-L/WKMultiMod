@@ -22,6 +22,7 @@ namespace WKMPMod.Patch;
 ///    客机生成关卡列表时按主机的标记回答, 日期检查 (SSM_DateTimeRange, 如寄生虫子区域的万圣节期间) 使用主机的时间,
 ///    并固定用英文规则解析日期 (原版按系统语言解析, 德/俄/法语系统会解析成错误日期).
 /// 2. 路线比对: 主机发布主路线关卡列表, 客机生成后比对, 不一致时记录并提示从第几关开始不同.
+/// 3. 读档复活保持原路线: 原版读档时只保留存档关卡, 之后的关卡重新随机, 复活者前方的关卡可能变成别的变体.
 /// 只在主机也有本修复的房间生效 (主机发布了 "map sync" 大厅数据), 其他房间保持原版行为.
 /// </summary>
 public static class MapSync {
@@ -138,7 +139,7 @@ public static class MapSync {
 	public static DateTime Now {
 		get {
 			if (IsClient && HostMap is { } hostMap
-				&& DateTime.TryParseExact(host.time, TIME_FORMAT, CultureInfo.InvariantCulture, DateTimeStyles.None, out var hostTime))
+				&& DateTime.TryParseExact(hostMap.time, TIME_FORMAT, CultureInfo.InvariantCulture, DateTimeStyles.None, out var hostTime))
 				return hostTime;
 			return _genTime ?? DateTime.Now;
 		}
@@ -163,10 +164,11 @@ public static class MapSync {
 	/// </summary>
 	public static void OnGenerateStart(WorldLoader loader, BranchInfo branch, GenerationParameters? genParams) {
 		_loggedThisGeneration.Clear();
+		_keepRoute = null;
 		if (!Enabled) return;
 		// 是否从存档加载
 		bool isSaveLoad = genParams?.generationType == GenerationParameters.GenerationType.saveLoad;
-		// 这个主线判断原理是什么?
+		// 主线判断: 根分支 (branch-root) 不是由分支生成器 (UT_BranchGenerator, 捷径/支线) 创建的, 其 generationBranch 为 null
 		bool isRoot = branch != null && branch.generationBranch == null;
 		// 测试日志: 客机本次生成是否使用主机输入
 		if (!MPSteamworks.IsHost) {
@@ -175,6 +177,9 @@ public static class MapSync {
 				? Localization.GetLog("MPMapSync.UsingHostInputs", host.seed, host.flags?.Count ?? 0, host.time, host.route?.Count ?? 0)
 				: Localization.GetLog("MPMapSync.HostInputsUnavailable", CurrentSeed));
 		}
+		// 读档复活: 记下存档时的原路线, 在本次首个 GetGenerationList 返回后替换开头
+		_keepRoute = isSaveLoad && genParams!.saveLevels != null && genParams.saveLevels.Count > 1
+			? new List<BranchInfo.LevelId>(genParams.saveLevels) : null;
 		// 主机: 全新生成主路线时开始记录本局输入
 		bool fresh = isRoot && (genParams == null || genParams.generationType == GenerationParameters.GenerationType.standard)
 			&& (branch!.levelTracker == null || branch.levelTracker.Count == 0);
@@ -229,18 +234,18 @@ public static class MapSync {
 	/// </summary>
 	private static void CompareWithHost(List<string> route, bool saveLoad) {
 		var hostMap = HostMap;
-		if (host?.route == null || host.route.Count == 0 || route.Count == 0) return;
+		if (hostMap?.route == null || hostMap.route.Count == 0 || route.Count == 0) return;
 		// 无当前关卡匹配节点(TODO: 不知道捷径中表现会如何,但是目前捷径同步关闭,需要靠下次地图重构)
 		int offset = hostMap.route.IndexOf(route[0]);
 		if (offset < 0) {
 			// 本机路线从主机已发布路线之外开始 (例如主机还没生成到复活点), 无法比对, 不算不一致
-			MPMain.LogInfo(Localization.GetLog("MPMapSync.RouteBeyondHost", route[0], host.route.Count));
+			MPMain.LogInfo(Localization.GetLog("MPMapSync.RouteBeyondHost", route[0], hostMap.route.Count));
 			return;
 		}
-		int count = Math.Min(route.Count, host.route.Count - offset);
+		int count = Math.Min(route.Count, hostMap.route.Count - offset);
 		for (int i = 0; i < count; i++) {
-			if (route[i] != host.route[offset + i]) {
-				Report(offset + i, route[i], host.route[offset + i]);
+			if (route[i] != hostMap.route[offset + i]) {
+				Report(offset + i, route[i], hostMap.route[offset + i]);
 				return;
 			}
 		}
@@ -250,6 +255,57 @@ public static class MapSync {
 	private static void Report(int index, string mine, string hosts) {
 		MPMain.LogWarning(Localization.GetLog("MPMapSync.RouteMismatch", index, mine, hosts));
 		MPCore.SystemMessage(Localization.Get("MPMapSync.RouteMismatchMessage", index), UIDisplayType.TipHeader);
+	}
+
+	#endregion
+
+	#region[读档复活保持原路线]
+
+	// 读档复活: 存档时从存档关卡起的原路线 (CL_SaveManager 存档时记录的 levelGenerationList)
+	private static List<BranchInfo.LevelId>? _keepRoute;
+
+	/// <summary>
+	/// 读档复活 (saveLoad) 的首次 GetGenerationList 返回后调用.
+	/// 原版读档时用重新生成的关卡列表, 只保留存档关卡本身 (GenerateLevels 中只替换到首个匹配的存档关卡),
+	/// 之后的关卡重新随机; 而随机数消耗与开局不同 (起始区域、本局已生成的子区域等), 复活者前方的关卡可能变成
+	/// 别的变体 (实测闹鬼码头 Pier_02 变成 Pier_01), 与其他玩家不同步.
+	/// 这里把列表开头换成存档时的原路线, 原路线结束之后才使用新生成的关卡.
+	/// </summary>
+	public static void KeepSavedRoute(List<M_Level.LevelAssetHolder>? result) {
+		var saved = _keepRoute;
+		_keepRoute = null;
+		if (saved == null || result == null) return;
+
+		var kept = new List<M_Level.LevelAssetHolder>();
+		foreach (var id in saved) {
+			var asset = CL_AssetManager.GetLevelAsset(id.level);
+			if (asset == null) {
+				MPMain.LogWarning($"[MP MapSync] 读档复活: 找不到关卡 {id.level}, 使用重新生成的路线");
+				return;
+			}
+			// 与原版续接原路线的做法一致 (M_GenerationBranch.FinalizeLevelList)
+			asset.region = CL_AssetManager.GetRegionAsset(id.region);
+			asset.subregion = CL_AssetManager.GetSubregionAsset(id.subRegion);
+			kept.Add(asset);
+		}
+
+		// 新列表中原路线最后一关之后的部分接在后面; 找不到时只用原路线 (走到尽头后由原版续接生成)
+		string last = saved[saved.Count - 1].level;
+		int lastIndex = result.FindLastIndex(l => l != null && string.Equals(l.id, last, StringComparison.OrdinalIgnoreCase));
+		var tail = lastIndex >= 0 ? result.GetRange(lastIndex + 1, result.Count - lastIndex - 1) : new List<M_Level.LevelAssetHolder>();
+
+		// 统计重新生成的路线与原路线有几处不同 (日志)
+		int start = result.FindIndex(l => l != null && string.Equals(l.id, saved[0].level, StringComparison.OrdinalIgnoreCase));
+		int differs = 0;
+		if (start >= 0) {
+			for (int i = 0; i < saved.Count && start + i < result.Count; i++)
+				if (!string.Equals(result[start + i]?.id, saved[i].level, StringComparison.OrdinalIgnoreCase)) differs++;
+		}
+
+		result.Clear();
+		result.AddRange(kept);
+		result.AddRange(tail);
+		MPMain.LogInfo($"[MP MapSync] 读档复活: 保持原路线 {kept.Count} 关 (重新生成的路线有 {differs} 处不同)");
 	}
 
 	#endregion
@@ -267,6 +323,14 @@ public static class Patch_MapSync_GenerationList {
 		}
 	}
 	static void Prefix() => MapSync.EnterGenerationList();
+	// 读档复活时保持原路线 (仅在本次生成为 saveLoad 时生效, 用后即清)
+	static void Postfix(List<M_Level.LevelAssetHolder> __result) {
+		try {
+			MapSync.KeepSavedRoute(__result);
+		} catch (Exception ex) {
+			MPMain.LogError($"[MP MapSync] {ex}");
+		}
+	}
 	static Exception? Finalizer(Exception? __exception) {
 		MapSync.ExitGenerationList();
 		return __exception;
