@@ -90,13 +90,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	public ulong HostSteamId { get; private set; }
 
 	// 检查是否是大厅所有者
-	public static bool IsHost {
-		get {
-			if (Instance._currentLobby.Id == 0) return false;
-			return Instance._currentLobby.Owner.Id == UserSteamId;
-		}
-	}
-
+	public static bool IsHost => Instance._currentLobby.Id.IsValid && Instance._currentLobby.Owner.Id == UserSteamId;	
+	public static bool IsClient => Instance._currentLobby.Id.IsValid && Instance._currentLobby.Owner.Id != UserSteamId;
+	
 	#endregion
 
 	#region[	steamConnection]

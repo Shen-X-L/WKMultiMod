@@ -25,6 +25,8 @@ namespace WKMPMod.Patch;
 /// 只在主机也有本修复的房间生效 (主机发布了 "map sync" 大厅数据), 其他房间保持原版行为.
 /// </summary>
 public static class MapSync {
+	#region[内部类]
+
 	[Serializable]
 	public class HostMapInfo {
 		public int seed;
@@ -32,6 +34,8 @@ public static class MapSync {
 		public Dictionary<string, bool> flags = new();  // 主机生成关卡列表时查询过的标记及其值
 		public List<string> route = new();             // 主机主路线 (根分支) 关卡名
 	}
+
+	#endregion
 
 	private const string TIME_FORMAT = "yyyy-MM-ddTHH:mm:ss";
 	private static readonly CultureInfo DateCulture = CultureInfo.GetCultureInfo("en-US");
@@ -49,7 +53,7 @@ public static class MapSync {
 	private static string? _hostMapJson;
 	private static HostMapInfo? _hostMap;
 	// 是否是客机 (TODO: 迁移到MPSteamworks)
-	private static bool IsClient => MPCore.IsInLobby && !MPSteamworks.IsHost;
+
 	
 	private static int CurrentSeed => WorldLoader.instance != null ? WorldLoader.instance.seed : 0;
 
@@ -58,7 +62,7 @@ public static class MapSync {
 	/// </summary>
 	public static HostMapInfo? HostMap {
 		get {
-			if (!IsClient) return null;
+			if (!MPSteamworks.IsClient) return null;
 			string? raw = MPSteamworks.Instance?.LobbyData?.GetValueOrDefault(MPKeys.MAP_SYNC);
 			if (string.IsNullOrEmpty(raw)) return null;
 			if (raw != _hostMapJson) {
@@ -67,7 +71,7 @@ public static class MapSync {
 					_hostMap = JsonConvert.DeserializeObject<HostMapInfo>(raw!);
 				} catch (Exception ex) {
 					_hostMap = null;
-					MPMain.LogWarning(Localization.GetLog("MPMapSync.HostInputsParseFailed", ex.Message));
+					MPMain.LogError(Localization.GetLog("MPMapSync.HostInputsParseFailed", ex.Message));
 				}
 			}
 			return _hostMap != null && _hostMap.seed == CurrentSeed ? _hostMap : null;
@@ -86,7 +90,7 @@ public static class MapSync {
 		}
 	}
 
-	#region[生成输入]
+	#region[生成标记记录]
 
 	// 本次生成中已记录过的标记差异 / 日期检查 (测试日志, 每次生成只记一次)
 	private static readonly HashSet<string> _loggedThisGeneration = new();
@@ -123,7 +127,7 @@ public static class MapSync {
 	public static void RecordFlag(string name, bool value) {
 		if (!InGenerationList || IsRunStateFlag(name)) return;
 		// 只记第一次查询的值: 生成过程中值可能被改写, 客机需要的是生成开始时的输入
-		if (MPCore.IsInLobby && MPSteamworks.IsHost && !_queriedFlags.ContainsKey(name)) _queriedFlags[name] = value;
+		if (MPSteamworks.IsHost && !_queriedFlags.ContainsKey(name)) _queriedFlags[name] = value;
 	}
 
 	/// <summary>
@@ -137,8 +141,8 @@ public static class MapSync {
 	/// </summary>
 	public static DateTime Now {
 		get {
-			if (IsClient && HostMap is { } hostMap
-				&& DateTime.TryParseExact(host.time, TIME_FORMAT, CultureInfo.InvariantCulture, DateTimeStyles.None, out var hostTime))
+			if (MPSteamworks.IsClient && HostMap is { } hostMap
+				&& DateTime.TryParseExact(hostMap.time, TIME_FORMAT, CultureInfo.InvariantCulture, DateTimeStyles.None, out var hostTime))
 				return hostTime;
 			return _genTime ?? DateTime.Now;
 		}
@@ -193,7 +197,7 @@ public static class MapSync {
 		// 等待生成流程开始->结束 (loading true->false) 
 		yield return new WaitUntil(() => loader == null || LoadingField(loader));
 		yield return new WaitUntil(() => loader == null || !LoadingField(loader));
-		if (loader == null || !MapSync.Enabled) yield break;
+		if (loader == null || !Enabled) yield break;
 		// 分支内生成过的全部关卡 (含已卸载的), 续接生成后也完整
 		var route = branch.GetLevelIds()
 			.Select(id => id?.level)
@@ -201,25 +205,21 @@ public static class MapSync {
 			.Select(name => name!)
 			.ToList();
 		if (MPSteamworks.IsHost) {
-			// 全新生成与续接生成都重新发布路线 (输入只在全新生成时重置); 读档复活不发布
-			if (!saveLoad) Publish(route);
+			// 全新生成与续接生成都重新发布路线 (输入只在全新生成时重置); 读档复活不发布(TODO: 建议换成拼接之前路线后一起发布)
+			// 提交关卡数据到SteamLobbyData
+			if (!saveLoad) {
+				var inputs = new HostMapInfo {
+					seed = CurrentSeed,
+					time = (_genTime ?? DateTime.Now).ToString(TIME_FORMAT, CultureInfo.InvariantCulture),
+					flags = new Dictionary<string, bool>(_queriedFlags),
+					route = route,
+				};
+				MPSteamworks.Instance.SetLobbyData(MPKeys.MAP_SYNC, JsonConvert.SerializeObject(inputs));
+				MPMain.LogInfo(Localization.GetLog("MPMapSync.Published", inputs.flags.Count, route.Count));
+			}
 		} else {
 			CompareWithHost(route, saveLoad);
 		}
-	}
-
-	/// <summary>
-	/// 提交关卡数据到SteamLobbyDAta
-	/// </summary>
-	private static void Publish(List<string> route) {
-		var inputs = new HostMapInfo {
-			seed = CurrentSeed,
-			time = (_genTime ?? DateTime.Now).ToString(TIME_FORMAT, CultureInfo.InvariantCulture),
-			flags = new Dictionary<string, bool>(_queriedFlags),
-			route = route,
-		};
-		MPSteamworks.Instance.SetLobbyData(MPKeys.MAP_SYNC, JsonConvert.SerializeObject(inputs));
-		MPMain.LogInfo(Localization.GetLog("MPMapSync.Published", inputs.flags.Count, route.Count));
 	}
 
 	/// <summary>
@@ -229,18 +229,18 @@ public static class MapSync {
 	/// </summary>
 	private static void CompareWithHost(List<string> route, bool saveLoad) {
 		var hostMap = HostMap;
-		if (host?.route == null || host.route.Count == 0 || route.Count == 0) return;
+		if (hostMap?.route == null || hostMap.route.Count == 0 || route.Count == 0) return;
 		// 无当前关卡匹配节点(TODO: 不知道捷径中表现会如何,但是目前捷径同步关闭,需要靠下次地图重构)
 		int offset = hostMap.route.IndexOf(route[0]);
 		if (offset < 0) {
 			// 本机路线从主机已发布路线之外开始 (例如主机还没生成到复活点), 无法比对, 不算不一致
-			MPMain.LogInfo(Localization.GetLog("MPMapSync.RouteBeyondHost", route[0], host.route.Count));
+			MPMain.LogInfo(Localization.GetLog("MPMapSync.RouteBeyondHost", route[0], hostMap.route.Count));
 			return;
 		}
-		int count = Math.Min(route.Count, host.route.Count - offset);
+		int count = Math.Min(route.Count, hostMap.route.Count - offset);
 		for (int i = 0; i < count; i++) {
-			if (route[i] != host.route[offset + i]) {
-				Report(offset + i, route[i], host.route[offset + i]);
+			if (route[i] != hostMap.route[offset + i]) {
+				Report(offset + i, route[i], hostMap.route[offset + i]);
 				return;
 			}
 		}
@@ -275,8 +275,8 @@ public static class Patch_MapSync_GenerationList {
 
 // 进行关卡生成序列记录入口点
 [HarmonyPatch(typeof(WorldLoader), "GenerateLevels")]
-public class Patch_MapSync_GenerateLevels {
-	static void Prefix(WorldLoader __instance, BranchInfo branch, GenerationParameters genParams) {
+public static class Patch_MapSync_GenerateLevels {
+	private static void Prefix(WorldLoader __instance, BranchInfo branch, GenerationParameters genParams) {
 		try {
 			MapSync.OnGenerateStart(__instance, branch, genParams);
 		} catch (Exception ex) {
@@ -288,18 +288,18 @@ public class Patch_MapSync_GenerateLevels {
 // 记录生成标记
 [HarmonyPatch(typeof(CL_GameManager), nameof(CL_GameManager.HasActiveFlag))]
 public static class Patch_MapSync_HasActiveFlag {
-	static bool Prefix(string name, ref bool __result) {
+	private static bool Prefix(string name, ref bool __result) {
 		if (!MapSync.TryHostFlag(name, out bool value)) return true;
 		__result = value;
 		return false;
 	}
-	static void Postfix(string name, bool __result) => MapSync.RecordFlag(name, __result);
+	private static void Postfix(string name, bool __result) => MapSync.RecordFlag(name, __result);
 }
 
 // 日期范围检查: 联机时用主机时间, 并按英文规则解析日期
 [HarmonyPatch(typeof(SSM_DateTimeRange), nameof(SSM_DateTimeRange.Check))]
 public static class Patch_MapSync_DateTimeRange {
-	static bool Prefix(SSM_DateTimeRange __instance, ref float __result) {
+	private static bool Prefix(SSM_DateTimeRange __instance, ref float __result) {
 		if (!MapSync.Enabled) return true;
 		var now = MapSync.Now;
 		if (!MapSync.TryParseDate(__instance.startTime, now, out var start) || !MapSync.TryParseDate(__instance.endTime, now, out var end))

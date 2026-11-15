@@ -8,10 +8,9 @@
 
 **重要声明** :
 
-* **本人并非 Unity/C# 开发者, 日常工作不涉及此类开发.**
-* 本项目中 **部分代码由 AI 生成** .
-* 因此,  **部分代码质量可能非常糟糕** , 请谨慎参考.
-* 联机功能相关的代码 **fork自之前存在的联机mod项目** .
+* **本人并非专用 Unity/C# 开发者, 日常工作(Web相关)不涉及此类开发.**
+* 因为游戏代码不稳定, 本项目中, 同步功能架构以人为设计主导, **有部分代码由 AI 进行检查/重构/实现** .
+* 联机功能相关的代码 **fork自之前存在的联机mod项目(已大量重构)** .
 
 **可能的目标** :
 
@@ -365,7 +364,7 @@ WhiteKnuckleMod/
 
 1. **安装 .NET SDK** :从 [Microsoft .NET官网](https://dotnet.microsoft.com/) 下载并安装.
 2. **恢复 NuGet 包** :在项目根目录执行 `dotnet restore`.
-3. **获取游戏 DLL** :请务必按照 `lib/README.md` 中的说明, 获取必要的游戏 DLL 文件并放入 `lib/` 目录.
+3. **链接游戏 DLL** :编辑 `src/LocalPaths.props` 文件,将 `GamePath` 设置为游戏安装目录下的 `common/White Knuckle` 路径.
 
 ## 贡献指南
 
@@ -386,6 +385,7 @@ WhiteKnuckleMod/
 * 尽量遵循 C# 通用命名约定.
 * 关键部分可添加注释说明.
 * 新功能请进行充分测试.
+* 自定义网络包尽量为128以上, 以避免与mod本体的网络包冲突.
 
 ## 重要版权声明
 
@@ -397,6 +397,7 @@ WhiteKnuckleMod/
 * **[Harmony](https://github.com/pardeike/Harmony)** - 强大的 .NET 运行时补丁库.
 * **[BepInEx](https://github.com/BepInEx/BepInEx)** - 优秀的 Unity 游戏插件框架.
 * **[Time](https://github.com/TimeCr)** - 实现大量功能,岩钉同步,掉落物同步,实体同步(部分功能还在测试)
+* **[LiuIsSlime](https://github.com/LiuIsSlime)** - 提供万圣节更新的地图同步修复
 * **[Fugel](https://github.com/PotatoeShaman)** - 提供Steam邀请好友,收到邀请等API,局内UI显示
 * 可喵 - 提供mod新封面
 * **《白色节点》游戏社区** - 提供的灵感和测试帮助.
