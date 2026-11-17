@@ -11,8 +11,8 @@ namespace WKMPMod.Patch;
 /// <summary>
 /// 读档复活保持世界坐标 (战役):
 /// 读档 (saveLoad) 时游戏卸载全部关卡, 只从存档关卡开始重新生成, 存档关卡被放到世界原点且朝向归零,
-/// 复活玩家的整条关卡链与其他玩家错开 (实测 590 m ~ 1778 m, 朝向差 0° ~ 66°), 互相看不见.
-/// 处理: 读档前记下存档关卡复活前的世界位姿; 重新生成时, 原版放置存档关卡的同一帧 (抓点登记 LoadHandholds 之前)
+/// 复活玩家的整条关卡链与其他玩家错开 互相看不见.
+/// 处理: 读档前记下存档关卡复活前的世界位姿; 重新生成时, 原版放置存档关卡的同一帧 (实例化关卡并拼接之后 抓点登记 LoadHandholds 之前)
 /// 把它放回这个位姿. 后续关卡由原版按出口依次衔接, 生成出来就在原坐标上;
 /// 不移动任何已激活的关卡, 也不需要刷新碰撞体 (同一帧内的移动在下一次物理步统一同步).
 /// 存档里不记录关卡的世界坐标, 所以位姿来自内存: 存档关卡仍加载时直接读取, 已卸载时使用生成完成时的缓存.
@@ -41,6 +41,9 @@ public static class ReviveAlign {
 		_cacheOwner = loader;
 	}
 
+	/// <summary>
+	/// 当前全部分支信息
+	/// </summary>
 	private static IEnumerable<BranchInfo> AllBranches(WorldLoader loader) {
 		if (loader.currentBranch != null) yield return loader.currentBranch;
 		var branches = BranchesField(loader);
@@ -49,6 +52,9 @@ public static class ReviveAlign {
 			if (branch != null && branch != loader.currentBranch) yield return branch;
 	}
 
+	/// <summary>
+	/// Debug输出向量信息
+	/// </summary>
 	private static string V(Vector3 v) => $"({v.x:0.##}, {v.y:0.##}, {v.z:0.##})";
 
 	/// <summary>
@@ -65,6 +71,9 @@ public static class ReviveAlign {
 		}
 	}
 
+	/// <summary>
+	/// 记录所有已加载关卡的世界位姿
+	/// </summary>
 	private static bool TryGetOldPose(WorldLoader loader, string levelName, out Vector3 pos, out Quaternion rot, out string source) {
 		foreach (var branch in AllBranches(loader)) {
 			foreach (var info in branch.levelTracker) {
@@ -103,6 +112,9 @@ public static class ReviveAlign {
 		}
 	}
 
+	/// <summary>
+	/// 启动世界生成结束监听并记录关卡位置
+	/// </summary>
 	public static void OnGenerateStart(WorldLoader loader, GenerationParameters? genParams) {
 		bool restore = genParams != null
 			&& (genParams.generationType == GenerationParameters.GenerationType.saveLoad
@@ -140,7 +152,7 @@ public static class ReviveAlign {
 	}
 
 	/// <summary>
-	/// 原版放置完关卡后立即登记抓点: 此时把存档关卡放回复活前的位姿
+	/// 原版放置完关卡后把存档关卡放回复活前的位姿
 	/// </summary>
 	public static void OnLevelPlaced(GameObject go) {
 		if (!_restoring || _pending is not { } pending || go == null) return;
@@ -184,6 +196,9 @@ public class Patch_ReviveAlign_WorldLoader {
 	static void SetOffset_Postfix(float amount) => ReviveAlign.OnWorldOffset(amount);
 }
 
+/// <summary>
+/// 在关卡Instantiate 随机翻转 拼接位置后立刻重设位置
+/// </summary>
 [HarmonyPatch(typeof(HandholdManager), nameof(HandholdManager.LoadHandholds))]
 public class Patch_ReviveAlign_LoadHandholds {
 	static void Prefix(GameObject g) {
