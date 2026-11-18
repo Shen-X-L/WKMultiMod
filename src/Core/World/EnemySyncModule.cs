@@ -789,6 +789,11 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 从缓存查找或创建, 分配稳定 NetworkId.
 	/// 如果该生物已经被记录为死亡, 则立即杀死该生物. 并且不会再注册到字典中.
 	/// </summary>
+	private static IEnumerator KillAfterStart(GameEntity entity, string type) {
+		yield return null;
+		if (entity != null && !entity.dead) entity.Kill(type);
+	}
+
 	private NetworkedGameEntity EnsureIdentity(GameEntity entity) {
 		var syncRoot = entity.transform;
 		if (syncRoot == null) return null;
@@ -807,9 +812,11 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		}
 		// 该生物已经被记录 杀死该生物
 		if (_diedEntities.TryGetValue(identity.networkId, out var diedType)) {
-			if (string.IsNullOrEmpty(diedType)) entity.Kill("diedSync");
-			else entity.Kill(diedType);
 			entity.health = 0f;
+			// 这里在 OnEnable 中, 生物的 Start 还没执行 (clipHandler 等未初始化), 立即 Kill 会在
+			// 重写的 Kill 中抛 NullReferenceException (如 DEN_Gasbag / DEN_Barnacle), 死亡没有执行完, 生物留在场上.
+			// 推迟到下一帧 (Start 之后) 再杀.
+			entity.StartCoroutine(KillAfterStart(entity, string.IsNullOrEmpty(diedType) ? "diedSync" : diedType));
 			return identity;
 		}
 		// 如果有所有者记录, 则设置当前所有者
