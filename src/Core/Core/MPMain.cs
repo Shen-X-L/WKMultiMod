@@ -90,7 +90,7 @@ public class MPMain : BaseUnityPlugin {
 		[CallerMemberName] string member = "",
 		[CallerLineNumber] int number = 0,
 		[CallerFilePath] string filePath = "") {
-		// 从文件路径中提取出类名(即不带后缀的文件名，通常约定文件名与类名一致)
+		// 从文件路径中提取出类名(即不带后缀的文件名, 通常约定文件名与类名一致)
 		string className = Path.GetFileNameWithoutExtension(filePath);
 		Logger.LogError($"[MP {className}.{member} {number}] {log}");
 	}
@@ -99,7 +99,7 @@ public class MPMain : BaseUnityPlugin {
 		[CallerMemberName] string member = "",
 		[CallerLineNumber] int number = 0,
 		[CallerFilePath] string filePath = "") {
-		// 从文件路径中提取出类名(即不带后缀的文件名，通常约定文件名与类名一致)
+		// 从文件路径中提取出类名(即不带后缀的文件名, 通常约定文件名与类名一致)
 		string className = Path.GetFileNameWithoutExtension(filePath);
 		Logger.LogDebug($"[MP {className}.{member} {number}] {log}");
 	}

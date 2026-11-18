@@ -15,6 +15,10 @@ This is a Unity MOD for the game  *White Knuckle* , implementing basic networked
 **Known Issues:**
 
 * Chaotic object lifecycle management, which may lead to unexpected behavior.
+* 
+**Current Roadmap**:
+
+Projectile Sync (required for TEETH sync) -> Creature Sync (semi-complete, specializing for certain types) -> Map Sync Refactor (using map sequence + seed) -> Spectator Mode -> Lua Module Embedding -> Other Sync Features
 
 **Potential Future Goals:**
 
@@ -35,7 +39,7 @@ graph RL
 **Completed Goals**:
 
 * Player position sync
-* Player map sync – map remains the same after disk resurrection (please make good use of disk resurrection). Shortcut map sync is also supported (unstable, needs refactoring).
+* Player map sync – map remains the same after disk resurrection (No longer valid, pending refactor.). Shortcut map sync is also supported (No longer valid, pending refactor.).
 * Player vs. Player (PvP) and configurable PvP damage
 * Players drop items upon death
 * UI-based multiplayer lobby

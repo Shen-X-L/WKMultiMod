@@ -1009,37 +1009,43 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// Handles an incoming piton sync packet
 	/// Applies create, update or remove depending on the action type
 	/// </summary>
-	public void HandlePitonState(IDType senderId, DataReader reader) {
+	[MPPacketHandler(PacketType.ClimbableSync)]
+	public static void HandlePitonState(IDType senderId, DataReader reader) {
+		var module = Instance;
+		if (module == null || !module.IsEnabled) return;
+
 		var action = (PitonSyncAction)reader.GetByte();
+
 		switch (action) {
 			case PitonSyncAction.Create:
-				HandleCreate(senderId, reader);
+				module.HandleCreate(senderId, reader);
 				break;
 			case PitonSyncAction.Update:
-				HandleUpdate(reader);
+				module.HandleUpdate(reader);
 				break;
 			case PitonSyncAction.Remove:
-				HandleRemove(reader);
+				module.HandleRemove(reader);
 				break;
 			case PitonSyncAction.HammerIn:
-				HandlePitonHammerIn(reader);
+				module.HandlePitonHammerIn(reader);
 				break;
 			case PitonSyncAction.Weaken:
-				HandleWeaken(reader);
+				module.HandleWeaken(reader);
 				break;
 			case PitonSyncAction.BreakRequest:
-				HandlePitonBreakRequest(reader);
+				module.HandlePitonBreakRequest(reader);
 				break;
 			case PitonSyncAction.Break:
-				HandlePitonBreak(reader);
+				module.HandlePitonBreak(reader);
 				break;
 			case PitonSyncAction.CreateChunkRequest:
-				HandleChunkRequest(senderId);
+				module.HandleChunkRequest(senderId);
 				break;
 			case PitonSyncAction.CreateChunk:
-				HandleCreateChunk(reader);
+				module.HandleCreateChunk(reader);
 				break;
 		}
+		MPMain.LogDebug(action.ToString());
 	}
 
 	/// <summary>

@@ -1,8 +1,6 @@
 tmd弱智吧holly DEN_BasicNavigator对基类Target模块进行隐藏,重构TargetSyncFeature
 
-存档死亡/重开地图不同步 hook unity.random
-
-解决管道区生成不同步 9443457
+无法抓取???什么函数激活了抓钩?
 
 投射物同步(无伤害,伤害由远程调用决定)
 
@@ -18,6 +16,8 @@ DEN_VentThing.SetTarget
 DEN_Remains_Active
 DEN_RatKing
 只索敌主玩家
+
+生物同步模块生物激活关闭先经过合并消除后再进行身份注册
 
 仅有吐射动画,没有射击物
 
@@ -41,6 +41,8 @@ Noita和星际拓荒是怎么实现的盗版
 切分MPCore
 
 lobbyrestart指令
+
+连接判断循环/完整玩家数据发送可能有卡顿
 
 支持Lua自定义命令
 

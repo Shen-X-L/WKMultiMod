@@ -29,7 +29,7 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 	private bool _canSeeTarget;
 	private bool _canRememberTarget;
 	private Quaternion _lastSyncedRot = Quaternion.identity;// eyeLamp 同步缓存
-	private const float RotEpsilonDegrees = 5.0f; // 旋转变化阈值，避免每帧无限发包
+	private const float RotEpsilonDegrees = 5.0f; // 旋转变化阈值, 避免每帧无限发包
 
 	#endregion
 
@@ -133,7 +133,7 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 
 	private void SendStunEvent() {
 		if (_netEntity == null || !_netEntity.IsOwnedByMe) return;
-		// 主机触发眩晕，向所有客户端广播
+		// 主机触发眩晕, 向所有客户端广播
 		EnemySyncModule.Instance.BroadcastCustomFeature(
 			_netEntity.networkId, CustomIndex,
 			writer => writer.Put((byte)PhageMessage.Stun),
@@ -143,7 +143,7 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 
 	private void SendStunRecoverEvent() {
 		if (_netEntity == null || !_netEntity.IsOwnedByMe) return;
-		// 主机触发眩晕恢复，向所有客户端广播
+		// 主机触发眩晕恢复, 向所有客户端广播
 		EnemySyncModule.Instance.BroadcastCustomFeature(
 			_netEntity.networkId, CustomIndex,
 			writer => writer.Put((byte)PhageMessage.StunRecover),
@@ -202,7 +202,7 @@ public class PhageSyncFeature : IStateSyncFeature, ICustomSyncFeature {
 
 	private void HandleRemoteStun() {
 		if (_phage == null || _netEntity.IsOwnedByMe) return;
-		// 客户端接收到主机的眩晕同步，执行本地表现
+		// 客户端接收到主机的眩晕同步, 执行本地表现
 		_phage.clipHandler?.PlaySound("phage:stun");
 		CL_CameraControl.Shake(0.2f);
 		_phage.stunEvent?.Invoke();

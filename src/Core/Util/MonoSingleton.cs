@@ -35,7 +35,7 @@ public abstract class MonoSingleton<T> : MonoBehaviour where T : MonoSingleton<T
 	/// 指定特定的 GameObject 挂载该单例组件,并让 _instance 指向它
 	/// </summary>
 	/// <param name="target">指定的挂载目标</param>
-	/// <param name="dontDestroyOnLoad">是否在跨场景时保持不销毁（默认 true）</param>
+	/// <param name="dontDestroyOnLoad">是否在跨场景时保持不销毁 (默认 true) </param>
 	/// <returns>返回挂载的单例组件实例</returns>
 	public static T InitializeOn(GameObject target, bool dontDestroyOnLoad = true) {
 		if (_applicationIsQuitting) return null;

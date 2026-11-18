@@ -414,31 +414,30 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 	/// 由 MPPacketHandlers.HandleItemStateSync 调用.
 	/// </summary>
 	[MPPacketHandler(PacketType.SceneItemSync)]
-	private static void HandleItemState(IDType senderId, DataReader reader) {
+	public static void HandleItemState(IDType senderId, DataReader reader) {
+		var module = Instance;
+		if (module == null || !module.IsEnabled) return;
+
 		var action = (SceneItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
 				case SceneItemSyncAction.Create:
-					MPMain.LogDebug("[MP SceneItemSync] Create");
-					Instance.HandleSceneCreate(senderId, reader);
+					module.HandleSceneCreate(senderId, reader);
 					break;
 				case SceneItemSyncAction.Remove:
-					MPMain.LogDebug("[MP SceneItemSync] Remove");
-					Instance.HandleSceneRemove(senderId, reader);
+					module.HandleSceneRemove(senderId, reader);
 					break;
 				case SceneItemSyncAction.RemoveChunk:
-					MPMain.LogDebug("[MP SceneItemSync] RemoveChunk");
-					Instance.HandleSceneRemoveChunk(reader);
+					module.HandleSceneRemoveChunk(reader);
 					break;
 				case SceneItemSyncAction.RemoveChunkRequest:
-					MPMain.LogDebug("[MP SceneItemSync] RemoveChunkRequest");
-					Instance.HandleSceneRemoveChunkRequest(senderId);
+					module.HandleSceneRemoveChunkRequest(senderId);
 					break;
 				case SceneItemSyncAction.SceneToDropped:
-					MPMain.LogDebug("[MP SceneItemSync] SceneToDropped");
-					Instance.HandleSceneToDropped(senderId, reader);
+					module.HandleSceneToDropped(senderId, reader);
 					break;
 			}
+			MPMain.LogDebug("SceneItem"+action.ToString());
 		} catch (Exception e) {
 			MPMain.LogError($"[MP ItemSync] HandleItemState failed for action {action}: {e.Message}");
 		}
@@ -1269,42 +1268,38 @@ public class DroppedItemModule : Singleton<DroppedItemModule>, ISyncModule {
 	/// </summary>
 	[MPPacketHandler(PacketType.DroppedItemSync)]
 	public static void HandleItemState(IDType senderId, DataReader reader) {
+		var module = Instance;
+		if (module == null || !module.IsEnabled) return;
 		var action = (DroppedItemSyncAction)reader.GetByte();
 		try {
 			switch (action) {
 				case DroppedItemSyncAction.Create:
-					MPMain.LogDebug("Create");
-					Instance.HandleDropCreate(senderId, reader);
+					module.HandleDropCreate(senderId, reader);
 					break;
 				case DroppedItemSyncAction.PickupRequest:
-					MPMain.LogDebug("PickupRequest");
-					Instance.HandlePickupRequest(senderId, reader);
+					module.HandlePickupRequest(senderId, reader);
 					break;
 				case DroppedItemSyncAction.Remove:
-					MPMain.LogDebug("PickupRemove");
-					Instance.HandleRemove(senderId, reader);
+					module.HandleRemove(senderId, reader);
 					break;
 				case DroppedItemSyncAction.PickupReject:
-					MPMain.LogDebug("PickupReject");
-					Instance.HandlePickupReject(reader);
+					module.HandlePickupReject(reader);
 					break;
 				case DroppedItemSyncAction.TransferRequest:
-					MPMain.LogDebug("TransferRequest");
-					Instance.HandleTransferRequest(senderId, reader);
+					module.HandleTransferRequest(senderId, reader);
 					break;
 				case DroppedItemSyncAction.TransferConfirm:
-					MPMain.LogDebug("TransferConfirm");
-					Instance.HandleTransferConfirm(reader);
+					module.HandleTransferConfirm(reader);
 					break;
 				case DroppedItemSyncAction.TransferReject:
-					MPMain.LogDebug("TransferReject");
-					Instance.HandleTransferReject(reader);
+					module.HandleTransferReject(reader);
 					break;
 				case DroppedItemSyncAction.UpdateTransform:
-					MPMain.LogDebug("UpdateTransform");
-					Instance.HandleUpdateTransform(reader);
+					module.HandleUpdateTransform(reader);
 					break;
 			}
+			if(action!= DroppedItemSyncAction.UpdateTransform)
+				MPMain.LogDebug("DroppedItem" + action.ToString());
 		} catch (Exception e) {
 			MPMain.LogError($"[MP ItemSync] HandleItemState failed for action {action}: {e.Message}");
 		}

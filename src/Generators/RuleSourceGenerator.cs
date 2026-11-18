@@ -10,7 +10,7 @@ namespace WKMPMod.Generators;
 [Generator]
 public class RuleSourceGenerator : ISourceGenerator {
 	public void Initialize(GeneratorInitializationContext context) {
-		// 不需要注册语法接收器，简单全扫描即可
+		// 不需要注册语法接收器, 简单全扫描即可
 	}
 
 	public void Execute(GeneratorExecutionContext context) {

@@ -25,12 +25,12 @@ public class MPPacketRouter {
 	/// 初始化字典
 	/// </summary>
 	static MPPacketRouter() {
-		// 默认自动扫描内置的 MPPacketHandlers
-		RegisterRoutesInternal(typeof(MPPacketHandlers));
-		RegisterRoutesInternal(typeof(SceneItemModule));
-		RegisterRoutesInternal(typeof(DroppedItemModule));
-		RegisterRoutesInternal(typeof(EnemySyncModule));
-		RegisterRoutesInternal(typeof(ProjectileSyncModule));
+		//获取当前程序集
+		Assembly assembly = Assembly.GetExecutingAssembly();
+		// 遍历程序集中的所有有效类型
+		foreach (Type type in assembly.GetTypes()) 
+			// 过滤掉没有定义任何包处理方法的类型
+			RegisterRoutesInternal(type);
 	}
 
 	/// <summary>
@@ -176,7 +176,7 @@ public class MPPacketRouter {
 	}
 
 	/// <summary>
-	/// 泛型重载版本，支持直接传入类名进行注册：MPPacketRouter.RegisterRoutes&lt;MyCustomHandlers&gt;();
+	/// 泛型重载版本, 支持直接传入类名进行注册：MPPacketRouter.RegisterRoutes&lt;MyCustomHandlers&gt;();
 	/// </summary>
 	public static void RegisterRoutes<T>() {
 		RegisterRoutes(typeof(T));

@@ -20,7 +20,7 @@ public class RPManager : Singleton<RPManager> {
 
 	private TickTimer _debugTick = new TickTimer(5f);
 	// 存储所有远程对象
-	internal Dictionary<IDType, RPContainer> Players = new Dictionary<IDType, RPContainer>();
+	public Dictionary<IDType, RPContainer> Players = new Dictionary<IDType, RPContainer>();
 	private Dictionary<IDType, float> _lastDeathTime = new Dictionary<IDType, float>();
 	// 同一个玩家 2 秒内只能处理一次死亡信息, 避免重复处理导致的物品重复掉落和动画冲突
 	private const float DEATH_COOLDOWN = 2.0f;

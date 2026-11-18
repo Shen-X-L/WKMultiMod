@@ -18,7 +18,7 @@ namespace WKMPMod.Patch;
 
 /// <summary>
 /// 地图同步短期修复 (重构为"主机下发完整地图"之前):
-/// 1. 生成输入统一: 主机生成关卡列表时记录查询过的存档/会话标记 (成就、hasvisited 等) 与生成时间, 写入大厅数据;
+/// 1. 生成输入统一: 主机生成关卡列表时记录查询过的存档/会话标记 (成就, hasvisited 等) 与生成时间, 写入大厅数据;
 ///    客机生成关卡列表时按主机的标记回答, 日期检查 (SSM_DateTimeRange, 如寄生虫子区域的万圣节期间) 使用主机的时间,
 ///    并固定用英文规则解析日期 (原版按系统语言解析, 德/俄/法语系统会解析成错误日期).
 /// 2. 路线比对: 主机发布主路线关卡列表, 客机生成后比对, 不一致时记录并提示从第几关开始不同.
@@ -228,7 +228,7 @@ public static class MapSync {
 	}
 
 	/// <summary>
-	/// 客机: 与主机主路线比对. 本机路线可能不从第一关开始 (读档复活从存档关卡开始、前面的关卡已卸载),
+	/// 客机: 与主机主路线比对. 本机路线可能不从第一关开始 (读档复活从存档关卡开始, 前面的关卡已卸载),
 	/// 按本机首关在主机路线中的位置对齐后比对
 	/// 无作用 仅输出错误 DEBUG使用
 	/// </summary>
@@ -267,7 +267,7 @@ public static class MapSync {
 	/// <summary>
 	/// 读档复活 (saveLoad) 的首次 GetGenerationList 返回后调用.
 	/// 原版读档时用重新生成的关卡列表, 只保留存档关卡本身 (GenerateLevels 中只替换到首个匹配的存档关卡),
-	/// 之后的关卡重新随机; 而随机数消耗与开局不同 (起始区域、本局已生成的子区域等), 复活者前方的关卡可能变成
+	/// 之后的关卡重新随机; 而随机数消耗与开局不同 (起始区域, 本局已生成的子区域等), 复活者前方的关卡可能变成
 	/// 别的变体 (实测闹鬼码头 Pier_02 变成 Pier_01), 与其他玩家不同步.
 	/// 这里把列表开头换成存档时的原路线, 原路线结束之后才使用新生成的关卡.
 	/// </summary>
@@ -314,7 +314,7 @@ public static class MapSync {
 // 拦截所有GetGenerationList 调用时添加标志位
 [HarmonyPatch]
 public static class Patch_MapSync_GenerationList {
-	// 所有关卡生成器 (战役模式、捷径分支等) 的 GetGenerationList
+	// 所有关卡生成器 (战役模式, 捷径分支等) 的 GetGenerationList
 	private static IEnumerable<MethodBase> TargetMethods() {
 		foreach (var type in typeof(WorldGenerator).Assembly.GetTypes()) {
 			if (type.IsInterface || !typeof(WorldGenerator).IsAssignableFrom(type)) continue;

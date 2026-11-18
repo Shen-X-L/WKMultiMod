@@ -67,7 +67,7 @@ public class TargetSyncFeature : IFrameUpdateFeature, ICustomSyncFeature {
 	//}
 
 	private void EnableRemotePlayerTargeting() {
-		// 视线组件修改：添加图层 15 (Creature) 到 AI 视线检测。
+		// 视线组件修改：添加图层 15 (Creature) 到 AI 视线检测
 		if (Identity.AIEntity?.sight != null)
 			Identity.AIEntity.sight.sightMask.value |= 1 << 15;
 

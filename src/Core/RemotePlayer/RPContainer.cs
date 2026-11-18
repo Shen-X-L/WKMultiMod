@@ -494,5 +494,15 @@ public class RPContainer {
 	}
 
 	#endregion
+
+	#region[API]
+
+	public RemoteHand? GetHand(int index) {
+		if (index == 0) return _remoteLeftHand;
+		if (index == 1) return _remoteRightHand;
+		return null;
+	}
+
+	#endregion
 }
 

@@ -78,8 +78,8 @@ public static class RPPrefabProcessor {
 				if (internalShader != null) {
 					mat.shader = internalShader;
 				} else {
-					// 原 Shader 对象仍然有效，不强制替换，
-					// 避免误伤游戏中无法通过 Shader.Find 查询的 Shader。
+					// 原 Shader 对象仍然有效, 不强制替换, 
+					// 避免误伤游戏中无法通过 Shader.Find 查询的 Shader
 					MPMain.LogWarning(
 						$"[RPPrefabProcessor] 无法通过 Shader.Find 重新获取 Shader\n" +
 						$"  Renderer: {renderer.name}\n" +
@@ -94,7 +94,7 @@ public static class RPPrefabProcessor {
 
 	private static void ProcessPrefabMarkers(GameObject prefab) {
 		var rootRigidbody = prefab.GetComponent<Rigidbody>();
-		// 1. 处理玩家和受击实体（先添加 RemotePlayer）
+		// 1. 处理玩家和受击实体 (先添加 RemotePlayer) 
 		foreach (var mk in prefab.GetComponentsInChildren<MK_RemotePlayer>(true)) {
 			mk.gameObject.AddComponent<RemotePlayer>();
 		}
@@ -117,7 +117,7 @@ public static class RPPrefabProcessor {
 				}
 			}
 		}
-		// 4. 处理受击体（此时 mk.entity 依然有效, 且其 GameObject 上已成功挂载 RemotePlayer）
+		// 4. 处理受击体 (此时 mk.entity 依然有效, 且其 GameObject 上已成功挂载 RemotePlayer) 
 		foreach (var mk in prefab.GetComponentsInChildren<MK_ENT_Hitbox>(true)) {
 			var component = mk.gameObject.AddComponent<ENT_Hitbox>();
 

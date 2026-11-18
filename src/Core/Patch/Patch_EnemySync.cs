@@ -133,7 +133,7 @@ public static class Patch_DEN_Drone {
 	}
 
 	/// <summary>
-	/// 实际由 IL 调用的辅助函数。
+	/// 实际由 IL 调用的辅助函数
 	/// </summary>
 	public static Damageable.DamageInfo CreateDamageInfo(float amount, string objectType, DEN_Drone source) {
 		return Damageable.DamageInfo.CreateDamageInfo(amount, objectType, new List<string> { "drone" }, source);

@@ -48,7 +48,7 @@ public class Patch_WorldLoader {
 	[HarmonyPatch(("GenerateLevels"))]
 	[HarmonyPrefix]
 	public static void GenerateLevels_GenParams_Off(BranchInfo branch, GenerationParameters genParams, WorldLoader __instance, WorldGenerator ___currentGenerator) {
-		if (MPCore.IsInLobby && CL_GameManager.GetBaseGamemode().gamemodeName == "Campaign") {
+		if (MPCore.IsInLobby && MPGameModeManager.IsCampaignMode) {
 			// 禁用种子偏移
 			genParams?.seedOffset = 0;
 			// 启动协程等待生成结束并收集数据

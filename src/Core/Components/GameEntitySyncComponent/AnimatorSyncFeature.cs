@@ -196,7 +196,7 @@ public class AnimatorSyncFeature : IStateSyncFeature, ICustomSyncFeature, IIniti
 		int layerCount = animator.layerCount;
 		writer.Put((ushort)layerCount);
 		for (int i = 0; i < layerCount; i++) {
-			// Transition 中使用目标状态，而不是当前转出状态
+			// Transition 中使用目标状态, 而不是当前转出状态
 			AnimatorStateInfo state = animator.IsInTransition(i)
 				? animator.GetNextAnimatorStateInfo(i)
 				: animator.GetCurrentAnimatorStateInfo(i);
@@ -213,7 +213,7 @@ public class AnimatorSyncFeature : IStateSyncFeature, ICustomSyncFeature, IIniti
 			if (IsInitialSyncParameter(animator, parameter)) parameterCount++;
 		}
 		writer.Put(parameterCount);
-		// 写入参数 Hash、类型和值
+		// 写入参数 Hash, 类型和值
 		foreach (var parameter in parameters) {
 			if (!IsInitialSyncParameter(animator, parameter)) continue;
 			writer.Put(parameter.nameHash);
@@ -260,7 +260,7 @@ public class AnimatorSyncFeature : IStateSyncFeature, ICustomSyncFeature, IIniti
 			int stateHash = reader.GetInt();
 			float normalizedTime = reader.GetFloat();
 			float weight = reader.GetFloat();
-			// 即使本地 Layer 数量不同，也必须继续读取
+			// 即使本地 Layer 数量不同, 也必须继续读取
 			if (i >= animator.layerCount) continue;
 			animator.SetLayerWeight(i, weight);
 			if (stateHash != 0)

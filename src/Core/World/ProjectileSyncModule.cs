@@ -1,15 +1,13 @@
 ﻿using Steamworks.Data;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Unity.Entities;
 using UnityEngine;
 using WKMPMod.Asset;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
-using WKMPMod.Patch;
+using static AIGameEntity;
 using static Patch_Projectile;
 using static WKMPMod.Data.MPWriterPool;
 
@@ -21,7 +19,10 @@ namespace WKMPMod.World;
 public enum ProjectileSyncAction : byte {
 	Initialize,
 	Ricochet,
-	CollisionHit
+	CollisionHit,
+	OnDestroy,
+	GrappleInitialize,
+	GrappleState,
 }
 
 public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule {
@@ -70,26 +71,26 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 		}
 	}
 
-
 	#endregion
 
 	#region[ISyncModule接口实现]
 
 	public string ModuleName => "ProiectileSync";
 
-	public bool IsEnabled { get; set; } = false;
+	public bool IsEnabled { get; set; } = true;
 	public void OnResetMap() {
 		// 远程投射物由本模块创建 需要主动销毁
-		foreach (var projectile in _remoteProjectileDic.Values) {
-			if (projectile != null)
-				UnityEngine.Object.Destroy(projectile.gameObject);
-		}
+		var remoteProjectiles = new List<Projectile>(_remoteProjectileDic.Values);
 
 		_remoteProjectileDic.Clear();
 		_remoteProjectile.Clear();
+		_needUpdateProjectile.Clear();
 		_cleanupKeys.Clear();
 
 		_cleanupCountdown = 0;
+
+		foreach (var projectile in remoteProjectiles) if (projectile != null) 
+			UnityEngine.Object.Destroy(projectile.gameObject);
 	}
 	public void OnLeave() {
 		OnResetMap();
@@ -103,7 +104,7 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 	#region[字段和属性]
 
 	/// <summary>
-	/// 正在应用远程投射物状态。
+	/// 正在应用远程投射物状态
 	/// 用于避免远程实例初始化时触发本地广播
 	/// </summary>
 	public bool ApplyingRemoteState { get; private set; }
@@ -122,6 +123,11 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 	/// - 不存在：远程投射物,不执行本地碰撞检测.
 	/// </summary>
 	private readonly HashSet<Projectile> _remoteProjectile = new();
+
+	/// <summary>
+	/// 本地中无法靠简单路径模拟可同步的投射物, 需要进行帧更新广播
+	/// </summary>
+	private readonly HashSet<NetworkedProjectile> _needUpdateProjectile = new();
 
 	/// <summary>
 	/// 定期清理时复用的 Key 列表.
@@ -158,34 +164,39 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 	#region[API]
 
 	/// <summary>
-	/// 接收投射物同步数据包。
+	/// 接收投射物同步数据包
 	/// </summary>
 	[MPPacketHandler(PacketType.ProjectileSync)]
 	public static void HandleProjectileState(IDType senderId, DataReader reader) {
 		var module = Instance;
-		if (module == null || !module.IsEnabled)
-			return;
+		if (module == null || !module.IsEnabled) return;
 
 		var action = (ProjectileSyncAction)reader.GetByte();
-
 		try {
 			switch (action) {
 				case ProjectileSyncAction.Initialize:
 					module.HandleInitialize(senderId, reader);
 					break;
-
 				case ProjectileSyncAction.Ricochet:
 					module.HandleRichochet(senderId, reader);
 					break;
-
 				case ProjectileSyncAction.CollisionHit:
 					module.HandleCreateHitEffect(senderId, reader);
 					break;
-
+				case ProjectileSyncAction.GrappleInitialize:
+					module.HandleGrappleCreate(senderId, reader);
+					break;
+				case ProjectileSyncAction.OnDestroy:
+					module.HandleOnDestroy(senderId, reader);
+					break;
+				case ProjectileSyncAction.GrappleState:
+					module.HandleGrappleState(senderId, reader);
+					break;
 				default:
 					MPMain.LogWarning($"[MP ProjectileSync] Unknown action: {action}");
 					break;
 			}
+			MPMain.LogDebug(action.ToString());
 		} catch (Exception ex) {
 			MPMain.LogError($"Failed to apply {action}: {ex}");
 		}
@@ -193,17 +204,32 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 
 	#endregion
 
-	#region[Hook 事件接入 接口]
+	#region[Projectile 一般投射物]
 
+	#region[Hook 事件接入 接口]
 
 	/// <summary>
 	/// 本地投射物 Initialize 完成后调用
 	/// </summary>
 	public void OnInitialize(Projectile projectile) {
 		// 空对象 || 对远程投射物操作中 || 未启用模块 || 不需要同步 || 已经是远程投射物
-		if (projectile == null || ApplyingRemoteState || !IsEnabled 
+		if (projectile == null || ApplyingRemoteState || !IsEnabled
 			|| !MPCore.CanSync || _remoteProjectile.Contains(projectile)) return;
-		BroadcastInitialize(projectile);
+
+		// 类型派发
+		switch (projectile.GetType().Name) {
+			case nameof(Projectile_Homing_Rocket):
+			case nameof(Projectile_Homing):
+				break;
+			case nameof(Projectile_Grapple):
+				break;
+			case nameof(Projectile_ReturnRebar):
+				break;
+			case nameof(Projectile):
+			default:
+				BroadcastInitialize(projectile);
+				break;
+		}
 	}
 
 	/// <summary>
@@ -218,16 +244,33 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 
 	// 反弹回调 本地反弹成功后进行PRC通知
 	public void OnRichochet(Projectile projectile) {
-		if (projectile == null || ApplyingRemoteState || !IsEnabled 
-			|| !MPCore.CanSync ||  _remoteProjectile.Contains(projectile)) return;
+		if (projectile == null || ApplyingRemoteState || !IsEnabled
+			|| !MPCore.CanSync || _remoteProjectile.Contains(projectile)) return;
 		BroadcastRichochet(projectile);
 	}
 
 	// 碰撞命中回调 本地命中成功后进行PRC通知
-	public void OnCreateHitEffect(Projectile projectile,ref RaycastHit hit) {
+	public void OnCreateHitEffect(Projectile projectile, ref RaycastHit hit) {
 		if (projectile == null || ApplyingRemoteState || !IsEnabled
 			|| !MPCore.CanSync || _remoteProjectile.Contains(projectile)) return;
-		BroadcastCreateHitEffect(projectile,ref hit);
+		BroadcastCreateHitEffect(projectile, ref hit);
+	}
+
+	// 本地投射物销毁
+	public void OnDestroy(NetworkedProjectile identity) {
+		if (identity == null)return;
+		_needUpdateProjectile.Remove(identity);
+		// 远程对象销毁: 只清理本地记录,不广播
+		if (identity.IsRemote) {
+			var key = (identity.OwnerId, identity.NetworkId);
+			_remoteProjectileDic.Remove(key);
+			if (identity.projectile != null) _remoteProjectile.Remove(identity.projectile);
+			return;
+		}
+
+		if (identity.IsRemote || ApplyingRemoteState || !IsEnabled
+			|| !MPCore.CanSync || _remoteProjectile.Contains(identity.projectile)) return;
+		BroadcastOnDestroy(identity);
 	}
 
 	#endregion
@@ -235,7 +278,7 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 	#region[网络数据发送]
 
 	/// <summary>
-	/// 获取投射物初始化数据。
+	/// 获取投射物初始化数据
 	/// </summary>
 	private ProjectileData CaptureProjectileData(Projectile projectile) {
 		return new ProjectileData {
@@ -295,6 +338,17 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
 	}
 
+	/// <summary>
+	/// 广播物品销毁
+	/// 接收函数: <see cref="HandleOnDestroy"/>
+	/// </summary>
+	private void BroadcastOnDestroy(NetworkedProjectile identity) {
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ProjectileSync);
+		writer.Put((byte)ProjectileSyncAction.OnDestroy);
+		writer.Put(identity.NetworkId);
+		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+	}
+
 	#endregion
 
 	#region[网络数据处理]
@@ -308,7 +362,8 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 		var key = (senderId, data.uniqueId);
 		// 防止重复初始化
 		if (_remoteProjectileDic.TryGetValue(key, out var existing)) {
-			if (existing != null) return;
+			// 对象存在, 重设初始化
+			if (existing != null) return; 
 			_remoteProjectileDic.Remove(key);
 		}
 		// 获取预制体
@@ -330,7 +385,7 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 			// direction 使用零向量,随后直接恢复实际 velocity
 			projectile.Initialize(Vector3.zero);
 			velocityField(projectile) = data.velocity;
-			// SphereCast 的上一帧位置必须与初始位置一致。
+			// SphereCast 的上一帧位置必须与初始位置一致
 			projectile.lastPos = data.position;
 			_remoteProjectile.Add(projectile);
 			_remoteProjectileDic[key] = projectile;
@@ -396,5 +451,168 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 		}
 	}
 
+	/// <summary>
+	/// 投射物销毁
+	/// 发送函数: <see cref="BroadcastOnDestroy"/>
+	/// </summary>
+	private void HandleOnDestroy(IDType senderId, DataReader reader) {
+		int uniqueId = reader.GetInt();
+		// 查找对应投射物
+		var key = (senderId, uniqueId);
+		if (!_remoteProjectileDic.TryGetValue(key, out var projectile) || projectile == null) return;
+		_remoteProjectileDic.Remove(key);
+		if (projectile == null) return;
+		_remoteProjectile.Remove(projectile);
+		// 销毁投射物
+		UnityEngine.Object.Destroy(projectile.gameObject);
+	}
+
 	#endregion
+
+	#endregion
+
+	#region[Grapple 抓钩]
+
+	/// <summary>
+	/// 替代OnInitialize确定投射物创建
+	/// </summary>
+	public void OnGrappleCreate(Projectile_Grapple grapple, HandItem_Shoot_Grapple handItem) {
+		if (grapple == null || ApplyingRemoteState || !IsEnabled || !MPCore.CanSync) return;
+		if (!grapple.TryGetComponent<NetworkedProjectile>(out var identity))
+			identity = grapple.gameObject.AddComponent<NetworkedProjectile>();
+		identity.InitializeLocal(MPSteamworks.UserSteamId);
+		_needUpdateProjectile.Add(identity);
+		BroadcastGrappleCreate(grapple, (byte)handItem.hand.id);
+	}
+
+	/// <summary>
+	/// 拉回 广播通知NetworkedProjectile进行拉回到手中
+	/// </summary>
+	public void OnGrappleRecalling(Projectile_Grapple grapple,HandItem_Shoot_Grapple handItem) {
+		if (grapple == null || !IsEnabled || !MPCore.CanSync 
+			|| !grapple.TryGetComponent<NetworkedProjectile>(out var identity))return;
+		identity.SetGrappleState(GrappleSyncState.Recalling);
+	}
+
+	/// <summary>
+	/// 命中 广播通知NetworkedProjectile进行命中手柄拖拽钻头停滞
+	/// </summary>
+	public void OnGrappleHasHit(Projectile_Grapple grapple,HandItem_Shoot_Grapple handItem) {
+		if (grapple == null || !IsEnabled || !MPCore.CanSync 
+			|| !grapple.TryGetComponent<NetworkedProjectile>(out var identity)) return;
+		identity.SetGrappleState(GrappleSyncState.HasHit);
+	}
+
+	/// <summary>
+	/// 命中后松手 广播通知NetworkedProjectile进行命中后松手手柄拖拽
+	/// </summary>
+	public void OnGrappleDropHand(Projectile_Grapple grapple, HandItem_Shoot_Grapple handItem) {
+		if (grapple == null || !IsEnabled || !MPCore.CanSync
+			|| !grapple.TryGetComponent<NetworkedProjectile>(out var identity)) return;
+		identity.SetGrappleState(GrappleSyncState.DropHand);
+	}
+
+	#region[网络数据发送]
+
+	private void BroadcastGrappleCreate(Projectile_Grapple grapple, byte handIndex) {
+		var data = CaptureProjectileData(grapple);
+
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ProjectileSync);
+		writer.Put((byte)ProjectileSyncAction.GrappleInitialize);
+		writer.Put(data);
+		writer.Put(handIndex);
+
+		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+	}
+
+	public void BroadcastGrappleState(NetworkedProjectile identity, GrappleSyncState state) {
+		if (identity == null || identity.IsRemote || !IsEnabled || !MPCore.CanSync) return;
+		var projectile = identity.projectile;
+		if (projectile == null) return;
+
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ProjectileSync);
+
+		writer.Put((byte)ProjectileSyncAction.GrappleState);
+		writer.Put(identity.NetworkId);
+		writer.Put((byte)state);
+
+		writer.Put(projectile.transform.position);
+		writer.Put(projectile.transform.rotation);
+		writer.Put(velocityField(projectile));
+
+		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
+	}
+
+	#endregion
+
+	#region[网络数据处理]
+
+	private void HandleGrappleCreate(IDType senderId, DataReader reader) {
+		reader.GetOut<ProjectileData>(out var data);
+		byte handIndex = reader.GetByte();
+		var key = (senderId, data.uniqueId);
+		// 防止重复初始化
+		if (_remoteProjectileDic.TryGetValue(key, out var existing)) {
+			// 对象存在, 重设初始化
+			if (existing != null) return;
+			_remoteProjectileDic.Remove(key);
+		}
+		// 获取预制体
+		var prefab = MPAssetManager.GetProjectilePrefab(data.prefabName);
+		if (prefab == null || !prefab.TryGetComponent<Projectile_Grapple>(out var template)) {
+			MPMain.LogWarning($"[MP ProjectileSync] Projectile prefab not found: {data.prefabName}");
+			return;
+		}
+		// 设置标志位
+		bool previousApplyingState = ApplyingRemoteState;
+		ApplyingRemoteState = true;
+		try {
+			var grapple = UnityEngine.Object.Instantiate(template, data.position, data.rotation);
+			// 恢复原版物理参数
+			grapple.gravity = data.gravity;
+			grapple.airResistance = data.airResistance;
+			grapple.SetVelocityMultiplier(data.velocityMultiplier);
+			grapple.lifetime = data.lifetime;
+			// direction 使用零向量,随后直接恢复实际 velocity
+			grapple.Initialize(Vector3.zero);
+			velocityField(grapple) = data.velocity;
+			// SphereCast 的上一帧位置必须与初始位置一致
+			grapple.lastPos = data.position;
+			_remoteProjectile.Add(grapple);
+			_remoteProjectileDic[key] = grapple;
+			// 额外处理组件 设置生命周期
+			var identity = grapple.gameObject.AddComponent<NetworkedProjectile>();
+			if (!identity.InitializeRemote(senderId, data.uniqueId) || !identity.GrappleInitialize(handIndex)) {
+				UnityEngine.Object.Destroy(grapple.gameObject);
+				return;
+			}
+		} finally {
+			ApplyingRemoteState = previousApplyingState;
+		}
+	}
+
+	private void HandleGrappleState(IDType senderId, DataReader reader) {
+		int uniqueId = reader.GetInt();
+		var state = (GrappleSyncState)reader.GetByte();
+
+		Vector3 position = reader.GetVector3();
+		Quaternion rotation = reader.GetQuaternion();
+		Vector3 velocity = reader.GetVector3();
+
+		var key = (senderId, uniqueId);
+
+		if (!_remoteProjectileDic.TryGetValue(key, out var projectile)|| projectile == null)return;
+		if (!projectile.TryGetComponent<NetworkedProjectile>(out var identity))return;
+
+		projectile.transform.SetPositionAndRotation(position, rotation);
+		projectile.lastPos = position;
+		velocityField(projectile) = velocity;
+
+		identity.ApplyGrappleState(state);
+	}
+
+	#endregion
+
+	#endregion
+
 }

@@ -331,8 +331,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	// 更新广播订阅者分组器
 	private readonly CollectionGroupingManager<IDType, NetworkedGameEntity> _groupManager = new();
 	private readonly List<GroupKey<IDType>> _activeGroupKeys = new();
-	// 激活/关闭缓存
-	private readonly Dictionary<NetworkedGameEntity, bool> _pendingEntityChanges = new();
 
 	private void ResetSweepState() {
 		_timer = 0f;
@@ -347,6 +345,15 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		_groupManager.Clear();
 		_activeGroupKeys.Clear();
 	}
+
+	#endregion
+
+	#region[高频率短激活关闭合并消除]
+
+	// 激活/关闭缓存
+	private readonly Dictionary<NetworkedGameEntity, bool> _pendingEntityChanges = new();
+	// 冲刷帧
+	private byte _cleanupCountdown;
 
 	#endregion
 
@@ -375,6 +382,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		enemies.Clear();
 		_entitySubscribers.Clear();
 		_byInstanceId.Clear();
+		_pendingEntityChanges.Clear();
 		ApplyingRemoteState = false;
 		// 广播所有权放弃
 		BroadcastOwnerAbandon(networkIds: Array.Empty<ulong>(), abandonAll: true);
@@ -391,11 +399,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (entity == null || !MPCore.IsReady || !IsEnabled) return;
 		if (!IsSyncableEnemy(entity)) return;
 		int instanceId = entity.gameObject.GetInstanceID();
-		//MPMain.LogDebug(
-		//	$"instance={instanceId}, " +
-		//	$"activeSelf={entity.gameObject.activeSelf}, " +
-		//	$"activeInHierarchy={entity.gameObject.activeInHierarchy}, " +
-		//	$"enabled={entity.enabled}");
 		// 主机与客机均在实体启用时直接建立身份绑定
 		var identity = EnsureIdentity(entity);
 		// 请求主机分配所有权/订阅状态
@@ -409,11 +412,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	public void OnEntityDisabled(GameEntity entity) {
 		if (entity == null || !MPCore.IsReady || !IsEnabled) return;
 		int instanceId = entity.gameObject.GetInstanceID();
-		//MPMain.LogDebug(
-		//	$"instance={instanceId}, " +
-		//	$"activeSelf={entity.gameObject.activeSelf}, " +
-		//	$"activeInHierarchy={entity.gameObject.activeInHierarchy}, " +
-		//	$"enabled={entity.enabled}");
 		if (_byInstanceId.TryGetValue(instanceId, out var identity)) {
 			RemoveEnemyRecord(identity);
 			// 进行所有权放弃/退订阅
@@ -442,6 +440,9 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		}
 	}
 
+	/// <summary>
+	/// 缓存生物激活-关闭, 并合并消除快速的激活-关闭对
+	/// </summary>
 	private void TogglePendingEntityChange(NetworkedGameEntity identity, bool isEnable) {
 		if (identity == null || identity.networkId == 0)return;
 		//MPMain.LogDebug(identity.Debug());
@@ -454,6 +455,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		}
 		_pendingEntityChanges.Add(identity, isEnable);
 	}
+
 	#endregion
 
 	#region[API]
@@ -463,64 +465,57 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// </summary>
 	[MPPacketHandler(PacketType.EnemySync)]
 	public static void HandleEnemyState(IDType senderId, DataReader reader) {
+		var module = Instance;
+		if (module == null || !module.IsEnabled) return;
+
 		var action = (EnemySyncAction)reader.GetByte();
 		try {
 			switch (action) {
 				case EnemySyncAction.OwnerRequest:
-					MPMain.LogDebug("HandleOwnerRequest");
-					Instance.HandleOwnerRequest(senderId, reader);
+					module.HandleOwnerRequest(senderId, reader);
 					break;
 				case EnemySyncAction.OwnerResponse:
-					MPMain.LogDebug("HandleOwnerResponse");
-					Instance.HandleOwnerResponse(reader);
+					module.HandleOwnerResponse(reader);
 					break;
 				case EnemySyncAction.OwnerAbandon:
-					MPMain.LogDebug("HandleOwnerAbandon");
-					Instance.HandleOwnerAbandon(senderId, reader);
+					module.HandleOwnerAbandon(senderId, reader);
 					break;
 				case EnemySyncAction.SubscriptionRequest:
-					MPMain.LogDebug("HandleSubscriptionRequest");
-					Instance.HandleSubscriptionRequest(senderId, reader);
+					module.HandleSubscriptionRequest(senderId, reader);
 					break;
 				case EnemySyncAction.UnsubscriptionRequest:
-					MPMain.LogDebug("HandleUnsubscriptionRequest");
-					Instance.HandleUnsubscriptionRequest(senderId, reader);
+					module.HandleUnsubscriptionRequest(senderId, reader);
 					break;
 				case EnemySyncAction.StateBatch:
-					Instance.HandleState(senderId, reader);
+					module.HandleState(senderId, reader);
 					break;
 				case EnemySyncAction.Damage:
-					MPMain.LogDebug("HandleDamage");
-					Instance.HandleDamage(senderId, reader);
+					module.HandleDamage(senderId, reader);
 					break;
 				case EnemySyncAction.Kill:
-					MPMain.LogDebug("HandleKill");
-					Instance.HandleKill(reader);
+					module.HandleKill(reader);
 					break;
 				case EnemySyncAction.SnapshotRequest:
-					MPMain.LogDebug("HandleSnapshotRequest");
-					Instance.HandleSnapshotRequest(senderId);
+					module.HandleSnapshotRequest(senderId);
 					break;
 				case EnemySyncAction.SnapshotChunk:
-					MPMain.LogDebug("HandleSnapshotChunk");
-					Instance.HandleSnapshotChunk(reader);
+					module.HandleSnapshotChunk(reader);
 					break;
 				case EnemySyncAction.CustomFeature:
-					MPMain.LogDebug("HandleCustomFeature");
-					Instance.HandleCustomFeature(senderId, reader);
+					module.HandleCustomFeature(senderId, reader);
 					break;
 				case EnemySyncAction.CustomFeatureReply:
-					MPMain.LogDebug("HandleCustomFeatureReply");
-					Instance.HandleCustomFeatureReply(senderId, reader);
+					module.HandleCustomFeatureReply(senderId, reader);
 					break;
 				case EnemySyncAction.InitialStateBatch:
-					MPMain.LogDebug("HandleInitialStateBatch");
-					Instance.HandleInitialStateBatch(senderId, reader);
+					module.HandleInitialStateBatch(senderId, reader);
 					break;
 				default:
 					MPMain.LogWarning($"[MP EnemySync] Unknown action: {action}");
 					break;
 			}
+			if(action != EnemySyncAction.StateBatch)
+				MPMain.LogDebug(action.ToString());
 		} catch (Exception ex) {
 			MPMain.LogError($"[MP EnemySync] Failed to apply {action}: {ex.Message}");
 		}
@@ -530,8 +525,18 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 	#region[分帧同步]
 
+	// 对真正的非短激活/关闭对象进行所有权操作
 	public void OnReadyUpdate(float deltaTime) {
-		// 0. 合并本帧的实体启用/禁用变化
+		if (_pendingEntityChanges.Count == 0) {
+			_cleanupCountdown = 5;
+			return;
+		}
+		if (_cleanupCountdown > 0) { 
+			--_cleanupCountdown;
+			return;
+		}
+		// 重设计数
+		_cleanupCountdown = 5;
 		FlushEntityChanges();
 	}
 
@@ -644,7 +649,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		var enabledList = new List<NetworkedGameEntity>();
 		var disabledList = new List<NetworkedGameEntity>();
 		foreach (var (identity, isEnable) in _pendingEntityChanges) {
-			//MPMain.LogDebug($"isEnable: {isEnable} " + identity.Debug());
 			if (identity == null) continue;
 			if (isEnable) enabledList.Add(identity);
 			else disabledList.Add(identity);
@@ -797,9 +801,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (identity.networkId == 0) {
 			ulong networkId = BuildStableNetworkId(syncRoot);
 			// 存在重复ID生物 线性偏移hash
-			while (enemies.ContainsKey(networkId)) {
-				networkId++;
-			}
+			while (enemies.ContainsKey(networkId)) networkId++;
 			identity.Initialize(networkId);
 			MPMain.LogDebug($"hash: {networkId}");
 		}
@@ -1589,7 +1591,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 				if (ownerId == senderId) abandonedIds.Add(networkId);
 		} else {
 			// 只保留确实属于发送者的实体
-			// 倒序删除，不会破坏遍历
+			// 倒序删除, 不会破坏遍历
 			for (int i = abandonedIds.Count - 1; i >= 0; i--) {
 				ulong networkId = abandonedIds[i];
 				if (!_entityOwners.TryGetValue(networkId, out var ownerId) || ownerId != senderId) 
@@ -1703,11 +1705,11 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 					int startPos = reader.Position;
 					// 读取所有 IInitialSyncFeature 的初始状态
 					identity.ReadInitialSync(reader);
-					// 修正读取游标，避免单个 Feature 的读写不一致
+					// 修正读取游标, 避免单个 Feature 的读写不一致
 					int readBytes = reader.Position - startPos;
 					if (readBytes != payloadSize) reader.Position = startPos + payloadSize;
 				} else {
-					// 实体不存在，跳过其 Payload 并请求取消订阅
+					// 实体不存在, 跳过其 Payload 并请求取消订阅
 					reader.Skip(payloadSize);
 					unsubList.Add(networkId);
 				}

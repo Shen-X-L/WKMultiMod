@@ -92,14 +92,6 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
-	/// 主机/客户端接收PitonStateSync: 同步实时放置的piton状态.
-	/// </summary>
-	[MPPacketHandler(PacketType.ClimbableSync)]
-	private static void HandlePitonStateSync(IDType senderId, DataReader reader) {
-		ClimbableSyncModule.Instance.HandlePitonState(senderId, reader);
-	}
-
-	/// <summary>
 	/// 主机/客户端接收PlayerDamage: 受到伤害<br/>
 	/// 发送函数: <see cref="MPCore.HandlePlayerDamage"/>
 	/// 具体实现: <see cref="RemotePlayer.Damage"/>

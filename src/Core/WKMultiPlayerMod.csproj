@@ -23,12 +23,17 @@
 
 	<!-- 在构建完成后执行 -->
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<!-- 收集README.md -->
+		<ItemGroup>
+			<README Include="$(SolutionDir)README*.md" />
+		</ItemGroup>
 		<!-- 创建名为 SharedOutputFiles 的项列表 -->
 		<ItemGroup>
 			<SharedOutputFiles Include="$(TargetDir)$(TargetName).dll" />
 			<SharedOutputFiles Include="$(ProjectDir)Util\Localization\*.json" />
 		</ItemGroup>
-		<!-- 生成.dll复制到bin\解决方案配置 -->
+		<!-- README 和 生成.dll复制到bin\解决方案配置 -->
+		<Copy SourceFiles="@(README)" DestinationFolder="$(SolutionDir)bin\$(Configuration)\" SkipUnchangedFiles="true" />
 		<Copy SourceFiles="@(SharedOutputFiles)" DestinationFolder="$(SolutionDir)bin\$(Configuration)\" SkipUnchangedFiles="true" />
 		<!-- 收集解决方案 bin 下所有文件 -->
 		<ItemGroup>

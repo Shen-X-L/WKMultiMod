@@ -38,7 +38,7 @@ public class WorldSyncManager : MonoSingleton<WorldSyncManager> {
 		// 全局调度前置条件校验
 		if (!MPCore.IsReady) return;
 		float deltaTime = Time.unscaledDeltaTime;
-		// Ready 阶段: 不依赖连接。
+		// Ready 阶段: 不依赖连接
 		foreach (var module in _modules.Values) {
 			if (module.IsEnabled) module.OnReadyUpdate(deltaTime);
 		}
