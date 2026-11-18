@@ -369,7 +369,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		_maxSyncPerFrame = MPConfig.MaxEnemySendCount;
 		_batchBuffer = new(_maxSyncPerFrame);
 		// 订阅玩家离开事件
-		MPEventBusNet.OnLobbyMemberLeave += HandleOwnerLeave;
+		EventBusNet.OnLobbyMemberLeave += HandleOwnerLeave;
 	}
 
 	/// <summary>

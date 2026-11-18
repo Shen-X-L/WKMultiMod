@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.Util;
 using WKMPMod.World;
 using static Unity.Collections.AllocatorManager;
@@ -47,7 +48,11 @@ public class Patch_WorldLoader {
 	// 关闭生成器的种子偏移, 使复活时种子同步
 	[HarmonyPatch(("GenerateLevels"))]
 	[HarmonyPrefix]
-	public static void GenerateLevels_GenParams_Off(BranchInfo branch, GenerationParameters genParams, WorldLoader __instance, WorldGenerator ___currentGenerator) {
+	public static void GenerateLevels_GenParams_Off(WorldLoader __instance,BranchInfo branch, GenerationParameters genParams) {
+		EventBusGame.NotifyGenerateLevelsStart(__instance, branch, genParams);
+
+		__instance.StartCoroutine(WaitGenerateEnd(__instance, branch, genParams));
+
 		if (MPCore.IsInLobby && MPGameModeManager.IsCampaignMode) {
 			// 禁用种子偏移
 			genParams?.seedOffset = 0;
@@ -56,6 +61,15 @@ public class Patch_WorldLoader {
 			//bool isGenerationBranch = genParams?.generator is M_GenerationBranch;
 			//__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
 		}
+	}
+
+	public static IEnumerator WaitGenerateEnd(WorldLoader loader, BranchInfo branch, GenerationParameters genParams) {
+		// 等待生成流程开始 (loading 变为 true) 
+		yield return new WaitUntil(() => LoadingField(loader) == true);
+		// 等待生成流程彻底结束 (isLoaded 变为 true) 
+		yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+
+		EventBusGame.NotifyGenerateLevelsEnd(loader, branch, genParams);
 	}
 
 	#region[支线坐标同步协程]

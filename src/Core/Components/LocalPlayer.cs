@@ -82,8 +82,8 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	public void Start() {
 		InitializeTimers();
 		CachePlayerReferences();
-		MPEventBusGame.OnRemoteHangStateChanged += HandleRemoteHangChanged;
-		MPEventBusGame.OnRemoteGrabStateChanged += HandleRemoteGrabChanged;
+		EventBusGame.OnRemoteHangStateChanged += HandleRemoteHangChanged;
+		EventBusGame.OnRemoteGrabStateChanged += HandleRemoteGrabChanged;
 	}
 
 	public void Update() {
@@ -96,8 +96,8 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	protected override void OnDestroy() {
 		base.OnDestroy();
 		// 组件销毁时必须注销事件, 防止内存泄漏
-		MPEventBusGame.OnRemoteHangStateChanged -= HandleRemoteHangChanged;
-		MPEventBusGame.OnRemoteGrabStateChanged -= HandleRemoteGrabChanged;
+		EventBusGame.OnRemoteHangStateChanged -= HandleRemoteHangChanged;
+		EventBusGame.OnRemoteGrabStateChanged -= HandleRemoteGrabChanged;
 	}
 	#endregion
 
@@ -368,7 +368,7 @@ public class LocalPlayer : MonoSingleton<LocalPlayer> {
 	public void ReleaseAndRepelLocalHand(int handIndex, IDType targetRemoteId) {
 		_cachedPlayer.StopInteraction(handIndex);
 		_cachedPlayer.AddForce(-_cachedPlayer.camTransform.forward, "RepelByRemote");
-		MPEventBusGame.NotifyPlayerStopInteraction(targetRemoteId);
+		EventBusGame.NotifyPlayerStopInteraction(targetRemoteId);
 	}
 
 

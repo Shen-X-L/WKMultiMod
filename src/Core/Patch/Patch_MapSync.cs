@@ -38,6 +38,10 @@ public static class MapSync {
 
 	#endregion
 
+	static MapSync() {
+		EventBusGame.OnGenerateLevelsStart += OnGenerateStart;
+	}
+
 	private const string TIME_FORMAT = "yyyy-MM-ddTHH:mm:ss";
 	private static readonly CultureInfo DateCulture = CultureInfo.GetCultureInfo("en-US");
 
@@ -49,14 +53,16 @@ public static class MapSync {
 	public static bool InGenerationList => _listDepth > 0;
 	public static void EnterGenerationList() => _listDepth++;
 	public static void ExitGenerationList() => _listDepth = Math.Max(0, _listDepth - 1);
-	
+
 	// 客机: 解析后的主机输入 (按原始字符串缓存)
 	private static string? _hostMapJson;
 	private static HostMapInfo? _hostMap;
-	// 是否是客机 (TODO: 迁移到MPSteamworks)
 
-	
 	private static int CurrentSeed => WorldLoader.instance != null ? WorldLoader.instance.seed : 0;
+
+	// 地图生成参数传递
+	private static bool _fresh;
+	private static bool _isSaveLoad;
 
 	/// <summary>
 	/// 客机: 当前大厅中主机发布的输入 (种子与本机一致才使用, 避免主机重开时用到上一局的数据)
@@ -171,7 +177,7 @@ public static class MapSync {
 		_keepRoute = null;
 		if (!Enabled) return;
 		// 是否从存档加载
-		bool isSaveLoad = genParams?.generationType == GenerationParameters.GenerationType.saveLoad;
+		_isSaveLoad = genParams?.generationType == GenerationParameters.GenerationType.saveLoad;
 		// 主线判断: 根分支 (branch-root) 不是由分支生成器 (UT_BranchGenerator, 捷径/支线) 创建的, 其 generationBranch 为 null
 		bool isRoot = branch != null && branch.generationBranch == null;
 		// 测试日志: 客机本次生成是否使用主机输入
@@ -182,48 +188,49 @@ public static class MapSync {
 				: Localization.GetLog("MPMapSync.HostInputsUnavailable", CurrentSeed));
 		}
 		// 读档复活: 记下存档时的原路线, 在本次首个 GetGenerationList 返回后替换开头
-		_keepRoute = isSaveLoad && genParams!.saveLevels != null && genParams.saveLevels.Count > 1
+		_keepRoute = _isSaveLoad && genParams!.saveLevels != null && genParams.saveLevels.Count > 1
 			? new List<BranchInfo.LevelId>(genParams.saveLevels) : null;
 		// 主机: 全新生成主路线时开始记录本局输入
-		bool fresh = isRoot && (genParams == null || genParams.generationType == GenerationParameters.GenerationType.standard)
+		_fresh = isRoot && (genParams == null || genParams.generationType == GenerationParameters.GenerationType.standard)
 			&& (branch!.levelTracker == null || branch.levelTracker.Count == 0);
-		if (fresh && MPSteamworks.IsHost) {
+		if (_fresh && MPSteamworks.IsHost) {
 			_genTime = DateTime.Now;
 			_queriedFlags.Clear();
 		}
 		// 等待关卡生成完毕后执行
-		if (isRoot) loader.StartCoroutine(AfterGeneration(loader, branch!, fresh, isSaveLoad));
+		if (isRoot) {
+			EventBusGame.OnGenerateLevelsEnd += AfterGeneration;
+		}
 	}
 
-	private static readonly AccessTools.FieldRef<WorldLoader, bool> LoadingField =
-		AccessTools.FieldRefAccess<WorldLoader, bool>("loading");
-
-	private static IEnumerator AfterGeneration(WorldLoader loader, BranchInfo branch, bool fresh, bool saveLoad) {
-		// 等待生成流程开始->结束 (loading true->false) 
-		yield return new WaitUntil(() => loader == null || LoadingField(loader));
-		yield return new WaitUntil(() => loader == null || !LoadingField(loader));
-		if (loader == null || !Enabled) yield break;
-		// 分支内生成过的全部关卡 (含已卸载的), 续接生成后也完整
-		var route = branch.GetLevelIds()
-			.Select(id => id?.level)
-			.Where(name => !string.IsNullOrEmpty(name))
-			.Select(name => name!)
-			.ToList();
-		if (MPSteamworks.IsHost) {
-			// 全新生成与续接生成都重新发布路线 (输入只在全新生成时重置); 读档复活不发布(TODO: 建议换成拼接之前路线后一起发布)
-			// 提交关卡数据到SteamLobbyData
-			if (!saveLoad) {
-				var inputs = new HostMapInfo {
-					seed = CurrentSeed,
-					time = (_genTime ?? DateTime.Now).ToString(TIME_FORMAT, CultureInfo.InvariantCulture),
-					flags = new Dictionary<string, bool>(_queriedFlags),
-					route = route,
-				};
-				MPSteamworks.Instance.SetLobbyData(MPKeys.MAP_SYNC, JsonConvert.SerializeObject(inputs));
-				MPMain.LogInfo(Localization.GetLog("MPMapSync.Published", inputs.flags.Count, route.Count));
+	private static void AfterGeneration(WorldLoader loader, BranchInfo branch, GenerationParameters genParams) {
+		try {       
+			// 等待生成流程开始->结束 (loading true->false) 
+			if (loader == null || !Enabled) return;
+			// 分支内生成过的全部关卡 (含已卸载的), 续接生成后也完整
+			var route = branch.GetLevelIds()
+				.Select(id => id?.level)
+				.Where(name => !string.IsNullOrEmpty(name))
+				.Select(name => name!)
+				.ToList();
+			if (MPSteamworks.IsHost) {
+				// 全新生成与续接生成都重新发布路线 (输入只在全新生成时重置); 读档复活不发布(TODO: 建议换成拼接之前路线后一起发布)
+				// 提交关卡数据到SteamLobbyData
+				if (!_isSaveLoad) {
+					var inputs = new HostMapInfo {
+						seed = CurrentSeed,
+						time = (_genTime ?? DateTime.Now).ToString(TIME_FORMAT, CultureInfo.InvariantCulture),
+						flags = new Dictionary<string, bool>(_queriedFlags),
+						route = route,
+					};
+					MPSteamworks.Instance.SetLobbyData(MPKeys.MAP_SYNC, JsonConvert.SerializeObject(inputs));
+					MPMain.LogInfo(Localization.GetLog("MPMapSync.Published", inputs.flags.Count, route.Count));
+				}
+			} else {
+				CompareWithHost(route, _isSaveLoad);
 			}
-		} else {
-			CompareWithHost(route, saveLoad);
+		} finally {
+			EventBusGame.OnGenerateLevelsEnd -= AfterGeneration;
 		}
 	}
 
@@ -334,18 +341,6 @@ public static class Patch_MapSync_GenerationList {
 	private static Exception? Finalizer(Exception? __exception) {
 		MapSync.ExitGenerationList();
 		return __exception;
-	}
-}
-
-// 进行关卡生成序列记录入口点
-[HarmonyPatch(typeof(WorldLoader), "GenerateLevels")]
-public static class Patch_MapSync_GenerateLevels {
-	private static void Prefix(WorldLoader __instance, BranchInfo branch, GenerationParameters genParams) {
-		try {
-			MapSync.OnGenerateStart(__instance, branch, genParams);
-		} catch (Exception ex) {
-			MPMain.LogError($"[MP MapSync] {ex}");
-		}
 	}
 }
 

@@ -36,18 +36,18 @@ public class UI_LobbyListPane : MonoBehaviour {
 
 	public void Awake() {
 		refreshHandle = async () => {
-			MPEventBusGame.NotifyShowLoading(10f);
+			EventBusGame.NotifyShowLoading(10f);
 			await RefreshLobbyList();
-			MPEventBusGame.NotifyHideLoading();
+			EventBusGame.NotifyHideLoading();
 		};
 		// 刷新事件绑定,当接收到刷新事件时调用RefreshLobbyList方法刷新大厅列表
-		MPEventBusGame.OnRefreshLobbyList += refreshHandle;
+		EventBusGame.OnRefreshLobbyList += refreshHandle;
 		// 大厅数据更新事件绑定,当接收到大厅数据更新事件时调用RefreshLobbyList方法刷新大厅列表,以确保UI显示最新的数据
 		SteamMatchmaking.OnLobbyDataChanged += OnSteamLobbyDataUpdate;
 	}
 
 	public void OnDestroy() {
-		MPEventBusGame.OnRefreshLobbyList -= refreshHandle;
+		EventBusGame.OnRefreshLobbyList -= refreshHandle;
 		SteamMatchmaking.OnLobbyDataChanged -= OnSteamLobbyDataUpdate;
 	}
 

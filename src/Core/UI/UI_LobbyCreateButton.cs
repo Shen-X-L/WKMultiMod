@@ -88,7 +88,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 			btn.interactable = false;
 		}
 		// 显示Loading弹窗
-		MPEventBusGame.NotifyShowLoading(10f);
+		EventBusGame.NotifyShowLoading(10f);
 	}
 
 	// 创建失败 - 目前没有额外逻辑
@@ -101,7 +101,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 			btn.interactable = true;
 		}
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading();
+		EventBusGame.NotifyHideLoading();
 	}
 
 	// 创建成功 - 目前没有额外逻辑 后续实现Loading弹窗关闭
@@ -109,7 +109,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 		//MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading();
+		EventBusGame.NotifyHideLoading();
 		// 加载游戏模式
 		if (gamemodePanel == null) {
 			MPMain.LogError(Localization.GetLog("UI_LobbyCreateButton.GameModeDetailPanelNull"));

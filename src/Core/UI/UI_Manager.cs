@@ -354,7 +354,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		refreshButton.onClick.AddListener(() => {
 			// 触发大厅列表刷新事件
 			/// <see cref="UI_LobbyListPane.Awake">
-			MPEventBusGame.NotifyRefreshLobbyList();
+			EventBusGame.NotifyRefreshLobbyList();
 		});
 
 		#endregion
@@ -436,7 +436,7 @@ public class UI_Manager : MonoSingleton<UI_Manager> {
 		_mpButton?.GetComponent<Button>()?.onClick.AddListener(() => {
 			// 触发大厅列表刷新事件
 			/// <see cref="UI_LobbyListPane.Awake">
-			MPEventBusGame.NotifyRefreshLobbyList();
+			EventBusGame.NotifyRefreshLobbyList();
 		});
 		// 修改关联菜单
 		var menuButtonComponent = _mpButton?.GetComponent<UI_MenuButton>();

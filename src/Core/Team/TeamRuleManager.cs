@@ -57,7 +57,7 @@ public static class TeamRuleManager {
 			// 直接覆盖字典中的值
 			_flatRulesByTarget[targetLower] = new FlattenedRule(maskData);
 		}
-		MPEventBusGame.NotifyRulesUpdated();
+		EventBusGame.NotifyRulesUpdated();
 	}
 
 	/// <summary>

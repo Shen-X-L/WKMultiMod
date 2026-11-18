@@ -46,7 +46,7 @@ public class MPGameModeManager {
 
 	public static Dictionary<string, M_Gamemode> gamemodeDict = new Dictionary<string, M_Gamemode>();
 	public static GameModeData? CurrentData { get; private set; }
-	public static bool IsCampaignMode { get; private set; }
+	public static bool IsCampaignMode => CL_GameManager.GetBaseGamemode()?.gamemodeName == CAMPAIGN_GAME_MODE;
 
 	/// <summary>
 	/// 获取全部游戏模式
@@ -73,7 +73,6 @@ public class MPGameModeManager {
 	/// </summary>
 	public static void ClearCurrentData() {
 		CurrentData = null;
-		IsCampaignMode = false;
 	}
 
 	/// <summary>
@@ -88,7 +87,6 @@ public class MPGameModeManager {
 			needBindSync = MPConfig.BindSync,
 			seed = WorldLoader.instance != null ? WorldLoader.instance.seed : (int?)null
 		};
-		IsCampaignMode = CL_GameManager.gamemode.gamemodeName == CAMPAIGN_GAME_MODE;
 		return CurrentData;
 	}
 
@@ -105,7 +103,6 @@ public class MPGameModeManager {
 		if (gamemodeDict.Count == 0) Initialize();
 		// 保存当前数据
 		CurrentData = data;
-		IsCampaignMode = data.gamemodeName == CAMPAIGN_GAME_MODE;
 		// 更改游戏模式
 		if (!gamemodeDict.TryGetValue(data.gamemodeName, out var m_Gamemode)) {
 			MPMain.LogError(Localization.GetLog("MPGameModeManager.GameModeNotFound", data.gamemodeName));

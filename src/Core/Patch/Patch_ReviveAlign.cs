@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using static WorldLoader;
 
 namespace WKMPMod.Patch;
@@ -19,10 +20,14 @@ namespace WKMPMod.Patch;
 /// 退出游戏后重新读档时内存中没有记录, 保持原版行为 (放到原点).
 /// </summary>
 public static class ReviveAlign {
+	#region[静态反射工具]
+
 	private static readonly AccessTools.FieldRef<WorldLoader, List<BranchInfo>> BranchesField =
 		AccessTools.FieldRefAccess<WorldLoader, List<BranchInfo>>("branches");
 	private static readonly AccessTools.FieldRef<WorldLoader, bool> LoadingField =
 		AccessTools.FieldRefAccess<WorldLoader, bool>("loading");
+
+	#endregion
 
 	// 关卡名 → 最近一次生成完成时的世界位姿 (存档关卡已卸载时的后备来源)
 	private static readonly Dictionary<string, (Vector3 pos, Quaternion rot)> _poseCache = new();
@@ -33,7 +38,18 @@ public static class ReviveAlign {
 	// 正在读档重新生成 (只在此期间放回, 不影响正常续接生成)
 	private static bool _restoring;
 
-	public static bool Active => MPCore.IsInLobby && CL_GameManager.GetBaseGamemode()?.gamemodeName == "Campaign";
+	public static bool Active => MPCore.IsInLobby && MPGameModeManager.IsCampaignMode;
+
+	private static bool _restore;
+
+	/// <summary>
+	/// 静态构造函数：订阅生成事件
+	/// </summary>
+	static ReviveAlign() {
+		EventBusGame.OnGenerateLevelsStart += OnGenerateStart;
+		EventBusGame.OnGenerateLevelsEnd += AfterGeneration;
+	}
+
 
 	private static void EnsureCacheOwner(WorldLoader loader) {
 		if (_cacheOwner == loader) return;
@@ -115,22 +131,19 @@ public static class ReviveAlign {
 	/// <summary>
 	/// 启动世界生成结束监听并记录关卡位置
 	/// </summary>
-	public static void OnGenerateStart(WorldLoader loader, GenerationParameters? genParams) {
-		bool restore = genParams != null
+	public static void OnGenerateStart(WorldLoader loader, BranchInfo branch, GenerationParameters? genParams) {
+		_restore = genParams != null
 			&& (genParams.generationType == GenerationParameters.GenerationType.saveLoad
 				|| genParams.generationType == GenerationParameters.GenerationType.generateUntilFound);
-		if (restore && Active) _restoring = true;
-		loader.StartCoroutine(AfterGeneration(loader, restore));
+		if (_restore && Active) _restoring = true;
 	}
 
 	/// <summary>
 	/// 生成完成后刷新位姿缓存, 并结束读档生成流程
 	/// </summary>
-	private static IEnumerator AfterGeneration(WorldLoader loader, bool restore) {
-		yield return new WaitUntil(() => loader == null || LoadingField(loader));
-		yield return new WaitUntil(() => loader == null || !LoadingField(loader));
-		if (loader == null) yield break;
-		if (restore) {
+	private static void AfterGeneration(WorldLoader loader, BranchInfo branch, GenerationParameters genParams) {
+		if (loader == null) return;
+		if (_restore) {
 			_restoring = false;
 			if (_pending is { } pending) {
 				MPMain.LogWarning($"[MP ReviveAlign] {pending.levelName} was not placed during restore generation, not aligned");
@@ -181,16 +194,6 @@ public class Patch_ReviveAlign_LoadSave {
 
 [HarmonyPatch(typeof(WorldLoader))]
 public class Patch_ReviveAlign_WorldLoader {
-	[HarmonyPatch("GenerateLevels")]
-	[HarmonyPrefix]
-	static void GenerateLevels_Prefix(WorldLoader __instance, GenerationParameters genParams) {
-		try {
-			ReviveAlign.OnGenerateStart(__instance, genParams);
-		} catch (Exception ex) {
-			MPMain.LogError($"[MP ReviveAlign] {ex}");
-		}
-	}
-
 	[HarmonyPatch("SetOffset")]
 	[HarmonyPostfix]
 	static void SetOffset_Postfix(float amount) => ReviveAlign.OnWorldOffset(amount);

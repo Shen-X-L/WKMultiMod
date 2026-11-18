@@ -30,7 +30,7 @@ public class Patch_CL_GameManager {
 	[HarmonyPatch(nameof(CL_GameManager.Win))]
 	[HarmonyPrefix]
 	public static void Win() {
-		MPEventBusGame.NotifyPlayerWin();
+		EventBusGame.NotifyPlayerWin();
 	}
 
 	// 死亡信息总线调用
@@ -39,7 +39,7 @@ public class Patch_CL_GameManager {
 	public static void Die(string type) {
 		// 死亡切换发生前通知总线
 		if (MPCore.IsInLobby && !CL_GameManager.gMan.IsReviving()) {
-			MPEventBusGame.NotifyPlayerDeath(type, Patch_ENT_Player.killDamageInfo);
+			EventBusGame.NotifyPlayerDeath(type, Patch_ENT_Player.killDamageInfo);
 			MPMain.LogInfo(Localization.GetLog("Patch.PlayerDeath", type));
 			Patch_ENT_Player.killDamageInfo = null;
 		}

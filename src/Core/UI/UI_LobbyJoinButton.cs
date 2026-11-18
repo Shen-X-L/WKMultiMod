@@ -251,7 +251,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		}
 		// 显示Loading弹窗
 		// 显示最长10秒的Loading,实际关闭由JoinSuccess或JoinFailed触发
-		MPEventBusGame.NotifyShowLoading(10f);
+		EventBusGame.NotifyShowLoading(10f);
 	}
 	// 加入失败 - 目前没有额外逻辑
 	public void JoinFailed() {
@@ -264,14 +264,14 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			pane.SetAllButtonsInteractable(true);
 		}
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading();
+		EventBusGame.NotifyHideLoading();
 	}
 
 	// 加入成功 - 目前没有额外逻辑
 	public void JoinSuccess() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading();
+		EventBusGame.NotifyHideLoading();
 	}
 
 	#endregion

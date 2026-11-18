@@ -186,7 +186,7 @@ public class MPPacketRouter {
 
 	#region[生命周期函数]
 	public static void Initialize() {
-		MPEventBusNet.OnReceiveData += Route;
+		EventBusNet.OnReceiveData += Route;
 	}
 	#endregion
 

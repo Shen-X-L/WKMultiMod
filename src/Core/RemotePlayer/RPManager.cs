@@ -37,8 +37,8 @@ public class RPManager : Singleton<RPManager> {
 
 	public void Initialize(Transform RootTransform) {
 		_remotePlayersRoot = RootTransform;
-		MPEventBusGame.OnPlayerDamage += ProcessPlayerDamage;
-		MPEventBusGame.OnRulesUpdated += RefreshAllRule;
+		EventBusGame.OnPlayerDamage += ProcessPlayerDamage;
+		EventBusGame.OnRulesUpdated += RefreshAllRule;
 	}
 
 	/// <summary>

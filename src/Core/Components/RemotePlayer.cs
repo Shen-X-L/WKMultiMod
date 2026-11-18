@@ -156,7 +156,7 @@ public class RemotePlayer : GameEntity {
 		// 关闭pvp || 伤害来源非同步因素伤害 不造成伤害
 		if (!pvpEnabled|| !DamageRules.whitelistDamage.Contains(info.type)) return;
 		// 如果对方正在抓着我, 强制对方放手
-		if (LocalPlayer.IsHoldingMe(playerId))MPEventBusGame.NotifyPlayerStopInteraction(playerId);
+		if (LocalPlayer.IsHoldingMe(playerId))EventBusGame.NotifyPlayerStopInteraction(playerId);
 		// 伤害值 <= 0 不造成伤害 顺便不触发无敌帧计时器
 		if (info.amount <= 0) return;
 		// 计算伤害窗口时间
@@ -179,7 +179,7 @@ public class RemotePlayer : GameEntity {
 		if (info.amount <= 0) return;
 		// 发送伤害通知事件
 		if (!info.tags.Contains("player")) info.tags.Add("player");
-		MPEventBusGame.NotifyPlayerDamage(playerId, info);
+		EventBusGame.NotifyPlayerDamage(playerId, info);
 	}
 
 	private void EnemyDamage(Damageable.DamageInfo info) {
@@ -190,7 +190,7 @@ public class RemotePlayer : GameEntity {
 		info.tags.Add(MPKeys.REMOTE_ENEMY_DAMAGE_TAG);
 		info.tags.Add("NetEnemyId:" + identity.networkId);
 		// 发送伤害通知事件
-		MPEventBusGame.NotifyPlayerDamage(playerId, info);
+		EventBusGame.NotifyPlayerDamage(playerId, info);
 	}
 
 	public override void Kill(string type = "", Damageable.DamageInfo damageInfo = null) { }
@@ -219,7 +219,7 @@ public class RemotePlayer : GameEntity {
 		// 关闭pvp
 		if (!pvpEnabled) return;
 		// 发送冲击力通知事件
-		MPEventBusGame.NotifyPlayerAddForce(playerId, force / 10, source);
+		EventBusGame.NotifyPlayerAddForce(playerId, force / 10, source);
 	}
 
 	private void AddEnemyForce(Vector3 force, string source, GameEntity sourceEntity) {
@@ -227,7 +227,7 @@ public class RemotePlayer : GameEntity {
 		if (!sourceEntity.TryGetComponent<NetworkedGameEntity>(out var identity) || !identity.IsOwnedByMe) return;
 		source = "NetEnemyId:" + identity.networkId;
 		// 发送冲击力通知事件
-		MPEventBusGame.NotifyPlayerAddForce(playerId, force, source);
+		EventBusGame.NotifyPlayerAddForce(playerId, force, source);
 	}
 
 	// 在指定位置添加力

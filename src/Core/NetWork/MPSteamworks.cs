@@ -453,7 +453,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				var segment = new ArraySegment<byte>(message.Data, 0, message.Length);
 
 				// 触发总线
-				MPEventBusNet.NotifyReceive(message.SenderId, segment);
+				EventBusNet.NotifyReceive(message.SenderId, segment);
 
 				processedCount++;
 			} catch (Exception ex) {
@@ -474,7 +474,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	public void OnPlayerConnected(SteamId steamId, Connection connection, bool isIncoming) {
 		MPMain.LogTest("MPSteamworks.OnPlayerConnected");
-		MPEventBusNet.NotifyPlayerConnected(steamId);
+		EventBusNet.NotifyPlayerConnected(steamId);
 	}
 
 	/// <summary>
@@ -498,7 +498,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 
 			// 没有重连成功 触发业务层销毁玩家
 			if (!_allConnections.ContainsKey(steamId))
-				MPEventBusNet.NotifyPlayerDisconnected(steamId);
+				EventBusNet.NotifyPlayerDisconnected(steamId);
 		}
 	}
 
@@ -732,7 +732,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		}
 
 		// 发布事件到总线
-		MPEventBusNet.NotifyLobbyEntered(lobby);
+		EventBusNet.NotifyLobbyEntered(lobby);
 	}
 
 	/// <summary>
@@ -756,7 +756,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 				}
 			}
 			// 发布事件到总线
-			MPEventBusNet.NotifyLobbyMemberJoined(friend);
+			EventBusNet.NotifyLobbyMemberJoined(friend);
 		}
 	}
 
@@ -769,7 +769,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			_currentLobby = lobby;
 			MPMain.LogInfo(Localization.GetLog("MPSteamworks.PlayerLeftRoom", friend.Name));
 			// 发布事件到总线
-			MPEventBusNet.NotifyLobbyMemberLeave(friend);
+			EventBusNet.NotifyLobbyMemberLeave(friend);
 			// 只在这里处理连接清理
 			OnPlayerDisconnected(friend.Id);
 		}
@@ -793,21 +793,21 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	/// </summary>
 	private void HandleLobbyMemberDataChanged(Lobby lobby, Friend friend) {
 		var data = GetAllMemberData(friend);
-		MPEventBusNet.NotifyMemberDataChanged(friend, data);
+		EventBusNet.NotifyMemberDataChanged(friend, data);
 	}
 
 	/// <summary>
 	/// 接受数据: 收到Steam好友的大厅邀请 -> LobbyInvite总线
 	/// </summary>
 	private void HandleLobbyInvite(Friend friend, Lobby lobby) {
-		MPEventBusNet.NotifyLobbyInvite(friend, lobby);
+		EventBusNet.NotifyLobbyInvite(friend, lobby);
 	}
 
 	/// <summary>
 	/// 接收数据: 玩家接受Steam好友的大厅邀请 -> GameLobbyJoinRequested总线
 	/// </summary>
 	private void HandleGameLobbyJoinRequested(Lobby lobby, SteamId steamId) {
-		MPEventBusNet.NotifyGameLobbyJoinRequested(lobby, steamId);
+		EventBusNet.NotifyGameLobbyJoinRequested(lobby, steamId);
 	}
 
 	/// <summary>
@@ -867,7 +867,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			MPMain.LogInfo(Localization.GetLog("MPSteamworks.HostChanged", HostSteamId.ToString(), currentOwnerId.ToString()));
 
 			// 触发主机变更总线
-			MPEventBusNet.NotifyLobbyHostChanged(new Friend(HostSteamId), HostSteamId == UserSteamId);
+			EventBusNet.NotifyLobbyHostChanged(new Friend(HostSteamId), HostSteamId == UserSteamId);
 
 			HostSteamId = currentOwnerId;
 
@@ -894,7 +894,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		LobbyData = tempData;
 
 		if (delta.Count > 0) {
-			MPEventBusNet.NotifyLobbyDataChanged(delta);
+			EventBusNet.NotifyLobbyDataChanged(delta);
 		}
 	}
 
@@ -959,7 +959,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 					if (_allConnections.ContainsKey(targetId) && IsInLobby && IsMemberInLobby(targetId)) {
 						HasConnections = true;
 						MPMain.LogInfo(Localization.GetLog($"MPSteamworks.{locKey}", targetId));
-						MPEventBusNet.NotifyPlayerConnected(targetId);
+						EventBusNet.NotifyPlayerConnected(targetId);
 						isConnected = true;
 						yield break;
 					}
@@ -1048,7 +1048,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		StopConnectionCoroutine(steamId);
 		HasConnections = true;
 		MPMain.LogTest("ISocketManager.MPSteamworks.OnConnected");
-		MPEventBusNet.NotifyPlayerConnected(steamId);
+		EventBusNet.NotifyPlayerConnected(steamId);
 	}
 
 	// 接收消息
@@ -1084,7 +1084,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 			Instance.StopConnectionCoroutine(steamId);
 			Instance.HasConnections = true;
 			MPMain.LogTest("SteamConnectionManager.OnConnected");
-			MPEventBusNet.NotifyPlayerConnected(steamId);
+			EventBusNet.NotifyPlayerConnected(steamId);
 		}
 
 		// 接收消息
@@ -1260,7 +1260,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 	public void RefreshLobbyData() {
 		if (_currentLobby.Id.IsValid) {
 			LobbyData = _currentLobby.Data.ToDictionary(x => x.Key, x => x.Value);
-			MPEventBusNet.NotifyLobbyDataChanged(LobbyData);
+			EventBusNet.NotifyLobbyDataChanged(LobbyData);
 		}
 	}
 

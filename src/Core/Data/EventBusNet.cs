@@ -34,11 +34,11 @@ public enum PacketType : ushort {
 	PlayerCheckRequest = 50,    // 客机->客机: 请求检查数据
 }
 
-public static class MPEventBusNet {
+public static class EventBusNet {
 	// 接收事件:网络 -> 远程玩家管理类
 	public static event Action<ulong, ArraySegment<byte>> OnReceiveData;
 	public static void NotifyReceive(ulong steamId, ArraySegment<byte> data)
-		=> OnReceiveData?.Invoke(steamId, data);
+		=> OnReceiveData(steamId, data);
 
 	/// <summary>
 	/// 接收事件: 玩家连接信息 玩家 -> 主机
@@ -54,11 +54,11 @@ public static class MPEventBusNet {
 	public static event Action<Friend, Dictionary<string, string>> OnMemberDataChanged;
 
 	public static void NotifyPlayerConnected(SteamId steamId)
-		=> OnPlayerConnected?.Invoke(steamId);
+		=> OnPlayerConnected(steamId);
 	public static void NotifyPlayerDisconnected(SteamId steamId)
-		=> OnPlayerDisconnected?.Invoke(steamId);
+		=> OnPlayerDisconnected(steamId);
 	public static void NotifyMemberDataChanged(Friend steamId, Dictionary<string, string> data)
-		=> OnMemberDataChanged?.Invoke(steamId, data);
+		=> OnMemberDataChanged(steamId, data);
 
 	#region[大厅事件]
 
@@ -84,15 +84,15 @@ public static class MPEventBusNet {
 	public static event Action<Dictionary<string, string>> OnLobbyDataChanged;
 
 	public static void NotifyLobbyEntered(Lobby lobby)
-		=> OnLobbyEntered?.Invoke(lobby);
+		=> OnLobbyEntered(lobby);
 	public static void NotifyLobbyMemberJoined(Friend steamId)
-		=> OnLobbyMemberJoined?.Invoke(steamId);
+		=> OnLobbyMemberJoined(steamId);
 	public static void NotifyLobbyMemberLeave(Friend steamId)
-		=> OnLobbyMemberLeave?.Invoke(steamId);
+		=> OnLobbyMemberLeave(steamId);
 	public static void NotifyLobbyHostChanged(Friend hostId, bool isHost)
-		=> OnLobbyHostChanged?.Invoke(hostId, isHost);
+		=> OnLobbyHostChanged(hostId, isHost);
 	public static void NotifyLobbyDataChanged(Dictionary<string, string> delta)
-		=> OnLobbyDataChanged?.Invoke(delta);
+		=> OnLobbyDataChanged(delta);
 
 	#endregion
 
@@ -101,9 +101,9 @@ public static class MPEventBusNet {
 	// 接收世界: 接收大厅邀请
 	public static event Action<Friend, Lobby> OnLobbyInvite;
 	public static void NotifyLobbyInvite(Friend friend, Lobby lobby)
-		=> OnLobbyInvite?.Invoke(friend, lobby);
+		=> OnLobbyInvite(friend, lobby);
 	// 接收事件: 接受游戏邀请
 	public static event Action<Lobby, SteamId> OnGameLobbyJoinRequested;
 	public static void NotifyGameLobbyJoinRequested(Lobby lobby, SteamId steamId)
-		=> OnGameLobbyJoinRequested?.Invoke(lobby, steamId);
+		=> OnGameLobbyJoinRequested(lobby, steamId);
 }

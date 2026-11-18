@@ -257,29 +257,29 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void SubscribeToEvents() {
 		// 订阅大厅事件
-		MPEventBusNet.OnLobbyEntered += HandleLobbyEntered;
-		MPEventBusNet.OnLobbyMemberJoined += HandleLobbyMemberJoined;
-		MPEventBusNet.OnLobbyMemberLeave += HandleLobbyMemberLeft;
-		MPEventBusNet.OnLobbyDataChanged += HandleLobbyDataChanged;
-		MPEventBusNet.OnLobbyHostChanged += HandleLobbyHostChanged;
+		EventBusNet.OnLobbyEntered += HandleLobbyEntered;
+		EventBusNet.OnLobbyMemberJoined += HandleLobbyMemberJoined;
+		EventBusNet.OnLobbyMemberLeave += HandleLobbyMemberLeft;
+		EventBusNet.OnLobbyDataChanged += HandleLobbyDataChanged;
+		EventBusNet.OnLobbyHostChanged += HandleLobbyHostChanged;
 
 		// 订阅玩家事件
-		MPEventBusNet.OnPlayerConnected += HandlePlayerConnected;
-		MPEventBusNet.OnPlayerDisconnected += HandlePlayerDisconnected;
-		MPEventBusNet.OnMemberDataChanged += HandleMemberDataChanged;
+		EventBusNet.OnPlayerConnected += HandlePlayerConnected;
+		EventBusNet.OnPlayerDisconnected += HandlePlayerDisconnected;
+		EventBusNet.OnMemberDataChanged += HandleMemberDataChanged;
 
 		// 订阅接收邀请事件
-		MPEventBusNet.OnGameLobbyJoinRequested += Join;
+		EventBusNet.OnGameLobbyJoinRequested += Join;
 
 		// 订阅接受邀请事件
-		MPEventBusNet.OnLobbyInvite += HandleLobbyInvite;
+		EventBusNet.OnLobbyInvite += HandleLobbyInvite;
 
 		// 订阅游戏事件
-		MPEventBusGame.OnPlayerDamage += HandlePlayerDamage;
-		MPEventBusGame.OnPlayerAddForce += HandlePlayerAddForce;
-		MPEventBusGame.OnPlayerDeath += HandlePlayerDeath;
-		MPEventBusGame.OnPlayerWin += HandlePlayerWin;
-		MPEventBusGame.OnPlayerStopInteraction += HandlePlayerStopInteraction;
+		EventBusGame.OnPlayerDamage += HandlePlayerDamage;
+		EventBusGame.OnPlayerAddForce += HandlePlayerAddForce;
+		EventBusGame.OnPlayerDeath += HandlePlayerDeath;
+		EventBusGame.OnPlayerWin += HandlePlayerWin;
+		EventBusGame.OnPlayerStopInteraction += HandlePlayerStopInteraction;
 	}
 
 	/// <summary>
@@ -287,29 +287,29 @@ public class MPCore : MonoSingleton<MPCore> {
 	/// </summary>
 	private void UnsubscribeFromEvents() {
 		// 退订大厅事件
-		MPEventBusNet.OnLobbyEntered -= HandleLobbyEntered;
-		MPEventBusNet.OnLobbyMemberJoined -= HandleLobbyMemberJoined;
-		MPEventBusNet.OnLobbyMemberLeave -= HandleLobbyMemberLeft;
-		MPEventBusNet.OnLobbyDataChanged -= HandleLobbyDataChanged;
-		MPEventBusNet.OnLobbyHostChanged -= HandleLobbyHostChanged;
+		EventBusNet.OnLobbyEntered -= HandleLobbyEntered;
+		EventBusNet.OnLobbyMemberJoined -= HandleLobbyMemberJoined;
+		EventBusNet.OnLobbyMemberLeave -= HandleLobbyMemberLeft;
+		EventBusNet.OnLobbyDataChanged -= HandleLobbyDataChanged;
+		EventBusNet.OnLobbyHostChanged -= HandleLobbyHostChanged;
 
 		// 退订玩家连接事件
-		MPEventBusNet.OnPlayerConnected -= HandlePlayerConnected;
-		MPEventBusNet.OnPlayerDisconnected -= HandlePlayerDisconnected;
-		MPEventBusNet.OnMemberDataChanged -= HandleMemberDataChanged;
+		EventBusNet.OnPlayerConnected -= HandlePlayerConnected;
+		EventBusNet.OnPlayerDisconnected -= HandlePlayerDisconnected;
+		EventBusNet.OnMemberDataChanged -= HandleMemberDataChanged;
 
 		// 退订接收邀请事件
-		MPEventBusNet.OnGameLobbyJoinRequested -= Join;
+		EventBusNet.OnGameLobbyJoinRequested -= Join;
 
 		// 退订接受邀请事件
-		MPEventBusNet.OnLobbyInvite -= HandleLobbyInvite;
+		EventBusNet.OnLobbyInvite -= HandleLobbyInvite;
 
 		// 退订游戏事件
-		MPEventBusGame.OnPlayerDamage -= HandlePlayerDamage;
-		MPEventBusGame.OnPlayerAddForce -= HandlePlayerAddForce;
-		MPEventBusGame.OnPlayerDeath -= HandlePlayerDeath;
-		MPEventBusGame.OnPlayerWin -= HandlePlayerWin;
-		MPEventBusGame.OnPlayerStopInteraction -= HandlePlayerStopInteraction;
+		EventBusGame.OnPlayerDamage -= HandlePlayerDamage;
+		EventBusGame.OnPlayerAddForce -= HandlePlayerAddForce;
+		EventBusGame.OnPlayerDeath -= HandlePlayerDeath;
+		EventBusGame.OnPlayerWin -= HandlePlayerWin;
+		EventBusGame.OnPlayerStopInteraction -= HandlePlayerStopInteraction;
 	}
 
 	#endregion

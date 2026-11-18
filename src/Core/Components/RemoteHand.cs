@@ -146,7 +146,7 @@ public class RemoteHand : MonoBehaviour {
 		// 拖拽超时检测
 		if (_isBeingGrabbed && Time.time - _lastGrabTimestamp > GRAB_TIMEOUT_SECONDS) {
 			_isBeingGrabbed = false;
-			MPEventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
+			EventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
 		}
 
 		// 应用拖拽物理
@@ -241,13 +241,13 @@ public class RemoteHand : MonoBehaviour {
 
 		// 被抓取状态变化通知
 		if (handData.IsBeHanging(targetPlayerId) != _wasBeingHanged) {
-			MPEventBusGame.NotifyRemoteHang(playerId, !_wasBeingHanged);
+			EventBusGame.NotifyRemoteHang(playerId, !_wasBeingHanged);
 			_wasBeingHanged = !_wasBeingHanged;
 		}
 
 		// 被拖拽状态变化通知
 		if (_isBeingGrabbed != _wasBeingGrabbed) {
-			MPEventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
+			EventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
 			_wasBeingGrabbed = _isBeingGrabbed;
 		}
 
