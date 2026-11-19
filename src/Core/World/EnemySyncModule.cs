@@ -563,8 +563,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		// 1. 空闲阶段: 累加定时器, 等待下一个同步周期到来
 		if (!_isScanning && !_isSweeping) {
 			_timer += deltaTime;
-			if (_timer >= _syncInterval) {
-				_timer = Mathf.Max(0f, _timer - _syncInterval); // 保留余数保证计时精准
+			// 实体同步实验模式: 同步周期至少 10 Hz (近处实体每周期发, 远处由 SnapshotTransformFeature 自行降频)
+			float interval = EntitySync.EntityMode.AtLeastSmooth ? Mathf.Min(_syncInterval, 0.1f) : _syncInterval;
+			if (_timer >= interval) {
+				_timer = Mathf.Max(0f, _timer - interval); // 保留余数保证计时精准
 				StartNewScanCycle();                            // 触发新一轮扫描
 			}
 		}

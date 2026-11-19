@@ -535,6 +535,7 @@ public class MPCore : MonoSingleton<MPCore> {
 		RegisterRuleCommands();
 		RegisterPlayerCommands();
 		RegisterRconCommand();
+		EntitySync.EntityMode.RegisterCommand();
 
 		// 获取大厅全部玩家
 		CommandConsole.BuildCommand("allplayer", (args) => {

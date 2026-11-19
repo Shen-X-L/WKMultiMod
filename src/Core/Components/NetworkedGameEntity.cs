@@ -138,7 +138,9 @@ public class NetworkedGameEntity : MonoBehaviour {
 
 		ClearAllFeatures();
 		// 根 Transform 与血量同步
-		RegisterFeature(new RootTransformSyncFeature(this));
+		RegisterFeature(EntitySync.EntityMode.AtLeastSmooth
+			? new EntitySync.SnapshotTransformFeature(this)
+			: new RootTransformSyncFeature(this));
 		// AI 目标行为统一由 TargetSyncFeature 管理
 		if (AIEntity != null) {
 			RegisterFeature(new TargetSyncFeature(AIEntity, this));
