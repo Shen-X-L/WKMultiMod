@@ -9,7 +9,7 @@ namespace WKMPMod.EntitySync;
 /// 实体同步实验模式 (本地测试版, 未提交上游).
 /// off    = 与上游一致;
 /// smooth = 运动层: 快照缓冲插值 + 速度 + 按距离分级发送 (SnapshotTransformFeature);
-/// full   = smooth + 之后的可拖动物体 / 生物行为 / 动态生成 (尚未实现, 目前等同 smooth).
+/// full   = smooth + 可拖动物体 (箱子/木板/凳子等, PropSyncModule); 之后的生物行为 / 动态生成尚未实现.
 /// 房主用 entitymode 指令写入房间数据, 所有人 (含房主) 都按房间数据决定; 只影响之后新加载的实体,
 /// 建议开局前设好 (两边同一实体注册的模块不同会解析错).
 /// </summary>

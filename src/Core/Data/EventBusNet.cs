@@ -21,6 +21,7 @@ public enum PacketType : ushort {
 	DroppedItemSync = 18,     // 客机->客机: 同步物品的扔出/拾取
 	EnemySync = 19,    // 所有权申请制度
 	ProjectileSync = 20,    // 客机->客机: 同步投射物的创建/反弹/命中动画,实际逻辑靠其他模块
+	PropSync = 21,          // 客机->客机: 可拖动物体 (箱子/木板/凳子) 的抓取所有权与运动 (实体同步实验模式 full)
 
 	// 玩家间互动
 	PlayerDataUpdate = 32,   // 客机->客机: 玩家数据更新
