@@ -11,10 +11,11 @@ using static WKMPMod.Data.MPWriterPool;
 namespace WKMPMod.EntitySync;
 
 public enum PropSyncAction : byte {
-	Claim = 1,      // 抓起者 → 主机: 申请成为该物体的所有者
+	Claim = 1,      // 抓起者 → 主机: 我抓住了它 (无主则成为所有者, 否则加入抓握者名单)
 	Owner = 2,      // 主机 → 全体 (或单发给申请者): 该物体当前的所有者
 	State = 3,      // 所有者 → 全体: 发送时刻 + 位置 + 旋转 + 速度 + 角速度
 	Release = 4,    // 所有者 → 全体: 放手后静止, 最终位姿; 回到无主
+	Unhold = 5,     // 抓握者 → 主机: 我松手了 (所有者松手且还有人抓着 → 主机随机交给其中一人)
 }
 
 /// <summary>
@@ -22,7 +23,10 @@ public enum PropSyncAction : byte {
 /// - 按需登记: 平时不扫描、不发包. 本机玩家抓起时才申请所有权; 主机先到先得裁决, 抢输的一方松手.
 /// - 所有者: 抓着或仍在运动时约 20 Hz 发送状态; 放手后静止 0.5 秒 (或 10 秒上限) 发最终位姿并释放.
 /// - 非所有者: 收到状态后刚体改为 kinematic, 按所有者时钟做缓冲插值 (同 SnapshotTransformFeature);
-///   释放后放到最终位姿并恢复物理; 有所有者时不能抓 (CanInteract = false), 多人同抓 / 挂在物体上留到下一版.
+///   释放后放到最终位姿并恢复物理.
+/// - 多人同抓: 先抓的人是所有者 (只有他施力); 后抓的人也能抓, 但物体由网络驱动, 他的力不生效,
+///   只保留原版 "物体离手太远时把人拉过去" 的拉力 → 被物体带着走. 主机维护每个物体的抓握者名单,
+///   所有者松手时若还有人抓着, 主机随机交给其中一人 (他的手本来就在抓取状态, 直接接着用原版物理).
 /// - 物体身份: 关卡名 + 在关卡内的层级路径 (含同级序号) 的哈希, 两边同一关卡预制体生成的结构一致.
 /// </summary>
 public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
@@ -58,6 +62,10 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 	private readonly Dictionary<int, ulong> _idCache = new();
 	private float _lastScan = -10f;
 	private readonly List<ulong> _removeKeys = new();
+	// 主机: 每个物体当前的抓握者 (按抓上的先后)
+	private readonly Dictionary<ulong, List<IDType>> _grabbers = new();
+	private float _hostCheckTimer;
+	private readonly System.Random _random = new();
 
 	private PropSyncModule() { }
 
@@ -77,9 +85,17 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 		_props.Clear();
 		_index.Clear();
 		_idCache.Clear();
+		_grabbers.Clear();
 	}
 
 	public void OnSyncUpdate(float deltaTime) {
+		if (MPSteamworks.IsHost && _grabbers.Count > 0) {
+			_hostCheckTimer += deltaTime;
+			if (_hostCheckTimer >= 1f) {
+				_hostCheckTimer = 0f;
+				HostCheckOwners();
+			}
+		}
 		if (_props.Count == 0) return;
 		bool active = Active;
 		float now = Time.realtimeSinceStartup;
@@ -100,9 +116,9 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 					if (!gone) MPMain.LogInfo($"[MP PropSync] {Name(net)}: no state from {net.owner}, released here");
 					StopControl(net, keepPose: true);
 					net.owner = 0;
-					_removeKeys.Add(net.id);
+					if (net.localHands == 0) _removeKeys.Add(net.id);
 				}
-			} else if (net.owner == 0 || !MPSteamworks.ContainsMemberID(net.owner)) {
+			} else if (net.localHands == 0 && (net.owner == 0 || !MPSteamworks.ContainsMemberID(net.owner))) {
 				_removeKeys.Add(net.id);
 			}
 		}
@@ -149,15 +165,7 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 
 	#region[本机抓取 (Harmony 调用)]
 
-	/// <summary>
-	/// 别人是该物体的所有者时不能抓
-	/// </summary>
-	public bool CanLocalGrab(CL_Prop prop) {
-		if (!Active) return true;
-		ulong id = IdOf(prop);
-		return id == 0 || !_props.TryGetValue(id, out var net) || net.owner == 0 || net.owner == MPSteamworks.UserSteamId
-			|| !MPSteamworks.ContainsMemberID(net.owner);
-	}
+	private static bool IsValidOwner(IDType id) => id != 0 && (id == MPSteamworks.UserSteamId || MPSteamworks.ContainsMemberID(id));
 
 	public void OnLocalGrab(CL_Prop prop) {
 		if (!Active) return;
@@ -167,19 +175,19 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 		net.localHands++;
 		net.restTimer = 0f;
 		net.freeTime = 0f;
-		if (net.owner == MPSteamworks.UserSteamId) return;
-		// 预测: 先当作自己的, 主机裁决不同则松手
-		if (net.controlled) StopControl(net, keepPose: true);
-		net.owner = MPSteamworks.UserSteamId;
-		if (MPSteamworks.IsHost) {
-			BroadcastOwner(id, MPSteamworks.UserSteamId);
-		} else {
-			var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.PropSync);
-			writer.Put((byte)PropSyncAction.Claim);
-			writer.Put(id);
-			MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
+		if (net.owner != MPSteamworks.UserSteamId) {
+			if (IsValidOwner(net.owner)) {
+				// 别人正抓着: 挂在上面. 原版 Interact 会关掉 kinematic, 由网络驱动时重新打开
+				if (net.controlled && net.rb != null) net.rb.isKinematic = true;
+				MPMain.LogInfo($"[MP PropSync] Grabbed {prop.name}: held by {net.owner}, hanging on");
+			} else {
+				// 无主: 预测为自己的, 主机裁决不同则改为挂在上面
+				if (net.controlled) StopControl(net, keepPose: true);
+				net.owner = MPSteamworks.UserSteamId;
+				MPMain.LogInfo($"[MP PropSync] Grabbed {prop.name}: claiming");
+			}
 		}
-		MPMain.LogInfo($"[MP PropSync] Grabbed {prop.name}: claiming");
+		if (net.localHands == 1) ReportHold(id, PropSyncAction.Claim);
 	}
 
 	public void OnLocalDrop(CL_Prop prop) {
@@ -189,6 +197,40 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 		net.localHands = Mathf.Max(0, net.localHands - 1);
 		net.restTimer = 0f;
 		net.freeTime = 0f;
+		if (net.localHands == 0) ReportHold(id, PropSyncAction.Unhold);
+	}
+
+	/// <summary>
+	/// 抓上 / 松开报给主机 (主机自己直接处理)
+	/// </summary>
+	private void ReportHold(ulong id, PropSyncAction action) {
+		if (MPSteamworks.IsHost) {
+			if (action == PropSyncAction.Claim) HostGrab(id, MPSteamworks.UserSteamId);
+			else HostUnhold(id, MPSteamworks.UserSteamId);
+			return;
+		}
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.PropSync);
+		writer.Put((byte)action);
+		writer.Put(id);
+		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
+	}
+
+	/// <summary>
+	/// 本机玩家抓着由网络驱动的物体: 跳过原版施力 (对 kinematic 无效且每帧报警告),
+	/// 只保留 "物体离手太远时把人拉过去" 的拉力与松手判定. 返回 true 表示已处理 (跳过原版 GrabPropUpdate)
+	/// </summary>
+	public bool HoldControlled(ENT_Player player, int hand) {
+		var h = player.hands[hand];
+		var prop = h.grabTarget;
+		if (prop == null || !prop.gameObject.activeInHierarchy || h.interactState != ENT_Player.InteractType.grab || !IsControlled(prop)) return false;
+		Vector3 anchor = prop.transform.TransformPoint(prop.anchorPoint);
+		Vector3 toAnchor = anchor - player.transform.position;
+		float dist = toAnchor.magnitude;
+		if (h.holdTarget != null && dist > player.interactDistance * 1.1f)
+			player.AddForce(toAnchor * (dist - player.interactDistance * 0.5f) * Time.deltaTime * player.propHangForce);
+		if (InputManager.GetButton(h.throwButton).Down || InputManager.GetButton(h.fireButton).Up || dist > player.interactDistance * 1.5f)
+			player.StopInteraction(hand);
+		return true;
 	}
 
 	/// <summary>
@@ -280,18 +322,6 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 		net.rb.angularVelocity = Vector3.zero;
 	}
 
-	/// <summary>
-	/// 自己预测抓起但主机判给了别人: 松开抓着它的手
-	/// </summary>
-	private static void DropLocalHands(CL_Prop prop) {
-		var player = ENT_Player.playerObject;
-		if (player == null || prop == null) return;
-		for (int i = 0; i < player.hands.Length; i++) {
-			var hand = player.hands[i];
-			if (hand.grabTarget == prop || ReferenceEquals(hand.currentInteract, prop)) player.StopInteraction(i);
-		}
-	}
-
 	#endregion
 
 	#region[收包]
@@ -303,45 +333,94 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 		var action = (PropSyncAction)reader.GetByte();
 		ulong id = reader.GetULong();
 		switch (action) {
-			case PropSyncAction.Claim: module.OnClaim(senderId, id); break;
+			case PropSyncAction.Claim: if (MPSteamworks.IsHost) module.HostGrab(id, senderId); break;
+			case PropSyncAction.Unhold: if (MPSteamworks.IsHost) module.HostUnhold(id, senderId); break;
 			case PropSyncAction.Owner: module.OnOwner(id, reader.GetIDType()); break;
 			case PropSyncAction.State: module.OnState(senderId, id, reader); break;
 			case PropSyncAction.Release: module.OnRelease(senderId, id, reader.GetVector3(), reader.GetQuaternion()); break;
 		}
 	}
 
-	private void OnClaim(IDType sender, ulong id) {
-		if (!MPSteamworks.IsHost) return;
+	#region[	主机: 抓握者名单]
+
+	private void HostGrab(ulong id, IDType who) {
+		if (!_grabbers.TryGetValue(id, out var list)) _grabbers[id] = list = new List<IDType>();
+		if (!list.Contains(who)) list.Add(who);
 		var net = GetNet(id)!;
 		IDType current = net.owner;
-		if (current == 0 || current == sender || !MPSteamworks.ContainsMemberID(current)) {
-			OnOwner(id, sender);
-			BroadcastOwner(id, sender);
+		if (!IsValidOwner(current) || current == who) {
+			AssignOwner(id, who);
 			return;
 		}
-		// 已有所有者: 只告诉申请者
-		var writer = GetWriter(MPSteamworks.UserSteamId, sender, PacketType.PropSync);
-		writer.Put((byte)PropSyncAction.Owner);
-		writer.Put(id);
-		writer.Put(current);
-		MPSteamworks.Instance.SendToPeer(sender, writer, SendType.Reliable);
-		MPMain.LogInfo($"[MP PropSync] {Name(net)}: {sender} asked, already owned by {current}");
+		// 已有所有者: 只告诉这个抓握者 (他改为挂在上面)
+		if (who == MPSteamworks.UserSteamId) {
+			OnOwner(id, current);
+		} else {
+			var writer = GetWriter(MPSteamworks.UserSteamId, who, PacketType.PropSync);
+			writer.Put((byte)PropSyncAction.Owner);
+			writer.Put(id);
+			writer.Put(current);
+			MPSteamworks.Instance.SendToPeer(who, writer, SendType.Reliable);
+		}
+		MPMain.LogInfo($"[MP PropSync] {Name(net)}: {who} grabbed it too, driven by {current}");
 	}
+
+	private void HostUnhold(ulong id, IDType who) {
+		if (!_grabbers.TryGetValue(id, out var list)) return;
+		list.Remove(who);
+		var net = GetNet(id)!;
+		if (net.owner == who || !IsValidOwner(net.owner)) HandToRemaining(id, list);
+		if (list.Count == 0) _grabbers.Remove(id);
+	}
+
+	/// <summary>
+	/// 所有者松手 / 离开: 还有人抓着则随机交给其中一人 (只由主机挑, 所有人结果一致)
+	/// </summary>
+	private void HandToRemaining(ulong id, List<IDType> list) {
+		list.RemoveAll(x => !IsValidOwner(x));
+		if (list.Count == 0) return;
+		var next = list[_random.Next(list.Count)];
+		MPMain.LogInfo($"[MP PropSync] {Name(GetNet(id)!)}: driver let go, {list.Count} still holding, handing to {next}");
+		AssignOwner(id, next);
+	}
+
+	private void AssignOwner(ulong id, IDType owner) {
+		OnOwner(id, owner);
+		BroadcastOwner(id, owner);
+	}
+
+	private void HostCheckOwners() {
+		var empty = new List<ulong>();
+		foreach (var pair in _grabbers) {
+			pair.Value.RemoveAll(x => !IsValidOwner(x));
+			if (pair.Value.Count == 0) {
+				empty.Add(pair.Key);
+				continue;
+			}
+			if (!_props.TryGetValue(pair.Key, out var net) || !IsValidOwner(net.owner)) HandToRemaining(pair.Key, pair.Value);
+		}
+		foreach (var key in empty) _grabbers.Remove(key);
+	}
+
+	#endregion
 
 	private void OnOwner(ulong id, IDType owner) {
 		var net = GetNet(id)!;
 		bool wasMine = net.owner == MPSteamworks.UserSteamId;
 		net.owner = owner;
 		if (owner == MPSteamworks.UserSteamId) {
-			if (net.controlled) StopControl(net, keepPose: true);
+			net.restTimer = 0f;
+			net.freeTime = 0f;
+			if (net.controlled) {
+				// 接手: 从最新收到的位姿接着用本机物理 (手若还抓着, 原版抓取立刻接管施力)
+				if (net.prop != null && net.motion.TryLatest(out var pos, out var rot)) net.prop.transform.SetPositionAndRotation(pos, rot);
+				StopControl(net, keepPose: true);
+				MPMain.LogInfo($"[MP PropSync] {Name(net)}: now driven here ({net.localHands} hands holding)");
+			}
 			return;
 		}
-		if (wasMine && net.prop != null) {
-			// 抢输: 松手, 物体交给对方驱动
-			net.localHands = 0;
-			DropLocalHands(net.prop);
-			MPMain.LogInfo($"[MP PropSync] {Name(net)}: {owner} grabbed it first, letting go");
-		}
+		// 抢输或被换下: 不松手, 改为挂在上面, 物体交给对方驱动 (收到对方状态时转为 kinematic)
+		if (wasMine && net.localHands > 0) MPMain.LogInfo($"[MP PropSync] {Name(net)}: {owner} is driving it, hanging on");
 	}
 
 	private void OnState(IDType sender, ulong id, DataReader reader) {
@@ -375,7 +454,8 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 		if (net.prop != null) net.prop.transform.SetPositionAndRotation(pos, rot);
 		StopControl(net, keepPose: true);
 		net.owner = 0;
-		_props.Remove(id);
+		if (MPSteamworks.IsHost) _grabbers.Remove(id);
+		if (net.localHands == 0) _props.Remove(id);
 	}
 
 	#endregion
@@ -406,6 +486,16 @@ public sealed class PropMotion {
 	private static float Now => Time.realtimeSinceStartup;
 
 	public void Reset() => _buffer.Clear();
+
+	public bool TryLatest(out Vector3 pos, out Quaternion rot) {
+		pos = default;
+		rot = default;
+		if (_buffer.Count == 0) return false;
+		var last = _buffer[_buffer.Count - 1];
+		pos = last.pos;
+		rot = last.rot;
+		return true;
+	}
 
 	public void Add(IDType owner, float time, Vector3 pos, Quaternion rot, Vector3 vel) {
 		var clock = GetClock(owner);

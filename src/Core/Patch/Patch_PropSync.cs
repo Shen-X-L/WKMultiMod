@@ -20,12 +20,6 @@ public class Patch_PropSync {
 		if (p != null && p == ENT_Player.playerObject) PropSyncModule.Instance.OnLocalDrop(__instance);
 	}
 
-	[HarmonyPatch(nameof(CL_Prop.CanInteract))]
-	[HarmonyPostfix]
-	public static void CanInteract_Postfix(CL_Prop __instance, ref bool __result) {
-		if (__result && !PropSyncModule.Instance.CanLocalGrab(__instance)) __result = false;
-	}
-
 	// 原版远距离锁会改写 isKinematic, 网络驱动期间跳过
 	[HarmonyPatch(nameof(CL_Prop.TickUpdate))]
 	[HarmonyPrefix]
@@ -34,4 +28,12 @@ public class Patch_PropSync {
 	[HarmonyPatch(nameof(CL_Prop.Update))]
 	[HarmonyPostfix]
 	public static void Update_Postfix(CL_Prop __instance) => PropSyncModule.Instance.ApplyMotion(__instance);
+}
+
+/// <summary>
+/// 抓着别人正在驱动的物体: 跳过原版施力, 只被物体带着走
+/// </summary>
+[HarmonyPatch(typeof(ENT_Player), nameof(ENT_Player.GrabPropUpdate))]
+public class Patch_PropSync_GrabPropUpdate {
+	public static bool Prefix(ENT_Player __instance, int hand) => !PropSyncModule.Instance.HoldControlled(__instance, hand);
 }
