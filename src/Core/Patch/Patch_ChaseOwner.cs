@@ -25,13 +25,13 @@ public class Patch_ChaseOwner {
 	[HarmonyPrefix]
 	public static bool Remains_TickUpdate(DEN_Remains_Active __instance) => !ChaseOwnerFeature.IsDrivenRemotely(__instance);
 
-	// 所有者: 原版 TickUpdate 刚朝本机玩家 MovePosition; 别人正看着它时用原地 MovePosition 覆盖 (同一物理步内后调用的生效)
+	// 所有者: 原版 TickUpdate 刚朝本机玩家 MovePosition; 别人正看着它时 (收到 "开始看" 且心跳未超时) 用原地 MovePosition 覆盖 (同一物理步内后调用的生效)
 	[HarmonyPatch(typeof(DEN_Remains_Active), nameof(DEN_Remains_Active.TickUpdate))]
 	[HarmonyPostfix]
 	public static void Remains_TickUpdate_Post(DEN_Remains_Active __instance) {
 		if (EntityMode.Current != EntityMode.Mode.Full || !__instance.active) return;
 		var chase = ChaseOwnerFeature.Find(__instance);
-		if (chase == null || !chase.RemoteSeen) return;
+		if (chase == null || !chase.RemoteWatched) return;
 		var rigid = RemainsRigidField(__instance);
 		if (rigid != null && !rigid.isKinematic) rigid.MovePosition(__instance.transform.position);
 	}
