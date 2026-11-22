@@ -954,6 +954,8 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			SendSubscriptionRequest(new[] { identity.networkId }, identity.CurrentOwnerId);
 			return;
 		}
+		// 暂停离开中 (实体同步实验模式): 不申请所有权, 交给还在玩的人
+		if (EntitySync.PauseSync.LocalAway) return;
 		// 没有所有者 || 所有者不在成员列表中 分配所有权
 		if (MPSteamworks.IsHost) {
 			// 主机优先自行分配所有权给自己
@@ -982,6 +984,9 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 				if (!subscriptionsByOwner.TryGetValue(identity.CurrentOwnerId, out var ids))
 					subscriptionsByOwner[identity.CurrentOwnerId] = ids = RentList<ulong>();
 				ids.Add(identity.networkId);
+			} else if (EntitySync.PauseSync.LocalAway) {
+				// 暂停离开中 (实体同步实验模式): 不申请所有权, 交给还在玩的人
+				continue;
 			} else if (MPSteamworks.IsHost) {
 				// 没有所有者 || 所有者不在成员列表中 && 是主机 -> 主机优先自行分配所有权给自己
 				if (SetEntityOwner(identity.networkId, MPSteamworks.UserSteamId))
@@ -1533,6 +1538,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	private void ApplyOwnerTransfer(IDType requesterId, ulong networkId, IDType newOwnerId) {
 		if (!_entityOwners.TryGetValue(networkId, out var currentOwnerId) || currentOwnerId != requesterId) return;
 		if (newOwnerId != MPSteamworks.UserSteamId && !MPSteamworks.ContainsMemberID(newOwnerId)) return;
+		if (EntitySync.PauseSync.IsAway(newOwnerId)) return;
 		SetEntityOwner(networkId, newOwnerId);
 		BroadcastOwnerResponse(new[] { networkId }, newOwnerId);
 		MPMain.LogInfo($"[MP EnemySync] Ownership of {networkId} transferred {requesterId} -> {newOwnerId}");

@@ -201,6 +201,29 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 	}
 
 	/// <summary>
+	/// 本机暂停满 2 秒: 交出自己驱动的物体 (还有人抓着则由主机转交, 否则原地释放). 返回交出的数量
+	/// </summary>
+	public int ReleaseForPause() {
+		if (!Active) return 0;
+		var owned = new List<PropNet>();
+		foreach (var net in _props.Values) if (net.owner == MPSteamworks.UserSteamId && net.prop != null) owned.Add(net);
+		foreach (var net in owned) {
+			// 先从抓握者名单退出, 主机会把它交给还抓着的人
+			if (net.localHands > 0) ReportHold(net.id, PropSyncAction.Unhold);
+			if (net.owner == MPSteamworks.UserSteamId) SendRelease(net);
+		}
+		return owned.Count;
+	}
+
+	/// <summary>
+	/// 取消暂停: 手还抓着的物体重新报给主机
+	/// </summary>
+	public void ResumeAfterPause() {
+		if (!Active) return;
+		foreach (var net in _props.Values) if (net.localHands > 0) ReportHold(net.id, PropSyncAction.Claim);
+	}
+
+	/// <summary>
 	/// 抓上 / 松开报给主机 (主机自己直接处理)
 	/// </summary>
 	private void ReportHold(ulong id, PropSyncAction action) {
@@ -245,7 +268,7 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 	/// 非所有者端每帧插值 (Update 后调用)
 	/// </summary>
 	public void ApplyMotion(CL_Prop prop) {
-		if (_props.Count == 0 || !_idCache.TryGetValue(prop.gameObject.GetInstanceID(), out ulong id) || !_props.TryGetValue(id, out var net) || !net.controlled) return;
+		if (_props.Count == 0 || PauseSync.LocalPaused || !_idCache.TryGetValue(prop.gameObject.GetInstanceID(), out ulong id) || !_props.TryGetValue(id, out var net) || !net.controlled) return;
 		if (net.motion.TryEvaluate(net.owner, out var pos, out var rot)) prop.transform.SetPositionAndRotation(pos, rot);
 	}
 
@@ -378,8 +401,10 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 	/// </summary>
 	private void HandToRemaining(ulong id, List<IDType> list) {
 		list.RemoveAll(x => !IsValidOwner(x));
-		if (list.Count == 0) return;
-		var next = list[_random.Next(list.Count)];
+		// 暂停离开中的人不接手 (他的游戏时间停了)
+		var candidates = list.FindAll(x => !PauseSync.IsAway(x));
+		if (candidates.Count == 0) return;
+		var next = candidates[_random.Next(candidates.Count)];
 		MPMain.LogInfo($"[MP PropSync] {Name(GetNet(id)!)}: driver let go, {list.Count} still holding, handing to {next}");
 		AssignOwner(id, next);
 	}

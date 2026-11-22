@@ -157,7 +157,7 @@ public class ChaseOwnerFeature : ICustomSyncFeature, IFrameUpdateFeature {
 		float nearestDist = float.MaxValue;
 		foreach (var pair in RPManager.Instance.Players) {
 			var obj = pair.Value?.PlayerObject;
-			if (obj == null || !obj.activeInHierarchy || !MPSteamworks.ContainsMemberID(pair.Key)) continue;
+			if (obj == null || !obj.activeInHierarchy || !MPSteamworks.ContainsMemberID(pair.Key) || PauseSync.IsAway(pair.Key)) continue;
 			float d = Vector3.Distance(obj.transform.position, pos);
 			if (d < nearestDist) {
 				nearestDist = d;

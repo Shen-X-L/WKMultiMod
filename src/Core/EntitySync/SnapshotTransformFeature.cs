@@ -232,6 +232,8 @@ public class SnapshotTransformFeature : IStateSyncFeature, IFrameUpdateFeature {
 
 	public void OnUpdate(float deltaTime) {
 		if (!_netEntity.IsNetworkControlled || _buffer.Count == 0) return;
+		// 本机暂停: 画面定住, 取消暂停后从最新位置继续 (动画已随时间停止, 只剩滑动更像 bug)
+		if (PauseSync.LocalPaused) return;
 		var clock = Clock;
 		float delay = Mathf.Clamp(_interval * 1.5f + clock.jitter * 2f + 0.03f, 0.08f, 0.6f);
 		float renderTime = Now - clock.offset - delay;
