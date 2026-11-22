@@ -1113,6 +1113,7 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		dict[MPKeys.LOBBY_VISIBILITY] = "public";
 		dict[MPKeys.ALLOW_CHEATS] = MPConfig.AllowCheats.ToString();
 		dict[MPKeys.ENEMY_SYNC] = MPConfig.EnemySync.ToString();
+		dict[MPKeys.SHORTCUT_MERGE] = MPConfig.ShortcutMerge.ToString();
 		// 伤害倍率
 		dict[MPKeys.DAMAGE_CONFIG] = JsonConvert.SerializeObject(MPCore.damageRules.FloatFieldValues);
 		// 队伍规则配置

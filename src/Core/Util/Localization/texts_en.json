@@ -293,6 +293,7 @@
     "CheatsTest": "[Number]: This is not for you — it's a test function for MPMod developers, all in Chinese, and affects game balance.",
     "Check": "[CheckTarget] [steamId] ...: Check the specified target player(s) for backpack items|perks|stamina|health|coordinate data.",
     "EnemySync": "[True|False]: Controls whether creature sync is enabled.",
+    "ShortcutMerge": "[True|False]: Controls whether players taking a shortcut are aligned to the main route once they reach the merge level, so they can see players who took the main route.",
     "Host": "[Lobby Name (Visibility=public|friends|private) (Max Player=8)]:Lobby Name is used for others to search for the lobby (it cannot contain spaces or ;). Visibility controls whether the lobby can be found by others.",
     "Invite": "Open the Steam overlay to invite your friends.",
     "Join": "[Lobby Name|Lobby id]:The name or ID of the lobby to join. It will first try to match by name; if no match is found, it will fall back to matching by ID.",

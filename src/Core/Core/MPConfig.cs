@@ -172,6 +172,12 @@ public class MPConfig {
 		set { _enemysync.Value = value; }
 	}
 
+	private static ConfigEntry<bool> _shortcutMerge;
+	public static bool ShortcutMerge {
+		get { return _shortcutMerge.Value; }
+		set { _shortcutMerge.Value = value; }
+	}
+
 	#endregion
 
 	/// <summary>
@@ -409,6 +415,11 @@ Active配置项控制玩家造成的伤害倍率 (信号枪灼烧除外)
 			"LobbyRule", "enemysync", false,
 			"Controls whether enemies synchronization is enabled by LobbyRule in lobby you host.\n" +
 			"控制由你开启的房间是否默认可以生物同步");
+
+		_shortcutMerge = config.Bind<bool>(
+			"LobbyRule", "shortcutmerge", true,
+			"Controls whether players taking a shortcut are aligned to the main route coordinates once they reach the merge level, in lobby you host.\n" +
+			"控制由你开启的房间是否在走捷径的玩家到达汇入关卡后, 把他对齐到主路线坐标 (与走正路的人互相可见)");
 
 		#endregion
 

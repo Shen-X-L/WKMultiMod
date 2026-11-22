@@ -724,6 +724,24 @@ public class MPCore : MonoSingleton<MPCore> {
 					autocomplete.FromArray(new[] { "true", "false" });
 			});
 
+		// 设置捷径汇聚
+		CommandConsole.BuildCommand("shortcutmerge", (args) => {
+			if (!EnsureHostPrivileges()) return;
+			if (!TryResolveToggle(args, MPKeys.SHORTCUT_MERGE, MPConfig.ShortcutMerge, out bool enabled)) return;
+			MPConfig.ShortcutMerge = enabled;
+			_MPSteamworks.SetLobbyData(MPKeys.SHORTCUT_MERGE, enabled.ToString());
+			MPMain.LogInfo($"[MPCore] Shortcut merge set to {enabled} (written to lobby data)");
+		})
+			.NotCheat().Description(Get("CommandHelp.ShortcutMerge"))
+			.OverValue(() => _MPSteamworks.IsInLobby
+				? (_MPSteamworks.LobbyData?.GetValueOrDefault(MPKeys.SHORTCUT_MERGE) ?? MPConfig.ShortcutMerge.ToString())
+				: NOT_IN_LOBBY)
+			.AutocompleteCustom(autocomplete => {
+				NotHostAutocomplete(autocomplete);
+				if (autocomplete.activeArg == 0 && MPSteamworks.IsHost)
+					autocomplete.FromArray(new[] { "true", "false" });
+			});
+
 		// 注册 teamrule 指令
 		CommandConsole.BuildCommand("teamrule", SetTeamRule)
 			.NotCheat().Description(Get("CommandHelp.TeamRule"))

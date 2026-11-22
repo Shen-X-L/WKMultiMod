@@ -196,7 +196,10 @@ public class Patch_ReviveAlign_LoadSave {
 public class Patch_ReviveAlign_WorldLoader {
 	[HarmonyPatch("SetOffset")]
 	[HarmonyPostfix]
-	static void SetOffset_Postfix(float amount) => ReviveAlign.OnWorldOffset(amount);
+	static void SetOffset_Postfix(float amount) {
+		ReviveAlign.OnWorldOffset(amount);
+		World.ShortcutMergeModule.Instance.OnWorldOffset(amount);
+	}
 }
 
 /// <summary>
