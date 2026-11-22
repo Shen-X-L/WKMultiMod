@@ -210,7 +210,7 @@ public class NetworkedGameEntity : MonoBehaviour {
 			if (_stateSyncFeatures[i].IsDirty) dirtyCount++;
 		// 写入脏模块总数
 		writer.Put(dirtyCount);
-		// 稀疏写入：仅写入 [FeatureIndex + 模块数据]
+		// 稀疏写入: 仅写入 [FeatureIndex + 模块数据]
 		for (int i = 0; i < _stateSyncFeatures.Count; i++) {
 			var feature = _stateSyncFeatures[i];
 			if (!feature.IsDirty) continue;

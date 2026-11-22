@@ -51,7 +51,7 @@ public readonly struct GroupKey<T> : IEquatable<GroupKey<T>> where T : struct {
 /// 实体订阅者分组管理器
 /// </summary>
 public class CollectionGroupingManager<K, V> : IDisposable where K : struct, IEquatable<K>, IComparable<K> {
-	// 反转后的字典：Key是订阅者组合(Struct), Value是拥有该组合的EntityId集合
+	// 反转后的字典: Key是订阅者组合(Struct), Value是拥有该组合的EntityId集合
 	private Dictionary<GroupKey<K>, List<V>> _groupedData;
 
 	// 跟踪记录所有从 ArrayPool 借来的 Key 数组, 防止内存泄漏, 并在 Clear 时统一归还
@@ -469,6 +469,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (module == null || !module.IsEnabled) return;
 
 		var action = (EnemySyncAction)reader.GetByte();
+		if (action != EnemySyncAction.StateBatch) MPMain.LogDebug(action.ToString());
 		try {
 			switch (action) {
 				case EnemySyncAction.OwnerRequest:
@@ -514,8 +515,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 					MPMain.LogWarning($"[MP EnemySync] Unknown action: {action}");
 					break;
 			}
-			if(action != EnemySyncAction.StateBatch)
-				MPMain.LogDebug(action.ToString());
 		} catch (Exception ex) {
 			MPMain.LogError($"[MP EnemySync] Failed to apply {action}: {ex.Message}");
 		}
@@ -526,7 +525,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	#region[分帧同步]
 
 	// 对真正的非短激活/关闭对象进行所有权操作
-	public void OnReadyUpdate(float deltaTime) {
+	public void ReadyUpdate(float deltaTime) {
 		if (_pendingEntityChanges.Count == 0) {
 			_cleanupCountdown = 5;
 			return;
@@ -543,7 +542,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// <summary>
 	/// 由 WorldSyncManager 每帧在 LateUpdate 调用
 	/// </summary>
-	public void OnSyncUpdate(float deltaTime) {
+	public void SyncUpdate(float deltaTime) {
 		if (!MPCore.CanSync || !IsEnabled) {
 			ResetSweepState();
 			return;
@@ -740,7 +739,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.EnemySync);
 
 			writer.Put((byte)EnemySyncAction.SnapshotChunk);
-			writer.Put((byte)(0)); // 标记类型：0 = 所有权映射
+			writer.Put((byte)(0)); // 标记类型: 0 = 所有权映射
 			writer.Put(countToSend);
 
 			for (int i = 0; i < countToSend; i++) {
@@ -763,7 +762,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.EnemySync);
 
 			writer.Put((byte)EnemySyncAction.SnapshotChunk);
-			writer.Put((byte)(1)); // 标记类型：1 = 死亡记录
+			writer.Put((byte)(1)); // 标记类型: 1 = 死亡记录
 			writer.Put(countToSend);
 
 			for (int i = 0; i < countToSend; i++) {

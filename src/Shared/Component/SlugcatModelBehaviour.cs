@@ -314,7 +314,7 @@ public class SlugcatModelBehaviour : CustomModelBehaviour {
 				GameObject itemObj = objList[i];
 				bool shouldEnable = i < targetCount; // 索引小于目标数量的均启用
 
-				// 性能优化：只有在状态真正发生变化时才调用 SetActive
+				// 性能优化: 只有在状态真正发生变化时才调用 SetActive
 				if (itemObj.activeSelf != shouldEnable) itemObj.SetActive(shouldEnable);
 			}
 		}

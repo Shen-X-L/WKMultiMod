@@ -1,8 +1,6 @@
 tmd弱智吧holly DEN_BasicNavigator对基类Target模块进行隐藏,重构TargetSyncFeature
 
-无法抓取???什么函数激活了抓钩?
-
-投射物同步(无伤害,伤害由远程调用决定)
+Rebar Handhold抓握点未知激活 SyncUpdate真的更新吗?
 
 可能重构AnimatorSyncFeature为检测Animator状态机参数而不是拦截IL
 

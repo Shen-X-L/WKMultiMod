@@ -13,7 +13,7 @@ namespace WKMPMod.Components;
 public class TargetSyncFeature : IFrameUpdateFeature, ICustomSyncFeature {
 	#region[Component对应Feature查找表]
 
-	// 静态快速查找表：AITargetComponent -> 对应的 TargetSyncFeature
+	// 静态快速查找表: AITargetComponent -> 对应的 TargetSyncFeature
 	private static readonly Dictionary<AITargetComponent, TargetSyncFeature> _targetComponentMap = new();
 
 	public static void Register(AITargetComponent component, TargetSyncFeature feature) {
@@ -67,7 +67,7 @@ public class TargetSyncFeature : IFrameUpdateFeature, ICustomSyncFeature {
 	//}
 
 	private void EnableRemotePlayerTargeting() {
-		// 视线组件修改：添加图层 15 (Creature) 到 AI 视线检测
+		// 视线组件修改: 添加图层 15 (Creature) 到 AI 视线检测
 		if (Identity.AIEntity?.sight != null)
 			Identity.AIEntity.sight.sightMask.value |= 1 << 15;
 

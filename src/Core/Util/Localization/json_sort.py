@@ -44,12 +44,12 @@ def sort_json_file(input_file, output_file=None):
 
 def compare_json_files_simple(file1, file2, ignore_paths=None):
     """
-    简化版本：只支持完全路径匹配
+    简化版本: 只支持完全路径匹配
     
     Args:
         file1: 第一个文件路径
         file2: 第二个文件路径
-        ignore_paths: 要忽略的路径列表, 格式如：
+        ignore_paths: 要忽略的路径列表, 格式如: 
             ["0_DisplayMessage"]  # 忽略整个根键
             ["0_DisplayMessage.JoinMessages"]  # 忽略嵌套路径
     """

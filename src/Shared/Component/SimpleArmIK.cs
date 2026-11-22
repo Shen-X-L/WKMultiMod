@@ -31,10 +31,10 @@ public class SimpleArmIK : MonoBehaviour {
 
 		if (localDistance < 0.0001f) return;
 
-		// 3. 局部旋转：让骨骼的局部 Y 轴指向本地空间的目标方向
+		// 3. 局部旋转: 让骨骼的局部 Y 轴指向本地空间的目标方向
 		transform.localRotation = Quaternion.FromToRotation(Vector3.up, localDirection);
 
-		// 4. 局部缩放：计算局部 Y 轴所需的缩放比例
+		// 4. 局部缩放: 计算局部 Y 轴所需的缩放比例
 		float targetScaleY = localDistance / originalLength;
 
 		// 应用限制

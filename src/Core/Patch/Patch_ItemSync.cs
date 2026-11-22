@@ -223,7 +223,7 @@ public class Patch_HandItem_GrapplingHook {
 	public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
 		var codes = new List<CodeInstruction>(instructions);
 
-		// 修改 1：替换 HasTag 为 CanInteract
+		// 修改 1: 替换 HasTag 为 CanInteract
 		// IL_009f: ldloc.2
 		// IL_00a0: ldfld class Item Item_Object::itemData <-删除起点 校验
 		// IL_00a5: ldstr "inLocker" <- 定位点
@@ -248,7 +248,7 @@ public class Patch_HandItem_GrapplingHook {
 		codes.RemoveRange(start, 5);
 		codes.InsertRange(start, new[] { new CodeInstruction(OpCodes.Call, myFunc) });
 
-		// 修改 2：在 Destroy 之前插入 BeforeDestroy
+		// 修改 2: 在 Destroy 之前插入 BeforeDestroy
 		// IL_0199: ldloc.1
 		// IL_019a: callvirt instance class UnityEngine.GameObject::get_gameObject()
 		// IL_019f: call void UnityEngine.Object::Destroy(class UnityEngine.Object)

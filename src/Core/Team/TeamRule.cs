@@ -154,7 +154,7 @@ public readonly partial struct FlattenedRule {
 
 	#region [构造函数]
 
-	// 基础构造函数：直接通过 raw byte 构建
+	// 基础构造函数: 直接通过 raw byte 构建
 	public FlattenedRule(ulong rawData) => _data = rawData;
 
 	#endregion

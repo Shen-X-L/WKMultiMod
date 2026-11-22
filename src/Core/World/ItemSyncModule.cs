@@ -59,7 +59,7 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 	private HashSet<ulong> _sceneTombstones = new();
 	// 注册到场景缓存
 	private Dictionary<ulong, Item_Object> _sceneItems = new();
-	// 主机端数据结构：TeamId 该队伍已销毁的物品 ID 集合
+	// 主机端数据结构: TeamId 该队伍已销毁的物品 ID 集合
 	private Dictionary<string, HashSet<ulong>> _teamTombstones = new();
 	// 主机对每个玩家的发送协程
 	private Dictionary<IDType, Coroutine> _sendCoroutines = new();
@@ -98,7 +98,7 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 
 	public void OnEnd() => OnLeave();
 
-	public void OnSyncUpdate(float deltaTime) { }
+	public void SyncUpdate(float deltaTime) { }
 
 	#endregion
 
@@ -251,7 +251,7 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 	}
 
 	/// <summary>
-	/// 协程：分帧向客户端补发墓碑列表, 防止大批量数据导致帧率卡顿或网络拥塞
+	/// 协程: 分帧向客户端补发墓碑列表, 防止大批量数据导致帧率卡顿或网络拥塞
 	/// 接收函数: <see cref="HandleSceneRemoveChunk"/>
 	/// </summary>
 	private IEnumerator SendTombstoneChunksCoroutine(IDType clientId, IReadOnlyCollection<ulong> tombstones) {
@@ -419,6 +419,7 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 		if (module == null || !module.IsEnabled) return;
 
 		var action = (SceneItemSyncAction)reader.GetByte();
+		MPMain.LogDebug("SceneItem" + action.ToString());
 		try {
 			switch (action) {
 				case SceneItemSyncAction.Create:
@@ -437,7 +438,6 @@ public class SceneItemModule : Singleton<SceneItemModule>, ISyncModule {
 					module.HandleSceneToDropped(senderId, reader);
 					break;
 			}
-			MPMain.LogDebug("SceneItem"+action.ToString());
 		} catch (Exception e) {
 			MPMain.LogError($"[MP ItemSync] HandleItemState failed for action {action}: {e.Message}");
 		}
@@ -658,18 +658,16 @@ public class DroppedItemModule : Singleton<DroppedItemModule>, ISyncModule {
 
 	#region[分帧同步]
 
-	public void OnSyncUpdate(float deltaTime) {
+	public void SyncUpdate(float deltaTime) {
 		_transferRequestCooldownTimer += deltaTime;
 		if (_transferRequestCooldownTimer >= TRANSFER_REQUEST_COOLDOWN) {
 			_transferRequestCooldownTimer = 0f;
 			_transferRequestWindow.Clear();
 		}
-
 		if (!MPCore.CanSync || !IsEnabled) {
 			ResetSweepState();
 			return;
 		}
-
 		// 1. 空闲阶段: 累加定时器, 等待下一个同步周期到来
 		if (!_isScanning && !_isSweeping) {
 			_timer += deltaTime;
@@ -678,10 +676,8 @@ public class DroppedItemModule : Singleton<DroppedItemModule>, ISyncModule {
 				StartNewScanCycle();                            // 触发新一轮扫描
 			}
 		}
-
 		// 2. 分帧扫描阶段: 每帧最多检查 _maxScanPerFrame 个本地物品
 		if (_isScanning) StepScan();
-		
 		// 3. 分帧发送阶段: 扫描完成后, 分帧将数据冲刷给客户端
 		if (_isSweeping) FlushNextBatch();
 	}
@@ -720,7 +716,6 @@ public class DroppedItemModule : Singleton<DroppedItemModule>, ISyncModule {
 				_pendingRemoveKeys.Add(networkId);
 			// 变化检测 (只要有变动就加入待发送队列)
 			else if (identity.HasMeaningfulChange) _sweepQueue.Add(identity);
-			
 		}
 
 		// 统一清理本轮检查到的失效本地物品 Key
@@ -1271,6 +1266,8 @@ public class DroppedItemModule : Singleton<DroppedItemModule>, ISyncModule {
 		var module = Instance;
 		if (module == null || !module.IsEnabled) return;
 		var action = (DroppedItemSyncAction)reader.GetByte();
+		if (action != DroppedItemSyncAction.UpdateTransform)
+			MPMain.LogDebug("DroppedItem" + action.ToString());
 		try {
 			switch (action) {
 				case DroppedItemSyncAction.Create:
@@ -1298,8 +1295,6 @@ public class DroppedItemModule : Singleton<DroppedItemModule>, ISyncModule {
 					module.HandleUpdateTransform(reader);
 					break;
 			}
-			if(action!= DroppedItemSyncAction.UpdateTransform)
-				MPMain.LogDebug("DroppedItem" + action.ToString());
 		} catch (Exception e) {
 			MPMain.LogError($"[MP ItemSync] HandleItemState failed for action {action}: {e.Message}");
 		}

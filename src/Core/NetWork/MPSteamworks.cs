@@ -179,11 +179,9 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		base.Awake();
 		try {
 			if (!SteamClient.IsValid) {
-
 				MPMain.LogError(Localization.GetLog("MPSteamworks.SteamworksInitFailed"));
 				return;
 			}
-
 			MPMain.LogInfo(Localization.GetLog("MPSteamworks.SteamworksInitSuccess", SteamClient.Name, SteamClient.SteamId.ToString()));
 		} catch (Exception ex) {
 			MPMain.LogError(Localization.GetLog("MPSteamworks.SteamworksInitException", ex.Message));
@@ -215,7 +213,8 @@ public class MPSteamworks : MonoSingleton<MPSteamworks>, ISocketManager {
 		// 初始化中继网络(必须调用)
 		SteamNetworkingUtils.InitRelayNetworkAccess();
 
-		//没几把用, 控制了棍母
+		NetworkObjectId.UserId = UserSteamId;
+		// 以后来点富状态控制
 		DebugTest();
 	}
 

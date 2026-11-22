@@ -64,7 +64,7 @@ public static class Patch_Projectile {
 
 	[HarmonyPatch("CreateHitEffect")]
 	[HarmonyPrefix]
-	private static void CreateHitEffectPrefix(Projectile __instance, RaycastHit hit) {
+	private static void Patch_CreateHitEffect(Projectile __instance, RaycastHit hit) {
 		// 已经命中过
 		if (__instance.HasHitSurface()) return;
 		ProjectileSyncModule.Instance?.OnCreateHitEffect(__instance,ref hit);
@@ -118,6 +118,8 @@ public static class Patch_Projectile {
 
 	#endregion
 }
+
+#region[Grapple抓钩特化]
 
 [HarmonyPatch(typeof(HandItem_Shoot_Grapple))]
 public static class Patch_HandItem_Shoot_Grapple {
@@ -280,3 +282,80 @@ public static class Patch_HandItem_Shoot_Grapple {
 	}
 
 }
+
+[HarmonyPatch(typeof(Projectile_Grapple))]
+public static class Patch_Projectile_Grapple {
+
+	[HarmonyPatch("LateUpdate")]
+	[HarmonyTranspiler]
+	private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
+		var codes = new List<CodeInstruction>(instructions);
+
+		var latchedField = AccessTools.Field(typeof(Projectile_Grapple), "latched");
+		var onLatchedMethod = AccessTools.Method(
+			typeof(Patch_Projectile_Grapple),
+			nameof(OnGrappleLatched),
+			new[] { typeof(Projectile_Grapple) }
+		);
+
+		if (latchedField == null || onLatchedMethod == null) {
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Projectile_Grapple.LateUpdate"));
+			return codes;
+		}
+
+		// 查找 latched = true 对应的 stfld bool Projectile_Grapple::latched
+		int latchStoreIndex = codes.FindIndex(c =>
+			c.opcode == OpCodes.Stfld
+			&& Equals(c.operand, latchedField)
+		);
+
+		if (latchStoreIndex == -1) {
+			MPMain.LogError("OnGrappleLatched IL注入点不存在");
+			return codes;
+		}
+
+		// 在 stfld latched 之后注入 OnGrappleLatched(this)
+		codes.InsertRange(latchStoreIndex + 1, new[] {
+			new CodeInstruction(OpCodes.Ldarg_0),
+			new CodeInstruction(OpCodes.Call, onLatchedMethod)
+		});
+
+		return codes;
+	}
+
+	private static void OnGrappleLatched(Projectile_Grapple grapple) {
+		ProjectileSyncModule.Instance?.OnGrappleLatched(grapple);
+	}
+}
+
+#endregion
+
+#region[Rebar矛特化]
+
+[HarmonyPatch(typeof(Projectile_ReturnRebar))]
+public static class Patch_Projectile_ReturnRebar {
+	public static readonly AccessTools.FieldRef<Projectile_ReturnRebar, bool> hasHitSurfaceField =
+		AccessTools.FieldRefAccess<Projectile_ReturnRebar, bool>("hasHitSurface");
+
+	[HarmonyPatch("ReturnUpdate")]
+	[HarmonyPrefix]
+	private static bool Patch_ReturnUpdate(Projectile_ReturnRebar __instance) {
+		return ProjectileSyncModule.Instance.ReturnUpdate(__instance);
+	}
+
+	[HarmonyPatch("StartReturn")]
+	[HarmonyPostfix]
+	private static void Patch_StartReturn(Projectile_ReturnRebar __instance) {
+		ProjectileSyncModule.Instance.OnStartReturn(__instance);
+	}
+
+	[HarmonyPatch("CreateHitEffect")]
+	[HarmonyPrefix]
+	private static void Patch_CreateHitEffect(Projectile_ReturnRebar __instance, RaycastHit hit) {
+		// 已经命中过
+		if (__instance.returning||__instance.HasHitSurface()) return;
+		ProjectileSyncModule.Instance?.OnCreateHitEffect(__instance, ref hit);
+	}
+}
+
+#endregion

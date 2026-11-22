@@ -27,7 +27,7 @@ public class AnimatorSyncFeature : IStateSyncFeature, ICustomSyncFeature, IIniti
 
 	#region[查找表]
 
-	// 静态快速查找表：Animator -> 对应的 AnimatorSyncFeature
+	// 静态快速查找表: Animator -> 对应的 AnimatorSyncFeature
 	private static readonly Dictionary<Animator, AnimatorSyncFeature> _animatorMap = new();
 	public static void Register(Animator anim, AnimatorSyncFeature feature) {
 		if (anim != null) _animatorMap[anim] = feature;

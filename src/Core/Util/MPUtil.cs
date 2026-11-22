@@ -31,7 +31,7 @@ public static class MPUtil {
 			MPMain.LogError("[MP] " + e.ToString());
 		}
 		if (itemObject == null) {
-			// 备用：从通用 GameObject 中获取组件
+			// 备用: 从通用 GameObject 中获取组件
 			GameObject go = CL_AssetManager.GetAssetGameObject(prefabName);
 			itemObject = go?.GetComponent<Item_Object>();
 		}

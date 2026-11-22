@@ -1,4 +1,4 @@
-﻿# White Knuckle Multi Player Mod - White Knuckle Online MOD
+# White Knuckle Multi Player Mod - White Knuckle Online MOD
 
 **[中文](README_CN.md)** | **English**
 
@@ -18,7 +18,7 @@ This is a Unity MOD for the game  *White Knuckle* , implementing basic networked
 * 
 **Current Roadmap**:
 
-Projectile Sync (required for TEETH sync) -> Creature Sync (semi-complete, specializing for certain types) -> Map Sync Refactor (using map sequence + seed) -> Spectator Mode -> Lua Module Embedding -> Other Sync Features
+Creature Sync (semi-complete, specializing for certain types) -> Map Sync Refactor (using map sequence + seed) -> Spectator Mode -> Lua Module Embedding -> Other Sync Features
 
 **Potential Future Goals:**
 
@@ -39,7 +39,7 @@ graph RL
 **Completed Goals**:
 
 * Player position sync
-* Player map sync – map remains the same after disk resurrection (No longer valid, pending refactor.). Shortcut map sync is also supported (No longer valid, pending refactor.).
+* Player map sync, map remains the same after disk resurrection. Shortcut map sync is also supported (No longer valid, pending refactor.).
 * Player vs. Player (PvP) and configurable PvP damage
 * Players drop items upon death
 * UI-based multiplayer lobby
@@ -49,6 +49,7 @@ graph RL
 * Player-dropped item sync
 * Death sync
 * Entity data sync (semi-finished, needs further work)
+* Projectile Sync
 
 ---
 
@@ -410,7 +411,7 @@ Welcome to submit Issues for bug reports or suggestions! Pull Requests are also 
 * **[Harmony](https://github.com/pardeike/Harmony)** - A powerful .NET runtime patching library.
 * **[BepInEx](https://github.com/BepInEx/BepInEx)** - An excellent plugin framework for Unity games.
 * **[Time](https://github.com/TimeCr)** - Implemented numerous features, including rock bolt synchronization, dropped item synchronization, and entity synchronization (some features are still under testing).
-* **[LiuIsSlime](https://github.com/LiuIsSlime)** - Provided the map synchronization fix for the Halloween update.
+* **[LiuIsSlime](https://github.com/LiuIsSlime)** - Provided the map synchronization fix for the Halloween update.Fixed map synchronization after respawning in version 0.62.
 * **[Fugel](https://github.com/PotatoeShaman)** - Provided APIs for Steam friend invites, receiving invites, and in‑game UI display.
 * Kemoe! - Provided new icon art for the mod.
 * ***White Knuckle* Game Community** - For inspiration and testing assistance.

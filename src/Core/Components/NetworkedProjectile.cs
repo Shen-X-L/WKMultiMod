@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using System.Text;
 using System.Xml;
 using UnityEngine;
+using UnityEngine.Rendering;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.RemotePlayers;
 using WKMPMod.World;
 using static AIGameEntity;
@@ -20,6 +22,8 @@ public enum ProjectileType {
 	Unknown,// 未知子类
 }
 
+#region[状态机状态枚举]
+
 public enum GrappleSyncState : byte {
 	Flying,     // 常规前进:	钻头飞行 手柄停留在手部
 	HasHit,     // 命中持握:	钻头停留 手柄握在手部
@@ -27,6 +31,14 @@ public enum GrappleSyncState : byte {
 	Attached,   // 抓取完成:	手柄到达并贴合钻头, 停止运动
 	DropHand,   // 命中松手:	钻头停留 手柄向钻头移动
 }
+
+public enum RebarSyncState : byte {
+	Flying,     // 正常飞行
+	HasHit,     // 命中并固定
+	Recalling,  // 召回飞行
+}
+
+#endregion
 
 /// <summary>
 /// 
@@ -49,13 +61,14 @@ public class NetworkedProjectile : MonoBehaviour {
 	private RPContainer _container;
 
 	// 身份数据
-	public IDType OwnerId { get; private set; }
-	public int NetworkId { get; private set; }
+	public NetworkObjectId NetworkId { get; private set; }
+	public IDType OwnerId => NetworkId.OwnerId;
+	public int InstanceId => NetworkId.InstanceId;
 
 	#region[Grapple特化]
 
 	private Transform _handleObject;
-	private GrappleSyncState _grappleState = GrappleSyncState.Flying;
+	public GrappleSyncState CurrentGrappleState { get; private set; } = GrappleSyncState.Flying;
 
 	#endregion
 
@@ -97,17 +110,20 @@ public class NetworkedProjectile : MonoBehaviour {
 		ProjectileSyncModule.Instance.OnDestroy(this);
 	}
 
-	public void InitializeLocal(IDType ownerId) {
+	public void InitializeLocal() {
 		IsRemote = false;
-		OwnerId = ownerId;
-		NetworkId = projectile.gameObject.GetInstanceID();
+		int instanceId = projectile != null ? projectile.gameObject.GetInstanceID() : gameObject.GetInstanceID();
+		NetworkId = new NetworkObjectId(instanceId);
 	}
 
 	public bool InitializeRemote(IDType ownerId, int uniqueId) {
+		return InitializeRemote(new NetworkObjectId(ownerId, uniqueId));
+	}
+
+	public bool InitializeRemote(NetworkObjectId objectId) {
 		IsRemote = true;
-		OwnerId = ownerId;
-		NetworkId = uniqueId;
-		RPManager.Instance.Players.TryGetValue(ownerId, out _container);
+		NetworkId = objectId;
+		RPManager.Instance.Players.TryGetValue(objectId.OwnerId, out _container);
 		return true;
 	}
 
@@ -126,7 +142,7 @@ public class NetworkedProjectile : MonoBehaviour {
 			return;
 		}
 		Vector3 toHand = _handleObject.position - grapple.transform.position;
-		switch (_grappleState) {
+		switch (CurrentGrappleState) {
 			case GrappleSyncState.Flying:
 				// 飞行 绳索始终连接到远程玩家的手部
 				grapple.ScaleTetherTo(_handleObject.position);
@@ -138,7 +154,7 @@ public class NetworkedProjectile : MonoBehaviour {
 				// 回拉 朝手部方向移动
 				if (toHand.sqrMagnitude < 1f) {
 					Patch_Projectile.velocityField(grapple) = Vector3.zero;
-					// 已经接近手部，停止运动，等待所有者的销毁 RPC
+					// 已经接近手部, 停止运动, 等待所有者的销毁信号
 					break;
 				}
 				var target = Patch_Projectile.velocityField(grapple);
@@ -149,11 +165,6 @@ public class NetworkedProjectile : MonoBehaviour {
 			case GrappleSyncState.HasHit:
 				Patch_Projectile.velocityField(grapple) = Vector3.zero;
 				Patch_Projectile.hasHitSurfaceField(grapple) = true;
-				if (latchedField(grapple)) {
-					grapple.onHitEvent.Invoke();
-					transform.localScale = Vector3.one;
-					_grappleState = GrappleSyncState.Attached;
-				}
 				grapple.ScaleTetherTo(_handleObject.position);
 				break;
 			case GrappleSyncState.DropHand:
@@ -161,8 +172,10 @@ public class NetworkedProjectile : MonoBehaviour {
 				Patch_Projectile.hasHitSurfaceField(grapple) = true;
 				if (latchedField(grapple)) {
 					transform.localScale = Vector3.one;
-					_grappleState = GrappleSyncState.Attached;
+					CurrentGrappleState = GrappleSyncState.Attached;
 				}
+				break;
+			case GrappleSyncState.Attached:
 				break;
 		}
 	}
@@ -178,15 +191,95 @@ public class NetworkedProjectile : MonoBehaviour {
 
 	public void SetGrappleState(GrappleSyncState state, float recallSpeed = 0f) {
 		if (IsRemote || projectileType != ProjectileType.Grapple) return;
-		if (_grappleState == state) return;
-		_grappleState = state;
+		if (CurrentGrappleState == state) return;
+		CurrentGrappleState = state;
 		ProjectileSyncModule.Instance?.BroadcastGrappleState(this, state);
 	}
 
 	public void ApplyGrappleState(GrappleSyncState state) {
+		MPMain.LogDebug("state: " + state.ToString());
 		if (!IsRemote) return;
-		_grappleState = state;
+		if (projectile is not Projectile_Grapple grapple) return;
+		CurrentGrappleState = state;
+		switch (CurrentGrappleState) {
+			case GrappleSyncState.Attached:
+				transform.localScale = Vector3.one;
+				grapple.hookHandleObject.transform.localPosition = Vector3.zero;
+				grapple.hookHandleObject.transform.localRotation = Quaternion.identity;
+				latchedField(grapple) = true;
+				grapple.hookMesh.gameObject.SetActive(value: false);
+				break;
+		}
 	}
 
 	#endregion
+
+	#region[Rebar特化]
+
+	public RebarSyncState CurrentRebarState { get; private set; } = RebarSyncState.Flying;
+	// 网络包序号
+	private uint _rebarSequence;
+	internal uint NextRebarSequence() {return ++_rebarSequence;}
+
+	private bool IsNewerRebarSequence(uint sequence) {
+		// 支持 uint 溢出后的序号比较
+		return sequence - _rebarSequence > 0;
+	}
+
+	/// <summary>
+	/// 本地 Owner 切换 Rebar 状态
+	/// </summary>
+	public void SetRebarState(RebarSyncState state) {
+		if (IsRemote) return;
+		if (CurrentRebarState == state) return;
+		CurrentRebarState = state;
+		ProjectileSyncModule.Instance?.BroadcastRebarSync(this,true);
+	}
+
+	/// <summary>
+	/// 远端应用 Rebar 状态 或 快照
+	/// </summary>
+	public void ApplyRebarSync(RebarSyncState state, uint sequence,
+		Vector3 position, Quaternion rotation, Vector3 velocity
+	) {
+		if (!IsRemote) return;
+		if (!IsNewerRebarSequence(sequence)) return;
+
+		_rebarSequence = sequence;
+		CurrentRebarState = state;
+
+		ApplyRebarTransform(position, rotation, velocity);
+
+		if(projectile is Projectile_ReturnRebar rebar){
+			switch (state) {
+				case RebarSyncState.Flying:
+				case RebarSyncState.Recalling:
+					Patch_Projectile_ReturnRebar.hasHitSurfaceField(rebar) = false;
+					break;
+				case RebarSyncState.HasHit:
+					Patch_Projectile_ReturnRebar.hasHitSurfaceField(rebar) = true;
+					Patch_Projectile.velocityField(projectile) = Vector3.zero;
+					break;
+			}
+		}
+	}
+
+	/// <summary>
+	/// 应用远端位置、旋转、速度
+	/// </summary>
+	private void ApplyRebarTransform(Vector3 position, Quaternion rotation, Vector3 velocity) {
+		if (projectile == null) return;
+
+		projectile.transform.SetPositionAndRotation(position, rotation);
+		projectile.lastPos = position;
+
+		Patch_Projectile.velocityField(projectile) = velocity;
+
+		// 命中状态不允许残留速度
+		if (CurrentRebarState == RebarSyncState.HasHit)
+			Patch_Projectile.velocityField(projectile) = Vector3.zero;
+	}
+
+	#endregion
+
 }

@@ -153,7 +153,7 @@ public class NetworkedItem : MonoBehaviour {
 	}
 
 	/// <summary>
-	/// 强制执行自我清理：包含清理本地玩家背包内对应的 Item 数据, 并根据参数销毁世界实体
+	/// 强制执行自我清理: 包含清理本地玩家背包内对应的 Item 数据, 并根据参数销毁世界实体
 	/// </summary>
 	public void ForceCleanup() {
 		if (networkId == 0) return;
@@ -173,7 +173,7 @@ public class NetworkedItem : MonoBehaviour {
 		var inventory = ENT_Player.GetInventory();
 		if (inventory == null) return;
 
-		// 辅助清理闭包：检查 Item 对应的物理实体 Identity 并执行销毁标记
+		// 辅助清理闭包: 检查 Item 对应的物理实体 Identity 并执行销毁标记
 		bool ProcessItem(Item item) {
 			if (item == null) return false;
 			var dropObj = item.GetDropObject(false);

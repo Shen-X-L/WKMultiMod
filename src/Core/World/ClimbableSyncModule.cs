@@ -1,12 +1,9 @@
 using HarmonyLib;
-using Newtonsoft.Json.Linq;
 using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
-using UnityEngine.UIElements;
 using WKMPMod.Asset;
 using WKMPMod.Components;
 using WKMPMod.Core;
@@ -53,7 +50,7 @@ public enum PitonSyncAction : byte {
 public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	// Projectile.sourceEntity字段缓存, 用于判断投射物是否属于本地玩家
 	// Cached Projectile.sourceEntity field, used to check if a projectile belongs to the local player
-	#region[字段反射工具]
+	#region[静态反射工具]
 
 	private static readonly AccessTools.FieldRef<Projectile, GameEntity> _sourceEntityField =
 		AccessTools.FieldRefAccess<Projectile, GameEntity>("sourceEntity");
@@ -92,8 +89,6 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 				if (coroutine != null) WorldSyncManager.Instance.StopCoroutine(coroutine);
 
 		_sendRoutines.Clear();
-		_nextLocalId = 1;
-
 		ResetState();
 	}
 
@@ -106,7 +101,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	#region[	新玩家记录同步]
 
 	// 全局持久化数据表 (仅主机或作为全局历史状态, 解决关卡卸载数据丢失问题)
-	private readonly Dictionary<ulong, ClimbableData> _globalPersistentTable = new();
+	private readonly Dictionary<NetworkObjectId, ClimbableData> _globalPersistentTable = new();
 	/// <summary>
 	/// 每个客户端对应的快照发送协程. Key=客户端SteamId, Value=协程引用.
 	/// </summary>
@@ -123,19 +118,16 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 
 	// 已同步的CL_Handhold对象表, key为NetworkId
 	// Synced handhold lookup, keyed by NetworkId
-	private readonly Dictionary<ulong, NetworkedClimable> _handhold = new();
+	private readonly Dictionary<NetworkObjectId, NetworkedClimable> _remoteHandhold = new();
 
 	// 已同步的CL_Handhold对象表, key为NetworkId
 	// Synced handhold lookup, keyed by NetworkId
-	private readonly Dictionary<ulong, NetworkedClimable> _localHandhold = new();
+	private readonly Dictionary<NetworkObjectId, NetworkedClimable> _localHandhold = new();
 
 	// 玩家正在抓握的 攀爬物 和 攀爬时间记录
 	private readonly List<(NetworkedClimable Identity, float LastTime)> _holdingList = new();
 	// 建立 CL_Handhold 到 NetworkedClimable 的映射表
 	private static readonly Dictionary<CL_Handhold, NetworkedClimable> _handholdLookup = new();
-
-	// 下一个本地ID
-	private ulong _nextLocalId = 1;
 
 	/// <summary>
 	/// 是否正在应用远程状态
@@ -147,7 +139,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	public bool ApplyingRemoteState { get; private set; }
 
 	// 非创建者拔出岩钉时创建的临时掉落物
-	private static readonly List<(ulong id, GameObject obj)> _breakItemObject = new();
+	private static readonly List<(NetworkObjectId id, GameObject obj)> _breakItemObject = new();
 
 	// 场景重启后重建攀爬物协程
 	private Coroutine _rebuildClimbable = null;
@@ -173,8 +165,8 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	// 缓存与队列 (复用集合避免 GC)
 	private readonly List<NetworkedClimable> _sweepQueue = new();
 	private readonly List<NetworkedClimable> _batchBuffer = new();
-	private readonly List<ulong> _localKeysCache = new();
-	private readonly List<ulong> _pendingRemoveKeys = new List<ulong>();
+	private readonly List<NetworkObjectId> _localKeysCache = new();
+	private readonly List<NetworkObjectId> _pendingRemoveKeys = new();
 
 	private void ResetSweepState() {
 		_timer = 0f;
@@ -202,7 +194,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		ResetSweepState();
 		// 清空已攀爬物字典
 		_capturedPitons.Clear();
-		_handhold.Clear();
+		_remoteHandhold.Clear();
 		_localHandhold.Clear();
 		_holdingList.Clear();
 		_handholdLookup.Clear();
@@ -217,7 +209,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 
 	#endregion
 
-	#region[API Hook 事件接入]
+	#region[Hook 事件接入 API]
 
 	/// <summary>
 	/// List.Add 方法的包装, 供 IL 调用.
@@ -241,11 +233,8 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 			return;
 		}
 
-		foreach (var piton in _capturedPitons) {
-			var root = GetClimbableRoot(piton);
-			if (root == null) continue;
-			RegisterLocalClimbable(root);
-		}
+		foreach (var piton in _capturedPitons)
+			RegisterLocalClimbable(piton);
 
 		// 清理捕获列表以备下次使用
 		_capturedPitons.Clear();
@@ -265,17 +254,14 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 			return;
 		}
 
-		foreach (var piton in _capturedPitons) {
-			var root = GetClimbableRoot(piton);
-			if (root == null) continue;
-			RegisterLocalClimbable(root);
-		}
+		foreach (var piton in _capturedPitons)
+			RegisterLocalClimbable(piton);
 
 		_capturedPitons.Clear();
 	}
 
 	/// <summary>
-	/// 添加玩家正在抓握的攀爬物
+	/// 添加玩家正在抓握的 攀爬物 到 抓握列表
 	/// </summary>
 	public void OnLocalHandholdGrabbed(NetworkedClimable identity) {
 		if (identity == null) return;
@@ -283,7 +269,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		// 本地物品靠其他操作管理生命周期
 		if (_localHandhold.ContainsKey(identity.NetworkId)) return;
 
-		// 查重：若已存在则不重复添加
+		// 查重: 若已存在则不重复添加
 		for (int i = 0; i < _holdingList.Count; i++)
 			if (_holdingList[i].Identity == identity) return;
 
@@ -291,7 +277,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	}
 
 	/// <summary>
-	/// 拔出并广播
+	/// 拔出并请求所有者松动
 	/// </summary>
 	public void OnLocalHandholdReleased(NetworkedClimable identity) {
 		if (identity == null) return;
@@ -312,11 +298,91 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		}
 	}
 
-	// 创建拔出物
+	/// <summary>
+	/// 创建拔出物
+	/// </summary>
 	public static void CreateBreakObject(GameObject gameObject, CL_Handhold handhold) {
 		if (TryGetNetworkIdentity(handhold, out var identity) && identity.IsValid)
 			Instance?._globalPersistentTable.Remove(identity.NetworkId);
 		Instance?.SendBreakRequest(gameObject, handhold);
+	}
+
+	#endregion
+
+	#region[API]
+
+	/// <summary>
+	/// 处理收到的Piton同步数据包
+	/// 根据Action类型执行创建, 更新或删除
+	///
+	/// Handles an incoming piton sync packet
+	/// Applies create, update or remove depending on the action type
+	/// </summary>
+	[MPPacketHandler(PacketType.ClimbableSync)]
+	public static void HandlePitonState(IDType senderId, DataReader reader) {
+		var module = Instance;
+		if (module == null || !module.IsEnabled) return;
+
+		var action = (PitonSyncAction)reader.GetByte();
+		if (action != PitonSyncAction.Update) MPMain.LogDebug(action.ToString());
+		try {
+			switch (action) {
+				case PitonSyncAction.Create:
+					module.HandleCreate(senderId, reader);
+					break;
+				case PitonSyncAction.Update:
+					module.HandleUpdate(reader);
+					break;
+				case PitonSyncAction.Remove:
+					module.HandleRemove(reader);
+					break;
+				case PitonSyncAction.HammerIn:
+					module.HandlePitonHammerIn(reader);
+					break;
+				case PitonSyncAction.Weaken:
+					module.HandleWeaken(reader);
+					break;
+				case PitonSyncAction.BreakRequest:
+					module.HandlePitonBreakRequest(reader);
+					break;
+				case PitonSyncAction.Break:
+					module.HandlePitonBreak(reader);
+					break;
+				case PitonSyncAction.CreateChunkRequest:
+					module.HandleChunkRequest(senderId);
+					break;
+				case PitonSyncAction.CreateChunk:
+					module.HandleCreateChunk(reader);
+					break;
+			}
+		} catch (Exception ex) {
+			MPMain.LogError($"Failed to apply {action}: {ex}");
+		}
+	}
+
+	public bool RegisterExistingObject(GameObject root, NetworkObjectId networkId, bool isRemote) {
+		if (root == null) return false;
+		// 添加组件
+		if (root.TryGetComponent<NetworkedClimable>(out var existing)) {
+			// 防止重复注册
+			if (existing.IsValid) return true;
+		} else existing = root.AddComponent<NetworkedClimable>();
+		// 初始化 Climbable 数据
+		var data = new ClimbableData {
+			NetworkId = networkId,
+			position = root.transform.position,
+			rotation = root.transform.rotation,
+			prefabKey = MPUtil.CleanCloneName(root.name),
+		};
+		existing.BindData(data);
+		// 注册模块内部缓存
+		if (!isRemote) _localHandhold[networkId] = existing;
+		else _remoteHandhold[networkId] = existing;
+		_globalPersistentTable[networkId] = existing.data;
+		// 普通本地创建才需要单独广播 Climbable Create
+		// Grapple 转换由 GrappleLatched 事件负责通知远端
+		if (!isRemote) BroadcastCreate(existing);
+		return true;
 	}
 
 	#endregion
@@ -326,7 +392,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// <summary>
 	/// 由 WorldSyncManager 每帧在 LateUpdate 调用
 	/// </summary>
-	public void OnSyncUpdate(float deltaTime) {
+	public void SyncUpdate(float deltaTime) {
 		if (!MPCore.CanSync || !IsEnabled) {
 			ResetSweepState();
 			return;
@@ -346,14 +412,9 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		}
 
 		// 2. 分帧扫描阶段: 每帧最多检查 _maxScanPerFrame 个攀爬物
-		if (_isScanning) {
-			StepScan();
-		}
-
+		if (_isScanning) StepScan();
 		// 3. 分帧发送阶段: 扫描完成后, 分帧将数据冲刷给客户端
-		if (_isSweeping) {
-			FlushNextBatch();
-		}
+		if (_isSweeping) FlushNextBatch();
 	}
 
 	/// <summary>
@@ -375,37 +436,30 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// </summary>
 	private void StepScan() {
 		int scannedThisFrame = 0;
-
 		// 逐个检查, 检查数量达到上限 _maxScanPerFrame 或 遍历完列表 时停下
 		while (_scanIndex < _localKeysCache.Count && scannedThisFrame < _maxScanPerFrame) {
-			ulong networkId = _localKeysCache[_scanIndex];
+			NetworkObjectId networkId = _localKeysCache[_scanIndex];
 			_scanIndex++;
 			scannedThisFrame++; // 只要检查了一个攀爬物,计数器就 +1
-
-			// 容错: 防止因其他逻辑提前从字典中删除了 key
+								// 容错: 防止因其他逻辑提前从字典中删除了 key
 			if (!_localHandhold.TryGetValue(networkId, out var identity) || identity == null) continue;
-
 			// 物体失效/销毁检测
 			if (identity.gameObject == null || !identity.gameObject.activeInHierarchy)
 				_pendingRemoveKeys.Add(networkId);
-
 			// 变化检测 (只要有变动就加入待发送队列)
 			else if (identity.HasMeaningfulChange) _sweepQueue.Add(identity);
 		}
-
 		// 统一处理本轮检查到的待移除项
 		if (_pendingRemoveKeys.Count > 0) {
 			for (int i = 0; i < _pendingRemoveKeys.Count; i++)
-				if (_pendingRemoveKeys[i] != 0) BroadcastRemove(_pendingRemoveKeys[i]);
+				if (_pendingRemoveKeys[i].InstanceId != 0) BroadcastRemove(_pendingRemoveKeys[i]);
 			_pendingRemoveKeys.Clear();
 		}
-
 		// 检查是否已扫描完全部攀爬物
 		if (_scanIndex >= _localKeysCache.Count) {
 			_isScanning = false;
 			_localKeysCache.Clear(); // 释放缓存引用
-
-			// 扫描完成！如果有需要同步的攀爬物,进入发送冲刷阶段
+									 // 扫描完成！如果有需要同步的攀爬物,进入发送冲刷阶段
 			if (_sweepQueue.Count > 0) {
 				_isSweeping = true;
 				_sweepIndex = 0;
@@ -418,20 +472,16 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// </summary>
 	private void FlushNextBatch() {
 		_batchBuffer.Clear();
-
 		// 截取当前帧能容纳的上限数据
 		while (_sweepIndex < _sweepQueue.Count && _batchBuffer.Count < _maxSyncPerFrame) {
 			var identity = _sweepQueue[_sweepIndex];
 			_sweepIndex++;
-
 			// 跨帧二次有效性校验 (防止在前几帧冲刷期间生物被彻底 Destroy)
 			if (identity != null && identity.gameObject != null && identity.gameObject.activeInHierarchy)
 				_batchBuffer.Add(identity);
 		}
-
 		// 真正发包并刷新 RememberState
 		if (_batchBuffer.Count > 0) BroadcastUpdate(_batchBuffer);
-
 		// 如果队列已经全部发完, 关闭冲刷, 等待下一个 _syncInterval 触发
 		if (_sweepIndex >= _sweepQueue.Count) {
 			_isSweeping = false;
@@ -444,22 +494,18 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// </summary>
 	private void HoldWeaken() {
 		float currentTime = Time.time;
-
 		// 倒序 for 循环: 允许直接原地修改元素以及安全执行 RemoveAt
 		for (int i = _holdingList.Count - 1; i >= 0; i--) {
 			var (identity, lastTime) = _holdingList[i];
-
 			// 物体为空||无手抓握时 直接剔除
 			if (identity == null || identity.Handhold == null || _handsField(identity.Handhold)?.Count == 0) {
 				_holdingList.RemoveAt(i);
 				continue;
 			}
-
 			// 计算本次时间差并更新元组
 			float deltaTime = currentTime - lastTime;
 			_holdingList[i] = (identity, currentTime); // 直接更新 List 中的 ValueTuple
-
-			// 发送衰减同步包
+													   // 发送衰减同步包
 			SendWeaken(identity, deltaTime);
 		}
 	}
@@ -470,26 +516,22 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// </summary>
 	private IEnumerator SendCreateChunksRoutine(IDType clientId) {
 		List<ClimbableData> itemsToSend = new List<ClimbableData>();
-
 		// 收集当前全场记录
-		foreach (var kvp in _globalPersistentTable) if (kvp.Value != null) itemsToSend.Add(kvp.Value);
-
+		foreach (var kvp in _globalPersistentTable) itemsToSend.Add(kvp.Value);
 		int index = 0;
 		while (index < itemsToSend.Count) {
 			int count = Mathf.Min(ChunkItemsPerFrame, itemsToSend.Count - index);
-
+			// 记录发射总数
 			var writer = GetWriter(MPSteamworks.UserSteamId, clientId, PacketType.ClimbableSync);
 			writer.Put((byte)PitonSyncAction.CreateChunk);
 			writer.Put((ushort)count);
-
+			// 打包发送
 			for (int i = 0; i < count; i++) writer.Put(itemsToSend[index + i]);
-
 			MPSteamworks.Instance.SendToPeer(clientId, writer, SendType.Reliable);
-
+			// 分帧避让, 防止瞬间发包造成卡顿
 			index += count;
-			yield return null; // 分帧避让, 防止瞬间发包造成卡顿
+			yield return null;
 		}
-
 		_sendRoutines.Remove(clientId);
 	}
 
@@ -502,19 +544,18 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	///
 	/// Registers a local climbable object and broadcasts Create
 	/// </summary>
-	private void RegisterLocalClimbable(GameObject root) {
+	private void RegisterLocalClimbable(GameObject piton) {
+		var root = GetClimbableRoot(piton);
+		if (root == null) return;
 		var prefabKey = MPUtil.CleanCloneName(root.name);
-		if (root == null || string.IsNullOrEmpty(prefabKey)) return;
 
 		var identity = GetOrCreateIdentity(root);
 		if (!identity.IsValid) {
-			identity.data.networkId = MPUtil.Hash64($"{MPSteamworks.UserSteamId}:{_nextLocalId++}");
-			identity.data.ownerId = MPSteamworks.UserSteamId;
+			identity.data.NetworkId = new NetworkObjectId(MPSteamworks.UserSteamId, root.gameObject.GetInstanceID());
 			identity.data.prefabKey = prefabKey;
 			identity.RememberState();
 		}
 
-		_handhold[identity.NetworkId] = identity;
 		_localHandhold[identity.NetworkId] = identity;
 		_globalPersistentTable[identity.NetworkId] = identity.data;
 
@@ -544,9 +585,9 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// 通过数据创建攀爬物
 	/// </summary>
 	/// <param name="data"></param>
-	private void CreateNetworkClimbable(ClimbableData data) {
+	private void CreateNetworkClimbable(ref ClimbableData data) {
 		// 已存在则更新状态
-		if (_handhold.TryGetValue(data.networkId, out var existing) && existing != null) {
+		if (_remoteHandhold.TryGetValue(data.NetworkId, out var existing) && existing != null) {
 			existing.BindData(data);
 			return;
 		}
@@ -554,7 +595,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		// 解析预制体并实例化
 		var prefab = MPAssetManager.GetHandholdPrefab(data.prefabKey);
 		if (prefab == null) {
-			MPMain.LogError($"[MP ClimbableSync] Could not resolve prefab '{data.prefabKey}' for {data.networkId}.");
+			MPMain.LogError($"[MP ClimbableSync] Could not resolve prefab '{data.prefabKey}' for {data.NetworkId}.");
 			return;
 		}
 
@@ -567,8 +608,8 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 
 		if (!identity.IsValid) identity.data = data;
 
-		_handhold[data.networkId] = identity;
-		_globalPersistentTable[data.networkId] = data;
+		_remoteHandhold[data.NetworkId] = identity;
+		_globalPersistentTable[data.NetworkId] = data;
 	}
 
 	/// <summary>
@@ -580,7 +621,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		yield return null;
 		foreach (var (id, data) in _globalPersistentTable) {
 			// 已存在则更新状态
-			if (_handhold.TryGetValue(data.networkId, out var existing) && existing != null) {
+			if (_remoteHandhold.TryGetValue(data.NetworkId, out var existing) && existing != null) {
 				existing.BindData(data);
 				continue;
 			}
@@ -588,7 +629,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 			// 解析预制体并实例化
 			var prefab = MPAssetManager.GetHandholdPrefab(data.prefabKey);
 			if (prefab == null) {
-				MPMain.LogError($"[MP ClimbableSync] Could not resolve prefab '{data.prefabKey}' for {data.networkId}.");
+				MPMain.LogError($"[MP ClimbableSync] Could not resolve prefab '{data.prefabKey}' for {data.NetworkId}.");
 				continue;
 			}
 
@@ -601,7 +642,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 
 			if (!identity.IsValid) identity.data = data;
 
-			_handhold[data.networkId] = identity;
+			_remoteHandhold[data.NetworkId] = identity;
 		}
 	}
 
@@ -668,10 +709,10 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 
 			// 更新全局记录
 			if (_globalPersistentTable.TryGetValue(identity.NetworkId, out var record))
-				record.BindData(identity.transform.position, identity.transform.rotation,
-								identity.data.secureAmount, identity.data.secure);
+				record.BindData(identity.transform.position, identity.transform.rotation, identity.data.secureAmount, identity.data.secure);
 
-			writer.Put(identity.NetworkId);
+			writer.Put(identity.OwnerId);
+			writer.Put(identity.InstanceId);
 			writer.Put(identity.transform.position);
 			writer.Put(identity.transform.rotation);
 			writer.Put(identity.data.secureAmount);
@@ -685,14 +726,14 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// 广播物品被移除 不参与网络同步 仅本地更新
 	/// 接收函数: <see cref="HandleRemove"/>
 	/// </summary>
-	public void BroadcastRemove(ulong networkId) {
-		var writer = MPWriterPool.GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ClimbableSync);
+	public void BroadcastRemove(NetworkObjectId networkId) {
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ClimbableSync);
 		writer.Put((byte)PitonSyncAction.Remove);
-		writer.Put(networkId);
+		writer.Put(networkId.OwnerId);
+		writer.Put(networkId.InstanceId);
 
 		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
 
-		_handhold.Remove(networkId);
 		_localHandhold.Remove(networkId);
 	}
 
@@ -706,18 +747,17 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	public void SendBreakRequest(GameObject gameObject, CL_Handhold handhold) {
 		if (!MPCore.CanSync || ApplyingRemoteState || handhold == null || gameObject == null) return;
 		if (!TryGetNetworkIdentity(handhold, out var identity) || !identity.IsValid) return;
-
 		// 非创建者
-		if (!_localHandhold.ContainsKey(identity.NetworkId) && identity.data.ownerId != MPSteamworks.UserSteamId) {
+		if (!_localHandhold.ContainsKey(identity.NetworkId) || identity.OwnerId != MPSteamworks.UserSteamId) {
 			// 掉落物生成记录
-			if (gameObject.TryGetComponent<Item_Object>(out var item_Object)) {
+			if (gameObject.TryGetComponent<Item_Object>(out var item_Object))
 				_breakItemObject.Add((identity.NetworkId, gameObject));
-			}
 			// 发送拔出请求信息
-			var writer = GetWriter(MPSteamworks.UserSteamId, identity.data.ownerId, PacketType.ClimbableSync);
+			var writer = GetWriter(MPSteamworks.UserSteamId, identity.OwnerId, PacketType.ClimbableSync);
 			writer.Put((byte)PitonSyncAction.BreakRequest);
-			writer.Put(identity.NetworkId);
-			MPSteamworks.Instance.SendToPeer(identity.data.ownerId, writer, SendType.Reliable);
+			writer.Put(identity.OwnerId);
+			writer.Put(identity.InstanceId);
+			MPSteamworks.Instance.SendToPeer(identity.OwnerId, writer, SendType.Reliable);
 		} else {
 			// 生成同步掉落物
 			if (gameObject.TryGetComponent<Item_Object>(out var item_Object))
@@ -734,9 +774,9 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		// 广播拔出信息
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPProtocol.BroadcastId, PacketType.ClimbableSync);
 		writer.Put((byte)PitonSyncAction.Break);
-		writer.Put(identity.NetworkId);
+		writer.Put(identity.NetworkId.OwnerId);
+		writer.Put(identity.NetworkId.InstanceId);
 		MPSteamworks.Instance.Broadcast(writer, SendType.Reliable);
-		_handhold.Remove(identity.NetworkId);
 		_localHandhold.Remove(identity.NetworkId);
 		_globalPersistentTable.Remove(identity.NetworkId);
 	}
@@ -749,22 +789,21 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	public void BroadcastHammerIn(CL_Handhold handhold, float amount) {
 		if (!TryGetNetworkIdentity(handhold, out var identity) || !identity.IsValid) return;
 		// 哪怕没有连接 也更新本地岩钉锤入值
-		if (_globalPersistentTable.TryGetValue(identity.NetworkId, out var record) && record != null) {
+		if (_globalPersistentTable.TryGetValue(identity.NetworkId, out var record)) {
 			record.position = handhold.transform.position;
 			record.rotation = handhold.transform.rotation;
 			record.secureAmount = identity.Handhold.secureAmount;
 			record.secure = identity.Handhold.secure;
 		}
-
-		if (!MPCore.CanSync || ApplyingRemoteState || handhold == null) return;
-		if (_localHandhold.ContainsKey(identity.NetworkId)) return;
-
-		var writer = GetWriter(MPSteamworks.UserSteamId, identity.data.ownerId, PacketType.ClimbableSync);
+		// 是否是远程攀爬物
+		if (!MPCore.CanSync || ApplyingRemoteState || handhold == null || _localHandhold.ContainsKey(identity.NetworkId)) return;
+		// 写入加固请求
+		var writer = GetWriter(MPSteamworks.UserSteamId, identity.OwnerId, PacketType.ClimbableSync);
 		writer.Put((byte)PitonSyncAction.HammerIn);
-		writer.Put(identity.NetworkId);
+		writer.Put(identity.NetworkId.OwnerId);
+		writer.Put(identity.NetworkId.InstanceId);
 		writer.Put(amount);
-
-		MPSteamworks.Instance.SendToPeer(identity.data.ownerId, writer, SendType.Reliable);
+		MPSteamworks.Instance.SendToPeer(identity.OwnerId, writer, SendType.Reliable);
 	}
 
 	/// <summary>
@@ -775,7 +814,6 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		if (MPSteamworks.IsHost || !IsEnabled) return;
 		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.ClimbableSync);
 		writer.Put((byte)PitonSyncAction.CreateChunkRequest);
-
 		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
 	}
 
@@ -784,14 +822,13 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// 接收函数: <see cref="HandleWeaken"/>
 	/// </summary>
 	public void SendWeaken(NetworkedClimable identity, float weakenTime) {
-		if (identity.data.ownerId == MPSteamworks.UserSteamId) return;
-
-		var writer = GetWriter(MPSteamworks.UserSteamId, identity.data.ownerId, PacketType.ClimbableSync);
+		if (identity.OwnerId == MPSteamworks.UserSteamId) return;
+		var writer = GetWriter(MPSteamworks.UserSteamId, identity.OwnerId, PacketType.ClimbableSync);
 		writer.Put((byte)PitonSyncAction.Weaken);
-		writer.Put(identity.NetworkId);
+		writer.Put(identity.NetworkId.OwnerId);
+		writer.Put(identity.NetworkId.InstanceId);
 		writer.Put(weakenTime);
-
-		MPSteamworks.Instance.SendToPeer(identity.data.ownerId, writer, SendType.Reliable);
+		MPSteamworks.Instance.SendToPeer(identity.OwnerId, writer, SendType.Reliable);
 	}
 
 	#endregion
@@ -804,7 +841,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// </summary>
 	public void HandleCreate(IDType senderId, DataReader reader) {
 		var data = reader.Get<ClimbableData>();
-		CreateNetworkClimbable(data);
+		CreateNetworkClimbable(ref data);
 	}
 
 	/// <summary>
@@ -816,15 +853,18 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		ApplyingRemoteState = true;
 		try {
 			for (int i = 0; i < count; i++) {
-				ulong networkId = reader.GetULong();
+				IDType ownerId = reader.GetIDType();
+				int instanceId = reader.GetInt();
 				Vector3 position = reader.GetVector3();
 				Quaternion rotation = reader.GetQuaternion();
 				float secureAmount = reader.GetFloat();
 				bool secure = reader.GetBool();
 
-				if (_handhold.TryGetValue(networkId, out var identity) && identity != null)
+				var networkId = new NetworkObjectId(ownerId, instanceId);
+
+				if (_remoteHandhold.TryGetValue(networkId, out var identity) && identity != null)
 					ApplyState(identity, position, rotation, secureAmount, secure);
-				if (_globalPersistentTable.TryGetValue(networkId, out var record) && record != null)
+				if (_globalPersistentTable.TryGetValue(networkId, out var record))
 					record.BindData(position, rotation, secureAmount, secure);
 			}
 		} finally {
@@ -837,8 +877,10 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// 发送函数: <see cref="BroadcastRemove"/>
 	/// </summary>
 	public void HandleRemove(DataReader reader) {
-		ulong networkId = reader.GetULong();
-		if (_handhold.TryGetValue(networkId, out var identity)) _handhold.Remove(networkId);
+		IDType ownerId = reader.GetIDType();
+		int instanceId = reader.GetInt();
+		var networkId = new NetworkObjectId(ownerId, instanceId);
+		if (_remoteHandhold.TryGetValue(networkId, out var identity)) _remoteHandhold.Remove(networkId);
 	}
 
 	/// <summary>
@@ -846,15 +888,18 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// 发送函数: <see cref="BroadcastHammerIn"/>
 	/// </summary>
 	public void HandlePitonHammerIn(DataReader reader) {
-		ulong networkId = reader.GetULong();
+		IDType ownerId = reader.GetIDType();
+		int instanceId = reader.GetInt();
+		var networkId = new NetworkObjectId(ownerId, instanceId);
 		float amount = reader.GetFloat();
 		if (!_localHandhold.TryGetValue(networkId, out var identity) || identity == null) return;
 		ApplyingRemoteState = true;
 		try {
+			// 应用加固状态
 			identity.Handhold.HammerIn(amount);
 			identity.data.secureAmount = identity.Handhold.secureAmount;
 			identity.data.secure = identity.Handhold.secure;
-			if (_globalPersistentTable.TryGetValue(networkId, out var record) && record != null) {
+			if (_globalPersistentTable.TryGetValue(networkId, out var record)) {
 				record.secureAmount = identity.Handhold.secureAmount;
 				record.secure = identity.Handhold.secure;
 			}
@@ -868,14 +913,16 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// 发送函数: <see cref="BroadcastBreak"/>
 	/// </summary>
 	public void HandlePitonBreak(DataReader reader) {
-		ulong networkId = reader.GetULong();
+		IDType ownerId = reader.GetIDType();
+		int instanceId = reader.GetInt();
+		var networkId = new NetworkObjectId(ownerId, instanceId);
 		// 回收非同步掉落物
 		for (int i = 0; i < _breakItemObject.Count; ++i) if (_breakItemObject[i].id == networkId) {
 			GameObject.Destroy(_breakItemObject[i].obj);
 			_breakItemObject.RemoveAt(i);
 			--i;
 		}
-		if (!_handhold.TryGetValue(networkId, out var identity) || identity == null) return;
+		if (!_remoteHandhold.TryGetValue(networkId, out var identity) || identity == null) return;
 		if (identity.gameObject != null) {
 			if (identity.Handhold != null) {
 				var hands = _handsField(identity.Handhold);
@@ -883,9 +930,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 			}
 			GameObject.Destroy(identity.gameObject);
 		}
-
-		_handhold.Remove(networkId);
-		_localHandhold.Remove(networkId);
+		_remoteHandhold.Remove(networkId);
 		_globalPersistentTable.Remove(networkId);
 	}
 
@@ -894,26 +939,25 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// 发送函数: <see cref="SendBreakRequest"/>
 	/// </summary>
 	public void HandlePitonBreakRequest(DataReader reader) {
-		ulong networkId = reader.GetULong();
+		IDType ownerId = reader.GetIDType();
+		int instanceId = reader.GetInt();
+		var networkId = new NetworkObjectId(ownerId, instanceId);
+		// 所有者判断
 		if (!_localHandhold.TryGetValue(networkId, out var identity) || identity == null) return;
 		if (identity.gameObject != null && identity.Handhold != null) {
 			var handhold = identity.Handhold;
 			// 松手
 			var hands = _handsField(handhold);
 			while (hands?.Count > 0) hands[0].DropHand();
-			
 			// 生成同步掉落物
 			var breakObj = Object.Instantiate(handhold.breakObject, handhold.transform.position, handhold.transform.rotation);
-			if (breakObj.TryGetComponent<Item_Object>(out var item_Object)) {
+			if (breakObj.TryGetComponent<Item_Object>(out var item_Object))
 				DroppedItemModule.Instance.SyncAndBroadcast(item_Object);
-			}
 			// 广播销毁
 			BroadcastBreak(identity);
 			// 移除攀爬物
 			GameObject.Destroy(identity.gameObject);
 		}
-
-		_handhold.Remove(networkId);
 		_localHandhold.Remove(networkId);
 		_globalPersistentTable.Remove(networkId);
 	}
@@ -926,7 +970,7 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		ushort count = reader.GetUShort();
 		for (int i = 0; i < count; i++) {
 			var data = reader.Get<ClimbableData>();
-			CreateNetworkClimbable(data);
+			CreateNetworkClimbable(ref data);
 		}
 	}
 
@@ -948,104 +992,47 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	/// 发送函数: <see cref="SendWeaken"/>
 	/// </summary>
 	public void HandleWeaken(DataReader reader) {
-		ulong networkId = reader.GetULong();
+		IDType ownerId = reader.GetIDType();
+		int instanceId = reader.GetInt();
+		var networkId = new NetworkObjectId(ownerId, instanceId);
 		float weakenTime = reader.GetFloat();
-
+		// 查看handhold对象
 		if (!_localHandhold.TryGetValue(networkId, out var identity) || identity == null) return;
-
 		var handhold = identity.Handhold;
-		if (handhold == null || handhold.secure) return; // 已经彻底加固的不可拔松
-
+		// 已经彻底加固的不可拔松
+		if (handhold == null || handhold.secure) return;
+		// 应用拔松状态
 		ApplyingRemoteState = true;
 		try {
 			// 扣减加固值 (速率: Time.deltaTime * 0.115f)
 			handhold.secureAmount -= weakenTime * 0.115f;
-
 			// 计算位移向量 (速率: Time.fixedDeltaTime * 0.05f)
 			float moveDistance = weakenTime * 0.05f;
 			Vector3 moveVector = handhold.transform.forward * moveDistance;
-
 			// 应用软父级/Transform位移与 offsetAmount 累加
 			var softParent = _softParentField(handhold);
-			if (softParent != null) {
-				softParent.SoftMove(moveVector);
-			} else {
-				handhold.transform.position += moveVector;
-			}
+			if (softParent != null) softParent.SoftMove(moveVector);
+			else handhold.transform.position += moveVector;
 			_offsetAmountField(handhold) += moveDistance;
-
 			// 同步更新本地 NetworkedClimable 数据缓存
 			identity.data.secureAmount = handhold.secureAmount;
 			identity.data.position = handhold.transform.position;
-
-			if (_globalPersistentTable.TryGetValue(networkId, out var record) && record != null) {
+			if (_globalPersistentTable.TryGetValue(networkId, out var record)) {
 				record.secureAmount = handhold.secureAmount;
 				record.position = handhold.transform.position;
 			}
-
 			// 若加固值归零/小于0, 触发断裂与拔出广播
 			if (handhold.secureAmount < 0f) {
 				var hands = _handsField(handhold);
 				while (hands?.Count > 0) hands[0].DropHand();
-				
 				var breakObj = Object.Instantiate(handhold.breakObject, handhold.transform.position, handhold.transform.rotation);
-
-				_handhold.Remove(networkId);
 				_localHandhold.Remove(networkId);
 				_globalPersistentTable.Remove(networkId);
-
 				Object.Destroy(handhold.gameObject);
 			}
-
 		} finally {
 			ApplyingRemoteState = false;
 		}
-	}
-
-	/// <summary>
-	/// 处理收到的Piton同步数据包
-	/// 根据Action类型执行创建, 更新或删除
-	///
-	/// Handles an incoming piton sync packet
-	/// Applies create, update or remove depending on the action type
-	/// </summary>
-	[MPPacketHandler(PacketType.ClimbableSync)]
-	public static void HandlePitonState(IDType senderId, DataReader reader) {
-		var module = Instance;
-		if (module == null || !module.IsEnabled) return;
-
-		var action = (PitonSyncAction)reader.GetByte();
-
-		switch (action) {
-			case PitonSyncAction.Create:
-				module.HandleCreate(senderId, reader);
-				break;
-			case PitonSyncAction.Update:
-				module.HandleUpdate(reader);
-				break;
-			case PitonSyncAction.Remove:
-				module.HandleRemove(reader);
-				break;
-			case PitonSyncAction.HammerIn:
-				module.HandlePitonHammerIn(reader);
-				break;
-			case PitonSyncAction.Weaken:
-				module.HandleWeaken(reader);
-				break;
-			case PitonSyncAction.BreakRequest:
-				module.HandlePitonBreakRequest(reader);
-				break;
-			case PitonSyncAction.Break:
-				module.HandlePitonBreak(reader);
-				break;
-			case PitonSyncAction.CreateChunkRequest:
-				module.HandleChunkRequest(senderId);
-				break;
-			case PitonSyncAction.CreateChunk:
-				module.HandleCreateChunk(reader);
-				break;
-		}
-		MPMain.LogDebug(action.ToString());
 	}
 
 	/// <summary>

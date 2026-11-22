@@ -176,7 +176,7 @@ public class MPPacketRouter {
 	}
 
 	/// <summary>
-	/// 泛型重载版本, 支持直接传入类名进行注册：MPPacketRouter.RegisterRoutes&lt;MyCustomHandlers&gt;();
+	/// 泛型重载版本, 支持直接传入类名进行注册: MPPacketRouter.RegisterRoutes&lt;MyCustomHandlers&gt;();
 	/// </summary>
 	public static void RegisterRoutes<T>() {
 		RegisterRoutes(typeof(T));

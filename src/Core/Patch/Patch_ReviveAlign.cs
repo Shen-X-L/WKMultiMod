@@ -43,7 +43,7 @@ public static class ReviveAlign {
 	private static bool _restore;
 
 	/// <summary>
-	/// 静态构造函数：订阅生成事件
+	/// 静态构造函数: 订阅生成事件
 	/// </summary>
 	static ReviveAlign() {
 		EventBusGame.OnGenerateLevelsStart += OnGenerateStart;
