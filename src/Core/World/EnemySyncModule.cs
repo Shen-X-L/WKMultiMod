@@ -188,6 +188,7 @@ public enum EnemySyncAction : byte {
 	CustomFeature = 14,		// 自定义模块同步消息
 	CustomFeatureReply = 15,    // 自定义模块同步失败消息 (对象不存在/模块不存在)
 	InitialStateBatch = 16,	// 初始状态: 订阅者接受所有者初始化数据
+	OwnerTransfer = 17,	// 所有权转交: 当前所有者请求主机把实体交给指定玩家 (实体同步实验模式: 追人的怪交给最近的玩家)
 }
 
 #endregion
@@ -516,6 +517,9 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 					break;
 				case EnemySyncAction.InitialStateBatch:
 					module.HandleInitialStateBatch(senderId, reader);
+					break;
+				case EnemySyncAction.OwnerTransfer:
+					module.HandleOwnerTransfer(senderId, reader);
 					break;
 				default:
 					MPMain.LogWarning($"[MP EnemySync] Unknown action: {action}");
@@ -1499,6 +1503,41 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	/// 主机接受客机请求成为实体的新所有者
 	/// 发送函数: <see cref="SendOwnerRequest"/>
 	/// </summary>
+	/// <summary>
+	/// 当前所有者把实体转交给指定玩家 (主机直接执行, 客机请求主机执行)
+	/// 接收函数: <see cref="HandleOwnerTransfer"/>
+	/// </summary>
+	public void RequestOwnerTransfer(ulong networkId, IDType newOwnerId) {
+		if (!MPCore.CanSync || !IsEnabled || networkId == 0 || newOwnerId == 0) return;
+		if (MPSteamworks.IsHost) {
+			ApplyOwnerTransfer(MPSteamworks.UserSteamId, networkId, newOwnerId);
+			return;
+		}
+		var writer = GetWriter(MPSteamworks.UserSteamId, MPSteamworks.Instance.HostSteamId, PacketType.EnemySync);
+		writer.Put((byte)EnemySyncAction.OwnerTransfer);
+		writer.Put(networkId);
+		writer.Put(newOwnerId);
+		MPSteamworks.Instance.SendToHost(writer, SendType.Reliable);
+	}
+
+	private void HandleOwnerTransfer(IDType senderId, DataReader reader) {
+		if (!MPCore.CanSync || !IsEnabled || !MPSteamworks.IsHost) return;
+		ulong networkId = reader.GetULong();
+		IDType newOwnerId = reader.GetULong();
+		ApplyOwnerTransfer(senderId, networkId, newOwnerId);
+	}
+
+	/// <summary>
+	/// 主机: 只有当前所有者能转交, 且新所有者必须在房间里
+	/// </summary>
+	private void ApplyOwnerTransfer(IDType requesterId, ulong networkId, IDType newOwnerId) {
+		if (!_entityOwners.TryGetValue(networkId, out var currentOwnerId) || currentOwnerId != requesterId) return;
+		if (newOwnerId != MPSteamworks.UserSteamId && !MPSteamworks.ContainsMemberID(newOwnerId)) return;
+		SetEntityOwner(networkId, newOwnerId);
+		BroadcastOwnerResponse(new[] { networkId }, newOwnerId);
+		MPMain.LogInfo($"[MP EnemySync] Ownership of {networkId} transferred {requesterId} -> {newOwnerId}");
+	}
+
 	private void HandleOwnerRequest(IDType senderId, DataReader reader) {
 		if (!MPCore.CanSync || !IsEnabled || !MPSteamworks.IsHost) return;
 		// 获取申请包

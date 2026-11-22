@@ -114,8 +114,10 @@ public class NetworkedGameEntity : MonoBehaviour {
 	private void Update() {
 		// 超时检测: 如果超过 TIMEOUT_DURATION 秒未收到任何网络包, 则取消网络接管
 		if (!IsOwnedByMe && IsNetworkControlled)
-			if (Time.time - _lastDataRecvTime > TIMEOUT_DURATION) 
+			if (Time.time - _lastDataRecvTime > TIMEOUT_DURATION)
 				SetNetworkControl(false);
+		// 所有权转到本机 (转交 / 原所有者离开) 时还处于网络接管: 交还本地 AI 与物理
+		if (IsOwnedByMe && IsNetworkControlled) SetNetworkControl(false);
 
 		// 逐帧驱动所有 Feature 自身的 OnUpdate (例如平滑插值)
 		OnFrameUpdate(Time.deltaTime);
@@ -169,6 +171,10 @@ public class NetworkedGameEntity : MonoBehaviour {
 				RegisterFeature(new BarnacleTongueSyncFeature(barnacle, this));
 				break;
 		}
+		// 实体同步实验模式 full: 只追本机玩家的怪 (鼠王 / 遗骸) 交给最近的玩家驱动
+		if (EntitySync.EntityMode.Current == EntitySync.EntityMode.Mode.Full
+			&& (Entity is DEN_RatKing || Entity is DEN_Remains_Active))
+			RegisterFeature(new EntitySync.ChaseOwnerFeature(this));
 	}
 
 	// 注册模块

@@ -26,6 +26,7 @@ public class SnapshotTransformFeature : IStateSyncFeature, IFrameUpdateFeature {
 	private const float MID_DISTANCE = 60f;
 	private const float TELEPORT_DISTANCE = 20f;       // 相邻快照位移超过视为瞬移, 直接跳
 	private const int MAX_SNAPSHOTS = 16;
+	private const float HEARTBEAT_INTERVAL = 1f;     // 静止时的心跳间隔 (小于接管超时 2 秒)
 
 	#endregion
 
@@ -145,6 +146,8 @@ public class SnapshotTransformFeature : IStateSyncFeature, IFrameUpdateFeature {
 			|| Quaternion.Angle(_transform.rotation, _lastSentRot) > ROT_EPSILON_DEG;
 		bool stopped = _lastSentVel.sqrMagnitude > STOP_SPEED_SQR && _currentVel.sqrMagnitude <= STOP_SPEED_SQR;
 		if (healthChanged || stopped) return true;
+		// 静止时每秒补发一次心跳: 否则非所有者 2 秒收不到包就解除接管, 本地 AI 接手后再被拉回 (鼠王 "瞬移")
+		if (now - _lastSentTime > HEARTBEAT_INTERVAL) return true;
 		if (!moved) return false;
 		return ++_ticksSinceSend >= RequiredTicks();
 	}
