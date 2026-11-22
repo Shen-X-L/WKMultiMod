@@ -28,6 +28,12 @@ public class RootTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 	private const float RotationEpsilonDegrees = 1.0f;
 	private const float HealthEpsilon = 0.01f;
 
+	// 心跳: 静止时也按该间隔发送, 须小于接收方的接管超时 (NetworkedGameEntity.TIMEOUT_DURATION = 2 秒).
+	// 否则静止超过 2 秒的生物 (鼠王 / 遗骸 / HUNTER 等) 会被接收方解除接管, 本地 AI 接手后再被下一个包拉回 (瞬移).
+	// 用 Time.time: 所有者暂停时游戏时间停止, 心跳随之停止, 接收方 2 秒后照旧放弃接管.
+	private const float HEARTBEAT_INTERVAL = 1f;
+	private float _lastSendTime = float.NegativeInfinity;
+
 	#endregion
 
 	public RootTransformSyncFeature(NetworkedGameEntity netEntity) {
@@ -63,10 +69,12 @@ public class RootTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
 			return (_transform.position - _lastPosition).sqrMagnitude > PositionEpsilonSqr
 				|| Quaternion.Angle(_transform.rotation, _lastRotation) > RotationEpsilonDegrees
 				|| float.IsNaN(currentHp) != float.IsNaN(_lastHealth)
-				|| (!float.IsNaN(currentHp) && Mathf.Abs(currentHp - _lastHealth) > HealthEpsilon);
+				|| (!float.IsNaN(currentHp) && Mathf.Abs(currentHp - _lastHealth) > HealthEpsilon)
+				|| Time.time - _lastSendTime > HEARTBEAT_INTERVAL;
 		}
 	}
 	public void WriteState(DataWriter writer) {
+		_lastSendTime = Time.time;
 		_lastPosition = _transform.position;
 		_lastRotation = _transform.rotation;
 		_lastHealth = _entity != null ? _entity.health : float.NaN;
