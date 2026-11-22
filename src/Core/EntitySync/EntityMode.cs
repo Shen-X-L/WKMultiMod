@@ -18,8 +18,22 @@ public static class EntityMode {
 
 	public const string LOBBY_KEY = "wkmp_entity_mode";
 
-	// 本地测试版: 自己开房时默认 full (房间数据里还没有该键时由房主写入); 加入别人的房间时没有该键仍按 off (对方可能是正式版)
-	private const Mode HOST_DEFAULT = Mode.Full;
+	// 自己开房时写入的模式 (房间数据里还没有该键时由房主写入); 加入别人的房间时没有该键仍按 off (对方可能是正式版).
+	// 本地测试版默认 full; LobbyOptions 插件的开局界面按钮读写它 (字符串, 便于反射)
+	public static Mode HostDefault { get; set; } = Mode.Full;
+
+	public static string HostDefaultName {
+		get => HostDefault.ToString().ToLowerInvariant();
+		set {
+			if (Parse(value) is not Mode mode) return;
+			HostDefault = mode;
+			// 已在自己开的房间里: 同时写入房间数据 (只影响之后新加载的实体)
+			if (MPCore.IsInLobby && MPSteamworks.IsHost && MPSteamworks.Instance != null) {
+				MPSteamworks.Instance.SetLobbyData(LOBBY_KEY, HostDefaultName);
+				MPMain.LogInfo($"[MP EntityMode] Host set entity mode to {mode}");
+			}
+		}
+	}
 
 	public static Mode Current {
 		get {
@@ -27,13 +41,17 @@ public static class EntityMode {
 			string raw = MPSteamworks.Instance?.LobbyData?.GetValueOrDefault(LOBBY_KEY);
 			if (Parse(raw) is Mode mode) return mode;
 			if (MPSteamworks.IsHost && MPSteamworks.Instance != null) {
-				MPSteamworks.Instance.SetLobbyData(LOBBY_KEY, HOST_DEFAULT.ToString().ToLowerInvariant());
-				MPMain.LogInfo($"[MP EntityMode] Lobby had no entity mode, set the default {HOST_DEFAULT}");
-				return HOST_DEFAULT;
+				// 写入后要等 Steam 回调才进本地缓存, 期间读到的仍为空: 只记一次日志
+				MPSteamworks.Instance.SetLobbyData(LOBBY_KEY, HostDefaultName);
+				if (!_loggedDefault) MPMain.LogInfo($"[MP EntityMode] Lobby had no entity mode, set the default {HostDefault}");
+				_loggedDefault = true;
+				return HostDefault;
 			}
 			return Mode.Off;
 		}
 	}
+
+	private static bool _loggedDefault;
 
 	public static bool AtLeastSmooth => Current >= Mode.Smooth;
 
@@ -63,8 +81,7 @@ public static class EntityMode {
 			CommandConsole.LogError("只有房主可以设置 entitymode");
 			return;
 		}
-		MPSteamworks.Instance.SetLobbyData(LOBBY_KEY, mode.ToString().ToLowerInvariant());
-		CommandConsole.Log($"entitymode 已设为 {mode.ToString().ToLowerInvariant()} (之后新加载的实体生效)");
-		MPMain.LogInfo($"[MP EntityMode] Host set entity mode to {mode}");
+		HostDefaultName = mode.ToString().ToLowerInvariant();
+		CommandConsole.Log($"entitymode 已设为 {HostDefaultName} (之后新加载的实体生效)");
 	}
 }
