@@ -15,14 +15,14 @@ public class UI_LoadingDisplay : MonoBehaviour {
 	#region[Unity生命周期函数]
 
 	private void Awake() {
-		MPEventBusGame.OnShowLoading += HandleLoadingRequest;
-		MPEventBusGame.OnHideLoading += HideImmediately;
+		EventBusGame.OnShowLoading += HandleLoadingRequest;
+		EventBusGame.OnHideLoading += HideImmediately;
 		gameObject.SetActive(false);  // 初始状态为隐藏
 	}
 
 	private void OnDestroy() {
-		MPEventBusGame.OnShowLoading -= HandleLoadingRequest;
-		MPEventBusGame.OnHideLoading -= HideImmediately;
+		EventBusGame.OnShowLoading -= HandleLoadingRequest;
+		EventBusGame.OnHideLoading -= HideImmediately;
 	}
 
 	#endregion

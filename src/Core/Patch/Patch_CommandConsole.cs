@@ -29,7 +29,7 @@ public class Patch_CommandConsole {
 		// 在大厅且不允许作弊
 		if (MPCore.IsInLobby && !MPCore.IsAllowCheats && !MPSteamworks.IsHost) {
 			// 当前大厅不允许作弊
-			CommandConsole.LogError(Localization.Get("CommandConsole.CheatsNotAllowed"));
+			CommandConsole.LogError(Localization.GetLog("CommandConsole.CheatsNotAllowed"));
 			return false;
 		} 
 		else return true;
@@ -85,7 +85,7 @@ public class Patch_CommandConsole {
 			string flaggedCommand = RCON_MARKER + command;
 			console.ExecuteCommand(flaggedCommand, false);
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("Patch.ForceExecuteCommandCrash", ex.Message));
+			MPMain.LogError(Localization.GetLog("Patch.ForceExecuteCommandCrash", ex.Message));
 			// 极端熔断保护
 			CommandConsole.cheatsEnabled = false;
 			_rconCount = 0;

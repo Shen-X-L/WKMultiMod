@@ -1,21 +1,18 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using UnityEngine;
-using UnityEngine.UIElements;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
 using WKMPModa.Shared.Data;
-using static UnityEngine.GraphicsBuffer;
-using static UnityEngine.UI.Image;
 using Vector3 = UnityEngine.Vector3;
 
-namespace WKMPMod.Component;
+namespace WKMPMod.Components;
 // MultiPlayerHandComponent: 管理玩家手部的网络同步位置
 public class RemoteHand : MonoBehaviour {
-	#region[映射后配置字段]
+	#region[字段和属性]
+
+	#region[	映射后配置字段]
 
 	public byte handType;// 手部索引
 	public float teleportThreshold = 50f;// 瞬移阈值: 超过此距离直接传送
@@ -27,7 +24,7 @@ public class RemoteHand : MonoBehaviour {
 
 	#endregion
 
-	#region[运行时数据]
+	#region[	运行时数据]
 
 	// 玩家ID,用于识别玩家
 	public IDType playerId;
@@ -47,7 +44,7 @@ public class RemoteHand : MonoBehaviour {
 
 	#endregion
 
-	#region[手部物品相关]
+	#region[	手部物品相关]
 
 	public const string NONE_ITEM_NAME = "None";// 空物品
 	public const string ITEM_GLOVE_NAME = "Item_Artifact_EVAGlove";// 手套物品
@@ -60,10 +57,12 @@ public class RemoteHand : MonoBehaviour {
 
 	#endregion
 
-	#region[姿态变换]
+	#region[	姿态变换]
 
 	public Transform shoulderTransform; // 肩膀 Transform (若无胳膊可留空)
 	public Transform bodyTransform;     // 身体 Transform (无胳膊时的备用参照)
+
+	#endregion
 
 	#endregion
 
@@ -147,7 +146,7 @@ public class RemoteHand : MonoBehaviour {
 		// 拖拽超时检测
 		if (_isBeingGrabbed && Time.time - _lastGrabTimestamp > GRAB_TIMEOUT_SECONDS) {
 			_isBeingGrabbed = false;
-			MPEventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
+			EventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
 		}
 
 		// 应用拖拽物理
@@ -242,13 +241,13 @@ public class RemoteHand : MonoBehaviour {
 
 		// 被抓取状态变化通知
 		if (handData.IsBeHanging(targetPlayerId) != _wasBeingHanged) {
-			MPEventBusGame.NotifyRemoteHang(playerId, !_wasBeingHanged);
+			EventBusGame.NotifyRemoteHang(playerId, !_wasBeingHanged);
 			_wasBeingHanged = !_wasBeingHanged;
 		}
 
 		// 被拖拽状态变化通知
 		if (_isBeingGrabbed != _wasBeingGrabbed) {
-			MPEventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
+			EventBusGame.NotifyRemoteGrab(playerId, _isBeingGrabbed);
 			_wasBeingGrabbed = _isBeingGrabbed;
 		}
 
@@ -306,16 +305,17 @@ public class RemoteHand : MonoBehaviour {
 	/// </summary>
 	private GameObject? BuildItem(string prefabName) {
 		if (!MPUtil.TryGetItemPrefab(prefabName, out var itemPrefab)) {
-			MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", prefabName));
+			MPMain.LogError(Localization.GetLog("MPMessageHandlers.PrefabDoesNotExist", prefabName));
 			if (!MPUtil.TryGetItemPrefab(ITEM_TEMP, out var itemPrefabTemp)) {
-				MPMain.LogError(Localization.Get("MPMessageHandlers.PrefabDoesNotExist", ITEM_TEMP));
+				MPMain.LogError(Localization.GetLog("MPMessageHandlers.PrefabDoesNotExist", ITEM_TEMP));
 				return null;
 			}
 			itemPrefab = itemPrefabTemp;
 		}
 
 		// 构建物品实例
-		var obj = GameObject.Instantiate(itemPrefab, transform).gameObject;
+		var itemObj = GameObject.Instantiate(itemPrefab, transform);
+		var obj = itemObj.gameObject;
 
 		// 移除所有 MeshCollider(镜像后会失效)
 		bool needBuildCollider = false;
@@ -387,7 +387,11 @@ public class RemoteHand : MonoBehaviour {
 		if (tags != null) {
 			tags.RemoveTag("Item");
 			tags.RemoveTag("Prop");
-			tags.AddTag("ItemLocked");
+		}
+		var item = itemObj.itemData;
+		if (item != null) {
+			item.itemTags.Add(MPKeys.OTHER_PLAYER_ITEM);
+			item.itemTags.Add("inLocker");
 		}
 
 		obj.SetActive(false);
@@ -418,5 +422,4 @@ public class RemoteHand : MonoBehaviour {
 			_isTeleporting = false;
 		}
 	}
-
 }

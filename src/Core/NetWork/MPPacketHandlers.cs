@@ -1,12 +1,13 @@
 ﻿using Steamworks;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Patch;
-using WKMPMod.RemotePlayer;
+using WKMPMod.RemotePlayers;
 using WKMPMod.UI;
 using WKMPMod.Util;
 using WKMPMod.World;
@@ -28,16 +29,44 @@ public class MPPacketHandlers {
 		// 如果是从转发给自己的,忽略
 		reader.GetOut<PlayerData>(out var playerData);
 		var playerId = playerData.playId;
-		if (playerId == MPSteamworks.UserSteamId) {
-			return;
-		}
+		if (playerId == MPSteamworks.UserSteamId) return;
 
 		RPManager.Instance.ProcessPlayerData(playerId, ref playerData);
 
 		// 获取自定义额外数据
 		if (reader.GetBool()) {
-			var playerDictData = reader.GetStringStringDict();
-			RPManager.Instance.ProcessPlayerCustomProperties(playerId, playerDictData);
+			var extraPlayerData = reader.GetStringStringDict();
+			RPManager.Instance.ProcessExtraPlayerData(playerId, extraPlayerData);
+		}
+	}
+
+	/// <summary>
+	/// 主机/客户端接收MemberDataMessage: 请求/相应玩家数据<br/>
+	/// 发送函数 <see cref="MPCore.CheckAndRepairPlayers"/><br/>
+	/// 发送函数 <see cref="HandleMemberDataMessage"/><br/>
+	/// </summary>
+	[MPPacketHandler(PacketType.MemberDataMessage)]
+	private static void HandleMemberDataMessage(IDType senderId, DataReader reader) {
+		if (senderId == MPSteamworks.UserSteamId) return;
+		var isResponse = reader.GetBool();
+		if (!isResponse) {
+			// 请求包
+			var writer = GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.MemberDataMessage);
+			writer.Put(true);
+			writer.Put(MPSteamworks.Instance.GetAllMemberData());
+			writer.Put(LocalPlayer.Instance.LastPlayerData);
+			writer.Put(LocalPlayer.Instance.extraPlayerData);
+			MPSteamworks.Instance.SendToPeer(senderId, writer);
+		} else {
+			// 响应包
+			var memberData = reader.GetStringStringDict();
+			reader.GetOut<PlayerData>(out var playerData);
+			var extraPlayerData = reader.GetStringStringDict();
+			var playerId = playerData.playId;
+
+			RPManager.Instance.ProcessMemberData(senderId, memberData);
+			RPManager.Instance.ProcessPlayerData(playerId, ref playerData);
+			RPManager.Instance.ProcessExtraPlayerData(playerId, extraPlayerData);
 		}
 	}
 
@@ -63,16 +92,9 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
-	/// 主机/客户端接收PitonStateSync: 同步实时放置的piton状态.
-	/// </summary>
-	[MPPacketHandler(PacketType.PitonStateSync)]
-	private static void HandlePitonStateSync(IDType senderId, DataReader reader) {
-		ClimbableSyncModule.Instance.HandlePitonState(senderId, reader);
-	}
-
-	/// <summary>
 	/// 主机/客户端接收PlayerDamage: 受到伤害<br/>
 	/// 发送函数: <see cref="MPCore.HandlePlayerDamage"/>
+	/// 具体实现: <see cref="RemotePlayer.Damage"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerDamage)]
 	private static void HandlePlayerDamage(IDType senderId, DataReader reader) {
@@ -81,26 +103,46 @@ public class MPPacketHandlers {
 		List<string> tags = reader.GetStringList();
 		IDType source = reader.GetULong();
 
-		if (RPManager.Instance.Players.TryGetValue(source, out var container)
-			&& container?.RemoteEntities?.Length > 0) {
-			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, container.RemoteEntities[0]));
-		} else
-			ENT_Player.GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
+		// 玩家造成的伤害 && 存在玩家
+		if (tags.Contains("player") && RPManager.Instance.Players.TryGetValue(source, out var container) 
+			&& container?.remotePlayer != null && container?.remotePlayer.pvpEnabled == true) {
+			GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, container.remotePlayer));
+			// 有远程生物伤害标签 && 有对应ID 
+		} else if (tags.Contains(MPKeys.REMOTE_ENEMY_DAMAGE_TAG)
+					&& tags.FirstOrDefault(t => t.StartsWith("NetEnemyId:", StringComparison.Ordinal)) is string idTag
+					&& ulong.TryParse(idTag.AsSpan(11), out ulong networkId)) {
+			// 存在对应ID生物 && 生物被网络接管 && 本地未死亡
+			if (EnemySyncModule.Instance.enemies.TryGetValue(networkId, out var identity)
+				&& identity.IsNetworkControlled && !identity.Entity.dead) {
+				GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags, identity.Entity));
+			}
+		} else {
+			//GetPlayer().Damage(Damageable.DamageInfo.CreateDamageInfo(amount, type, tags));
+		}
 	}
 
 	/// <summary>
 	/// 主机/客户端接收PlayerAddForce: 受到冲击力<br/>
 	/// 发送函数: <see cref="MPCore.HandlePlayerAddForce"/>
+	/// 具体实现: <see cref="RemotePlayer.AddForce"/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerAddForce)]
 	private static void HandlePlayerAddForce(IDType senderId, DataReader reader) {
-		Vector3 force = new Vector3 {
-			x = reader.GetFloat(),
-			y = reader.GetFloat(),
-			z = reader.GetFloat(),
-		};
+		Vector3 force = reader.GetVector3();
 		string source = reader.GetString();
-		ENT_Player.GetPlayer().AddForce(force, source);
+		// 其他玩家造成的冲击力
+		if (!source.StartsWith("NetEnemyId:", StringComparison.Ordinal)) {
+			GetPlayer().AddForce(force, source);
+			return;
+		}
+		// 有远程生物伤害标签 && 有对应ID && 存在对应ID生物 && 生物被网络接管 && 本地未死亡
+		if (source.StartsWith("NetEnemyId:", StringComparison.Ordinal)
+			&& ulong.TryParse(source.AsSpan(11), out ulong networkId)
+			&& EnemySyncModule.Instance.enemies.TryGetValue(networkId, out var identity)
+			&& identity.IsNetworkControlled && !identity.Entity.dead) {
+			GetPlayer().AddForce(force, identity.Entity.name);
+			return;
+		}
 	}
 
 	/// <summary>
@@ -132,117 +174,91 @@ public class MPPacketHandlers {
 	}
 
 	/// <summary>
-	/// 主机/客户端接收PlayerTeleportRequest<br/>
-	/// 发送PlayerTeleportRespond: 位置数据, 库存数据, 有Mess环境则携带Mess数据<br/>
-	/// 接受函数 <see cref="HandlePlayerTeleportRespond"/>
+	/// 主机/客户端接收 PlayerTeleportMessage: 请求/响应玩家传送与数据同步<br/>
+	/// 发送函数 <see cref="MPCore.TpToPlayer"/><br/>
+	/// 发送函数 <see cref="HandlePlayerTeleportMessage"/><br/>
 	/// </summary>
 	/// <param name="senderId">发送方ID</param>
-	[MPPacketHandler(PacketType.PlayerTeleportRequest)]
-	private static void HandlePlayerTeleportRequest(IDType senderId, DataReader reader) {
-		// 获取数据
-		var playerPos = ENT_Player.GetPlayer().transform.position;
-		var writer = GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.PlayerTeleportRespond);
-		writer.Put(playerPos.x);
-		writer.Put(playerPos.y);
-		writer.Put(playerPos.z);
+	[MPPacketHandler(PacketType.PlayerTeleportMessage)]
+	private static void HandlePlayerTeleportMessage(IDType senderId, DataReader reader) {
+		if (senderId == MPSteamworks.UserSteamId) return;
 
-		// 库存物品字典
-		writer.Put(InventoryManager.GetBlacklistInventoryItems(
-			new string[] { InventoryManager.ARTIFACT, InventoryManager.TRINKET }));
+		var isResponse = reader.GetBool();
 
-		// 没有Mess环境则直接发送位置数据,有则发送位置数据和Mess数据
-		if (DEN_DeathFloor.instance == null) {
-			writer.Put(false);
-		} else {
-			var deathFloorData = DEN_DeathFloor.instance.GetSaveData();
+		if (!isResponse) {
+			// 请求包处理
+			var playerPos = GetPlayer().transform.position;
+			var writer = GetWriter(MPSteamworks.UserSteamId, senderId, PacketType.PlayerTeleportMessage);
+			// 写入响应标志
 			writer.Put(true);
-			writer.Put(deathFloorData.relativeHeight);
-			writer.Put(deathFloorData.active);
-			writer.Put(deathFloorData.speed);
-			writer.Put(deathFloorData.speedMult);
-		}
-		MPSteamworks.Instance.SendToPeer(senderId, writer);
-	}
+			// 写入位置数据
+			writer.Put(playerPos);
+			// 写入库存物品字典
+			writer.Put(InventoryManager.GetBlacklistInventoryItems(
+				new string[] { InventoryManager.ARTIFACT, InventoryManager.TRINKET }));
 
-	/// <summary>
-	/// 主机/客户端接收PlayerTeleportRespond: 位置数据, 库存数据, 有Mess环境则携带Mess数据
-	/// 发送函数 <see cref="HandlePlayerTeleportRequest"/>
-	/// </summary>
-	/// <param name="senderId">发送ID</param>
-	[MPPacketHandler(PacketType.PlayerTeleportRespond)]
-	private static void HandlePlayerTeleportRespond(IDType senderId, DataReader reader) {
-		var posX = reader.GetFloat();
-		var posY = reader.GetFloat();
-		var posZ = reader.GetFloat();
+			// 没有 Mess 环境则直接发送位置数据, 有则发送位置数据和 Mess 数据
+			if (DEN_DeathFloor.instance == null) {
+				writer.Put(false);
+			} else {
+				var deathFloorData = DEN_DeathFloor.instance.GetSaveData();
+				writer.Put(true);
+				writer.Put(deathFloorData.relativeHeight);
+				writer.Put(deathFloorData.active);
+				writer.Put(deathFloorData.speed);
+				writer.Put(deathFloorData.speedMult);
+			}
 
-		// 对方背包物品
-		var remoteItems = reader.GetStringByteDict();
-		var localItems = InventoryManager.GetInventoryItems();
-		var missingItems = SetDifference(remoteItems, localItems);
+			MPSteamworks.Instance.SendToPeer(senderId, writer);
+		} else {
+			// 响应包处理
+			var pos = reader.GetVector3();
 
-		var inventory = Inventory.instance;
-		foreach (var (itemPrefabName, count) in missingItems) {
-			// 获取预制体
-			if(!MPUtil.TryGetItemPrefab(itemPrefabName, out var itemObjectPrefab)) continue;
+			// 对方背包物品补全处理
+			var remoteItems = reader.GetStringByteDict();
+			var localItems = InventoryManager.GetInventoryItems();
+			var missingItems = SetDifference(remoteItems, localItems);
 
-			for (int i = 0; i < count; i++) {
-				// 实例化物品在 0,1,0 
-				var itemObject = GameObject.Instantiate(itemObjectPrefab, new Vector3(0, 1, 0), Quaternion.identity);
-				var itemData = itemObject.itemData;
-				// 通过.upDirection属性,摆正为竖直向上
-				itemData.bagRotation = Quaternion.LookRotation(itemData.upDirection);
-				// 将物品放入背包
-				inventory.AddItemToInventoryCenter(itemData);
-				// 隐藏镜像物品对象,因为它已经被添加到库存中,不需要在场景中显示
-				itemObject.gameObject.SetActive(false);
+			var inventory = Inventory.instance;
+			foreach (var (itemPrefabName, count) in missingItems) {
+				// 获取预制体
+				if (!MPUtil.TryGetItemPrefab(itemPrefabName, out var itemObjectPrefab)) continue;
 
+				for (int i = 0; i < count; i++) {
+					// 实例化物品在 0,1,0 
+					var itemObject = GameObject.Instantiate(itemObjectPrefab, new Vector3(0, 1, 0), Quaternion.identity);
+					var itemData = itemObject.itemData;
+					// 通过 .upDirection 属性, 摆正为竖直向上
+					itemData.bagRotation = Quaternion.LookRotation(itemData.upDirection);
+					// 将物品放入背包
+					inventory.AddItemToInventoryCenter(itemData);
+					// 隐藏镜像物品对象, 因为它已经被添加到库存中, 不需要在场景中显示
+					itemObject.gameObject.SetActive(false);
+				}
+			}
+
+			// Mess 环境数据解析与传送
+			if (reader.GetBool()) {
+				var deathFloorData = new DEN_DeathFloor.SaveData {
+					relativeHeight = reader.GetFloat(),
+					active = reader.GetBool(),
+					speed = reader.GetFloat(),
+					speedMult = reader.GetFloat(),
+				};
+
+				// 关闭可击杀效果
+				DEN_DeathFloor.instance.SetCanKill(new string[] { "false" });
+				// 重设计数器, 期间位移视为传送
+				LocalPlayer.Instance.TriggerTeleport();
+				GetPlayer().Teleport(pos);
+				DEN_DeathFloor.instance.LoadDataFromSave(deathFloorData);
+				DEN_DeathFloor.instance.SetCanKill(new string[] { "true" });
+			} else {
+				// 重设计数器, 期间位移视为传送
+				LocalPlayer.Instance.TriggerTeleport();
+				GetPlayer().Teleport(pos);
 			}
 		}
-
-		if (reader.GetBool()) {
-			var deathFloorData = new DEN_DeathFloor.SaveData {
-				relativeHeight = reader.GetFloat(),
-				active = reader.GetBool(),
-				speed = reader.GetFloat(),
-				speedMult = reader.GetFloat(),
-			};
-
-			// 关闭可击杀效果
-			DEN_DeathFloor.instance.SetCanKill(new string[] { "false" });
-			// 重设计数器,期间位移视为传送
-			LocalPlayer.Instance.TriggerTeleport();
-			ENT_Player.GetPlayer().Teleport(new Vector3(posX, posY, posZ));
-			DEN_DeathFloor.instance.LoadDataFromSave(deathFloorData);
-			DEN_DeathFloor.instance.SetCanKill(new string[] { "true" });
-		} else {
-			// 重设计数器,期间位移视为传送
-			LocalPlayer.Instance.TriggerTeleport();
-			ENT_Player.GetPlayer().Teleport(new Vector3(posX, posY, posZ));
-		}
-	}
-
-	/// <summary>
-	/// 主机/客户端接收ItemStateSync: 通过物品同步管理器来进行物品同步
-	/// </summary>
-	[MPPacketHandler(PacketType.SceneItemStateSync)]
-	private static void HandleSceneItemStateSync(IDType senderId, DataReader reader) {
-		SceneItemModule.Instance.HandleItemState(senderId, reader);
-	}
-
-	/// <summary>
-	/// 主机/客户端接收ItemStateSync: 通过物品同步管理器来进行物品同步
-	/// </summary>
-	[MPPacketHandler(PacketType.DroppedItemStateSync)]
-	private static void HandleDroppedItemStateSync(IDType senderId, DataReader reader) {
-		DroppedItemModule.Instance.HandleItemState(senderId, reader);
-	}
-
-	/// <summary>
-	/// 主机/客户端接收EnemyStateSync: 同步敌人位置、生命值、伤害请求和死亡状态
-	/// </summary>
-	[MPPacketHandler(PacketType.EnemyStateSync)]
-	private static void HandleEnemyStateSync(IDType senderId, DataReader reader) {
-		EnemySyncModule.Instance.HandleEnemyState(senderId, reader);
 	}
 
 	/// <summary>
@@ -279,9 +295,9 @@ public class MPPacketHandlers {
 	/// 客户端接收RemoteCommand: 处理指令远程调用<br/>
 	/// </summary>
 	[MPPacketHandler(PacketType.RemoteCommand)]
-	public static void HandleRemoteCommand(IDType senderId, DataReader reader) {
+	private static void HandleRemoteCommand(IDType senderId, DataReader reader) {
 		string command = reader.GetString();
-		CommandConsole.Log(Localization.Get("CommandConsole.PlayerIssuedCommand", new Friend(senderId).Name, command));
+		CommandConsole.Log(Localization.GetLog("CommandConsole.PlayerIssuedCommand", new Friend(senderId).Name, command));
 		Patch_CommandConsole.ExecuteCommandForcefully(command);
 	}
 
@@ -291,7 +307,7 @@ public class MPPacketHandlers {
 	/// 接受函数 <see cref="HandleBroadcastMessage"/><br/>
 	/// </summary>
 	[MPPacketHandler(PacketType.PlayerCheckRequest)]
-	public static void HandleCheckRequest(IDType senderId, DataReader reader) {
+	private static void HandleCheckRequest(IDType senderId, DataReader reader) {
 		string checkRequest = reader.GetString();
 		var player = ENT_Player.GetPlayer();
 		string data = checkRequest switch {

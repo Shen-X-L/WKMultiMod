@@ -196,6 +196,7 @@ public struct PlayerData : INetworkSerializable {
 	/// 使用 in 传递结构体, 避免大结构体按值传递的内存拷贝. 
 	/// </summary>
 	/// <param name="newData">当前帧的新数据</param>
+	/// <param name="forceUpdate">是否进行强制更新</param>
 	/// <returns>如果有显著变化, 返回 true</returns>
 	public bool UpdateIfChanged(in PlayerData newData, bool forceUpdate = false) {
 		// 强制更新

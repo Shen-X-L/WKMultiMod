@@ -1,14 +1,10 @@
 ﻿using DG.Tweening;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Steamworks;
 using Steamworks.Data;
 using System;
 using System.Collections;
-using System.Diagnostics;
-using System.Threading.Tasks;
 using TMPro;
-using Unity.Entities.UniversalDelegates;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -71,6 +67,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		// 关联大厅数据
 		this.lobby = lobby;
 		// 添加点击事件监听
+		btnComp?.onClick.RemoveAllListeners();
 		btnComp!.onClick.AddListener(async () => {
 			// 禁用按钮并显示加入中状态
 			Joining();
@@ -86,55 +83,13 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 				}
 			} catch (Exception ex) {
 				// 连接过程中发生异常,记录错误并恢复按钮交互
-				MPMain.LogError(Localization.Get("UI_LobbyJoinButton.JoinLobbyFailed", ex.Message));
+				MPMain.LogError(Localization.GetLog("UI_LobbyJoinButton.JoinLobbyFailed", ex.Message));
 				JoinFailed();
 			}
 		});
-
+		// 重新构建UI
 		unlockIcon?.gameObject.SetActive(false);
-
-		// 获取游戏模式数据
-		var rawData = lobby.GetData(MPKeys.GAMEMODE_JSON);
-		try {
-			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
-			MPMain.LogInfo($"[MP UI] gameModeName: {gameModeData?.gameModeName ?? ""}");
-		} catch (JsonException ex) {
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.GamemodeParseError", rawData, ex.Message));
-		}
-		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
-
-		// 自定义游戏模式显示锁定图标,显示未知游戏模式文本
-		if (!isOfficialGamemodes) {
-			unlockIcon?.gameObject.SetActive(true);
-			unlockText?.text = Localization.GetSmart("UI_LobbyJoinButton.UnknownGamemode");
-		}
-		// 设置按钮交互和透明度
-		if (group != null) {
-			group.interactable = isOfficialGamemodes;
-			group.alpha = isOfficialGamemodes ? 1f : 0.5f;
-		}
-		// 官方游戏模式显示胶囊图标,自定义游戏模式不显示(后续可以考虑添加自定义图标支持)
-		if (isOfficialGamemodes) {
-			this.gamemode = gamemode;
-			// 设置胶囊按钮图标
-			GetComponent<UnityEngine.UI.Image>()?.sprite = gamemode.capsuleArt;
-		}
-
-		// 查看版本是否匹配
-		var (isCompatible, versionDisplay) = CheckVersionCompatibility(MPMain.PLUGIN_VERSION, lobby.GetData(MPKeys.MOD_VERSION));
-		if (!isCompatible) {
-			unlockIcon?.gameObject.SetActive(true);
-			unlockText?.text = versionDisplay;
-		}
-
-		// 设置标题(支持自定义名称)
-		string nameData = lobby.GetData(MPKeys.LOBBY_NAME);
-		if (lobbyName != null) {
-			lobbyName.richText = false;    // 关闭Unity富文本
-			string displayName = !string.IsNullOrEmpty(nameData) ? nameData : lobby.Id.ToString();
-			lobbyName.text = $"{displayName} \n({lobby.MemberCount}/{lobby.MaxMembers})";
-		}
-
+		RefreshLobbyData();
 		// 加载房主信息(头像和名称)
 		StartCoroutine(TrackAndLoadOwnerInfoCoroutine());
 	}
@@ -183,39 +138,54 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	public void OnLobbyDataUpdated(Lobby updatedLobby) {
 		// 更新本地大厅引用, 确保后续点击加入时用的是最新对象
 		this.lobby = updatedLobby;
+		// 重新构建UI
+		RefreshLobbyData();
+		// 重新加载房主信息
+		if (hostName?.text == "Fetching..." || hostName?.text == "Loading Name...") 
+			StartCoroutine(TrackAndLoadOwnerInfoCoroutine());
+	}
 
-		// 重新检测游戏模式
+	private void RefreshLobbyData() {
+		// 获取游戏模式数据
 		var rawData = lobby.GetData(MPKeys.GAMEMODE_JSON);
 		try {
 			gameModeData = JsonConvert.DeserializeObject<GameModeData>(rawData);
 		} catch (JsonException ex) {
-			MPMain.LogError(Localization.Get("UI_LobbyJoinButton.GamemodeParseError", rawData, ex.Message));
+			gameModeData = null;
+			MPMain.LogError(Localization.GetLog("UI_LobbyJoinButton.GamemodeParseError",rawData,ex.Message));
 		}
-
-		isOfficialGamemodes = TryGetGameMode(gameModeData?.gameModeName ?? "", out var gamemode);
-
-
-		var tempLobbyName = lobby.GetData(MPKeys.LOBBY_NAME);
-		// 更新名称
-		if (!string.IsNullOrEmpty(tempLobbyName)) {
-			lobbyName?.text = tempLobbyName;
+		// 检查兼容性 模式检测 版本检测
+		isOfficialGamemodes = TryGetGameMode(gameModeData?.gamemodeName ?? "", out var gamemode);
+		var (isCompatible, versionDisplay) = CheckVersionCompatibility(MPMain.PLUGIN_VERSION, lobby.GetData(MPKeys.MOD_VERSION));
+		// 是否锁定的UI' 状态
+		if (!isOfficialGamemodes) {
+			// 自定义游戏模式显示锁定图标,显示未知游戏模式文本
+			unlockIcon?.gameObject.SetActive(true);
+			unlockText?.text = Localization.Get("UI_LobbyJoinButton.UnknownGamemode");
+		} else if (!isCompatible) {
+			// 官方游戏模式但版本不兼容,显示锁定图标和版本不兼容文本
+			unlockIcon?.gameObject.SetActive(true);
+			unlockText?.text = versionDisplay;
+		} else {
+			unlockIcon?.gameObject.SetActive(false);
+			unlockText?.text = "";
 		}
-
-		// 更新 UI 状态
-		if (unlockIcon != null) unlockIcon.gameObject.SetActive(!isOfficialGamemodes);
+		// 设置按钮交互和透明度
 		if (group != null) {
 			group.interactable = isOfficialGamemodes;
 			group.alpha = isOfficialGamemodes ? 1f : 0.5f;
 		}
-
-		if (isOfficialGamemodes && gamemode != null) {
+		// 官方游戏模式显示胶囊图标,自定义游戏模式不显示(后续可以考虑添加自定义图标支持)
+		if (isOfficialGamemodes) {
 			this.gamemode = gamemode;
-			GetComponent<UnityEngine.UI.Image>().sprite = gamemode.capsuleArt;
-		}
-
-		// 重新加载房主信息
-		if (hostName?.text == "Fetching..." || hostName?.text == "Loading Name...") {
-			StartCoroutine(TrackAndLoadOwnerInfoCoroutine());
+			if (GetComponent<UnityEngine.UI.Image>() is var image) image.sprite = gamemode.capsuleArt;
+		} else this.gamemode = null;
+		// 设置标题为大厅名称及人数(支持自定义名称)
+		string nameData = lobby.GetData(MPKeys.LOBBY_NAME);
+		if (lobbyName != null) {
+			lobbyName.richText = false; // 关闭Unity富文本
+			string displayName = string.IsNullOrEmpty(nameData) ? lobby.Id.ToString() : nameData;
+			lobbyName.text = $"{displayName} \n({lobby.MemberCount}/{lobby.MaxMembers})";
 		}
 	}
 
@@ -281,7 +251,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 		}
 		// 显示Loading弹窗
 		// 显示最长10秒的Loading,实际关闭由JoinSuccess或JoinFailed触发
-		MPEventBusGame.NotifyShowLoading(10f);
+		EventBusGame.NotifyShowLoading(10f);
 	}
 	// 加入失败 - 目前没有额外逻辑
 	public void JoinFailed() {
@@ -294,14 +264,14 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			pane.SetAllButtonsInteractable(true);
 		}
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading();
+		EventBusGame.NotifyHideLoading();
 	}
 
 	// 加入成功 - 目前没有额外逻辑
 	public void JoinSuccess() {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading();
+		EventBusGame.NotifyHideLoading();
 	}
 
 	#endregion
@@ -328,12 +298,12 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 	#region[版本对比]
 	private (bool compatible, string displayText) CheckVersionCompatibility(string currentVersion, string lobbyVersion) {
 		if (string.IsNullOrEmpty(lobbyVersion)) {
-			return (false, Localization.GetSmart("UI_LobbyJoinButton.UnableToRetrieveLobbyVersion"));
+			return (false, Localization.Get("UI_LobbyJoinButton.UnableToRetrieveLobbyVersion"));
 		}
 
 		var v1 = new Version(currentVersion);
 		if (!Version.TryParse(lobbyVersion, out var v2)) {
-			return (false, Localization.GetSmart("UI_LobbyJoinButton.InvalidLobbyVersion", lobbyVersion));
+			return (false, Localization.Get("UI_LobbyJoinButton.InvalidLobbyVersion", lobbyVersion));
 		}
 
 		bool majorMatch = v1.Major == v2.Major;
@@ -359,7 +329,7 @@ public class UI_LobbyJoinButton : MonoBehaviour, IPointerEnterHandler, IPointerE
 			key = "VersionMatch";
 		}
 
-		string status = Localization.GetSmart($"UI_LobbyJoinButton.{key}", versionText);
+		string status = Localization.Get($"UI_LobbyJoinButton.{key}", versionText);
 		return (compatible, status);
 	}
 

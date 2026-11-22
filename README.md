@@ -1,4 +1,4 @@
-﻿# White Knuckle Multi Player Mod - White Knuckle Online MOD
+# White Knuckle Multi Player Mod - White Knuckle Online MOD
 
 **[中文](README_CN.md)** | **English**
 
@@ -8,14 +8,17 @@ This is a Unity MOD for the game  *White Knuckle* , implementing basic networked
 
 **Important Disclaimer** :
 
-* **I am not a Unity/C# developer by profession.**
-* **Some code in this project is AI-generated.**
-* Consequently,  **the quality of much of the code is likely very poor** . Please use with caution.
-* The online multiplayer functionality code is  **forked from a previous online mod project** .
+* **I am not a dedicated Unity/C# developer, and my daily work (web-related) does not involve this type of development.**
+* Because the game's code is unstable, the sync feature architecture in this project is primarily human-designed, and **some code is reviewed/refactored/implemented by AI.**
+* The multiplayer-related code is **forked from a previously existing multiplayer mod project (heavily refactored).**
 
 **Known Issues:**
 
 * Chaotic object lifecycle management, which may lead to unexpected behavior.
+* 
+**Current Roadmap**:
+
+Creature Sync (semi-complete, specializing for certain types) -> Map Sync Refactor (using map sequence + seed) -> Spectator Mode -> Lua Module Embedding -> Other Sync Features
 
 **Potential Future Goals:**
 
@@ -36,7 +39,7 @@ graph RL
 **Completed Goals**:
 
 * Player position sync
-* Player map sync – map remains the same after disk resurrection (please make good use of disk resurrection). Shortcut map sync is also supported (unstable, needs refactoring).
+* Player map sync, map remains the same after disk resurrection. Shortcut map sync is also supported (No longer valid, pending refactor.).
 * Player vs. Player (PvP) and configurable PvP damage
 * Players drop items upon death
 * UI-based multiplayer lobby
@@ -46,6 +49,7 @@ graph RL
 * Player-dropped item sync
 * Death sync
 * Entity data sync (semi-finished, needs further work)
+* Projectile Sync
 
 ---
 
@@ -375,8 +379,7 @@ WhiteKnuckleMod/
 
 1. **Install .NET SDK** : Download and install from the [Microsoft .NET website](https://dotnet.microsoft.com/).
 2. **Restore NuGet Packages** : Run `dotnet restore` in the project root directory.
-3. **Obtain Game DLLs** : It is essential to follow the instructions in `lib/README.md` to acquire the necessary game DLL files and place them in the `lib/` directory.
-
+3. **Link Game DLLs**: Edit the `src/LocalPaths.props` file and set `GamePath` to the `common/White Knuckle` path within your game installation directory.
 ## Contributing
 
 Welcome to submit Issues for bug reports or suggestions! Pull Requests are also welcome.
@@ -396,6 +399,7 @@ Welcome to submit Issues for bug reports or suggestions! Pull Requests are also 
 * Try to follow common C# naming conventions.
 * Add comments to explain critical sections.
 * Please test new features thoroughly.
+* Custom network packets should ideally be numbered 128 or above to avoid conflicts with the mod's native network packets.
 
 ## Important Copyright Notice
 
@@ -407,6 +411,7 @@ Welcome to submit Issues for bug reports or suggestions! Pull Requests are also 
 * **[Harmony](https://github.com/pardeike/Harmony)** - A powerful .NET runtime patching library.
 * **[BepInEx](https://github.com/BepInEx/BepInEx)** - An excellent plugin framework for Unity games.
 * **[Time](https://github.com/TimeCr)** - Implemented numerous features, including rock bolt synchronization, dropped item synchronization, and entity synchronization (some features are still under testing).
+* **[LiuIsSlime](https://github.com/LiuIsSlime)** - Provided the map synchronization fix for the Halloween update.Fixed map synchronization after respawning in version 0.62.
 * **[Fugel](https://github.com/PotatoeShaman)** - Provided APIs for Steam friend invites, receiving invites, and in‑game UI display.
 * Kemoe! - Provided new icon art for the mod.
 * ***White Knuckle* Game Community** - For inspiration and testing assistance.

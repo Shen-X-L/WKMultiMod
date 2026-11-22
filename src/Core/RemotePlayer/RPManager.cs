@@ -10,7 +10,7 @@ using WKMPMod.Util;
 using static WKMPMod.UI.UI_Manager;
 
 
-namespace WKMPMod.RemotePlayer;
+namespace WKMPMod.RemotePlayers;
 
 // 生命周期为全局
 public class RPManager : Singleton<RPManager> {
@@ -20,7 +20,7 @@ public class RPManager : Singleton<RPManager> {
 
 	private TickTimer _debugTick = new TickTimer(5f);
 	// 存储所有远程对象
-	internal Dictionary<IDType, RPContainer> Players = new Dictionary<IDType, RPContainer>();
+	public Dictionary<IDType, RPContainer> Players = new Dictionary<IDType, RPContainer>();
 	private Dictionary<IDType, float> _lastDeathTime = new Dictionary<IDType, float>();
 	// 同一个玩家 2 秒内只能处理一次死亡信息, 避免重复处理导致的物品重复掉落和动画冲突
 	private const float DEATH_COOLDOWN = 2.0f;
@@ -37,8 +37,8 @@ public class RPManager : Singleton<RPManager> {
 
 	public void Initialize(Transform RootTransform) {
 		_remotePlayersRoot = RootTransform;
-		MPEventBusGame.OnPlayerDamage += ProcessPlayerDamage;
-		MPEventBusGame.OnRulesUpdated += RefreshAllRule;
+		EventBusGame.OnPlayerDamage += ProcessPlayerDamage;
+		EventBusGame.OnRulesUpdated += RefreshAllRule;
 	}
 
 	/// <summary>
@@ -79,7 +79,7 @@ public class RPManager : Singleton<RPManager> {
 		// 从工厂拿新实例
 		GameObject instance = RPFactoryManager.Instance.Create(prefabId);
 		if (instance == null) {
-			MPMain.LogError(Localization.Get("RPManager.FactoryCreateObjectFailed"));
+			MPMain.LogError(Localization.GetLog("RPManager.FactoryCreateObjectFailed"));
 			return false;
 		}
 
@@ -113,7 +113,7 @@ public class RPManager : Singleton<RPManager> {
 	/// 处理玩家数据字典
 	/// </summary>
 	public void ProcessMemberData(IDType playerId, Dictionary<string, string> data) {
-		MPMain.LogDebug($"[RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
+		MPMain.LogInfo($"[MP RPMan] member data: {string.Join(",", data.Select(kvp => kvp.Key + ": " + kvp.Value))}");
 
 		RPContainer container = GetOrCreateContainer(playerId);
 
@@ -155,20 +155,20 @@ public class RPManager : Singleton<RPManager> {
 			if (!container.IsModelReady) return;
 			container.HandlePlayerData(ref playerData);
 		} else if (_debugTick.TryTick()) {
-			MPMain.LogError(Localization.Get(
+			MPMain.LogError(Localization.GetLog(
 				"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 		}
 	}
 
-	public void ProcessPlayerCustomProperties(IDType playerId, Dictionary<string, string> playerData) {
+	public void ProcessExtraPlayerData(IDType playerId, Dictionary<string, string> playerData) {
 		if (!MPCore.IsInitialized || !MPCore.IsInLobby) return;
 
 		// 以后加上时间戳处理
 		if (Players.TryGetValue(playerId, out var container)) {
 			if (!container.IsModelReady) return;
-			container.HandlePlayerDictData(playerData);
+			container.HandleExtraPlayerData(playerData);
 		} else if (_debugTick.TryTick()) {
-			MPMain.LogError(Localization.Get(
+			MPMain.LogError(Localization.GetLog(
 				"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 		}
 	}
@@ -182,7 +182,7 @@ public class RPManager : Singleton<RPManager> {
 			RPcontainer.HandleNameTag(tagMessage);
 			return;
 		}
-		MPMain.LogError(Localization.Get(
+		MPMain.LogError(Localization.GetLog(
 			"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 	}
 
@@ -194,7 +194,7 @@ public class RPManager : Singleton<RPManager> {
 
 		if (_lastDeathTime.TryGetValue(playerId, out float lastTime)) {
 			if (currentTime - lastTime < DEATH_COOLDOWN) {
-				MPMain.LogWarning(Localization.Get("RPManager.PlayerDeathRateExceeded", playerId.ToString()));
+				MPMain.LogWarning(Localization.GetLog("RPManager.PlayerDeathRateExceeded", playerId.ToString()));
 				return;
 			}
 		}
@@ -278,7 +278,7 @@ public class RPManager : Singleton<RPManager> {
 		if (Players.TryGetValue(playerId, out var container)) {
 			return container.PlayerObject;
 		}
-		MPMain.LogError(Localization.Get(
+		MPMain.LogError(Localization.GetLog(
 			"RPManager.RemotePlayerObjectNotFound", playerId.ToString()));
 		return null;
 	}
@@ -295,7 +295,7 @@ public class RPManager : Singleton<RPManager> {
 	/// <param name="distanceThreshold">距离阈值</param>
 	/// <param name="farPlayers">输出: 距离 >= 阈值的玩家ID集合</param>
 	/// <param name="nearPlayers">输出: 距离 < 阈值的玩家ID集合</param>
-	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, ref List<IDType> farPlayers, ref List<IDType> nearPlayers) {
+	public void GetPlayersByDistance(Vector3 origin, float distanceThreshold, List<IDType> farPlayers, List<IDType> nearPlayers) {
 		farPlayers.Clear();
 		nearPlayers.Clear();
 
@@ -307,16 +307,11 @@ public class RPManager : Singleton<RPManager> {
 			RPContainer container = kvp.Value;
 
 			// 安全检查: 忽略无效的远程玩家实体
-			if (container == null || container.PlayerObject == null) {
-				continue;
-			}
+			if (container == null || container.PlayerObject == null) continue;
 
 			float sqrDistance = (container.PlayerObject.transform.position - origin).sqrMagnitude;
-			if (sqrDistance >= sqrThreshold) {
-				farPlayers.Add(playerId);
-			} else {
-				nearPlayers.Add(playerId);
-			}
+			if (sqrDistance >= sqrThreshold) farPlayers.Add(playerId);
+			else nearPlayers.Add(playerId);
 		}
 	}
 

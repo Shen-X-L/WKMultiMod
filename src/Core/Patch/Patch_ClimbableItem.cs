@@ -1,10 +1,8 @@
 using HarmonyLib;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using UnityEngine;
-using WKMPMod.Component;
 using WKMPMod.Core;
 using WKMPMod.Util;
 using WKMPMod.World;
@@ -37,21 +35,23 @@ public class Patch_HandItem_Piton_PitonHit {
 
 		// 寻找 ldfld HandItem_Piton::pitonWorldObject 访问
 		int fieldIndex = codes.FindIndex(c => c.opcode == OpCodes.Ldfld && c.operand is FieldInfo f && f == pitonField);
+		
 		if (fieldIndex == -1) {
-			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Piton.PitonHit"));
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Piton.PitonHit"));
 			return codes;
 		}
 
 		// 向后找第一个名为 Instantiate 且有 3 个参数的方法调用
 		int instantiateIndex = codes.FindIndex(fieldIndex, c =>
-			c.opcode == OpCodes.Call &&
-			c.operand is MethodInfo m &&
-			m.Name == "Instantiate" &&
-			m.GetParameters() is { Length: 3 } p &&
-			p[1].ParameterType == typeof(Vector3)
+			c.opcode == OpCodes.Call 
+			&& c.operand is MethodInfo m 
+			&& m.Name == "Instantiate" 
+			&& m.GetParameters() is { Length: 3 } p 
+			&& p[1].ParameterType == typeof(Vector3)
 		);
+
 		if (instantiateIndex == -1) {
-			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Piton.PitonHit"));
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Piton.PitonHit"));
 			return codes;
 		}
 
@@ -99,69 +99,7 @@ public class Patch_HandItem_Piton_PitonHit {
 	#endregion
 }
 
-[HarmonyPatch(typeof(Projectile))]
-public class Patch_Projectile_ClimbableSync {
-	/// <summary>
-	/// Patch: 投射物碰撞命中时
-	/// - 用于处理由投射物生成的可攀爬对象 (如射钉, 钩点等) 
-	///
-	/// Patch: Projectile collision hit
-	/// - Handles climbable objects spawned by projectiles (e.g. shootable pitons)
-	/// </summary>
-	[HarmonyPatch("OnCollisionHit")]
-	[HarmonyPostfix]
-	public static void Patch_OnCollisionHit_Postfix(Projectile __instance, RaycastHit hit) {
-		ClimbableSyncModule.Instance.RegisterNewLocalProjectileClimbable(__instance, hit);
-	}
-
-	[HarmonyPatch("CreateHitEffect")]
-	[HarmonyTranspiler]
-	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
-		var codes = new List<CodeInstruction>(instructions);
-
-		// 查找符合特征的 Instantiate 调用位置
-		int targetIndex = codes.FindIndex(c =>
-			c.opcode == OpCodes.Call &&
-			c.operand is MethodInfo m &&
-			m.Name == "Instantiate" &&
-			m.GetParameters() is { Length: 3 } p &&
-			p[1].ParameterType == typeof(Vector3)
-		);
-		if (targetIndex == -1) {
-			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
-			return codes;
-		}
-
-		// 注入代码: 复制返回值并调用 SaveCapturedPiton
-		var saveMethod = AccessTools.Method(typeof(ClimbableSyncModule), nameof(ClimbableSyncModule.SaveCapturedPiton));
-		codes.InsertRange(targetIndex + 1, new[] {
-			new CodeInstruction(OpCodes.Dup),
-			new CodeInstruction(OpCodes.Call, saveMethod)
-		});
-
-		return codes;
-	}
-
-	#region[旧代码]
-	/// <summary>
-	/// 碰撞前记录已有Handhold
-	///
-	/// Captures existing handholds before collision
-	/// </summary>
-	//	public static void Prefix(out HashSet<int> __state) {
-	//		__state = ClimbableItemSyncManager.CaptureExistingHandholds();
-	//	}
-
-	/// <summary>
-	/// 碰撞后检测新生成的可攀爬对象并同步
-	///
-	/// After collision, detects newly created climbable and syncs it
-	/// </summary>
-	//	public static void Postfix(Projectile __instance, RaycastHit hit, HashSet<int> __state) {
-	//		ClimbableItemSyncManager.RegisterNewLocalProjectileClimbable(__instance, hit, __state);
-	//	}
-	#endregion
-}
+// 投射物碰撞命中时生成的可攀爬对象已迁移至Patch_Projectile
 
 [HarmonyPatch(typeof(CL_Handhold))]
 public class Patch_CL_Handhold_PitonSync {
@@ -204,15 +142,15 @@ public class Patch_CL_Handhold_PitonSync {
 
 		// 查找符合特征的 Instantiate 调用位置
 		int targetIndex = codes.FindIndex(c =>
-			c.opcode == OpCodes.Call &&
-			c.operand is MethodInfo m &&
-			m.Name == "Instantiate" &&
-			m.GetParameters() is { Length: 3 } p &&
-			p[1].ParameterType == typeof(Vector3)
+			c.opcode == OpCodes.Call 
+			&& c.operand is MethodInfo m 
+			&& m.Name == "Instantiate" 
+			&& m.GetParameters() is { Length: 3 } p 
+			&& p[1].ParameterType == typeof(Vector3)
 		);
 
 		if (targetIndex == -1) {
-			MPMain.LogError(Localization.Get("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
 			return codes;
 		}
 

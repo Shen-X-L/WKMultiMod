@@ -232,6 +232,7 @@
     ]
   },
   "CommandConsole": {
+    "ExpectedBoolean": "Invalid argument {0}, expected true or false",
     "AllPlayer": "Name: {0} Id: {1} Distance: {2} Position: {3}",
     "AlreadyInOnlineMode": "You are already in online mode, \nplease use the leave command to leave and then go online",
     "AutoCommandInsufficientParams": "Insufficient parameters!",
@@ -323,6 +324,8 @@
     "LoadAsset": "[MP AssetMan] Loaded asset: {0} {1}"
   },
   "MPCore": {
+    "EnemySyncFollowHost": "[MPCore] Enemy sync follows the host: {0}",
+    "EnemySyncSet": "[MPCore] Enemy sync set to {0} (written to lobby data)",
     "AllConnectionLog": "[MPCore] All connections SteamId: {0} connections Id: {1}",
     "AllManagersInitialized": "[MPCore] All managers initialized.",
     "Awake": "[MPCore] MultiplayerCore Awake",
@@ -360,6 +363,18 @@
   "MPMain": {
     "Destroy": "[MPMain] MPMain (Launcher) has been destroyed."
   },
+  "MPMapSync": {
+    "DateChecked": "[MP MapSync] Date check {0} ~ {1}: time used {2}, result {3}",
+    "FlagOverridden": "[MP MapSync] Generation flag {0}: local {1} -> host {2}",
+    "HostInputsParseFailed": "[MP MapSync] Failed to parse host map inputs: {0}",
+    "HostInputsUnavailable": "[MP MapSync] No host inputs for this generation (seed {0}), generating from local data",
+    "Published": "[MP MapSync] Published map inputs: {0} generation flags, main route {1} levels",
+    "RouteBeyondHost": "[MP MapSync] Local route starts at {0}, outside the host's published {1}-level route; comparison skipped",
+    "RouteMatch": "[MP MapSync] Map matches the host ({0} levels compared)",
+    "RouteMismatch": "[MP MapSync] Map differs from the host at level {0}: local {1} / host {2}",
+    "RouteMismatchMessage": "Your map differs from the host's from level {0}; you may not see other players past it",
+    "UsingHostInputs": "[MP MapSync] Generating with host inputs: seed {0}, {1} generation flags, host time {2}, host main route {3} levels"
+  },
   "MPMessageHandlers": {
     "PrefabIsNotItem": "[MP Handlers] Prefab: {0} is not an item and cannot be put into inventory",
     "SentInitData": "[MP Handlers] Initialization data has been sent to the new player."
@@ -375,6 +390,7 @@
     "ShowAllRouteTable": "[MP Router] PacketType: {0} Handler: {1}"
   },
   "MPSteamworks": {
+    "ConnectionCoroutineSkipped": "[MPSW] Disconnect cleanup: connection coroutine for {0} is {1}, skipped stopping it",
     "AccessDenied": "[MPSW] Access denied, possibly banned or restricted by region/environment",
     "AllConnectionsDisconnected": "[MPSW] All network connections have been disconnected.",
     "AlreadyActiveConnected": "[MPSW] Already actively connected to the player. SteamId: {0} Connection state: {1}",
@@ -417,7 +433,6 @@
     "PlayerLeftRoom": "[MPSW] Player left the room. SteamName: {0}",
     "RateLimitCacheHit": "[MPSW] Within 5-second cooldown, returning cached result",
     "RateLimitExceeded": "[MPSW] Operation rate limit exceeded by Steam",
-    "ReverseConnectionAttempt": "[MPSW] 10-second timeout: starting reverse attempt...",
     "SendingToConnection": "[MPSW] Sending data to connections. SteamId: {0} ConnectionId: {1}",
     "SetMemberDataFailed": "[MPSW] Failed to set member data: {0}",
     "SocketCreateException": "[MPSW] Create Socket exception: {0}",
@@ -427,9 +442,16 @@
     "SteamworksInitFailed": "[MPSW] Failed to initialize Steamworks. Please check your Steam login status.",
     "SteamworksInitSuccess": "[MPSW] Steamworks initialization succeeded. Player: {0} ID: {1}",
     "Timeout": "[MPSW] Request timeout, Steam server response too slow",
-    "UnicastException": "[MPSW] Unicast data exception: {0} SteamId: {1}"
+    "UnicastException": "[MPSW] Unicast data exception: {0} SteamId: {1}",
+    "ConnectVerifySuccess_PreCheck": "[MPSW] Valid connection detected prior to attempt: {0}",
+    "ConnectVerifySuccess_Attempt": "[MPSW] Active connection attempt to {0} verified successfully",
+    "ConnectVerifySuccess_InitiatorReverse": "[MPSW] Initiator successfully caught reverse connection from {0}",
+    "ConnectVerifySuccess_Receiver": "[MPSW] Receiver successfully caught active connection from {0}",
+    "InitiatorWaitingForReverseConnection": "[MPSW] Active connection to {0} failed, waiting for reverse connection...",
+    "ReverseConnectionAttempt": "[MPSW] Passive listening to connection {0} failed, starting reverse attempt"
   },
   "Patch": {
+    "ForceDropHandsCleared": "[MP Patch] Handhold {0} was destroyed with {1} hand(s) that did not let go; removed them (prevents a hang)",
     "CoreAlreadyInjected": "[MP Patch] MPCore already injected, skipping.",
     "CoreInjectionFailed": "[MP Patch] Failed to inject MPCore: {0}",
     "CoreInjectionSuccess": "[MP Patch] MPCore object successfully injected into SteamManager.",

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 
 namespace WKMPMod.Patch;
@@ -59,7 +59,7 @@ public class Patch_CL_Prop {
 	[HarmonyPrefix]
 	public static bool Prefix_Skip(CL_Prop __instance, MethodBase __originalMethod) {
 		// 如果当前实例是远程玩家傀儡, 直接返回 false, 掐断原版逻辑
-		if (__instance is RemoteEntity) {
+		if (__instance is Components.RemotePlayer) {
 			return false;
 		}
 

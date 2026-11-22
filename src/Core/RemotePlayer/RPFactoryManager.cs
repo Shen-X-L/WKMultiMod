@@ -5,12 +5,12 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Util;
 using Object = UnityEngine.Object;
 
-namespace WKMPMod.RemotePlayer;
+namespace WKMPMod.RemotePlayers;
 
 public class RPFactoryManager : Singleton<RPFactoryManager> {
 	// 模型工厂缓存
@@ -64,7 +64,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		if (extension == null || string.IsNullOrEmpty(extension.ModelId)) return;
 
 		if (_registry.ContainsKey(extension.ModelId)) {
-			MPMain.LogWarning(Localization.Get("RPFactoryManager.FactoryAlreadyRegistered", extension.ModelId));
+			MPMain.LogWarning(Localization.GetLog("RPFactoryManager.FactoryAlreadyRegistered", extension.ModelId));
 			return;
 		}
 
@@ -72,7 +72,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 			Extension = extension,
 			BundlePath = bundlePath
 		};
-		MPMain.LogInfo(Localization.Get("RPFactoryManager.FactoryRegistered", extension.ModelId));
+		MPMain.LogInfo(Localization.GetLog("RPFactoryManager.FactoryRegistered", extension.ModelId));
 	}
 
 	#endregion
@@ -111,7 +111,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		try {
 			extension?.OnPlayerInstanceCreated(instance);
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("RPFactoryManager.ModelInstanceCallbackCrash", modelId, ex.Message));
+			MPMain.LogError(Localization.GetLog("RPFactoryManager.ModelInstanceCallbackCrash", modelId, ex.Message));
 		}
 
 		return instance;
@@ -130,13 +130,13 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		try {
 			bundle = AssetBundle.LoadFromFile(path);
 			if (bundle == null) {
-				MPMain.LogError(Localization.Get("RPFactoryManager.UnableToLoadResources") + $" 路径: {path}");
+				MPMain.LogError(Localization.GetLog("RPFactoryManager.UnableToLoadResources") + $" path: {path}");
 				return null;
 			}
 
 			rawPrefab = bundle.LoadAsset<GameObject>(assetName);
 			if (rawPrefab == null) {
-				MPMain.LogError(Localization.Get("RPFactoryManager.PrefabNotLoaded", assetName));
+				MPMain.LogError(Localization.GetLog("RPFactoryManager.PrefabNotLoaded", assetName));
 				return null;
 			}
 
@@ -150,13 +150,11 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 			registration.Extension?.OnPrefabLoaded(rawPrefab, helper);
 
 		} catch (Exception ex) {
-			MPMain.LogError($"预制体 [{assetName}] 读改异常: {ex.Message}");
+			MPMain.LogError($"预制体 [{assetName}] 读改异常:\n{ex}");
 			rawPrefab = null;
 		} finally {
-			// 完美保持原版的安全卸载: 传 false 意味着内存中加载出来的 GameObject 资产不会被销毁
-			if (bundle != null) {
-				bundle.Unload(false);
-			}
+			// 传 false 意味着内存中加载出来的 GameObject 资产不会被销毁
+			if (bundle != null) bundle.Unload(false);
 		}
 
 		return rawPrefab;
@@ -173,7 +171,7 @@ public class RPFactoryManager : Singleton<RPFactoryManager> {
 		foreach (var (factoryId, registration) in _registry) {
 			// 现在完美映射自内嵌的 ModelRegistration 结构
 			var ext = registration.Extension;
-			MPMain.LogWarning(Localization.Get("RPFactoryManager.DebugFactoryInfo",
+			MPMain.LogWarning(Localization.GetLog("RPFactoryManager.DebugFactoryInfo",
 				factoryId, ext?.PrefabAssetName ?? "None", registration.BundlePath));
 		}
 	}

@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using WKMPMod.Component;
+using WKMPMod.Components;
 
 namespace WKMPMod.Core;
 

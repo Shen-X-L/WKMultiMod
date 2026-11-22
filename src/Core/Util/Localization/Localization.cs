@@ -91,10 +91,17 @@ public static class Localization {
 				LoadFileToTable(localFilePath, _localTable);
 				MPMain.LogInfo($"[Localization] Loaded local language file for: {language}");
 			}
+			// 构建缓存
+			_flatEnCache = BuildFlatCache(_enTable);
+			_flatLocalCache = BuildFlatCache(_localTable);
+		} else {
+			// 英文直接使用英文表
+			_localTable = _enTable; 
+			// 构建缓存
+			_flatEnCache = BuildFlatCache(_enTable);
+			_flatLocalCache = _flatEnCache;
 		}
-		// 构建缓存
-		_flatEnCache = BuildFlatCache(_enTable);
-		_flatLocalCache = BuildFlatCache(_localTable);
+
 		if (_flatEnCache.Count == 0 && _flatLocalCache.Count == 0) {
 			MPMain.LogError($"[Localization] CRITICAL: No localization files loaded!");
 		}
@@ -220,20 +227,20 @@ public static class Localization {
 	}
 
 	/// <summary>
-	/// 获取单行文本
+	/// 获取单行文本 判断字体补丁 不可渲染时回退英文
 	/// </summary>
 	/// <param name="key">格式: category.key</param>
 	public static string Get(string key, params object[] args) {
-		if (!TryGetValue(key, out var val)) return val.AsString;
+		if (!TryGetValueSmart(key, out var val)) return val.AsString;
 		return SafeFormat(val.AsString, args);
 	}
 
 	/// <summary>
-	/// 获取单行文本
+	/// 获取单行文本 直接读取当前语言配置
 	/// </summary>
 	/// <param name="key">格式: category.key</param>
-	public static string GetSmart(string key, params object[] args) {
-		if (!TryGetValueSmart(key, out var val)) return val.AsString;
+	public static string GetLog(string key, params object[] args) {
+		if (!TryGetValue(key, out var val)) return val.AsString;
 		return SafeFormat(val.AsString, args);
 	}
 
@@ -273,6 +280,21 @@ public static class Localization {
 	#region[Debug检查]
 
 	/// <summary>
+	/// 检查当前生效的语言环境 (含字体支持校验与英文回退) 中是否存在指定的 Key
+	/// </summary>
+	public static bool HasKey(string key) {
+		if (_isFontPluginLoaded && _flatLocalCache.ContainsKey(key)) return true;
+		return _flatEnCache.ContainsKey(key);
+	}
+
+	/// <summary>
+	/// 检查当前生效的语言环境中是否存在指定的 Category 和 Key
+	/// </summary>
+	public static bool HasKey(string category, string key) {
+		return HasKey($"{category}.{key}");
+	}
+
+	/// <summary>
 	/// 检查键是否存在
 	/// </summary>
 	public static bool HasLocalKey(string key) {
@@ -283,10 +305,7 @@ public static class Localization {
 	/// 检查分类和键是否存在
 	/// </summary>
 	public static bool HasLocalKey(string category, string key) {
-		if (_localTable.TryGetValue(category, out var categoryDict)) {
-			return categoryDict.ContainsKey(key);
-		}
-		return false;
+		return HasLocalKey($"{category}.{key}");
 	}
 
 	/// <summary>

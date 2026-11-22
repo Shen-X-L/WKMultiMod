@@ -90,7 +90,7 @@ public static class NestedCommandEngine {
 				SetValidatorActiveArgAction = AccessTools.MethodDelegate<Action<CommandConsole.CommandValidator, int>>(validatorActiveArgSetter);
 			}
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("Patch.HarmonyReflectionInitFailed", ex.Message));
+			MPMain.LogError(Localization.GetLog("Patch.HarmonyReflectionInitFailed", ex.Message));
 		}
 	}
 	#endregion

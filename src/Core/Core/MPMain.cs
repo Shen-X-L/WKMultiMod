@@ -3,7 +3,9 @@ using BepInEx.Logging;
 using HarmonyLib;
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using UnityEngine.SceneManagement;
+using WKMPMod.Patch;
 using WKMPMod.Util;
 
 namespace WKMPMod.Core;
@@ -13,7 +15,7 @@ public class MPMain : BaseUnityPlugin {
 
 	public const string PLUGIN_GUID = "shenxl.MultiPlayerMod";
 	public const string PLUGIN_NAME = "MultiPlayer Mod";
-	public const string PLUGIN_VERSION = "1.8.1.0";
+	public const string PLUGIN_VERSION = "1.8.6.0";
 	//Assembly.GetExecutingAssembly().Location -> BepInEx\plugins\MultiPlayer\WKMultiPlayerMod.dll
 	//Path.GetDirectoryName -> BepInEx\plugins\MultiPlayer
 	public static string path = Path.GetDirectoryName(typeof(MPMain).Assembly.Location) ?? string.Empty;
@@ -22,7 +24,7 @@ public class MPMain : BaseUnityPlugin {
 	// 日志记录器
 	internal static new ManualLogSource Logger;
 	// Harmony上下文
-	private Harmony _harmony;
+	public static Harmony HarmonyInstance { get; private set; }
 	// 蛞蝓猫手部皮肤ID 和 身体皮肤ID
 	public const string SLUGCAT_HAND_ID = "slugcat hands";
 	public const string SLUGCAT_BODY_FACTORY_ID = "slugcat";
@@ -42,25 +44,22 @@ public class MPMain : BaseUnityPlugin {
 
 		// 使用Harmony打补丁
 		try {
-			_harmony = new Harmony($"{PLUGIN_GUID}");
+			HarmonyInstance = new Harmony($"{PLUGIN_GUID}");
 			foreach (var type in typeof(MPMain).Assembly.GetTypes()) {
 				try {
-					if (type.GetCustomAttributes(typeof(HarmonyPatch), true).Length == 0)
-						continue;
-
+					if (type.GetCustomAttributes(typeof(HarmonyPatch), true).Length == 0) continue;
 					MPMain.LogDebug($"[MP Harmony] Patching: {type.FullName}");
-
-					new PatchClassProcessor(_harmony, type).Patch();
-
+					new PatchClassProcessor(HarmonyInstance, type).Patch();
 					MPMain.LogDebug($"[MP Harmony] OK: {type.FullName}");
 				} catch (Exception ex) {
-					MPMain.LogError(
-						$"[MP Harmony] FAILED: {type.FullName}\n{ex}");
+					MPMain.LogError($"[MP Harmony] FAILED: {type.FullName}\n{ex}");
 				}
 			}
 		} catch (Exception ex) {
 			LogError($"[MPMain] Message: {ex.Message}\nStackTrace: {ex.StackTrace}");
 		}
+		// 生物动画补丁
+		AnimatorInterceptor.Apply();
 
 		// 配置初始化
 		MPConfig.Initialize(base.Config);
@@ -76,7 +75,7 @@ public class MPMain : BaseUnityPlugin {
 	}
 
 	private void OnDestroy() {
-		LogInfo(Localization.Get("MPMain.Destroy"));
+		LogInfo(Localization.GetLog("MPMain.Destroy"));
 	}
 
 	public static void LogInfo(string log = "") {
@@ -86,12 +85,23 @@ public class MPMain : BaseUnityPlugin {
 	public static void LogWarning(string log = "") {
 		Logger.LogWarning(log);
 	}
-	public static void LogError(string log = "") {
-		Logger.LogError(log);
+
+	public static void LogError(string log = "",
+		[CallerMemberName] string member = "",
+		[CallerLineNumber] int number = 0,
+		[CallerFilePath] string filePath = "") {
+		// 从文件路径中提取出类名(即不带后缀的文件名, 通常约定文件名与类名一致)
+		string className = Path.GetFileNameWithoutExtension(filePath);
+		Logger.LogError($"[MP {className}.{member} {number}] {log}");
 	}
 
-	public static void LogDebug(string log = "") {
-		Logger.LogDebug("[MP Debug] "+log);
+	public static void LogDebug(string log = "",
+		[CallerMemberName] string member = "",
+		[CallerLineNumber] int number = 0,
+		[CallerFilePath] string filePath = "") {
+		// 从文件路径中提取出类名(即不带后缀的文件名, 通常约定文件名与类名一致)
+		string className = Path.GetFileNameWithoutExtension(filePath);
+		Logger.LogDebug($"[MP {className}.{member} {number}] {log}");
 	}
 
 	public static void LogTest(string log = "") {

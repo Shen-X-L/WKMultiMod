@@ -1,6 +1,8 @@
-﻿using HarmonyLib;
+﻿using DG.Tweening.Plugins.Core;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using UnityEngine;
 using WKMPMod.Core;
@@ -42,6 +44,7 @@ public class Patch_M_Level_Awake {
 // 补丁类: 在联机模式下重开时重置游戏状态控制器的状态
 [HarmonyPatch(typeof(UT_GameStateController), nameof(UT_GameStateController.RestartScene))]
 public class Patch_UT_GameStateController_RestartScene {
+	[HarmonyPrefix]
 	public static bool Prefix() {
 		// 重置偏移高度
 		Patch_CL_GameManager.RestartHeightOffset();
@@ -53,6 +56,25 @@ public class Patch_UT_GameStateController_RestartScene {
 			}
 			// 没有游戏模式数据,重置联机状态以防止潜在问题
 			MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized); 
+		}
+		return true; // 非联机模式,执行原始的重开逻辑
+	}
+}
+
+[HarmonyPatch(typeof(CL_GameManager), nameof(CL_GameManager.Restart))]
+public class Patch_CL_GameManager_Restart {
+
+	[HarmonyPrefix]
+	public static bool Prefix(string[] args) {
+		// 重置偏移高度
+		Patch_CL_GameManager.RestartHeightOffset();
+		if (MPCore.IsInLobby) {
+			if (MPGameModeManager.CurrentData != null) {
+				MPGameModeManager.RestartGameMode();
+				return false;
+			}
+			// 没有游戏模式数据,重置联机状态以防止潜在问题
+			MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.NotInitialized);
 		}
 		return true; // 非联机模式,执行原始的重开逻辑
 	}

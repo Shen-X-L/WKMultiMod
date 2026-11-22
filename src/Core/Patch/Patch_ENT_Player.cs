@@ -1,6 +1,6 @@
 ﻿using HarmonyLib;
 using UnityEngine;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.Util;
@@ -42,7 +42,7 @@ public class Patch_ENT_Player {
 	[HarmonyPrefix]
 	public static bool GrabPropUpdate_Prefix(int hand, ENT_Player __instance) {
 		var handObj = __instance.hands[hand];
-		if (handObj.grabTarget == null || !(handObj.grabTarget is RemoteEntity remoteEntity))
+		if (handObj.grabTarget == null || !(handObj.grabTarget is RemoteProp remoteEntity))
 			return true;
 		if (handObj.interactState != InteractType.grab) return false;
 
@@ -55,7 +55,7 @@ public class Patch_ENT_Player {
 
 		// 投掷: 按下投掷键, 施加向前力后松开
 		if (InputManager.GetButton(handObj.throwButton).Down) {
-			MPEventBusGame.NotifyPlayerAddForce(remoteEntity.playerId, __instance.camTransform.forward * 0.5f);
+			EventBusGame.NotifyPlayerAddForce(remoteEntity.playerId, __instance.camTransform.forward * 0.5f);
 			__instance.StopInteraction(hand);
 		}
 		// 松开: 释放抓取键 或 物体距离过远
@@ -71,7 +71,7 @@ public class Patch_ENT_Player {
 	[HarmonyPrefix]
 	public static bool DropGrabbedProp_Prefix(int hand, ENT_Player __instance) {
 		var handObj = __instance.hands[hand];
-		if (handObj.grabTarget == null || !(handObj.grabTarget is RemoteEntity))
+		if (handObj.grabTarget == null || !(handObj.grabTarget is Components.RemotePlayer))
 			return true;
 
 		InternalDropLogic(hand, __instance);

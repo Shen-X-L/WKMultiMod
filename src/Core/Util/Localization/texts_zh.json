@@ -268,6 +268,7 @@
     ]
   },
   "CommandConsole": {
+    "ExpectedBoolean": "参数 {0} 无效, 请输入 true 或 false",
     "AllPlayer": "名称: {0} Id: {1} 距离: {2} 坐标: {3}",
     "AlreadyInOnlineMode": "您已处于在线模式, \n请使用 leave 命令离开后再进行联机",
     "AutoCommandInsufficientParams": "参数不足! ",
@@ -294,10 +295,10 @@
     "NeedToBeInLobby": "该命令需要在联机模式下使用此命令, \n请先使用 host 或 join 命令",
     "NoLobbyByNameTryId": "未找到匹配名称的大厅, 尝试使用 ID 连接...",
     "NotInLobby": "不在联机大厅中",
-    "PlayerColorInvalidPreset": "未知颜色预设. 可用预设：{0}",
+    "PlayerColorInvalidPreset": "未知颜色预设. 可用预设: {0}",
     "PlayerColorInvalidRgb": "RGB 值必须是 0-255 范围内的整数.",
     "PlayerColorSet": "玩家颜色已设置为 RGB({0}, {1}, {2}).",
-    "PlayerColorUsage": "用法：playercolor <预设> 或 playercolor <r> <g> <b>",
+    "PlayerColorUsage": "用法: playercolor <预设> 或 playercolor <r> <g> <b>",
     "PlayerIssuedCommand": "{0} 发出远程命令: {1}",
     "PleaseCallHost": "请求房主执行",
     "RemoteCommandInsufficientParams": "参数不足! 格式: pcmd [all|steamId] ; [命令1] ; [命令2]",
@@ -319,7 +320,7 @@
     "YouAreNotHost": "需要房主执行命令 但你不是房主"
   },
   "CommandHelp": {
-    "ACMD": "[join|restart|jointeam_TeamName] ; [command1] ; [command2]...: 进行指定操作时执行命令.(例如：acmd join addperk ; perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove) ",
+    "ACMD": "[join|restart|jointeam_TeamName] ; [command1] ; [command2]...: 进行指定操作时执行命令.(例如: acmd join addperk ; perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove) ",
     "AddTeam": "[队伍名称]: 添加一个指定名称的队伍.",
     "AllPlayer": "获取当前大厅内所有玩家的信息.",
     "AllowCheats": "[True|False]: 控制玩家是否可以开启作弊模式",
@@ -330,26 +331,26 @@
     "EnemySync": "[True|False]: 控制是否启用生物同步",
     "Host": "[大厅名称 (可见性=public|friends|private) (最大玩家数=8)]: 大厅名称用于其他人搜索 (不能包含空格或 ;). 可见性控制大厅是否可被他人搜索到.",
     "Invite": "唤醒 Steam 界面邀请你的好友.",
-    "Join": "[大厅名称|大厅 ID]: 要加入的大厅名称或 ID. 优先按名称匹配；若未找到则按 ID 匹配.",
+    "Join": "[大厅名称|大厅 ID]: 要加入的大厅名称或 ID. 优先按名称匹配若未找到则按 ID 匹配.",
     "JoinTeam": "[队伍名称]: 加入指定的队伍.",
     "Leave": "离开当前大厅.",
     "LobbyId": "获取当前大厅 ID 并复制到剪贴板.",
     "LobbyList": "获取所有可用大厅.",
     "LobbyType": "[可见性=public|friends|private]: 可见性控制大厅是否可被他人搜索到.",
-    "PCMD": "[all|steamId] ; [command1] ; [command2]...: 为所有玩家或指定玩家执行命令. (例如：pcmd 561198279116422 addperk ; perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove)",
+    "PCMD": "[all|steamId] ; [command1] ; [command2]...: 为所有玩家或指定玩家执行命令. (例如: pcmd 561198279116422 addperk ; perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove)",
     "PVPRule": "[伤害类型] [伤害倍率] ...: 控制该伤害类型造成的伤害倍率或无敌帧等设置(fire类型需要控制FireTime和FireDamage)",
-    "PlayerColor": "[预设|R G B]: 修改远程玩家模型的颜色. 预设值：default, white, red, orange, yellow, green, cyan, blue, purple, pink, black.",
+    "PlayerColor": "[预设|R G B]: 修改远程玩家模型的颜色. 预设值: default, white, red, orange, yellow, green, cyan, blue, purple, pink, black.",
     "PlayerModel": "[模型名称]: 开发者不会建模——效果不会太好看, 所以凑合用吧.",
     "RemoveTeam": "[队伍名称]: 移除指定名称的队伍 (无法移除 default 队伍).",
     "SetHost": "[steamId]: 移交房主权限, 使用 allplayer 获取的 ID 进行匹配",
     "SetLobbyName": "[大厅名称]: 大厅名称用于其他人搜索 (不能包含空格或 ;).",
     "PlayerName": "[名称]: 设置他人看到你头顶标签上显示的名称.",
     "SubtitleTalk": "[文本]: 向其他玩家的字幕位置发送消息.",
-    "TCMD": "[队伍名称] ; [command1] ; [command2]...: 为指定队伍内的所有玩家执行命令. (例如：tcmd hunter addperk ; perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove)",
+    "TCMD": "[队伍名称] ; [command1] ; [command2]...: 为指定队伍内的所有玩家执行命令. (例如: tcmd hunter addperk ; perk_u_t3_peripheralbinding ; spawnentity item_artifact_evaglove)",
     "Talk": "[文本]: 向其他玩家发送消息.",
-    "TeamRule": "[队伍A] [队伍B] [规则名称] [true|false|default]: 设置队伍规则.  (例如：teamrule A B pvp true , A C hang true grab true) ",
+    "TeamRule": "[队伍A] [队伍B] [规则名称] [true|false|default]: 设置队伍规则.  (例如: teamrule A B pvp true , A C hang true grab true) ",
     "Test": "[数字]: 这不是给你用的——这是 MPMod 开发者的测试函数, 全是中文, 但不会影响游戏平衡.",
-    "TpTo": "[steamId]: 传送到目标玩家, 使用 allplayer 获取的 ID 进行匹配 (后缀匹配, 例如：目标 steamId 为 561198279116422 时输入 tpto 22) ."
+    "TpTo": "[steamId]: 传送到目标玩家, 使用 allplayer 获取的 ID 进行匹配 (后缀匹配, 例如: 目标 steamId 为 561198279116422 时输入 tpto 22) ."
   },
   "LocalPlayer": {
     "DataAcquisitionException": "[MP LP] 本地玩家数据获取异常.",
@@ -359,6 +360,8 @@
     "LoadAsset": "[MP AssetMan] 缓存游戏内资源: {0} {1}"
   },
   "MPCore": {
+    "EnemySyncFollowHost": "[MPCore] 生物同步跟随主机设置: {0}",
+    "EnemySyncSet": "[MPCore] 生物同步已设为 {0} (已写入大厅数据)",
     "AllConnectionLog": "[MPCore] 全部连接 SteamId: {0} 连接Id: {1}",
     "AllManagersInitialized": "[MPCore] 所有管理器初始化完成",
     "Awake": "[MPCore] MultiplayerCore Awake",
@@ -396,6 +399,18 @@
   "MPMain": {
     "Destroy": "[MPMain] MPMain (启动器) 已被销毁."
   },
+  "MPMapSync": {
+    "DateChecked": "[MP MapSync] 日期检查 {0} ~ {1}: 使用时间 {2}, 结果 {3}",
+    "FlagOverridden": "[MP MapSync] 生成标记 {0}: 本机 {1} -> 按主机 {2}",
+    "HostInputsParseFailed": "[MP MapSync] 主机地图输入解析失败: {0}",
+    "HostInputsUnavailable": "[MP MapSync] 本次生成没有可用的主机输入 (种子 {0}), 按本机数据生成",
+    "Published": "[MP MapSync] 已发布本局地图输入: {0} 个生成标记, 主路线 {1} 关",
+    "RouteBeyondHost": "[MP MapSync] 本机路线从 {0} 开始, 不在主机已发布的 {1} 关路线内, 跳过比对",
+    "RouteMatch": "[MP MapSync] 地图与主机一致 (比对 {0} 关)",
+    "RouteMismatch": "[MP MapSync] 地图与主机不一致: 第 {0} 关 本机 {1} / 主机 {2}",
+    "RouteMismatchMessage": "地图与房主不一致 (从第 {0} 关开始), 之后可能看不见其他玩家",
+    "UsingHostInputs": "[MP MapSync] 本次生成使用主机输入: 种子 {0}, {1} 个生成标记, 主机时间 {2}, 主机主路线 {3} 关"
+  },
   "MPMessageHandlers": {
     "PrefabIsNotItem": "[MP Handlers] 预制体: {0} 不是可拾取物,不能放入背包",
     "SentInitData": "[MP Handlers] 已向新玩家发送初始化数据"
@@ -411,6 +426,7 @@
     "ShowAllRouteTable": "[MP Router] 包类型: {0} 函数名: {1}"
   },
   "MPSteamworks": {
+    "ConnectionCoroutineSkipped": "[MPSW] 断线清理: 玩家 {0} 的连接协程记录为 {1}, 跳过停止",
     "AccessDenied": "[MPSW] 权限不足,可能是被封禁或当前区域/环境受限",
     "AllConnectionsDisconnected": "[MPSW] 所有网络连接已断开",
     "AlreadyActiveConnected": "[MPSW] 已经主动连接玩家. SteamId: {0} 连接状态: {1}",
@@ -453,7 +469,7 @@
     "PlayerLeftRoom": "[MPSW] 玩家离开大厅. SteamName: {0}",
     "RateLimitCacheHit": "[MPSW] 处于5秒冷却期内, 直接返回缓存结果",
     "RateLimitExceeded": "[MPSW] 操作过于频繁,被 Steam 暂时限制频率",
-    "ReverseConnectionAttempt": "[MPSW] 10秒超时, 开始反向尝试...",
+    "ReverseConnectionAttempt": "[MPSW] 被动监听连接 {0} 失败,开始反向尝试",
     "SendingToConnection": "[MPSW] 广播数据, 当前连接: SteamId: {0} 连接Id: {1}",
     "SetMemberDataFailed": "[MPSW] 设置成员数据失败: {0}",
     "SocketCreateException": "[MPSW] 创建Socket失败: {0}",
@@ -463,9 +479,15 @@
     "SteamworksInitFailed": "[MPSW] Steamworks初始化失败, 请检查Steam在线情况",
     "SteamworksInitSuccess": "[MPSW] Steamworks初始化成功 玩家: {0} ID: {1}",
     "Timeout": "[MPSW] 请求超时,Steam 服务器响应过慢",
-    "UnicastException": "[MPSW] 单播数据异常: {0} SteamId: {1}\n{2}"
+    "UnicastException": "[MPSW] 单播数据异常: {0} SteamId: {1}\n{2}",
+    "InitiatorWaitingForReverseConnection": "[MPSW] 主动连接 {0} 失败,进行反向等待",
+    "ConnectVerifySuccess_PreCheck": "[MPSW] 尝试连接前已检测到有效连接: {0}",
+    "ConnectVerifySuccess_Attempt": "[MPSW] 主动尝试连接 {0} 校验成功",
+    "ConnectVerifySuccess_InitiatorReverse": "[MPSW] 发起方成功捕获来自 {0} 的反向连接",
+    "ConnectVerifySuccess_Receiver": "[MPSW] 接收方成功捕获来自 {0} 的主动连接"
   },
   "Patch": {
+    "ForceDropHandsCleared": "[MP Patch] 抓点 {0} 销毁时有 {1} 只手未能正常松开, 已强制移除 (防止卡死)",
     "CoreAlreadyInjected": "[MP Patch] Core已经注入过,跳过",
     "CoreInjectionFailed": "[MP Patch] 注入核心失败: {0}",
     "CoreInjectionSuccess": "[MP Patch] MPCore 对象已成功注入 SteamManager",

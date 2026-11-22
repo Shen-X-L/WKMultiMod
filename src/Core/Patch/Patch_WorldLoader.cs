@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using WKMPMod.Core;
+using WKMPMod.Data;
 using WKMPMod.Util;
 using WKMPMod.World;
 using static Unity.Collections.AllocatorManager;
@@ -29,34 +30,46 @@ public class Patch_WorldLoader {
 	// 记录每个关卡的世界坐标和旋转数据, 用于后续矫正坐标
 	public static List<LevelTransformData> levelWorldTransformDatas = new List<LevelTransformData>();
 
-	// 补丁类: 在联机模式下默认是固定种子,不上传成绩
-	// 初始化生物同步
+	// 在联机模式下默认是固定种子,不上传成绩
 	[HarmonyPatch(nameof(WorldLoader.Initialize))]
 	[HarmonyPostfix]
 	public static void Initialize_UseCustomSeed() {
 		if (MPCore.IsInLobby) customSeed = true;
 	}
 
-	// 补丁类: 关闭种子偏移, 使复活时种子同步
+	// 关闭种子偏移, 使复活时种子同步
 	[HarmonyPatch(("IncrementSeed"))]
 	[HarmonyPrefix]
 	public static bool IncrementSeed_Off() {
-		if (MPCore.IsInLobby)
-			return false;
+		if (MPCore.IsInLobby) return false;
 		return true;
 	}
 
-	// 补丁类: 关闭生成器的种子偏移, 使复活时种子同步
+	// 关闭生成器的种子偏移, 使复活时种子同步
 	[HarmonyPatch(("GenerateLevels"))]
 	[HarmonyPrefix]
-	public static void GenerateLevels_GenParams_Off(BranchInfo branch, GenerationParameters genParams, WorldLoader __instance, WorldGenerator ___currentGenerator) {
-		if (MPCore.IsInLobby && CL_GameManager.GetBaseGamemode().gamemodeName == "Campaign") {
+	public static void GenerateLevels_GenParams_Off(WorldLoader __instance,BranchInfo branch, GenerationParameters genParams) {
+		EventBusGame.NotifyGenerateLevelsStart(__instance, branch, genParams);
+
+		__instance.StartCoroutine(WaitGenerateEnd(__instance, branch, genParams));
+
+		if (MPCore.IsInLobby && MPGameModeManager.IsCampaignMode) {
 			// 禁用种子偏移
 			genParams?.seedOffset = 0;
 			// 启动协程等待生成结束并收集数据
-			bool isGenerationBranch = genParams?.generator is M_GenerationBranch;
-			__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
+			// 是支线则进行关卡偏移
+			//bool isGenerationBranch = genParams?.generator is M_GenerationBranch;
+			//__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
 		}
+	}
+
+	public static IEnumerator WaitGenerateEnd(WorldLoader loader, BranchInfo branch, GenerationParameters genParams) {
+		// 等待生成流程开始 (loading 变为 true) 
+		yield return new WaitUntil(() => LoadingField(loader) == true);
+		// 等待生成流程彻底结束 (isLoaded 变为 true) 
+		yield return new WaitUntil(() => WorldLoader.isLoaded == true);
+
+		EventBusGame.NotifyGenerateLevelsEnd(loader, branch, genParams);
 	}
 
 	#region[支线坐标同步协程]
@@ -67,13 +80,13 @@ public class Patch_WorldLoader {
 		yield return new WaitUntil(() => WorldLoader.isLoaded == true);
 
 		if (targetBranch == null) {
-			MPMain.LogError(Localization.Get("Patch.TargetBranchIsNull"));
+			MPMain.LogError(Localization.GetLog("Patch.TargetBranchIsNull"));
 			yield break;
 		}
 		if (isGenerationBranch) {
 			yield return null;
 
-			MPMain.LogInfo(Localization.Get("Patch.StartCorrectingSideRouteCoords"));
+			MPMain.LogInfo(Localization.GetLog("Patch.StartCorrectingSideRouteCoords"));
 
 			// 获取核心组件
 			var worldRoot = GameObject.Find("World_Root(Clone)");
@@ -90,7 +103,7 @@ public class Patch_WorldLoader {
 				.FirstOrDefault(x => x.Level != null && targetDataDict.ContainsKey(x.Level.gameObject.name));
 
 			if (match == null) {
-				MPMain.LogError(Localization.Get("Patch.NoMatchingLevelDataForCorrection"));
+				MPMain.LogError(Localization.GetLog("Patch.NoMatchingLevelDataForCorrection"));
 				yield break;
 			}
 
@@ -142,7 +155,7 @@ public class Patch_WorldLoader {
 			// 给低帧率留出至少一个固定的物理帧安全垫, 阻断游戏引擎的动态剔除误判
 			yield return new WaitForFixedUpdate();
 
-			MPMain.LogInfo(Localization.Get("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
+			MPMain.LogInfo(Localization.GetLog("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
 
 		} else {
 			levelWorldTransformDatas = targetBranch.levelTracker
@@ -156,7 +169,7 @@ public class Patch_WorldLoader {
 					};
 				}).ToList();
 
-			MPMain.LogInfo(Localization.Get("Patch.LevelDataRetrieved", levelWorldTransformDatas.Count));
+			MPMain.LogInfo(Localization.GetLog("Patch.LevelDataRetrieved", levelWorldTransformDatas.Count));
 		}
 	}
 

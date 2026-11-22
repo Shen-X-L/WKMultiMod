@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using UnityEngine.UIElements;
 using WKMPMod.Core;
 
 namespace WKMPMod.Util;
@@ -30,7 +31,7 @@ public static class MPUtil {
 			MPMain.LogError("[MP] " + e.ToString());
 		}
 		if (itemObject == null) {
-			// 备用：从通用 GameObject 中获取组件
+			// 备用: 从通用 GameObject 中获取组件
 			GameObject go = CL_AssetManager.GetAssetGameObject(prefabName);
 			itemObject = go?.GetComponent<Item_Object>();
 		}
@@ -82,13 +83,61 @@ public static class MPUtil {
 	/// <summary>
 	/// 构建变换层级路径. 例如 "Root[0]/Child[1]/Grandchild[0]".
 	/// </summary>
-	public static string BuildTransformPath(Transform transform) {
+	public static string BuildFullPath(Transform transform) {
 		if (transform == null) return string.Empty;
 		var stack = new Stack<string>();
 		var current = transform;
 		while (current != null) {
-			stack.Push($"{MPUtil.CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
+			stack.Push($"{CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
 			current = current.parent;
+		}
+		return string.Join("/", stack);
+	}
+
+	/// <summary>
+	/// 构建变换层级路径. 指定父子对象. 例如 "Parent[0]/Child[1]/Grandchild[0]".
+	/// </summary>
+	public static string BuildFullPath(Transform child, Transform parent) {
+		if (child == null) return string.Empty;
+		var stack = new Stack<string>();
+		Transform current = child;
+		while (current != null && current != parent) {
+			stack.Push($"{CleanCloneName(current.name)}[{current.GetSiblingIndex()}]");
+			current = current.parent;
+		}
+		if (current == parent) {
+			stack.Push(CleanCloneName(parent.name));
+		}
+		return string.Join("/", stack);
+	}
+
+	/// <summary>
+	/// 构建变换层级路径. 例如 "Root/Child/Grandchild".
+	/// </summary>
+	public static string BuildNamePath(Transform transform) {
+		if (transform == null) return string.Empty;
+		var stack = new Stack<string>();
+		var current = transform;
+		while (current != null) {
+			stack.Push(CleanCloneName(current.name));
+			current = current.parent;
+		}
+		return string.Join("/", stack);
+	}
+
+	/// <summary>
+	/// 构建变换层级路径. 指定父子对象. 例如 "Parent/Child/Grandchild".
+	/// </summary>
+	public static string BuildNamePath(Transform child, Transform parent) {
+		if (child == null) return string.Empty;
+		var stack = new Stack<string>();
+		Transform current = child;
+		while (current != null && current != parent) {
+			stack.Push(CleanCloneName(current.name));
+			current = current.parent;
+		}
+		if (current == parent) {
+			stack.Push(CleanCloneName(parent.name));
 		}
 		return string.Join("/", stack);
 	}

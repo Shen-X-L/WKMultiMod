@@ -1,10 +1,11 @@
-﻿using Steamworks;
+﻿using JetBrains.Annotations;
+using Steamworks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using WKMPMod.Asset;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
@@ -14,7 +15,7 @@ using WKMPModa.Shared.Component;
 using WKMPModa.Shared.Data;
 using Object = UnityEngine.Object;
 
-namespace WKMPMod.RemotePlayer;
+namespace WKMPMod.RemotePlayers;
 
 // 单个玩家的容器类
 public class RPContainer {
@@ -30,16 +31,16 @@ public class RPContainer {
 	public ulong PlayerId { get; set; }
 	public string PlayerName { get; set; }
 	public GameObject PlayerObject { get; private set; }
+	public Dictionary<string, string> ExtraPlayerData { get; private set; }
 
 	#endregion
 
 	#region[本体组件引用]
 
-	private Component.RemotePlayer _remotePlayer;   // 本体
 	private RemoteHand _remoteLeftHand;     // 左手
 	private RemoteHand _remoteRightHand;    // 右手
 	private RemoteTag _remoteTag;   // 头顶标签
-	public RemoteEntity[] RemoteEntities { get; private set; }  // 受击组件
+	public RemotePlayer remotePlayer { get; private set; }  // 本体+受击判断
 	private ObjectTagger[] _objectTaggers;  // 全部标签 (游戏本体交互判定控制)
 	private Collider[] _colliders;  // 全部碰撞
 	private CustomModelBehaviour _modelBehaviour;// 运行时模型控制器组件
@@ -52,7 +53,7 @@ public class RPContainer {
 
 	#region[TeamRule相关]
 
-	public string team="";     // 队伍信息, 默认为 "default", 可以通过玩家数据更新
+	public string team = "";     // 队伍信息, 默认为 "default", 可以通过玩家数据更新
 	public FlattenedRule actionRule;    // 相关规则引用
 
 	#endregion
@@ -96,9 +97,7 @@ public class RPContainer {
 			PlayerObject = playerInstance;
 			PlayerObject.name = $"RemotePlayer_{PlayerName}_{PlayerId}";
 			// 设置持久化
-			if (persistentParent != null) {
-				PlayerObject.transform.SetParent(persistentParent, false);
-			}
+			if (persistentParent != null) PlayerObject.transform.SetParent(persistentParent, false);
 			// 组件初始化
 			InitializeAllComponent(PlayerObject);
 			InitializeAllComponentData();
@@ -111,10 +110,10 @@ public class RPContainer {
 			// 暂时关闭对象
 			_isDead = true;
 			PlayerObject.SetActive(false);
-			MPMain.LogInfo(Localization.Get("RPContainer.MappingSucceeded", PlayerId.ToString()));
+			MPMain.LogInfo(Localization.GetLog("RPContainer.MappingSucceeded", PlayerId.ToString()));
 			return true;
 		} catch (Exception ex) {
-			MPMain.LogError(Localization.Get("RPContainer.MappingFailed", PlayerId.ToString(), ex.Message));
+			MPMain.LogError(Localization.GetLog("RPContainer.MappingFailed", PlayerId.ToString(), ex.Message));
 
 			if (PlayerObject != null) Object.Destroy(PlayerObject);
 			PlayerObject = null;
@@ -133,11 +132,10 @@ public class RPContainer {
 		if (IsModelReady) { }
 
 		PlayerObject = null;
-		_remotePlayer = null;
+		remotePlayer = null;
 		_remoteLeftHand = null;
 		_remoteRightHand = null;
 		_remoteTag = null;
-		RemoteEntities = null;
 		_objectTaggers = null;
 		_colliders = null;
 		_modelBehaviour = null;
@@ -214,6 +212,16 @@ public class RPContainer {
 				_pending.prefabId = pid;
 				Extension = extension;
 				return true;
+			} else {
+				MPMain.LogWarning($"[Debug] 无法找到 prefabId 为 {pid} 的模型 回退为默认模型");
+				if (RPFactoryManager.Instance.TryGetExtension(MPKeys.DEFAULT_PREFAB_ID, out var defaultExtension)) {
+					_pending.prefabId = MPKeys.DEFAULT_PREFAB_ID;
+					Extension = defaultExtension;
+					return true;
+				} else {
+					MPMain.LogError($"[Debug] 无法找到默认模型 prefabId 为 {MPKeys.DEFAULT_PREFAB_ID} 的模型, 请检查模型注册是否正确");
+					return false;
+				}
 			}
 		}
 		return false;
@@ -268,9 +276,8 @@ public class RPContainer {
 	public void InitializeAllComponent(GameObject instance) {
 		_modelBehaviour = instance.GetComponent<CustomModelBehaviour>();
 
-		_remotePlayer = instance.GetComponentInChildren<Component.RemotePlayer>();
+		remotePlayer = instance.GetComponent<RemotePlayer>();
 		_remoteTag = instance.GetComponentInChildren<RemoteTag>();
-		RemoteEntities = instance.GetComponentsInChildren<RemoteEntity>();
 		_objectTaggers = instance.GetComponentsInChildren<ObjectTagger>();
 		_colliders = instance.GetComponentsInChildren<Collider>();
 
@@ -280,13 +287,14 @@ public class RPContainer {
 			if (hand.handType == 0) _remoteLeftHand = hand;
 			else if (hand.handType == 1) _remoteRightHand = hand;
 		}
+
 		// 获取全部子对象
 		Transform[] allChildren = instance.GetComponentsInChildren<Transform>(true);
 		// 添加容器引用组件
 		foreach (Transform child in allChildren) {
 			if (child.TryGetComponent<RPContainerRef>(out var containerRef))
 				containerRef.container = this;
-			else
+			else if (child.GetComponent<ObjectTagger>() != null)
 				child.gameObject.AddComponent<RPContainerRef>().container = this;
 		}
 	}
@@ -296,11 +304,8 @@ public class RPContainer {
 		// 标签组件初始化命名
 		_remoteTag.Initialize(PlayerId, PlayerName);
 		// 实体标签赋予玩家Id
-		if (RemoteEntities != null)
-			foreach (var entity in RemoteEntities)
-				entity.playerId = PlayerId;
-
-		_remotePlayer?.playerId = PlayerId;
+		remotePlayer?.playerId = PlayerId;
+		remotePlayer?.container = this;
 		_remoteLeftHand?.playerId = PlayerId;
 		_remoteRightHand?.playerId = PlayerId;
 		var transform = _modelBehaviour?.HandItemTransform ?? new Dictionary<string, ItemPoseData>();
@@ -319,7 +324,7 @@ public class RPContainer {
 	/// </summary>
 	public void HandlePlayerData(ref PlayerData playerData) {
 		// 死亡后0.5秒内不接受更新, 避免瞬移和动画冲突
-		if (_isDead && !_deathTick.IsTickReached || PlayerObject == null || _remotePlayer == null) return;
+		if (_isDead && !_deathTick.IsTickReached || PlayerObject == null || remotePlayer == null) return;
 
 		if (_isDead && _deathTick.IsTickReached) {
 			PlayerObject.SetActive(true);
@@ -328,12 +333,12 @@ public class RPContainer {
 
 		if (playerData.IsTeleport) {
 			// 使用组件的传送方法
-			_remotePlayer.Teleport(playerData.Position, playerData.Rotation);
+			remotePlayer.Teleport(playerData.Position, playerData.Rotation);
 			_remoteLeftHand.TeleportToPosition(playerData.LeftHand.Position);
 			_remoteRightHand.TeleportToPosition(playerData.RightHand.Position);
 		} else {
 			// 使用插值更新
-			_remotePlayer.UpdateFromPlayerData(playerData.Position, playerData.Rotation);
+			remotePlayer.UpdateFromPlayerData(playerData.Position, playerData.Rotation);
 			_remoteLeftHand.UpdateFromHandData(ref playerData.LeftHand, MPSteamworks.UserSteamId);
 			_remoteRightHand.UpdateFromHandData(ref playerData.RightHand, MPSteamworks.UserSteamId);
 		}
@@ -342,18 +347,21 @@ public class RPContainer {
 	/// <summary>
 	/// 通过额外字典进行如 背包物品显示等数据更新
 	/// </summary>
-	public void HandlePlayerDictData(Dictionary<string, string> playerData) {
-		if (playerData.TryGetValue(MPKeys.PLAYER_SCALE, out var scaleStr)) {
+	public void HandleExtraPlayerData(Dictionary<string, string> extraPlayerData) {
+		if (extraPlayerData.TryGetValue(MPKeys.PLAYER_SCALE, out var scaleStr)) {
 			var args = scaleStr.Split(',');
-			if (args.Length >= 2
+			if (args.Length >= 2 && IsModelReady
 				&& float.TryParse(args[0], out var height)
-				&& float.TryParse(args[1], out var radius)
-				&& IsModelReady)
+				&& float.TryParse(args[1], out var radius))
 				ApplyScale(height, radius);
 		}
-
+		ExtraPlayerData = extraPlayerData;
+		// 员工ID标签赋予
+		if (ExtraPlayerData.ContainsKey("Item_Trinket_EmployeeID"))
+			AddTags(MPKeys.EMPLOYEE_ID_TAGGER);
+		// 传递给模型控制器处理
 		try {
-			_modelBehaviour?.HandlePlayerData(playerData);
+			_modelBehaviour?.HandlePlayerData(extraPlayerData);
 		} catch (Exception ex) {
 			MPMain.LogError($"[Debug] 使用玩家数据时出错, 错误: {ex.Message}");
 		}
@@ -365,7 +373,7 @@ public class RPContainer {
 	public void HandleNameTag(string text) {
 		if (string.IsNullOrEmpty(text)) { return; }
 		if (_remoteTag == null) {
-			MPMain.LogError(Localization.Get("RPContainer.NameTagComponentMissing"));
+			MPMain.LogError(Localization.GetLog("RPContainer.NameTagComponentMissing"));
 			return;
 		}
 		_remoteTag.Message = text;
@@ -429,41 +437,70 @@ public class RPContainer {
 		ChangeGrabOrHang(MPCore.IsGrabOrHangState);
 
 		// 更新PVP权限
-		foreach (var entity in RemoteEntities) entity.pvpEnabled = actionRule.pvp;
+		remotePlayer.pvpEnabled = actionRule.pvp;
 
 		if (actionRule.pvp) {
-			foreach (var tagger in _objectTaggers) {
-				tagger.AddTag(MPKeys.DAMAGE_TAGGER);
-				tagger.AddTag(MPKeys.CREATURE_TAGGER);
-			}
+			AddTags(MPKeys.DAMAGE_TAGGER);
+			AddTags(MPKeys.CREATURE_TAGGER);
 		} else {
-			foreach (var tagger in _objectTaggers) {
-				tagger.RemoveTag(MPKeys.DAMAGE_TAGGER);
-				tagger.RemoveTag(MPKeys.CREATURE_TAGGER);
-			}
+			RemoveTags(MPKeys.DAMAGE_TAGGER);
+			RemoveTags(MPKeys.CREATURE_TAGGER);
 		}
 
 		// 更新碰撞权限
-		if (_colliders != null) foreach (var col in _colliders)
-			// 只处理非触发器的实体碰撞体
-			if (!col.isTrigger) col.enabled = actionRule.collision;// true 开启碰撞, false 关闭碰撞
+		// 只处理非触发器的实体碰撞体
+		if (_colliders != null)
+			foreach (var col in _colliders) if (!col.isTrigger)
+				col.enabled = actionRule.collision;// true 开启碰撞, false 关闭碰撞
 	}
 
 	/// <summary>
 	/// 处理动作权限变更 - 根据当前规则和权限状态更新玩家对象的标签组件, 以控制玩家的交互能力
 	/// </summary>
 	public void ChangeGrabOrHang(ENT_Player.InteractType interactType) {
-		foreach (var tagger in _objectTaggers) {
-			if (interactType == ENT_Player.InteractType.grab && actionRule.grab == true)
-				tagger.AddTag(MPKeys.GRAB_TAGGER);
-			else
-				tagger.RemoveTag(MPKeys.GRAB_TAGGER);
+		if (interactType == ENT_Player.InteractType.grab && actionRule.grab == true)
+			AddTags(MPKeys.GRAB_TAGGER);
+		else RemoveTags(MPKeys.GRAB_TAGGER);
 
-			if (interactType == ENT_Player.InteractType.hanging && actionRule.hang == true)
-				tagger.AddTag(MPKeys.HANGING_TAGGER);
-			else
-				tagger.RemoveTag(MPKeys.HANGING_TAGGER);
+		if (interactType == ENT_Player.InteractType.hanging && actionRule.hang == true)
+			AddTags(MPKeys.HANGING_TAGGER);
+		else RemoveTags(MPKeys.HANGING_TAGGER);
+	}
+
+	#endregion
+
+	#region[工具函数/DEBUG]
+
+	public void AddTags(string tag) {
+		foreach (var tagger in _objectTaggers) if (!tagger.tags.Contains(tag)) tagger.tags.Add(tag);
+	}
+
+	public void RemoveTags(string tag) {
+		foreach (var tagger in _objectTaggers) if (tagger.tags.Contains(tag)) tagger.tags.Remove(tag);
+	}
+
+	public void ChangeLayer(int layer) {
+		if (PlayerObject == null) return;
+		if (layer < 0 || layer > 31) return;
+		PlayerObject.layer = layer;
+		foreach (Transform child in PlayerObject.transform) {
+			ChangeLayerRecursively(child, layer);
 		}
+
+		void ChangeLayerRecursively(Transform obj, int newLayer) {
+			obj.gameObject.layer = newLayer;
+			foreach (Transform child in obj) ChangeLayerRecursively(child, newLayer);
+		}
+	}
+
+	#endregion
+
+	#region[API]
+
+	public RemoteHand? GetHand(int index) {
+		if (index == 0) return _remoteLeftHand;
+		if (index == 1) return _remoteRightHand;
+		return null;
 	}
 
 	#endregion

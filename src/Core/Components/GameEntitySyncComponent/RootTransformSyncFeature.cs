@@ -1,0 +1,130 @@
+﻿using global::WKMPMod.Data;
+using global::WKMPMod.NetWork;
+using UnityEngine;
+
+namespace WKMPMod.Components;
+
+public class RootTransformSyncFeature : IStateSyncFeature, IFrameUpdateFeature {
+
+	#region[运行时状态]
+
+	// 引用
+	private readonly NetworkedGameEntity _netEntity;
+	private readonly Transform _transform;
+	private readonly GameEntity _entity;
+
+	// 更新前位置
+	private Vector3 _lastPosition;
+	private Quaternion _lastRotation;
+	private float _lastHealth = float.NaN;
+
+	// 接收数据后目标更新位置
+	private Vector3 _targetPosition;
+	private Quaternion _targetRotation;
+	private const float LERP_SPEED = 15f;
+
+	// 更新范围判定
+	private const float PositionEpsilonSqr = 0.01f;
+	private const float RotationEpsilonDegrees = 1.0f;
+	private const float HealthEpsilon = 0.01f;
+
+	#endregion
+
+	public RootTransformSyncFeature(NetworkedGameEntity netEntity) {
+		_netEntity = netEntity;
+		_transform = netEntity.transform;
+		_entity = netEntity.Entity;
+
+		_lastPosition = _targetPosition = _transform.position;
+		_lastRotation = _targetRotation = _transform.rotation;
+		_lastHealth = _entity != null ? _entity.health : float.NaN;
+	}
+
+	#region[ISyncFeature 基础实现]
+
+	public string FeatureId => "RootTransform";
+	public void OnReset() {
+		_lastPosition = _targetPosition = _transform.position;
+		_lastRotation = _targetRotation = _transform.rotation;
+		_lastHealth = _entity != null ? _entity.health : float.NaN;
+	}
+	public void OnDestroy() { }
+
+	#endregion
+
+	#region[IStateSyncFeature 状态同步实现]
+
+	// 模块索引与模块名
+	public byte StateIndex { get; set; }
+
+	public bool IsDirty {
+		get {
+			float currentHp = _entity != null ? _entity.health : float.NaN;
+			return (_transform.position - _lastPosition).sqrMagnitude > PositionEpsilonSqr
+				|| Quaternion.Angle(_transform.rotation, _lastRotation) > RotationEpsilonDegrees
+				|| float.IsNaN(currentHp) != float.IsNaN(_lastHealth)
+				|| (!float.IsNaN(currentHp) && Mathf.Abs(currentHp - _lastHealth) > HealthEpsilon);
+		}
+	}
+	public void WriteState(DataWriter writer) {
+		_lastPosition = _transform.position;
+		_lastRotation = _transform.rotation;
+		_lastHealth = _entity != null ? _entity.health : float.NaN;
+
+		writer.Put(_lastPosition);
+		writer.Put(_lastRotation);
+		writer.Put(_lastHealth);
+	}
+
+	public void ReadState(DataReader reader) {
+		_targetPosition = reader.GetVector3();
+		_targetRotation = reader.GetQuaternion();
+		float hp = reader.GetFloat();
+
+		if (_entity != null && !float.IsNaN(hp)) _entity.health = hp;
+	}
+
+	#endregion
+
+	#region[IFrameUpdateFeature 帧更新实现]
+
+	public void OnUpdate(float deltaTime) {
+		if (!_netEntity.IsNetworkControlled) return;
+		_transform.position = Vector3.Lerp(_transform.position, _targetPosition, deltaTime * LERP_SPEED);
+		_transform.rotation = Quaternion.Slerp(_transform.rotation, _targetRotation, deltaTime * LERP_SPEED);
+	}
+
+	#endregion
+
+	#region [IInitialSyncFeature 初始化状态实现]
+
+	public byte InitialIndex { get; set; }
+
+	public void WriteInitialState(DataWriter writer) {
+		writer.Put(_transform.position);
+		writer.Put(_transform.rotation);
+		float currentHp = _entity != null ? _entity.health : float.NaN;
+		writer.Put(currentHp);
+	}
+
+	public void ReadInitialState(DataReader reader) {
+		_targetPosition = reader.GetVector3();
+		_targetRotation = reader.GetQuaternion();
+		float hp = reader.GetFloat();
+
+		// 新玩家或对象生成时, 直接瞬移到位, 防止从原点插值过去
+		if (_transform != null) {
+			_transform.position = _targetPosition;
+			_transform.rotation = _targetRotation;
+			_lastPosition = _targetPosition;
+			_lastRotation = _targetRotation;
+		}
+
+		if (_entity != null && !float.IsNaN(hp)) {
+			_entity.health = hp;
+			_lastHealth = hp;
+		}
+	}
+
+	#endregion
+}

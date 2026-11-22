@@ -14,6 +14,7 @@ public static partial class MPKeys {
 	public const string HANGING_TAGGER = "Handhold";
 	public const string DAMAGE_TAGGER = "Damageable";
 	public const string CREATURE_TAGGER = "Creature";
+	public const string EMPLOYEE_ID_TAGGER = "Employee-Id";
 
 
 	// 名称描述用途
@@ -28,6 +29,7 @@ public static partial class MPKeys {
 	public const string GAMEMODE_JSON = "gamemode";				// 游戏模式
 	public const string BIND_SYNC = "bind sync";                // 是否同步饰品/绑定
 	public const string ENEMY_SYNC = "enemy sync";				// 是否同步生物
+	public const string MAP_SYNC = "map sync";					// 主机地图生成输入与主路线 (Patch_MapSync)
 	public const string ALLOW_CHEATS = "allow cheats";			// 是否允许作弊
 	public const string DAMAGE_CONFIG = "damage config";		// 伤害规则配置
 	public const string ACTIVE_TEAMS = "active teams";			// 活跃队伍列表键
@@ -46,7 +48,16 @@ public static partial class MPKeys {
 	public const string TEAM = "team";
 	public const string DEFAULT_TEAM = "default";
 	public const string PLAYER_SCALE = "player scale";
+	public const string DEFAULT_PREFAB_ID = "default";
 
 	// 文件名
 	public const string TEAM_RULES_FILE = "WKMP_TeamRules.json";
+
+	// 生物伤害标签
+	public const string REMOTE_ENEMY_DAMAGE_TAG = "remoteEnemy";
+
+	// 他人物品标签
+	public const string OTHER_PLAYER_ITEM = "otherPlayerItem";
+
+	public const string REMOTE_PLAYER_TAG = "RemotePlayer";
 }

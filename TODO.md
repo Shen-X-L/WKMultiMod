@@ -1,14 +1,48 @@
-生物同步 HUNTER在场景切换后ID不一致(记录hunter生命周期触发) TEETH无法同步 生物移动需要平滑 NEST中部分生物的ID无法一致(僵尸)
+tmd弱智吧holly DEN_BasicNavigator对基类Target模块进行隐藏,重构TargetSyncFeature
 
-盗版创建房间失败 ?
+Rebar Handhold抓握点未知激活 SyncUpdate真的更新吗?
 
-restart指令不修改种子
+可能重构AnimatorSyncFeature为检测Animator状态机参数而不是拦截IL
+
+DEN_EngravedDoor(忽略)
+DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
+ENV_BearTrap
+DEN_Face.Start .Damage.HitShift
+DEN_Hunter.TrackPlayerPosition .Start .TargetCollisionCheck
+DEN_Mother.Damage 
+DEN_VentThing.SetTarget
+DEN_Remains_Active
+DEN_RatKing
+只索敌主玩家
+
+生物同步模块生物激活关闭先经过合并消除后再进行身份注册
+
+仅有吐射动画,没有射击物
+
+僵尸索敌坐标错误
+
+HUNTER在场景切换后ID不一致(记录hunter生命周期触发) TEETH无法同步 NEST中部分生物的ID无法一致(僵尸)
+
+借鉴 https://github.com/MirrorNetworking/Mirror/blob/master/Assets/Mirror/Core/NetworkWriter.cs 改进DataWriter显示重载
+比如使用*(T*)ptr = value; 直接写入内存
+
+远程钻头没有被攀爬物同步
+
+复活时攀爬物同步/场景物品同步
+
+重构地图同步机制
+
+重进指令 如果种子相同不刷新地图 仅同步
+
+Noita和星际拓荒是怎么实现的盗版
+
+切分MPCore
 
 lobbyrestart指令
 
-支持Lua自定义命令
+连接判断循环/完整玩家数据发送可能有卡顿
 
-投射物同步
+支持Lua自定义命令
 
 修改死亡物品掉落 尝试同步
 
@@ -20,7 +54,9 @@ lobbyrestart指令
 分配规则??? 时间戳+(steamId hash)去除大部分冲突+LobbyData进行二次校验来进行偏移
 LP组件使用压缩ID,RP中使用压缩ID+自定义玩家名字
 
-修复捷径碰撞网格丢失
+重构捷径同步 Patch_WorldLoader.GenerateLevels_GenParams_Off
+
+修复玩家手持磁盘,部分新道具的姿势
 
 使用WKLib构建部分UI
 

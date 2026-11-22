@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using WKMPMod.Component;
+using WKMPMod.Components;
 using WKMPMod.Core;
 using WKMPMod.Data;
 using WKMPMod.NetWork;
@@ -46,7 +46,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 	// 创建大厅的异步方法
 	public async void CreateLobby() {
 		var name = SteamClient.Name;
-		MPMain.LogInfo(Localization.Get("MPCore.CreatingLobby", name));
+		MPMain.LogInfo(Localization.GetLog("MPCore.CreatingLobby", name));
 
 		// 预设置大厅数据
 		var lobbyData = new Dictionary<string, string>() {
@@ -73,7 +73,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 			if (this == null) return;
 			// 捕获任何未预料的崩溃
 			CreateFailed();
-			MPMain.LogError(Localization.Get("UI_LobbyCreateButton.CreateLobbyFailed", ex.Message));
+			MPMain.LogError(Localization.GetLog("UI_LobbyCreateButton.CreateLobbyFailed", ex.Message));
 		}
 	}
 
@@ -88,7 +88,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 			btn.interactable = false;
 		}
 		// 显示Loading弹窗
-		MPEventBusGame.NotifyShowLoading(10f);
+		EventBusGame.NotifyShowLoading(10f);
 	}
 
 	// 创建失败 - 目前没有额外逻辑
@@ -101,7 +101,7 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 			btn.interactable = true;
 		}
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading();
+		EventBusGame.NotifyHideLoading();
 	}
 
 	// 创建成功 - 目前没有额外逻辑 后续实现Loading弹窗关闭
@@ -109,10 +109,10 @@ public class UI_LobbyCreateButton : MonoBehaviour {
 		MPCore.SetStatus(MPStatus.LOBBY_MASK, MPStatus.InLobby);
 		//MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 		// 关闭Loading弹窗
-		MPEventBusGame.NotifyHideLoading();
+		EventBusGame.NotifyHideLoading();
 		// 加载游戏模式
 		if (gamemodePanel == null) {
-			MPMain.LogError(Localization.Get("UI_LobbyCreateButton.GameModeDetailPanelNull"));
+			MPMain.LogError(Localization.GetLog("UI_LobbyCreateButton.GameModeDetailPanelNull"));
 			return;
 		}
 		gamemodePanel.LoadGamemode();

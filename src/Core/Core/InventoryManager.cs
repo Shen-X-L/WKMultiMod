@@ -21,7 +21,7 @@ public static class InventoryManager {
 		var itemsDict = new Dictionary<string, byte>();
 
 		if (inventory == null) {
-			MPMain.LogWarning(Localization.Get("MPCore.InventoryDoesNotExist"));
+			MPMain.LogWarning(Localization.GetLog("MPCore.InventoryDoesNotExist"));
 			return itemsDict;
 		}
 		// 获取库存中的物品列表
@@ -58,7 +58,7 @@ public static class InventoryManager {
 		var itemsDict = new Dictionary<string, byte>();
 
 		if (inventory == null) {
-			MPMain.LogWarning(Localization.Get("MPCore.InventoryDoesNotExist"));
+			MPMain.LogWarning(Localization.GetLog("MPCore.InventoryDoesNotExist"));
 			return itemsDict;
 		}
 
@@ -98,7 +98,7 @@ public static class InventoryManager {
 		var itemsDict = new Dictionary<string, byte>();
 
 		if (inventory == null) {
-			MPMain.LogWarning(Localization.Get("MPCore.InventoryDoesNotExist"));
+			MPMain.LogWarning(Localization.GetLog("MPCore.InventoryDoesNotExist"));
 			return itemsDict;
 		}
 
