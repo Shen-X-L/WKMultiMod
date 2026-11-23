@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using DG.Tweening.Plugins.Core;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -37,15 +38,35 @@ public class Patch_CL_GameManager {
 	[HarmonyPatch(nameof(CL_GameManager.Die))]
 	[HarmonyPrefix]
 	public static void Die(string type) {
-		// 死亡切换发生前通知总线
-		if (MPCore.IsInLobby && !CL_GameManager.gMan.IsReviving()) {
-			EventBusGame.NotifyPlayerDeath(type, Patch_ENT_Player.killDamageInfo);
-			MPMain.LogInfo(Localization.GetLog("Patch.PlayerDeath", type));
-			Patch_ENT_Player.killDamageInfo = null;
+		try {
+			// 死亡切换发生前通知总线
+			if (MPCore.IsInLobby && !CL_GameManager.gMan.IsReviving()) {
+				EventBusGame.NotifyPlayerDeath(type, Patch_ENT_Player.killDamageInfo);
+				MPMain.LogInfo(Localization.GetLog("Patch.PlayerDeath", type));
+				Patch_ENT_Player.killDamageInfo = null;
+			}
+		} catch (Exception ex) {
+			MPMain.LogError($"[{ex.GetType().Name}] {ex.Message}\n{ex.StackTrace}");
 		}
 	}
 
 	public static void RestartHeightOffset() {
 		HeightOffset = 0f;
 	}
+
+	#region[记录生成标记]	
+
+	[HarmonyPatch(nameof(CL_GameManager.HasActiveFlag))]
+	[HarmonyPrefix]
+	private static bool Patch_HasActiveFlag_Prefix(string name, ref bool __result) {
+		if (!MapSync.TryHostFlag(name, out bool value)) return true;
+		__result = value;
+		return false;
+	}
+
+	[HarmonyPatch(nameof(CL_GameManager.HasActiveFlag))]
+	[HarmonyPostfix]
+	private static void Patch_HasActiveFlag_Postfix(string name, bool __result) => MapSync.RecordFlag(name, __result);
+
+	#endregion
 }

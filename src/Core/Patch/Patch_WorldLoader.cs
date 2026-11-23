@@ -34,7 +34,11 @@ public class Patch_WorldLoader {
 	[HarmonyPatch(nameof(WorldLoader.Initialize))]
 	[HarmonyPostfix]
 	public static void Initialize_UseCustomSeed() {
-		if (MPCore.IsInLobby) customSeed = true;
+		try {
+			if (MPCore.IsInLobby) customSeed = true;
+		} catch (Exception ex) {
+			MPMain.LogError($"[{ex.GetType().Name}] {ex.Message}\n{ex.StackTrace}");
+		}
 	}
 
 	// 关闭种子偏移, 使复活时种子同步
@@ -48,19 +52,19 @@ public class Patch_WorldLoader {
 	// 关闭生成器的种子偏移, 使复活时种子同步
 	[HarmonyPatch(("GenerateLevels"))]
 	[HarmonyPrefix]
-	public static void GenerateLevels_GenParams_Off(WorldLoader __instance,BranchInfo branch, GenerationParameters genParams) {
-		EventBusGame.NotifyGenerateLevelsStart(__instance, branch, genParams);
-
-		__instance.StartCoroutine(WaitGenerateEnd(__instance, branch, genParams));
-
-		if (MPCore.IsInLobby && MPGameModeManager.IsCampaignMode) {
-			// 禁用种子偏移
-			// TODO: 复活后可能不同步
-			//genParams?.seedOffset = 0;
-			// 启动协程等待生成结束并收集数据
-			// 是支线则进行关卡偏移
-			//bool isGenerationBranch = genParams?.generator is M_GenerationBranch;
-			//__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
+	public static void GenerateLevels_GenParams_Off(WorldLoader __instance, BranchInfo branch, GenerationParameters genParams) {
+		try {
+			EventBusGame.NotifyGenerateLevelsStart(__instance, branch, genParams);
+			__instance.StartCoroutine(WaitGenerateEnd(__instance, branch, genParams));
+			if (MPCore.IsInLobby && MPGameModeManager.IsCampaignMode) {
+				// 禁用种子偏移
+				// 启动协程等待生成结束并收集数据
+				// 是支线则进行关卡偏移
+				//bool isGenerationBranch = genParams?.generator is M_GenerationBranch;
+				//__instance.StartCoroutine(WaitAndCollectData(__instance, branch, isGenerationBranch));
+			}
+		} catch (Exception ex) {
+			MPMain.LogError($"[{ex.GetType().Name}] {ex.Message}\n{ex.StackTrace}");
 		}
 	}
 
@@ -93,7 +97,7 @@ public class Patch_WorldLoader {
 			var worldRoot = GameObject.Find("World_Root(Clone)");
 			var player = ENT_Player.GetPlayer();
 			if (worldRoot == null || player == null)
-				yield break; 
+				yield break;
 
 			// 匹配第一个相同的关卡
 			// 提前构建 Dictionary 提升匹配速度 (O(n))
@@ -157,7 +161,6 @@ public class Patch_WorldLoader {
 			yield return new WaitForFixedUpdate();
 
 			MPMain.LogInfo(Localization.GetLog("Patch.CorrectionCompleted", targetData.levelName, posDelta.ToString()));
-
 		} else {
 			levelWorldTransformDatas = targetBranch.levelTracker
 				.Where(info => info.GetLevel() != null)

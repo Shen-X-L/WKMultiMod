@@ -335,7 +335,7 @@ public static class Patch_MapSync_GenerationList {
 		try {
 			MapSync.KeepSavedRoute(__result);
 		} catch (Exception ex) {
-			MPMain.LogError($"[MP MapSync] {ex}");
+			MPMain.LogError($"[{ex.GetType().Name}] {ex.Message}\n{ex.StackTrace}");
 		}
 	}
 	private static Exception? Finalizer(Exception? __exception) {
@@ -345,15 +345,8 @@ public static class Patch_MapSync_GenerationList {
 }
 
 // 记录生成标记
-[HarmonyPatch(typeof(CL_GameManager), nameof(CL_GameManager.HasActiveFlag))]
-public static class Patch_MapSync_HasActiveFlag {
-	private static bool Prefix(string name, ref bool __result) {
-		if (!MapSync.TryHostFlag(name, out bool value)) return true;
-		__result = value;
-		return false;
-	}
-	private static void Postfix(string name, bool __result) => MapSync.RecordFlag(name, __result);
-}
+/// <see cref="Patch_CL_GameManager.Patch_HasActiveFlag_Prefix"/>
+/// <see cref="Patch_CL_GameManager.Patch_HasActiveFlag_Postfix"/>
 
 // 日期范围检查: 联机时用主机时间, 并按英文规则解析日期
 [HarmonyPatch(typeof(SSM_DateTimeRange), nameof(SSM_DateTimeRange.Check))]
