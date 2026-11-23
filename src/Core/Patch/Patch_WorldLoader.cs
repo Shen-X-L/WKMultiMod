@@ -55,7 +55,8 @@ public class Patch_WorldLoader {
 
 		if (MPCore.IsInLobby && MPGameModeManager.IsCampaignMode) {
 			// 禁用种子偏移
-			genParams?.seedOffset = 0;
+			// TODO: 复活后可能不同步
+			//genParams?.seedOffset = 0;
 			// 启动协程等待生成结束并收集数据
 			// 是支线则进行关卡偏移
 			//bool isGenerationBranch = genParams?.generator is M_GenerationBranch;

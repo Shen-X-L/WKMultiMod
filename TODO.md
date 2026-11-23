@@ -1,8 +1,7 @@
-tmd弱智吧holly DEN_BasicNavigator对基类Target模块进行隐藏,重构TargetSyncFeature
+DEN_Teeth隐藏disableAI
 
-Rebar Handhold抓握点未知激活 SyncUpdate真的更新吗?
-
-可能重构AnimatorSyncFeature为检测Animator状态机参数而不是拦截IL
+[Error  :MultiPlayer Mod] [MP ClimbableSyncModule.CreateNetworkClimbable 598] [MP ClimbableSync] Could not resolve prefab 'Item_Rebar_Hit_Handhold' for OwnerId: 76561198279116422 InstanceId: -142924.
+[Warning:MultiPlayer Mod] [MP ProjectileSync] Projectile prefab not found: Projectile_GrapplePiton
 
 DEN_EngravedDoor(忽略)
 DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
@@ -26,11 +25,11 @@ HUNTER在场景切换后ID不一致(记录hunter生命周期触发) TEETH无法�
 借鉴 https://github.com/MirrorNetworking/Mirror/blob/master/Assets/Mirror/Core/NetworkWriter.cs 改进DataWriter显示重载
 比如使用*(T*)ptr = value; 直接写入内存
 
-远程钻头没有被攀爬物同步
+可能重构AnimatorSyncFeature为检测Animator状态机参数而不是拦截IL
 
 复活时攀爬物同步/场景物品同步
 
-重构地图同步机制
+地图同步机制
 
 重进指令 如果种子相同不刷新地图 仅同步
 

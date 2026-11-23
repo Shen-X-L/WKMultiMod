@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Principal;
-using System.Text;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using WKMPMod.Core;
 using WKMPMod.Util;
-using static Drawing.Palette.Colorbrewer;
 
 namespace WKMPMod.Asset;
 
@@ -31,8 +27,8 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 	public bool IsInitialized { get; private set; } = false;
 
 	public void Initialize() {
+		MPMain.LogDebug("初始化");
 		if (IsInitialized) return;
-
 		// 获取特效
 		foreach (GameObject obj in Resources.FindObjectsOfTypeAll<GameObject>()) {
 			if (!string.IsNullOrEmpty(obj.scene.name)) continue;// 跳过场景对象
@@ -43,7 +39,6 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 			MPMain.LogDebug(Localization.GetLog("MPAssetManager.LoadAsset",obj.name, actualValue));
 			FX_PrefabDic[actualValue] = obj;
 		}
-
 		// 获取玩家生成可抓物
 		foreach (var piton in Resources.FindObjectsOfTypeAll<HandItem_Piton>()) {
 			if (piton == null) continue;
@@ -54,7 +49,6 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 			MPMain.LogDebug(Localization.GetLog("MPAssetManager.LoadAsset", "HandItem_Piton", key));
 			handholdPrefabDic[key] = piton.pitonWorldObject;
 		}
-
 		// 投射物 和 投射物的生成可抓物 
 		foreach (var projectile in Resources.FindObjectsOfTypeAll<Projectile>()) {
 			if (projectile == null) continue;
@@ -75,7 +69,6 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 			handholdPrefabDic[key2] = projectile.hitEffect;
 		}
 
-
 		IsInitialized = true;
 	}
 
@@ -95,7 +88,7 @@ public class MPAssetManager : Singleton<MPAssetManager> {
 	}
 
 	/// <summary>
-	/// 读取png转为
+	/// 读取png转为精灵图
 	/// </summary>
 	public static Sprite LoadSprite(string dir, string filename, bool makePersistent = false) {
 		string fullPath = Path.Combine(dir, filename);

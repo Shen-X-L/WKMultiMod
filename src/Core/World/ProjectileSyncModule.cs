@@ -422,7 +422,7 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 		// 获取预制体
 		var prefab = MPAssetManager.GetProjectilePrefab(data.prefabName);
 		if (prefab == null || !prefab.TryGetComponent<Projectile>(out var template)) {
-			MPMain.LogWarning($"[MP ProjectileSync] Projectile prefab not found: {data.prefabName}");
+			MPMain.LogError($"[MP ProjectileSync] Projectile prefab not found: {data.prefabName}");
 			return;
 		}
 		// 设置标志位
@@ -681,7 +681,7 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 		// 获取预制体
 		var prefab = MPAssetManager.GetProjectilePrefab(data.prefabName);
 		if (prefab == null || !prefab.TryGetComponent<Projectile_Grapple>(out var template)) {
-			MPMain.LogWarning($"[MP ProjectileSync] Projectile prefab not found: {data.prefabName}");
+			MPMain.LogError($"[MP ProjectileSync] Projectile prefab not found: {data.prefabName}");
 			return;
 		}
 		// 设置标志位

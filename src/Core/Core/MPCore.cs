@@ -229,9 +229,7 @@ public class MPCore : MonoSingleton<MPCore> {
 			_UIManager = UI_Manager.InitializeOn(gameObject);
 
 			// 初始化资源管理器
-			// 必须在游戏资源加载完成后初始化
 			_MPAssetManager = MPAssetManager.Instance;
-			_MPAssetManager.Initialize();
 
 			// 初始化网络数据包路由器
 			MPPacketRouter.Initialize();
@@ -345,6 +343,9 @@ public class MPCore : MonoSingleton<MPCore> {
 		// 重置偏移高度
 		Patch_CL_GameManager.RestartHeightOffset();
 		IsGrabOrHangState = ENT_Player.InteractType.hanging;
+
+		// 必须在游戏资源加载完成后初始化
+		_MPAssetManager.Initialize();
 
 		switch (scene.name) {
 			case "Game-Main": {

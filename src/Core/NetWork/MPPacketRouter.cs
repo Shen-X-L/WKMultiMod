@@ -107,7 +107,7 @@ public class MPPacketRouter {
 				count++;
 				MPMain.LogDebug($"Route {packetType} registered handler function {action.Method.Name}");
 			}
-			MPMain.LogDebug($"Successfully registered {count} handlers from type {handlerType.Name}.");
+			if (count > 0) MPMain.LogDebug($"Successfully registered {count} handlers from type {handlerType.Name}.");
 		} catch (Exception ex) {
 			MPMain.LogError($"Failed to internal register routes from type {handlerType.Name}: {ex.Message}");
 		}

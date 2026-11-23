@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Entities;
 using Unity.VisualScripting;
 using UnityEngine;
 using WKMPMod.Components;
@@ -332,6 +333,10 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	private readonly CollectionGroupingManager<IDType, NetworkedGameEntity> _groupManager = new();
 	private readonly List<GroupKey<IDType>> _activeGroupKeys = new();
 
+	// 补杀列表
+	private readonly List<(GameEntity entity,string diedType)> _pendingKills = new();
+
+
 	private void ResetSweepState() {
 		_timer = 0f;
 		_isScanning = false;
@@ -344,6 +349,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		_pendingAbandonList.Clear();
 		_groupManager.Clear();
 		_activeGroupKeys.Clear();
+		_pendingKills.Clear();
 	}
 
 	#endregion
@@ -546,6 +552,12 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		if (!MPCore.CanSync || !IsEnabled) {
 			ResetSweepState();
 			return;
+		}
+
+		if (_pendingKills.Count > 0) { 
+			foreach(var (entity,type) in _pendingKills)
+				if (entity != null && !entity.dead) entity.Kill(type);
+			_pendingKills.Clear();
 		}
 
 		// 1. 空闲阶段: 累加定时器, 等待下一个同步周期到来
@@ -783,16 +795,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 	#region[扫描与生物网络身份]
 
-	/// <summary>
-	/// 确保敌人有 NetworkedEnemy 组件
-	/// 从缓存查找或创建, 分配稳定 NetworkId.
-	/// 如果该生物已经被记录为死亡, 则立即杀死该生物. 并且不会再注册到字典中.
-	/// </summary>
-	private static IEnumerator KillAfterStart(GameEntity entity, string type) {
-		yield return null;
-		if (entity != null && !entity.dead) entity.Kill(type);
-	}
-
 	private NetworkedGameEntity EnsureIdentity(GameEntity entity) {
 		var syncRoot = entity.transform;
 		if (syncRoot == null) return null;
@@ -815,7 +817,8 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			// 这里在 OnEnable 中, 生物的 Start 还没执行 (clipHandler 等未初始化), 立即 Kill 会在
 			// 重写的 Kill 中抛 NullReferenceException (如 DEN_Gasbag / DEN_Barnacle), 死亡没有执行完, 生物留在场上.
 			// 推迟到下一帧 (Start 之后) 再杀.
-			entity.StartCoroutine(KillAfterStart(entity, string.IsNullOrEmpty(diedType) ? "diedSync" : diedType));
+			// TODO: 也许以后可以用postfix Start后击杀.
+			_pendingKills.Add((entity, string.IsNullOrEmpty(diedType) ? "diedSync" : diedType));
 			return identity;
 		}
 		// 如果有所有者记录, 则设置当前所有者
