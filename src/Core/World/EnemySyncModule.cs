@@ -335,7 +335,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	private readonly List<GroupKey<IDType>> _activeGroupKeys = new();
 
 	// 补杀列表
-	private readonly List<(GameEntity entity,string diedType)> _pendingKills = new();
+	private readonly List<(GameEntity entity,string diedType,int frame)> _pendingKills = new();
 
 
 	private void ResetSweepState() {
@@ -350,7 +350,6 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 		_pendingAbandonList.Clear();
 		_groupManager.Clear();
 		_activeGroupKeys.Clear();
-		_pendingKills.Clear();
 	}
 
 	#endregion
@@ -385,6 +384,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	public void ResetState() {
 		// 重置分帧打包状态机
 		ResetSweepState();
+		_pendingKills.Clear();
 		// 清空已同步生物字典
 		enemies.Clear();
 		_entitySubscribers.Clear();
@@ -536,6 +536,8 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 
 	// 对真正的非短激活/关闭对象进行所有权操作
 	public void ReadyUpdate(float deltaTime) {
+		// 补杀不依赖连接 (放在 SyncUpdate 时未联机会被 ResetSweepState 清空)
+		if (_pendingKills.Count > 0) FlushPendingKills();
 		if (_pendingEntityChanges.Count == 0) {
 			_cleanupCountdown = 5;
 			return;
@@ -550,18 +552,33 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 	}
 
 	/// <summary>
+	/// 补杀已死亡生物:
+	/// - 只处理更早帧加入的 (同一帧加入的 Start 未必执行过);
+	/// - 未激活的直接移出 (加载期间同一帧激活又关闭, Start 没跑; 下次激活时 EnsureIdentity 会重新加入);
+	/// - 先移出再 Kill, 逐个捕获异常, 一个 Kill 出错不会卡住列表和后面的同步.
+	/// </summary>
+	private void FlushPendingKills() {
+		int frame = Time.frameCount;
+		for (int i = _pendingKills.Count - 1; i >= 0; i--) {
+			var (entity, type, addedFrame) = _pendingKills[i];
+			if (addedFrame >= frame) continue;
+			_pendingKills.RemoveAt(i);
+			if (entity == null || entity.dead || !entity.isActiveAndEnabled) continue;
+			try {
+				entity.Kill(type);
+			} catch (Exception ex) {
+				MPMain.LogWarning($"[MP EnemySync] Pending kill of {entity.name} failed: {ex.Message}");
+			}
+		}
+	}
+
+	/// <summary>
 	/// 由 WorldSyncManager 每帧在 LateUpdate 调用
 	/// </summary>
 	public void SyncUpdate(float deltaTime) {
 		if (!MPCore.CanSync || !IsEnabled) {
 			ResetSweepState();
 			return;
-		}
-
-		if (_pendingKills.Count > 0) { 
-			foreach(var (entity,type) in _pendingKills)
-				if (entity != null && !entity.dead) entity.Kill(type);
-			_pendingKills.Clear();
 		}
 
 		// 1. 空闲阶段: 累加定时器, 等待下一个同步周期到来
@@ -824,7 +841,7 @@ public class EnemySyncModule : Singleton<EnemySyncModule>, ISyncModule {
 			// 重写的 Kill 中抛 NullReferenceException (如 DEN_Gasbag / DEN_Barnacle), 死亡没有执行完, 生物留在场上.
 			// 推迟到下一帧 (Start 之后) 再杀.
 			// TODO: 也许以后可以用postfix Start后击杀.
-			_pendingKills.Add((entity, string.IsNullOrEmpty(diedType) ? "diedSync" : diedType));
+			_pendingKills.Add((entity, string.IsNullOrEmpty(diedType) ? "diedSync" : diedType, Time.frameCount));
 			return identity;
 		}
 		// 如果有所有者记录, 则设置当前所有者
