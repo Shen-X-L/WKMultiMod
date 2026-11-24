@@ -88,7 +88,7 @@ public class PropSyncModule : Singleton<PropSyncModule>, ISyncModule {
 		_grabbers.Clear();
 	}
 
-	public void OnSyncUpdate(float deltaTime) {
+	public void SyncUpdate(float deltaTime) {
 		if (MPSteamworks.IsHost && _grabbers.Count > 0) {
 			_hostCheckTimer += deltaTime;
 			if (_hostCheckTimer >= 1f) {

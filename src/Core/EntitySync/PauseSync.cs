@@ -54,7 +54,7 @@ public class PauseSync : Singleton<PauseSync>, ISyncModule {
 		_pausedSince = -1f;
 	}
 
-	public void OnSyncUpdate(float deltaTime) {
+	public void SyncUpdate(float deltaTime) {
 		bool paused = LocalPaused;
 		if (!paused) {
 			_pausedSince = -1f;
