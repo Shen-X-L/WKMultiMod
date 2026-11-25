@@ -70,15 +70,6 @@ public class NetworkedClimable : MonoBehaviour {
 		ClimbableSyncModule.RegisterLookup(Handhold, this);
 	}
 
-	private void Start() {
-		transform.SetPositionAndRotation(data.position, data.rotation);
-		if (Handhold != null) {
-			Handhold.Initialize();
-			Handhold.secureAmount = data.secureAmount;
-			Handhold.secure = data.secure;
-		}
-	}
-
 	private void OnDestroy() {
 		ClimbableSyncModule.UnregisterLookup(Handhold);
 	}

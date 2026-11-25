@@ -1,8 +1,5 @@
 DEN_Teeth隐藏disableAI
 
-[Error  :MultiPlayer Mod] [MP ClimbableSyncModule.CreateNetworkClimbable 598] [MP ClimbableSync] Could not resolve prefab 'Item_Rebar_Hit_Handhold' for OwnerId: 76561198279116422 InstanceId: -142924.
-[Warning:MultiPlayer Mod] [MP ProjectileSync] Projectile prefab not found: Projectile_GrapplePiton
-
 DEN_EngravedDoor(忽略)
 DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
 ENV_BearTrap
@@ -37,7 +34,11 @@ Noita和星际拓荒是怎么实现的盗版
 
 切分MPCore
 
+大厅可以用大厅码加入
+
 lobbyrestart指令
+
+剪刀跟随物
 
 连接判断循环/完整玩家数据发送可能有卡顿
 

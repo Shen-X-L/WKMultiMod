@@ -241,26 +241,6 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	}
 
 	/// <summary>
-	/// 注册本地投射物生成的可攀爬物体 (基于IL捕获列表).
-	/// 例如由射击类物品产生的钩点/可攀爬对象.
-	///
-	/// Registers a climbable spawned by a local projectile
-	/// For example climbable points created by shoot-type items
-	/// </summary>
-	public void RegisterNewLocalProjectileClimbable(Projectile source, RaycastHit hit) {
-		if (_capturedPitons.Count == 0) return;
-		if (!MPCore.IsReady || ApplyingRemoteState || source == null || !IsLocalProjectile(source)) {
-			_capturedPitons.Clear();
-			return;
-		}
-
-		foreach (var piton in _capturedPitons)
-			RegisterLocalClimbable(piton);
-
-		_capturedPitons.Clear();
-	}
-
-	/// <summary>
 	/// 添加玩家正在抓握的 攀爬物 到 抓握列表
 	/// </summary>
 	public void OnLocalHandholdGrabbed(NetworkedClimable identity) {
@@ -360,28 +340,26 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 		}
 	}
 
-	public bool RegisterExistingObject(GameObject root, NetworkObjectId networkId, bool isRemote) {
-		if (root == null) return false;
+	public bool RegisterExistingObject(GameObject root, NetworkObjectId networkId, bool isRemote,bool broadcast) {
+		if (!MPCore.IsReady || !IsEnabled || ApplyingRemoteState|| root == null) return false;
+		var handhold = root.GetComponent<CL_Handhold>() ?? root.GetComponentInChildren<CL_Handhold>(true);
+		if (handhold == null) return false;
 		// 添加组件
 		if (root.TryGetComponent<NetworkedClimable>(out var existing)) {
 			// 防止重复注册
 			if (existing.IsValid) return true;
 		} else existing = root.AddComponent<NetworkedClimable>();
-		// 初始化 Climbable 数据
-		var data = new ClimbableData {
-			NetworkId = networkId,
-			position = root.transform.position,
-			rotation = root.transform.rotation,
-			prefabKey = MPUtil.CleanCloneName(root.name),
-		};
-		existing.BindData(data);
+		// 重设数据
+		existing.data.NetworkId = networkId;
+		existing.data.prefabKey = MPUtil.CleanCloneName(root.name);
+		existing.RememberState();
 		// 注册模块内部缓存
 		if (!isRemote) _localHandhold[networkId] = existing;
 		else _remoteHandhold[networkId] = existing;
 		_globalPersistentTable[networkId] = existing.data;
 		// 普通本地创建才需要单独广播 Climbable Create
 		// Grapple 转换由 GrappleLatched 事件负责通知远端
-		if (!isRemote) BroadcastCreate(existing);
+		if (!isRemote && broadcast) BroadcastCreate(existing);
 		return true;
 	}
 
@@ -547,15 +525,14 @@ public class ClimbableSyncModule : Singleton<ClimbableSyncModule>, ISyncModule {
 	private void RegisterLocalClimbable(GameObject piton) {
 		var root = GetClimbableRoot(piton);
 		if (root == null) return;
-		var prefabKey = MPUtil.CleanCloneName(root.name);
-
+		// 注册网络标识
 		var identity = GetOrCreateIdentity(root);
 		if (!identity.IsValid) {
 			identity.data.NetworkId = new NetworkObjectId(MPSteamworks.UserSteamId, root.gameObject.GetInstanceID());
-			identity.data.prefabKey = prefabKey;
+			identity.data.prefabKey = MPUtil.CleanCloneName(root.name);
 			identity.RememberState();
 		}
-
+		// 注册到字典
 		_localHandhold[identity.NetworkId] = identity;
 		_globalPersistentTable[identity.NetworkId] = identity.data;
 

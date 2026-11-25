@@ -119,9 +119,8 @@ public class MPGameModeManager {
 			MPCore.NeedResetTrinkets = true;
 		}
 		// 一直设置种子, 相同种子而跳过设置种子会导致种子重随机
-		if (data.seed is int value) {
+		if (data.seed is int value) 
 			WorldLoader.SetPresetSeed(value.ToString());
-		}
 		// 设置为已经初始化地图
 		MPCore.SetStatus(MPStatus.INIT_MASK, MPStatus.Initialized);
 		// 手动重载地图

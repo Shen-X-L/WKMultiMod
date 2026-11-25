@@ -8,6 +8,7 @@ using UnityEngine;
 using WKMPMod.Core;
 using WKMPMod.Util;
 using WKMPMod.World;
+using static Projectile;
 
 [HarmonyPatch(typeof(Projectile))]
 public static class Patch_Projectile {
@@ -16,23 +17,12 @@ public static class Patch_Projectile {
 
 	public static readonly AccessTools.FieldRef<Projectile, Vector3> velocityField =
 		AccessTools.FieldRefAccess<Projectile, Vector3>("velocity");
-
-	public static readonly AccessTools.FieldRef<Projectile, Vector3> startPosField =
-	AccessTools.FieldRefAccess<Projectile, Vector3>("startPos");
-
 	public static readonly AccessTools.FieldRef<Projectile, float> velocityMultiplierField =
 		AccessTools.FieldRefAccess<Projectile, float>("velMult");
-
 	public static readonly AccessTools.FieldRef<Projectile, int> bouncesField =
 		AccessTools.FieldRefAccess<Projectile, int>("bounces");
-
 	public static readonly AccessTools.FieldRef<Projectile, bool> hasHitSurfaceField =
 		AccessTools.FieldRefAccess<Projectile, bool>("hasHitSurface");
-
-	public static readonly AccessTools.FieldRef<Projectile,bool> hasSpawnedTracerField =
-		AccessTools.FieldRefAccess<Projectile, bool>("hasSpawnedTracer");
-
-
 
 	private static readonly Type[] InitializeArguments = {
 		typeof(Vector3),typeof(GameEntity),typeof(Item)
@@ -40,53 +30,40 @@ public static class Patch_Projectile {
 
 	#endregion
 
-
+	/// <summary>
+	/// 投射物创建
+	/// </summary>
 	[HarmonyPatch(nameof(Projectile.Initialize))]
 	[HarmonyPostfix]
 	private static void Patch_Initialize(Projectile __instance) {
 		ProjectileSyncModule.Instance?.OnInitialize(__instance);
 	}
 
-
+	/// <summary>
+	/// 是否还进行碰撞检测
+	/// </summary>
 	[HarmonyPatch("CollisionCheck")]
 	[HarmonyPrefix]
 	private static bool Patch_CollisionCheck(Projectile __instance) {
 		return ProjectileSyncModule.Instance.CollisionCheck(__instance);
 	}
 
-
+	/// <summary>
+	/// 反弹回调
+	/// </summary>
 	[HarmonyPatch(nameof(Projectile.OnRichochet))]
 	[HarmonyPostfix]
 	private static void Patch_Richochet(Projectile __instance) {
 		ProjectileSyncModule.Instance?.OnRichochet(__instance);
 	}
 
-
-	[HarmonyPatch("CreateHitEffect")]
-	[HarmonyPrefix]
-	private static void Patch_CreateHitEffect(Projectile __instance, RaycastHit hit) {
-		// 已经命中过
-		if (__instance.HasHitSurface()) return;
-		ProjectileSyncModule.Instance?.OnCreateHitEffect(__instance,ref hit);
-	}
-
-	#region[投射物碰撞命中时生成的可攀爬对象]
-
 	/// <summary>
-	/// Patch: 投射物碰撞命中时
-	/// - 用于处理由投射物生成的可攀爬对象 (如钢筋, 冰枪点等) 
+	/// 命中效果对象捕获
 	/// </summary>
-	[HarmonyPatch("OnCollisionHit")]
-	[HarmonyPostfix]
-	public static void Patch_OnCollisionHit_Postfix(Projectile __instance, RaycastHit hit) {
-		ClimbableSyncModule.Instance.RegisterNewLocalProjectileClimbable(__instance, hit);
-	}
-
 	[HarmonyPatch("CreateHitEffect")]
 	[HarmonyTranspiler]
 	static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
 		var codes = new List<CodeInstruction>(instructions);
-
 		// 查找符合特征的 Instantiate 调用位置
 		int targetIndex = codes.FindIndex(c =>
 			c.opcode == OpCodes.Call
@@ -99,24 +76,75 @@ public static class Patch_Projectile {
 			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Projectile.CreateHitEffect"));
 			return codes;
 		}
-
 		// 注入代码: 复制返回值并调用 SaveCapturedPiton
 		var saveMethod = AccessTools.Method(
-			typeof(Patch_Projectile), 
-			nameof(SaveCapturedPiton));
+			typeof(Patch_Projectile),
+			nameof(SaveHitEffect));
 		codes.InsertRange(targetIndex + 1, new[] {
 			new CodeInstruction(OpCodes.Dup),
+			new CodeInstruction(OpCodes.Ldarg_0),
 			new CodeInstruction(OpCodes.Call, saveMethod)
+		});
+		return codes;
+	}
+
+	/// <summary>
+	/// 命中效果对象捕获
+	/// </summary>
+	private static void SaveHitEffect(GameObject go, Projectile pro) {
+		ProjectileSyncModule.Instance.SaveHitEffect(pro, go);
+	}
+
+	/// <summary>
+	/// 命中回调
+	/// </summary>
+	[HarmonyPatch("CreateHitEffect")]
+	[HarmonyPrefix]
+	private static void Patch_CreateHitEffect(Projectile __instance, RaycastHit hit, HitEffect effect) {
+		// 已经命中过
+		if (__instance.HasHitSurface()) return;
+		ProjectileSyncModule.Instance?.OnCreateHitEffect(__instance, ref hit, effect);
+	}
+
+	[HarmonyPatch("ParentHitItem")]
+	[HarmonyTranspiler]
+	private static IEnumerable<CodeInstruction> Transpiler_ParentHitItem(IEnumerable<CodeInstruction> instructions) {
+		var codes = new List<CodeInstruction>(instructions);
+
+		// 定位 clone.GetDropObject(true).transform.rotation = rotation; 之后的 Transform.set_rotation
+		int setRotIndex = codes.FindIndex(c =>
+			(c.opcode == OpCodes.Callvirt || c.opcode == OpCodes.Call)
+			&& c.operand is MethodInfo m
+			&& m.Name == "set_rotation"
+			&& m.DeclaringType == typeof(Transform)
+		);
+
+		if (setRotIndex == -1) {
+			MPMain.LogError(Localization.GetLog("MPPatch.TranspilerError", "Projectile.ParentHitItem"));
+			return codes;
+		}
+
+		var notifyMethod = AccessTools.Method(
+			typeof(Patch_Projectile),
+			nameof(OnCloneDropObjectPlaced),
+			new[] { typeof(Projectile), typeof(Item_Object) }
+		);
+
+		// 在 set_rotation 之后注入：
+		// OnCloneDropObjectPlaced(this, clone.GetDropObject(true))
+		codes.InsertRange(setRotIndex + 1, new[] {
+			new CodeInstruction(OpCodes.Ldarg_0),
+			new CodeInstruction(OpCodes.Ldloc_0),
+			new CodeInstruction(OpCodes.Call, notifyMethod)
 		});
 
 		return codes;
 	}
 
-	private static void SaveCapturedPiton(GameObject go) {
-		ClimbableSyncModule.SaveCapturedPiton(go);
+	private static void OnCloneDropObjectPlaced(Projectile projectile, Item clone) {
+		if (projectile == null || clone == null) return;
+		ProjectileSyncModule.Instance?.OnParentHitItem(projectile, clone);
 	}
-
-	#endregion
 }
 
 #region[Grapple抓钩特化]
@@ -131,25 +159,18 @@ public static class Patch_HandItem_Shoot_Grapple {
 	[HarmonyTranspiler]
 	private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
 		var codes = new List<CodeInstruction>(instructions);
-
 		var grappleField = AccessTools.Field(
 			typeof(HandItem_Shoot_Grapple), "grappleProjectile");
-
 		var recallingField = AccessTools.Field(
 			typeof(HandItem_Shoot_Grapple), "recalling");
-
 		var hasHitMethod = AccessTools.Method(
 			typeof(Patch_HandItem_Shoot_Grapple),nameof(OnGrappleHasHit));
-
 		var removeMethod = AccessTools.Method(
 			typeof(Patch_HandItem_Shoot_Grapple),nameof(OnGrappleRemove));
-
 		var recallingMethod = AccessTools.Method(
 			typeof(Patch_HandItem_Shoot_Grapple),nameof(OnGrappleRecalling));
-
 		var dropHandMethod = AccessTools.Method(
 			typeof(Patch_HandItem_Shoot_Grapple),nameof(OnGrappleDropHand));
-
 		// 查找 vector = grappleProjectile.transform.position - transform.position
 		// 对应的 Vector3.op_Subtraction, 并在 stloc 之后注入
 		int hitIndex = codes.FindIndex(c =>
@@ -158,7 +179,6 @@ public static class Patch_HandItem_Shoot_Grapple {
 			&& m.Name == "op_Subtraction"
 			&& m.DeclaringType == typeof(Vector3)
 		);
-
 		if (hitIndex == -1 || hitIndex + 1 >= codes.Count
 			|| !IsStloc(codes[hitIndex + 1])) {
 			MPMain.LogError("OnGrappleHasHit IL注入点不存在");
@@ -166,27 +186,22 @@ public static class Patch_HandItem_Shoot_Grapple {
 		}
 		// 位移定位到IL_017c: ldarg.0之前
 		hitIndex += 2;
-
 		// 查找 recalling = true 对应的 stfld.
 		int recallingIndex = codes.FindIndex(c =>
 			c.opcode == OpCodes.Stfld
 			&& Equals(c.operand, recallingField)
 		);
-
 		if (recallingIndex == -1) {
 			MPMain.LogError("OnGrappleRecalling IL注入点不存在");
 			return codes;
 		}
-
 		recallingIndex++;
-
 		// 查找 !InputManager.GetButton(hand.fireButton).Pressed toHook.magnitude < 2f 分支中的 RemoveItem.
 		// 查找 maxProjectileRange * 3f 分支中的 RemoveItem.
 		// 收集所有调用 RemoveItem 的指令索引
 		List<int> removeItemCallIndices = new List<int>();
 		for (int i = 0; i < codes.Count; i++) {
 			var instruction = codes[i];
-
 			if ((instruction.opcode == OpCodes.Callvirt || instruction.opcode == OpCodes.Call)
 				&& instruction.operand is MethodInfo method
 				&& method.Name == "RemoveItem"
@@ -194,12 +209,10 @@ public static class Patch_HandItem_Shoot_Grapple {
 				removeItemCallIndices.Add(i);
 			}
 		}
-
 		if (removeItemCallIndices.Count < 3) {
 			MPMain.LogError("RemoveItem IL注入点数量不足3个");
 			return codes;
 		}
-
 		// 按照索引从后往前插入, 避免前面的插入改变后续索引.
 		var injections = new List<(int index, List<CodeInstruction> instructions)> {
 			// OnGrappleHasHit(grappleProjectile, this)
@@ -209,7 +222,6 @@ public static class Patch_HandItem_Shoot_Grapple {
 				new CodeInstruction(OpCodes.Ldarg_0),
 				new CodeInstruction(OpCodes.Call, hasHitMethod)
 			}),
-
 	        // OnGrappleRecalling(grappleProjectile, this)
 	        (recallingIndex, new List<CodeInstruction> {
 				new CodeInstruction(OpCodes.Ldarg_0),
@@ -218,7 +230,6 @@ public static class Patch_HandItem_Shoot_Grapple {
 				new CodeInstruction(OpCodes.Call, recallingMethod)
 			}),
 		};
-
 		// 前2个 RemoveItem 前添加 OnGrappleDropHand
 		for (int k = 0; k < 2; k++) {
 			int callIdx = removeItemCallIndices[k];
@@ -230,7 +241,6 @@ public static class Patch_HandItem_Shoot_Grapple {
 				new CodeInstruction(OpCodes.Call, dropHandMethod)
 			}));
 		}
-
 		// 第3个 RemoveItem 前添加 OnGrappleRemove
 		{
 			int callIdx = removeItemCallIndices[2];
@@ -242,11 +252,9 @@ public static class Patch_HandItem_Shoot_Grapple {
 				new CodeInstruction(OpCodes.Call, removeMethod)
 			}));
 		}
-
 		foreach (var injection in injections.OrderByDescending(x => x.index)) {
 			codes.InsertRange(injection.index, injection.instructions);
 		}
-
 		return codes;
 	}
 
@@ -340,21 +348,51 @@ public static class Patch_Projectile_ReturnRebar {
 	[HarmonyPatch("ReturnUpdate")]
 	[HarmonyPrefix]
 	private static bool Patch_ReturnUpdate(Projectile_ReturnRebar __instance) {
-		return ProjectileSyncModule.Instance.ReturnUpdate(__instance);
+		return ProjectileSyncModule.Instance.RebarReturnUpdate(__instance);
 	}
 
 	[HarmonyPatch("StartReturn")]
 	[HarmonyPostfix]
 	private static void Patch_StartReturn(Projectile_ReturnRebar __instance) {
-		ProjectileSyncModule.Instance.OnStartReturn(__instance);
+		ProjectileSyncModule.Instance.OnRebarStartReturn(__instance);
 	}
 
 	[HarmonyPatch("CreateHitEffect")]
 	[HarmonyPrefix]
-	private static void Patch_CreateHitEffect(Projectile_ReturnRebar __instance, RaycastHit hit) {
+	private static void Patch_CreateHitEffect(Projectile_ReturnRebar __instance, RaycastHit hit, HitEffect effect) {
 		// 已经命中过
 		if (__instance.returning||__instance.HasHitSurface()) return;
-		ProjectileSyncModule.Instance?.OnCreateHitEffect(__instance, ref hit);
+		ProjectileSyncModule.Instance?.OnCreateHitEffect(__instance, ref hit, effect);
+	}
+}
+
+#endregion
+
+#region[Boomerang剪刀回旋镖特化]
+
+[HarmonyPatch(typeof(Projectile_Boomerang))]
+public static class Patch_Projectile_Boomerang {
+	public static readonly AccessTools.FieldRef<Projectile_Boomerang, bool> hasHitSurfaceField =
+		AccessTools.FieldRefAccess<Projectile_Boomerang, bool>("hasHitSurface");
+
+	[HarmonyPatch("ReturnUpdate")]
+	[HarmonyPrefix]
+	private static bool Patch_ReturnUpdate(Projectile_Boomerang __instance) {
+		return ProjectileSyncModule.Instance.BoomerangReturnUpdate(__instance);
+	}
+
+	[HarmonyPatch("StartReturn")]
+	[HarmonyPostfix]
+	private static void Patch_StartReturn(Projectile_Boomerang __instance) {
+		ProjectileSyncModule.Instance.OnBoomerangStartReturn(__instance);
+	}
+
+	[HarmonyPatch("CreateHitEffect")]
+	[HarmonyPrefix]
+	private static void Patch_CreateHitEffect(Projectile_Boomerang __instance, RaycastHit hit, HitEffect effect) {
+		MPMain.LogDebug("=========");
+		if (__instance.returning || hasHitSurfaceField(__instance)) return;
+		ProjectileSyncModule.Instance?.OnCreateHitEffect(__instance, ref hit, effect);
 	}
 }
 
