@@ -127,7 +127,7 @@ public static class Patch_Projectile {
 		var notifyMethod = AccessTools.Method(
 			typeof(Patch_Projectile),
 			nameof(OnCloneDropObjectPlaced),
-			new[] { typeof(Projectile), typeof(Item_Object) }
+			new[] { typeof(Projectile), typeof(Item) }
 		);
 
 		// 在 set_rotation 之后注入：

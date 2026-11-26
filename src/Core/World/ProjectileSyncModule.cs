@@ -674,8 +674,14 @@ public class ProjectileSyncModule : Singleton<ProjectileSyncModule>, ISyncModule
 		_createHitEffectProjectile = (key, projectile);
 		// RPC调用
 		RaycastHit hit = default;
-		hit.point = hitPositon;
-		hit.normal = hitNormal;
+		if (Physics.Raycast(hitPositon + hitNormal * 0.1f, -hitNormal, out var rayHit, 0.5f)) {
+			hit = rayHit;
+		} else {
+			hit.point = hitPositon;
+			hit.normal = hitNormal;
+		}
+		// 特性贴花置空 避免异常导致投射物析构失败
+		if (effect.decal != null && hit.collider == null) effect.decal = null;
 		var del = (Action<RaycastHit, HitEffect>)Delegate.CreateDelegate(
 			typeof(Action<RaycastHit, HitEffect>),
 			projectile,// 目标实例

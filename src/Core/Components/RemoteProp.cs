@@ -49,6 +49,8 @@ public class RemoteProp : CL_Prop, Clickable {
 	}
 
 	public override void Update() {}
+
+	public override void TickUpdate() { }
 	#endregion
 
 	#region[CL_Prop重写]

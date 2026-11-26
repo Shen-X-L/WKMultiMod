@@ -63,7 +63,7 @@ public class WorldSyncManager : MonoSingleton<WorldSyncManager> {
 		Type singletonType = typeof(Singleton<>);
 
 		foreach (Type type in assembly.GetTypes()) {
-			// 过滤抽象类、接口
+			// 过滤抽象类, 接口
 			if (!type.IsClass || type.IsAbstract) continue;
 			// 必须实现 ISyncModule
 			if (!typeof(ISyncModule).IsAssignableFrom(type)) continue;

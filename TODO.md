@@ -1,5 +1,7 @@
 DEN_Teeth隐藏disableAI
 
+神秘的模型偏移?上升电梯让CL_Prop类型跟随电梯运动,哪个组件做的?
+
 DEN_EngravedDoor(忽略)
 DEN_Teeth.Awake AIC_Teeth_Chase.KillPlayerAnimation
 ENV_BearTrap
