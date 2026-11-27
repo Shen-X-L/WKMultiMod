@@ -162,6 +162,10 @@ public class NetworkedGameEntity : MonoBehaviour {
 				var handTransform = transform.Find("Hand_Root");
 				if (handTransform != null) RegisterFeature(new SubTransformSyncFeature(handTransform, this));
 				break;
+			// 藤壶 特化处理触手 (附着点、收回、抓人)
+			case DEN_Barnacle barnacle:
+				RegisterFeature(new BarnacleTongueSyncFeature(barnacle, this));
+				break;
 		}
 	}
 
